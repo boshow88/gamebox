@@ -35,7 +35,7 @@
     // ---------------------------------------------------------------
     var GAMES = [
         {
-            id: 'rune-stones', theme: 'arcade', icon: 'stone', color: '#d9544e',
+            id: 'rune-stones', theme: 'arcade', icon: 'stone', color: '#86cfc6',
             href: './games/rune-stones.html',
             tags: ['puzzle', 'timeattack', 'single', 'multi'],
         },
@@ -90,6 +90,9 @@
             tags: ['puzzle', 'single'],
         },
     ];
+
+    // Default display order: a soft rainbow sorted by each game's theme-colour hue.
+    GAMES.sort(function (a, b) { return hexHue(a.color) - hexHue(b.color); });
 
     // ---------------------------------------------------------------
     // i18n
@@ -211,6 +214,21 @@
         image: '<rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>',
         crown: '<path d="M11.562 3.266a.5.5 0 0 1 .876 0L15.39 8.87a1 1 0 0 0 1.516.294L21.183 5.5a.5.5 0 0 1 .798.519l-2.834 10.246a1 1 0 0 1-.956.734H5.81a1 1 0 0 1-.957-.734L2.02 6.02a.5.5 0 0 1 .798-.519l4.276 3.664a1 1 0 0 0 1.516-.294z"/><path d="M5 21h14"/>',
     };
+
+    // Hue (0–360) of a #rrggbb colour — used to order the launcher as a soft rainbow.
+    function hexHue(hex) {
+        var m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex || '');
+        if (!m) return 0;
+        var r = parseInt(m[1], 16) / 255, g = parseInt(m[2], 16) / 255, b = parseInt(m[3], 16) / 255;
+        var max = Math.max(r, g, b), min = Math.min(r, g, b), d = max - min;
+        if (d === 0) return 0;
+        var h;
+        if (max === r) h = ((g - b) / d) % 6;
+        else if (max === g) h = (b - r) / d + 2;
+        else h = (r - g) / d + 4;
+        h *= 60;
+        return h < 0 ? h + 360 : h;
+    }
 
     function iconSvg(name) {
         var inner = ICONS[name];

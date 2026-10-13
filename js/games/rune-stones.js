@@ -407,7 +407,7 @@
         return fontCache;
     }
     function accent() {
-        if (!accentCache) accentCache = (getComputedStyle(document.body).getPropertyValue('--game-color') || '').trim() || '#d9544e';
+        if (!accentCache) accentCache = (getComputedStyle(document.body).getPropertyValue('--game-color') || '').trim() || '#86cfc6';
         return accentCache;
     }
     // Card palette: defense = blue family, attack = red family. `hi` is the brighter
@@ -610,11 +610,12 @@
     }
     function inRect(p, r) { return p.x >= r.x && p.x <= r.x + r.w && p.y >= r.y && p.y <= r.y + r.h; }
     function swapCells(a, b) { const tmp = board[a]; board[a] = board[b]; board[b] = tmp; }
-    // A soft, short click per swap — pitched by cell so sweeping across the board strums like
-    // running your finger over a comb's teeth. `k` staggers multiple swaps in one frame.
+    // A soft, low "clack" per swap (lightly pitched by cell so a sweep across the
+    // board still reads as a comb-strum) — deliberately quiet and percussive, not
+    // a bright beep. `k` staggers multiple swaps in one frame.
     function swapTick(idx, k) {
-        const f = 440 + cellCol(idx) * 42 + cellRow(idx) * 12;
-        const fire = () => AC.audio.tone(f, 0.03, { type: 'square', volume: 0.05 });
+        const f = 150 + cellCol(idx) * 16 + cellRow(idx) * 7;
+        const fire = () => AC.audio.tone(f, 0.018, { type: 'square', slideTo: f * 0.55, volume: 0.03 });
         if (k) setTimeout(fire, k * 14); else fire();
     }
     function stepToward(from, to) {
@@ -3075,7 +3076,7 @@
             play(i) { playCard(i | 0); return G.hand; },
             info() { return { round: G.round, phase: G.phase, you: G.youHp, rival: G.aiHp, energy: G.energy, hand: G.hand, youShields: G.youShields, spinMultSelf: G.spinMultSelf, spinMultOpp: G.spinMultOpp, shields: G.aiShields, dealt: G.score }; },
         };
-        console.log('%c[Rune Stones] debug on', 'color:#d9544e;font-weight:700');
+        console.log('%c[Rune Stones] debug on', 'color:#86cfc6;font-weight:700');
         console.log('RD.kill() hp(n) energy(n) hand() shields(k) play(i) info()');
     }
 
