@@ -481,7 +481,7 @@
         },
     };
 
-    const LANG_KEY = storageKey('lang');
+    const LANG_KEY = 'gamebox:lang';   // shared with the GameBox launcher + sibling collection so the language carries across
     const LANG_SUPPORTED = ['en', 'zh'];
     const localeSubscribers = new Set();
     let currentLocale = readJSON(LANG_KEY, 'en');

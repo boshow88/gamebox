@@ -25,8 +25,10 @@ puzzle/               The former Puzzle Games repo, verbatim (light theme)
 Each collection keeps its **own** `common.js` / `common.css` / `game.css`, so
 both designs (Arcade dark, Puzzle light) are preserved exactly — the launcher
 does not touch them. The only edits made during the merge were: each game
-page's Back link (`../index.html` → `../../index.html`) and the two collection
-`index.html` files (now redirects to the launcher).
+page's Back link (`../index.html` → `../../index.html`), the two collection
+`index.html` files (now redirects to the launcher), and the language-storage
+key in each `common.js` (now the shared `gamebox:lang`, so the EN/中 choice
+carries across the launcher and both collections).
 
 ## Tags
 
