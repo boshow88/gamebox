@@ -614,8 +614,8 @@
     // board still reads as a comb-strum) — deliberately quiet and percussive, not
     // a bright beep. `k` staggers multiple swaps in one frame.
     function swapTick(idx, k) {
-        const f = 150 + cellCol(idx) * 16 + cellRow(idx) * 7;
-        const fire = () => AC.audio.tone(f, 0.018, { type: 'square', slideTo: f * 0.55, volume: 0.03 });
+        const f = 190 + cellCol(idx) * 18 + cellRow(idx) * 8;
+        const fire = () => AC.audio.tone(f, 0.022, { type: 'square', slideTo: f * 0.6, volume: 0.045 });
         if (k) setTimeout(fire, k * 14); else fire();
     }
     function stepToward(from, to) {
@@ -1609,10 +1609,13 @@
         shell.gameOver({ score: G.sandTotal, win: true, meta: { sandbox: true, total: G.sandTotal, spin: G.sandSpinRun } });
     }
     // --- sandbox records (separate from the duel's fewest-rounds / best-hit) ---
-    function sandPrefs() { try { return (AC.prefs.get('rune-clash') || {}).sandbox || {}; } catch (e) { return {}; } }
-    function setSandBest(patch) { try { const p = AC.prefs.get('rune-clash') || {}; AC.prefs.set('rune-clash', { sandbox: Object.assign({}, p.sandbox, patch) }); } catch (e) { /* ignore */ } }
-    function recordSandSpin(v) { G.sandSpinRun = Math.max(G.sandSpinRun || 0, v); const sb = sandPrefs(); if (sb.bestSpin == null || v > sb.bestSpin) setSandBest({ bestSpin: v }); }
-    function recordSandTotal(v) { const sb = sandPrefs(); if (sb.bestTotal == null || v > sb.bestTotal) setSandBest({ bestTotal: v }); }
+    // Sandbag bests are kept PER DIFFICULTY (easy/normal/hard), like the duel bests.
+    // Reads default to the selected (staged) difficulty so the HUD updates the
+    // moment you switch the difficulty seg; writes use the run's committed level.
+    function sandPrefs(level) { try { const sb = (AC.prefs.get('rune-clash') || {}).sandbox || {}; return sb[level || staged] || {}; } catch (e) { return {}; } }
+    function setSandBest(level, patch) { try { const p = AC.prefs.get('rune-clash') || {}; const sb = Object.assign({}, p.sandbox); sb[level] = Object.assign({}, sb[level], patch); AC.prefs.set('rune-clash', { sandbox: sb }); } catch (e) { /* ignore */ } }
+    function recordSandSpin(v) { G.sandSpinRun = Math.max(G.sandSpinRun || 0, v); const sb = sandPrefs(G.aiLevel); if (sb.bestSpin == null || v > sb.bestSpin) setSandBest(G.aiLevel, { bestSpin: v }); }
+    function recordSandTotal(v) { const sb = sandPrefs(G.aiLevel); if (sb.bestTotal == null || v > sb.bestTotal) setSandBest(G.aiLevel, { bestTotal: v }); }
     function recordDuelSpin(v) { if (!v) return; try { const p = AC.prefs.get('rune-clash') || {}; const bs = Object.assign({}, p.bestSpin); if (bs[G.aiLevel] == null || v > bs[G.aiLevel]) { bs[G.aiLevel] = v; AC.prefs.set('rune-clash', { bestSpin: bs }); } } catch (e) { /* ignore */ } }
     function duelBestRounds() { try { const v = (AC.prefs.get('rune-clash') || {}).bestRounds; return v && typeof v[staged] === 'number' ? v[staged] : null; } catch (e) { return null; } }
     function duelBestSpin() { try { const v = (AC.prefs.get('rune-clash') || {}).bestSpin; return v && typeof v[staged] === 'number' ? v[staged] : null; } catch (e) { return null; } }
