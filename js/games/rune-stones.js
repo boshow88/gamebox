@@ -610,12 +610,12 @@
     }
     function inRect(p, r) { return p.x >= r.x && p.x <= r.x + r.w && p.y >= r.y && p.y <= r.y + r.h; }
     function swapCells(a, b) { const tmp = board[a]; board[a] = board[b]; board[b] = tmp; }
-    // A soft, low "clack" per swap (lightly pitched by cell so a sweep across the
-    // board still reads as a comb-strum) — deliberately quiet and percussive, not
-    // a bright beep. `k` staggers multiple swaps in one frame.
+    // A light, crisp "tick" per swap — a clean triangle blip, high-ish and very
+    // short so it reads as a gentle tap, not a buzzy/noisy clack. Lightly pitched
+    // by cell so a sweep still strums. `k` staggers multiple swaps in one frame.
     function swapTick(idx, k) {
-        const f = 190 + cellCol(idx) * 18 + cellRow(idx) * 8;
-        const fire = () => AC.audio.tone(f, 0.022, { type: 'square', slideTo: f * 0.6, volume: 0.045 });
+        const f = 720 + cellCol(idx) * 24 + cellRow(idx) * 10;
+        const fire = () => AC.audio.tone(f, 0.015, { type: 'triangle', volume: 0.04 });
         if (k) setTimeout(fire, k * 14); else fire();
     }
     function stepToward(from, to) {
