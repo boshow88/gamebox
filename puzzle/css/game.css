@@ -1,0 +1,1527 @@
+/* ================================================================
+   Puzzle Games — Shared game-page UI (toolbar, board, status row)
+   Builds on css/common.css. Designed for a 480×480 board area.
+   ================================================================ */
+
+/* The HTML `hidden` attribute is normally `display: none` via UA styles,
+   but selectors like `.status-row .status-item { display: inline-flex }`
+   have higher specificity and silently override it. This restores the
+   expected behaviour. */
+[hidden] {
+    display: none !important;
+}
+
+.game-shell {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: var(--space-lg) var(--space-md) var(--space-2xl);
+}
+
+/* ----------------------------------------------------------------
+   Top bar (Back + title)
+   ---------------------------------------------------------------- */
+
+.game-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-md);
+    margin-bottom: var(--space-lg);
+}
+
+.back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: var(--space-xs) var(--space-sm);
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    border-radius: var(--radius-sm);
+    transition: background var(--transition-fast),
+        color var(--transition-fast);
+}
+
+.back-link:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+    text-decoration: none;
+}
+
+.game-title {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    font-size: 1.25rem;
+    font-weight: 600;
+}
+
+.game-title .game-icon {
+    width: 36px;
+    height: 36px;
+    font-size: 1.5rem;
+    border-radius: var(--radius-md);
+}
+
+/* Spacer to balance the topbar grid */
+.topbar-spacer {
+    width: 64px;
+}
+
+/* ----------------------------------------------------------------
+   Toolbar (selectors + actions)
+   ---------------------------------------------------------------- */
+
+.game-toolbar {
+    display: grid;
+    /* minmax(0, …) so the selector columns may shrink below their content's
+       intrinsic width instead of blowing the grid out — otherwise a wide
+       control (e.g. Patches' range slider) forces overflow and the action
+       column spills past the shell edge. */
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+    align-items: end;
+    gap: var(--space-md);
+    background: var(--bg-secondary);
+    padding: var(--space-md);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+    margin-bottom: var(--space-md);
+}
+
+/* When the size control is a wide slider (Patches), drop the New Game / Share
+   actions onto their own full-width row so the two selector columns — and thus
+   the slider — get the full toolbar width instead of being squeezed by a third
+   action column. */
+.game-toolbar.toolbar-stack-action {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.game-toolbar.toolbar-stack-action .toolbar-action {
+    grid-column: 1 / -1;
+}
+
+/* New Game lives in the toolbar so changing size or difficulty
+   without applying is visually obvious. Aligned to the bottom of
+   the toolbar so it lines up with the segmented controls instead
+   of stretching up to the labels. */
+.toolbar-action {
+    display: flex;
+    align-items: stretch;
+    gap: var(--space-sm);
+}
+
+.toolbar-action .btn {
+    white-space: nowrap;
+}
+
+.toolbar-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.toolbar-label {
+    font-size: 0.78rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-secondary);
+}
+
+.toolbar-control {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+}
+
+.segmented {
+    display: inline-flex;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    background: var(--bg-tertiary);
+}
+
+.segmented button {
+    appearance: none;
+    background: transparent;
+    border: 0;
+    padding: 6px 12px;
+    font-size: 0.88rem;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: background var(--transition-fast),
+        color var(--transition-fast);
+}
+
+.segmented button + button {
+    border-left: 1px solid var(--border-color);
+}
+
+.segmented button:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+/* "active" = currently selected in the toolbar — always painted as
+   the solid accent.
+   "committed" = the value the puzzle on the board was generated
+   with. When it differs from the active selection (= the player
+   has staged a change but not pressed New Game yet) we keep a
+   faded tint on the committed button so they can still see what
+   the board is running. */
+.segmented button.active {
+    background: var(--game-color, var(--accent-primary));
+    color: var(--text-on-accent);
+}
+
+.segmented button.committed:not(.active) {
+    color: var(--text-primary);
+    background: color-mix(in srgb,
+        var(--game-color, var(--accent-primary)) 18%, transparent);
+}
+
+.size-control {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    min-width: 0; /* allow the column (and slider) to shrink, not overflow */
+}
+
+.size-control input[type="range"] {
+    flex: 1;
+    min-width: 0; /* range inputs default to a wide min — let it shrink */
+    accent-color: var(--game-color, var(--accent-primary));
+}
+
+.size-readout {
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    color: var(--text-primary);
+    /* Width budget for "8×8 → 12×12"-style pending readouts so the
+       slider track doesn't jiggle when committing/discarding a
+       pending size change. */
+    min-width: 8.5em;
+    text-align: right;
+    display: inline-flex;
+    align-items: baseline;
+    justify-content: flex-end;
+    gap: 4px;
+}
+
+.size-readout .readout-current {
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.size-readout .readout-arrow {
+    color: var(--text-muted);
+    font-weight: 400;
+}
+
+.size-readout .readout-next {
+    color: var(--game-color, var(--accent-primary));
+}
+
+/* Action buttons */
+.action-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-sm);
+    margin-bottom: var(--space-md);
+}
+
+.btn {
+    appearance: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4em;
+    border: 1px solid var(--border-strong);
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    padding: 8px 16px;
+    font-size: 0.92rem;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: background var(--transition-fast),
+        border-color var(--transition-fast),
+        color var(--transition-fast),
+        transform var(--transition-fast);
+}
+
+.btn:hover {
+    background: var(--bg-hover);
+    border-color: var(--text-muted);
+}
+
+.btn:active {
+    transform: translateY(1px);
+}
+
+/* Disabled (e.g. Undo with nothing to undo, New Game mid-generation):
+   dim it and kill the affordances so it reads as unavailable. */
+.btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+.btn:disabled:hover {
+    background: var(--bg-secondary);
+    border-color: var(--border-strong);
+}
+.btn:disabled:active {
+    transform: none;
+}
+
+.btn.btn-primary {
+    background: var(--game-color, var(--accent-primary));
+    border-color: var(--game-color, var(--accent-primary));
+    color: var(--text-on-accent);
+}
+
+.btn.btn-primary:hover {
+    filter: brightness(0.95);
+}
+
+.btn.btn-ghost {
+    background: transparent;
+    border-color: transparent;
+    color: var(--text-secondary);
+}
+
+.btn.btn-ghost:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+.btn.btn-icon {
+    min-width: 40px;
+    padding: 8px 10px;
+}
+
+.btn.toggle.active {
+    background: var(--game-color, var(--accent-primary));
+    border-color: var(--game-color, var(--accent-primary));
+    color: var(--text-on-accent);
+}
+
+/* ----------------------------------------------------------------
+   Status row (timer, violations, win)
+   ---------------------------------------------------------------- */
+
+.status-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-md);
+    margin-bottom: var(--space-sm);
+    min-height: 28px;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
+.status-row .status-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.status-row .timer {
+    font-variant-numeric: tabular-nums;
+}
+
+.status-row .violations.active {
+    color: var(--accent-danger);
+    font-weight: 600;
+}
+
+.win-message {
+    color: var(--accent-success);
+    font-weight: 700;
+}
+
+/* ----------------------------------------------------------------
+   Hint banner (shown when player asks for a hint)
+   ---------------------------------------------------------------- */
+
+.hint-banner {
+    margin-bottom: var(--space-sm);
+    padding: var(--space-sm) var(--space-md);
+    background: color-mix(in srgb, var(--game-color, var(--accent-primary)) 10%, white);
+    border-left: 4px solid var(--game-color, var(--accent-primary));
+    border-radius: var(--radius-sm, 6px);
+    font-size: 0.9rem;
+    line-height: 1.45;
+    color: var(--text-primary, #222);
+}
+
+.hint-banner .hint-tier {
+    display: inline-block;
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 3px;
+    background: var(--game-color, var(--accent-primary));
+    color: var(--text-on-accent);
+    margin-right: 6px;
+    letter-spacing: 0.5px;
+}
+
+.hint-banner.error {
+    background: color-mix(in srgb, var(--accent-danger) 10%, white);
+    border-left-color: var(--accent-danger);
+}
+
+.hint-banner .hint-tier.err {
+    background: var(--accent-danger);
+}
+
+/* Cell highlights driven by an active hint. Two flavours:
+   - target: the cell the hint is about (solid amber pulse).
+   - violation: cells where a rule actually breaks (steady red tint).
+   Supporting/context cells deliberately get no background tint — for
+   L2+ the orange "ghost" glyphs already mark them, and for L1 the
+   prose names the relevant cells precisely (so they don't need a
+   competing yellow that fights the target). */
+.cell-bg.hint-target {
+    fill: #ffd54f;
+}
+.cell-bg.hint-violation {
+    fill: #ffcdd2;
+}
+
+/* Soft red ghost for every cell forced by a bad hypothesis along
+   the L2+ contradiction chain. A single muted red (Material Red 300)
+   at full opacity reads as red over both the plain board and the
+   amber hint-target highlight, so no per-cell tuning is needed. */
+.symbol.hint-ghost.sun,
+.symbol.hint-ghost.moon {
+    fill: #e57373;
+}
+
+/* Tiny step-order badge in the top-right corner of each chain
+   placement. Top-left is reserved for the reveal overlay, so this
+   sits opposite it. Same soft red as the ghost glyph so the chain
+   reads as one visual element; bold so it stays readable at the
+   smallest cell sizes. */
+.symbol.hint-step {
+    pointer-events: none;
+    fill: #e57373;
+    font-family: var(--font-body);
+    font-weight: 700;
+}
+
+/* ----------------------------------------------------------------
+   Board area
+   ---------------------------------------------------------------- */
+
+.board-wrap {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+    padding: var(--space-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+}
+
+/* Progress overlay -------------------------------------------------- */
+.puzzle-progress {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: inherit;
+    background: rgba(255, 255, 255, 0.55);
+    backdrop-filter: blur(1px);
+    pointer-events: none;
+    z-index: 5;
+    opacity: 0;
+}
+.puzzle-progress.is-running {
+    /* 250 ms invisible head ⇒ short generations leave no flash. */
+    animation: puzzle-progress-fade 350ms ease-out 250ms forwards;
+}
+@keyframes puzzle-progress-fade {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+
+.puzzle-progress-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-sm);
+    padding: 14px 18px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-md);
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+.puzzle-progress-bar {
+    position: relative;
+    width: 200px;
+    height: 4px;
+    background: rgba(0, 0, 0, 0.08);
+    border-radius: 2px;
+    overflow: hidden;
+}
+.puzzle-progress-bar-fill {
+    position: absolute;
+    inset: 0;
+    width: 40%;
+    background: var(--game-color);
+    border-radius: inherit;
+    transform: translateX(-100%);
+    animation: puzzle-progress-slide 1.2s ease-in-out infinite;
+    will-change: transform;
+}
+@keyframes puzzle-progress-slide {
+    0%   { transform: translateX(-100%); }
+    100% { transform: translateX(250%); }
+}
+/* Determinate mode: width is driven by inline style, so kill the
+ * sliding indeterminate animation and reset the translate offset. */
+.puzzle-progress.is-determinate .puzzle-progress-bar-fill {
+    animation: none;
+    transform: none;
+    width: 0%;
+    transition: width 180ms linear;
+}
+
+.board-svg {
+    width: 100%;
+    max-width: 480px;
+    height: auto;
+    aspect-ratio: 1 / 1;
+    display: block;
+    user-select: none;
+    touch-action: manipulation;
+}
+
+/* Drag-based boards (Zip) must completely opt out of browser touch
+   gestures, otherwise a touch drag is interpreted as a page scroll and
+   pointermove events stop firing once scrolling kicks in. Other games
+   are click-only and keep the `manipulation` value so finger-flicks on
+   the board can still scroll the page. */
+.board-svg.drag-board {
+    touch-action: none;
+}
+
+/* Cell stroke (thin internal lines). No default `fill` here on purpose:
+   the per-game renderers set `fill` inline (Queens uses region colours,
+   Tango/Sudoku/Zip use white or grey). A CSS rule with specificity > 0
+   would silently override the per-game presentation attribute. */
+.cell-bg {
+    stroke: rgba(0, 0, 0, 0.18);
+    stroke-width: 1;
+}
+
+/* Region borders. The same stroke width is used for the outer frame and
+   the lines between adjacent regions so the visual weight is consistent.
+   The 3px padding in the SVG viewBox prevents the outer stroke from
+   being clipped by the viewport edge. */
+.region-border {
+    stroke: #1f2937;
+    stroke-width: 3;
+    stroke-linecap: square;
+    pointer-events: none;
+}
+
+/* Thin cell separators (Sudoku), drawn in the grid layer above the
+   selection ring so the ring tucks underneath. */
+.grid-line {
+    stroke: rgba(0, 0, 0, 0.18);
+    stroke-width: 1;
+    pointer-events: none;
+    transition: opacity 0.45s ease;
+}
+
+/* Small symbol shown when Reveal is toggled on; sits in the top-left
+   corner of each cell so it never collides with the player's symbol. */
+.reveal-hint {
+    pointer-events: none;
+    fill: rgba(25, 135, 84, 0.92);
+    font-family: var(--font-body);
+}
+
+/* ---- Tango-specific ---- */
+
+/* Sun / moon are inline Lucide icons (stroke style). fill:none keeps
+   them as clean outlines; the sun/moon colour comes through
+   stroke: currentColor via the `color` property. Slightly bolder
+   stroke than the chrome icons so they carry as the board's main
+   content. */
+.board-icon {
+    fill: none;
+    stroke-width: 2.5;
+    pointer-events: none;
+}
+.board-icon.sun  { color: #f5a623; }
+.board-icon.moon { color: #4a6fa5; }
+.board-icon.hint-ghost { color: #e57373; }
+/* Reveal overlay is green across every game (matches Sudoku's green
+   solution digits) — the icon shape still says which symbol it is, the
+   green just marks it as the "solution hint". Placed after the sun/moon
+   colours so it overrides them for reveal cells. */
+.board-icon.reveal { color: #198754; opacity: 0.65; }
+
+/* Pre-filled cells: slightly darker background so the player can tell at
+   a glance which cells are locked. The symbol itself stays the same weight
+   as the player-placed ones — background contrast alone is sufficient. */
+.cell-bg.prefilled {
+    fill: #e6e8ee;
+}
+
+/* Constraint glyph (=/×) sitting right on the cell boundary. A white
+   `paint-order: stroke fill` halo carves away the thin grid line where
+   the glyph crosses it, so the symbol reads cleanly even without a
+   background bubble. */
+.wall-glyph {
+    pointer-events: none;
+    user-select: none;
+    fill: #1f2937;
+    font-weight: 700;
+    font-family: var(--font-body);
+    paint-order: stroke fill;
+    stroke: var(--bg-secondary);
+    stroke-width: 4px;
+    stroke-linejoin: round;
+}
+
+/* Symbols */
+.symbol {
+    pointer-events: none;
+    user-select: none;
+    font-family: var(--font-body);
+    fill: #1f2937;
+}
+
+/* Queen = inline Lucide crown (stroke style). Normal = dark hollow
+   crown; victory fills it gold with a dark outline so it stays legible
+   on any region (including yellow-ish ones). */
+.board-icon.queen {
+    color: #111827;
+}
+
+.board-icon.queen.victory {
+    fill: #d4a017;
+    stroke: #3d2b00;
+}
+
+/* 3-class rule so the green reveal colour beats the later
+   `.board-icon.queen` (dark) for a revealed crown; opacity comes from
+   the shared `.board-icon.reveal` rule. */
+.board-icon.queen.reveal {
+    color: #198754;
+}
+
+/* Victory pop, shared by every board symbol (queen / sun / moon). The
+   animation lives on the .board-pop wrapper group (not the icon) so
+   scale() pivots around that group's local origin, which the per-cell
+   translate has already placed at the cell centre — no transform-box
+   needed, and every symbol pops in place. */
+.board-pop.pop {
+    animation: board-symbol-pop 720ms ease-out;
+}
+
+@keyframes board-symbol-pop {
+    0%   { transform: scale(1); }
+    40%  { transform: scale(1.32); }
+    68%  { transform: scale(0.96); }
+    100% { transform: scale(1); }
+}
+
+.symbol.mark {
+    fill: #1a1a1a;
+}
+
+/* Inline help-text icons (crown / sun / moon inside "How to play"). */
+.inline-icon.queen { color: #475569; }
+.inline-icon.queen-x { color: #94a3b8; }
+.inline-icon.sun   { color: #f5a623; }
+.inline-icon.moon  { color: #4a6fa5; }
+
+/* Solved-board affordance (Tango): a faint success wash across the
+   board (drawn below the symbols) so the finished state is obvious
+   while the sun/moon keep their own colours. */
+.win-wash {
+    fill: var(--accent-success);
+    opacity: 0.1;
+    pointer-events: none;
+}
+
+/* Violation slash */
+.violation-line {
+    stroke: var(--accent-danger);
+    stroke-width: 3;
+    stroke-linecap: round;
+    pointer-events: none;
+    opacity: 0.85;
+}
+
+/* Hover highlight */
+.cell-hover {
+    fill: rgba(0, 0, 0, 0);
+    transition: fill var(--transition-fast);
+    cursor: pointer;
+}
+
+.cell-hover:hover {
+    fill: rgba(0, 0, 0, 0.06);
+}
+
+/* ---- Sudoku-specific ---- */
+
+/* Selection backdrop: same row / col / box gets a soft tint, the focused
+   cell gets a stronger tint, and any cell that shares the focused cell's
+   digit gets a third subtle tint. Drawn below symbols, above the cell
+   background. */
+.cell-select.peer  { fill: rgba(46, 125, 50, 0.12); }
+.cell-select.same  { fill: rgba(46, 125, 50, 0.16); }
+
+/* Focused cell = a ring (LinkedIn-style), not a fill. Drawn as four
+   edge lines (see repaintSelection) so the weight stays uniform on every
+   side; square caps make the corners meet cleanly. Green normally, black
+   on a pre-filled (given) cell. */
+.cell-ring {
+    fill: none;
+    stroke: var(--game-color, #2e7d32);
+    stroke-width: 3;
+    stroke-linecap: square;
+}
+.cell-ring.given {
+    stroke: #455063;
+}
+
+/* Hint "spotlight": dim every non-lit cell (drawn above the symbols so
+   the digits fade too), the way Queens does. */
+.hint-dim-cell {
+    fill: rgba(0, 0, 0, 0.42);
+    pointer-events: none;
+}
+
+/* Main digits sit dead-centre; player vs prefilled distinguished by
+   colour only (no weight change — same convention as Tango). */
+.symbol.digit          { fill: #1d6b21; }
+.symbol.digit.prefilled { fill: #111827; }
+
+/* Pencil notes live in a sub-grid (rendered as small text nodes); the
+   grid layout itself is computed in JS based on box shape. */
+.symbol.note {
+    pointer-events: none;
+    user-select: none;
+    fill: #6c757d;
+    font-family: var(--font-body);
+}
+
+/* On-screen number pad (below the board). Digits are laid out in a
+   grid that mirrors the Sudoku box shape (2×3 for 6×6 boards, 3×3
+   for 9×9). The Notes / Erase mode controls live in a side column
+   on the right so the whole pad stays short — they share the same
+   height as the digit grid via flex stretch. */
+.keypad {
+    display: flex;
+    flex-direction: row;
+    align-items: stretch;
+    justify-content: center;
+    gap: var(--space-sm);
+    margin-top: var(--space-md);
+}
+
+.keypad-digits {
+    display: grid;
+    grid-template-columns: repeat(var(--keypad-box-cols, 3), minmax(0, 1fr));
+    gap: var(--space-xs);
+    flex: 1 1 320px;
+    max-width: 320px;
+}
+
+.keypad-actions {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-xs);
+    flex: 0 0 120px;
+}
+
+.keypad-actions .keypad-btn {
+    flex: 1;
+}
+
+/* Phones: collapse the side panel under the digit pad so the buttons
+   stay finger-friendly. */
+@media (max-width: 480px) {
+    .keypad {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .keypad-digits,
+    .keypad-actions {
+        max-width: none;
+        flex: 0 0 auto;
+    }
+    .keypad-actions {
+        flex-direction: row;
+    }
+}
+
+.keypad-btn {
+    appearance: none;
+    border: 1px solid var(--border-strong);
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    font-size: 1.05rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    padding: 12px 0;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: background var(--transition-fast),
+        border-color var(--transition-fast),
+        color var(--transition-fast),
+        transform var(--transition-fast);
+}
+
+.keypad-btn:hover {
+    background: var(--bg-hover);
+    border-color: var(--text-muted);
+}
+
+.keypad-btn:active {
+    transform: translateY(1px);
+}
+
+.keypad-btn.erase,
+.keypad-btn.notes-toggle {
+    color: var(--text-secondary);
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4em;
+}
+
+/* Active Notes toggle: filled green so it reads like a sticky mode
+   indicator (not just another tinted key). */
+.keypad-btn.notes-toggle.active {
+    background: var(--game-color, var(--accent-primary));
+    border-color: var(--game-color, var(--accent-primary));
+    color: var(--text-on-accent);
+}
+
+/* Notes mode is signalled by the filled-green Notes toggle alone; the
+   digit keys keep their normal look so the keypad doesn't recolour. */
+
+/* ---- Zip-specific ---- */
+
+/* Holes are inaccessible cells the path must avoid. */
+.cell-bg.hole {
+    fill: #bdbdbd;
+}
+
+/* Black thick line drawn on a cell boundary; the path cannot cross. */
+.wall-line {
+    stroke: #1f2937;
+    stroke-linecap: round;
+    pointer-events: none;
+}
+
+/* The player's drawn path. JS renders one <line> per segment with an
+   inline `stroke` (interpolated from dark blue-grey at the start to
+   bright blue at the head) so the gradient follows arc length even
+   though SVG has no built-in along-path gradient. The stroke width is
+   set inline so it scales with cell size; line caps/joins are kept
+   here so the rendering code stays clean. */
+.zip-path {
+    fill: none;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    pointer-events: none;
+}
+
+/* Optional reveal: the intended solution drawn as a single polyline in
+   a contrasting hue under the player's path. The stroke colour is set
+   here (not inline) because the reveal is one shape, no gradient. */
+.zip-path.reveal {
+    stroke: rgba(46, 125, 50, 0.55);
+    pointer-events: none;
+}
+
+/* Brief red tint that fades out when the player tries to drag onto a
+   wall, a hole, or another illegal target. Same red as the violations
+   in Queens/Tango/Sudoku so the visual language stays consistent. */
+@keyframes zip-flash-fade {
+    0%   { opacity: 0.55; }
+    100% { opacity: 0; }
+}
+.zip-invalid-flash {
+    fill: var(--accent-danger);
+    pointer-events: none;
+    animation: zip-flash-fade 360ms ease-out forwards;
+}
+
+/* Persistent (until the player retracts) red tint on the cells that
+   form an out-of-order tail of the path. Path segments inside the same
+   region also recolour to red — see js/games/zip.js. */
+.wrong-order-tint {
+    fill: var(--accent-danger);
+    opacity: 0.18;
+    pointer-events: none;
+}
+
+/* A small circle marking the current endpoint of the path; helps the
+   player see where the next drag will start. */
+.path-head {
+    fill: #2980b9;
+    stroke: #1a5276;
+    stroke-width: 2;
+    pointer-events: none;
+}
+
+.path-head.victory {
+    fill: #d4a017;
+    stroke: #8a6a0a;
+    transition: fill 0.25s ease-out, filter 0.25s ease-out;
+}
+.path-head.victory.lit {
+    fill: #e9b949;
+    filter: drop-shadow(0 0 5px rgba(233, 185, 73, 0.9));
+}
+
+/* Head turns red whenever the path's current tail is in a wrong-order
+   region. Same Bootstrap red palette as the wrong path segments. */
+.path-head.wrong {
+    fill: #b02a37;
+    stroke: #842029;
+}
+
+/* Halo ring drawn around a checkpoint when the path's current endpoint
+   sits on that checkpoint. Sits below the checkpoint fill but at a
+   radius larger than the checkpoint, so only the band outside the
+   checkpoint outline is visible — that band IS the endpoint cue. */
+.path-head-ring {
+    stroke: #2980b9;
+    fill: none;
+    pointer-events: none;
+}
+
+.path-head-ring.victory {
+    stroke: #d4a017;
+    transition: stroke 0.25s ease-out, filter 0.25s ease-out;
+}
+.path-head-ring.victory.lit {
+    stroke: #e9b949;
+    filter: drop-shadow(0 0 5px rgba(233, 185, 73, 0.9));
+}
+
+.path-head-ring.wrong {
+    stroke: #b02a37;
+}
+
+/* Next-step hint: a green connector from the head through the upcoming
+   cell(s) (order is clear), with a dot on the target. "start" uses a ring on
+   checkpoint 1. All gently pulse so they read as a prompt. */
+.zip-hint-ring {
+    fill: none;
+    stroke-linecap: round;
+    pointer-events: none;
+    animation: zip-hint-pulse 1.15s ease-in-out infinite;
+}
+.zip-hint-ring.next {
+    stroke: #2e9e44;
+}
+.zip-hint-next-line {
+    fill: none;
+    stroke: #2e9e44;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    pointer-events: none;
+    animation: zip-hint-pulse 1.15s ease-in-out infinite;
+}
+.zip-hint-next-dot {
+    fill: #2e9e44;
+    pointer-events: none;
+    animation: zip-hint-pulse 1.15s ease-in-out infinite;
+}
+@keyframes zip-hint-pulse {
+    0%, 100% { opacity: 0.5; }
+    50% { opacity: 1; }
+}
+
+/* Wrong-route hint: spotlight it by dimming every other cell (the mistaken
+   stretch, path line and all, stays bright). */
+.zip-hint-dim {
+    fill: rgba(0, 0, 0, 0.42);
+    pointer-events: none;
+}
+
+/* Win trace: a glowing gold line that draws itself along the finished path
+   from checkpoint 1 to K when the puzzle is solved. */
+.zip-win-sweep {
+    fill: none;
+    stroke: #e9b949;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    pointer-events: none;
+    filter: drop-shadow(0 0 5px rgba(233, 185, 73, 0.85));
+    transition: stroke-dashoffset 1.1s ease-out;
+}
+
+/* Numbered checkpoint marker — dark filled circle with a bright digit
+   on top. The text is positioned by the renderer using the same
+   text-anchor + dominant-baseline + dy nudge as the other games. */
+.checkpoint-circle {
+    fill: #2c3e50;
+    stroke: #1a242f;
+    stroke-width: 2;
+    transition: fill 0.3s ease-out, stroke 0.3s ease-out, filter 0.3s ease-out;
+}
+
+/* On victory each checkpoint turns gold + glows; the JS staggers this class so
+   the colour sweeps through them in step with the winning trace. */
+.checkpoint-circle.victory {
+    fill: #d4a017;
+    stroke: #8a6a0a;
+    filter: drop-shadow(0 0 4px rgba(233, 185, 73, 0.9));
+}
+
+.checkpoint-text {
+    fill: #ecf0f1;
+    font-family: var(--font-body);
+    font-weight: 700;
+    pointer-events: none;
+    user-select: none;
+}
+
+/* ---- Patches-specific ---- */
+
+/* A placed / revealed rectangle. Fill and stroke colours are set inline
+   per clue; opacity here keeps the underlying grid faintly visible. The
+   reveal variant is a touch more transparent so it reads as an overlay
+   rather than a committed piece. */
+.patch-rect {
+    fill-opacity: 0.55;
+    stroke-width: 2.5;
+    stroke-opacity: 0.9;
+    pointer-events: none;
+}
+
+.patch-rect.reveal {
+    fill-opacity: 0.4;
+    stroke-opacity: 0.75;
+}
+
+/* Solved: the patches deepen and pop in place (each scales about its own
+   centre via transform-box: fill-box, so there's no whole-board lurch). */
+@keyframes patch-win-pop {
+    0%   { transform: scale(1); }
+    45%  { transform: scale(1.07); }
+    100% { transform: scale(1); }
+}
+.patch-rect.won {
+    fill-opacity: 0.85;
+    stroke-opacity: 1;
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: patch-win-pop 460ms ease-out;
+}
+/* Solved board: the (single) grid layer fades away so the finished quilt
+   reads cleanly — the patch borders now carry the structure. */
+.board-svg.board-won .grid-line {
+    opacity: 0;
+}
+
+/* Live drag preview. Grey while it covers no clue; the renderer swaps the
+   inline fill/stroke to the clue colour the moment it encloses one. Sits
+   above the grid lines but below the clue glyphs. */
+.patch-preview {
+    fill-opacity: 0.34;
+    stroke-width: 2.5;
+    stroke-opacity: 0.85;
+    pointer-events: none;
+}
+
+.patch-preview.tinted {
+    fill-opacity: 0.5;
+}
+
+/* A placed rectangle that breaks its clue's shape/size, flagged after the
+   grace period. CSS beats the inline fill/stroke presentation attributes,
+   so it recolours to the danger red and pulses. */
+@keyframes patch-violation-pulse {
+    0%, 100% { stroke-opacity: 1; }
+    50%      { stroke-opacity: 0.3; }
+}
+.patch-rect.violation {
+    fill: var(--accent-danger);
+    stroke: var(--accent-danger);
+    fill-opacity: 0.26;
+    stroke-width: 4;
+    animation: patch-violation-pulse 1s ease-in-out infinite;
+}
+
+/* Hint spotlight: dim every cell except the focused target/clue, then
+   outline the target. Deduction hints outline in blue; conflict/wrong in
+   the danger red. */
+.patch-hint-dim {
+    fill: rgba(0, 0, 0, 0.42);
+    pointer-events: none;
+}
+.patch-hint-outline {
+    fill: none;
+    stroke: #2563eb;
+    stroke-width: 4;
+    pointer-events: none;
+}
+.patch-hint-outline.danger {
+    stroke: var(--accent-danger);
+}
+
+/* Message bubble anchored to a violating rectangle (HTML inside an SVG
+   foreignObject so it scales with the board and wraps text cleanly). */
+.patch-bubble-fo { overflow: visible; }
+.patch-bubble {
+    box-sizing: border-box;
+    width: 100%;
+    font: 600 13px var(--font-body);
+    line-height: 1.3;
+    text-align: center;
+    color: #fff;
+    background: #2b2b2b;
+    border: 1px solid var(--accent-danger);
+    border-radius: 8px;
+    padding: 6px 9px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+/* Size badge on a placed rectangle: opaque (masks the grid line beneath),
+   filled inline with the rectangle's own colour, white number on top. */
+.patch-size {
+    stroke: rgba(0, 0, 0, 0.12);
+    stroke-width: 1;
+    pointer-events: none;
+}
+.patch-size-num {
+    /* fill is set inline to the patch's own (saturated) colour */
+    font-family: var(--font-body);
+    font-weight: 700;
+    pointer-events: none;
+    user-select: none;
+}
+
+/* Clue swatch — a small shape token tinted with the clue's colour. */
+.clue-swatch {
+    stroke: rgba(0, 0, 0, 0.12);
+    stroke-width: 1;
+    pointer-events: none;
+}
+
+.clue-swatch.any {
+    stroke-width: 1.2;
+}
+
+/* Size number sitting on top of the swatch, in white. */
+.clue-num {
+    fill: #ffffff;
+    font-family: var(--font-body);
+    font-weight: 700;
+    pointer-events: none;
+    user-select: none;
+    paint-order: stroke fill;
+    stroke: rgba(0, 0, 0, 0.28);
+    stroke-width: 2.5px;
+}
+
+/* ----------------------------------------------------------------
+   Nonogram
+   ---------------------------------------------------------------- */
+/* Input-mode selector: four minimal icon-only buttons below the board
+   (Cycle / Fill / Mark / Erase). The active mode fills with the game
+   colour — the same "sticky mode" treatment as Sudoku's Notes toggle. */
+.nono-tools {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--space-sm);
+    width: 100%;
+    max-width: 480px;
+    margin: var(--space-md) auto 0;
+}
+.nono-tool {
+    appearance: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 0;
+    border: 1px solid var(--border-strong);
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+    font-size: 1.4rem;          /* sets the icon size (1em) */
+    line-height: 1;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: background var(--transition-fast),
+        border-color var(--transition-fast),
+        color var(--transition-fast),
+        transform var(--transition-fast);
+}
+.nono-tool:hover { background: var(--bg-hover); border-color: var(--text-muted); }
+.nono-tool:active { transform: translateY(1px); }
+.nono-tool.active {
+    background: var(--game-color, var(--accent-primary));
+    border-color: var(--game-color, var(--accent-primary));
+    color: var(--text-on-accent);
+}
+/* The "fill" mode shows a solid square; the icon() wrapper hard-codes
+   fill:none, so override it here (CSS beats the presentation attribute). */
+.nono-tool-ico.fill .icon { fill: currentColor; }
+
+/* Inline help-text state icons (mirroring the board/modes). */
+.inline-icon.nono-ico-cycle { color: #94a3b8; }
+.inline-icon.nono-ico-fill { color: #64748b; }
+.inline-icon.nono-ico-fill .icon { fill: currentColor; }
+.inline-icon.nono-ico-mark { color: #94a3b8; }
+.inline-icon.nono-ico-empty { color: #94a3b8; }
+.inline-icon.nono-ico-erase { color: #94a3b8; }
+
+.nono-cell-bg { fill: #ffffff; }
+/* Thin inner grid lines + a thick outer frame / clue-gutter separator, reusing
+   the shared .grid-line (1) and .region-border (3) weights. */
+.nono-grid-line { stroke: rgba(0, 0, 0, 0.18); stroke-width: 1; }
+/* square caps extend each end by half the stroke so the thick frame corners
+   meet cleanly instead of leaving a notch (matches .region-border). */
+.nono-grid-line.heavy { stroke: #1f2937; stroke-width: 3; stroke-linecap: square; }
+.nono-clue {
+    fill: #334155;
+    font-family: var(--font-body);
+    font-weight: 600;
+    user-select: none;
+}
+.nono-clue.zero { fill: #cbd5e1; }
+/* Clue whose filled runs currently match it — a subtle theme-purple band
+   behind the numbers (removed live the moment it stops matching). */
+.nono-clue-hl { fill: var(--game-color, #7c3aed); opacity: 0.2; pointer-events: none; }
+/* Filled cell — a light, soft slate (the theme violet at full chroma was harsh). */
+.nono-fill { fill: #64748b; }
+/* Win: the picture's filled cells flash a lighter tint, then settle on the
+   theme colour, popping in a diagonal ripple (per-cell animation-delay set
+   inline). The player's ✗ marks stay put. */
+@keyframes nono-win-pop {
+    0%   { transform: scale(1);    fill: #64748b; }
+    45%  { transform: scale(1.22); fill: color-mix(in srgb, var(--game-color, #7c3aed) 55%, #ffffff); }
+    100% { transform: scale(1);    fill: var(--game-color, #7c3aed); }
+}
+.nono-fill.won {
+    fill: var(--game-color, #7c3aed);
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: nono-win-pop 0.45s ease both;
+}
+.nono-x {
+    stroke: #94a3b8;
+    stroke-width: 3;
+    stroke-linecap: round;
+    pointer-events: none;
+}
+/* Hint: spotlight the forced line, ring the forced cells (theme colour), or
+   red for wrong cells. Reuses the zip-hint-pulse keyframe. */
+.nono-hint-line { fill: rgba(124, 58, 237, 0.12); pointer-events: none; }
+/* The two extreme placements of the forcing run (leftmost / rightmost); where
+   they overlap is the forced fill the hint rings. */
+.nono-hint-range { fill: var(--game-color, #7c3aed); opacity: 0.5; pointer-events: none; }
+.nono-hint-ring {
+    fill: none;
+    stroke: var(--game-color, #7c3aed);
+    stroke-width: 3;
+    pointer-events: none;
+    animation: zip-hint-pulse 1.15s ease-in-out infinite;
+}
+.nono-hint-ring.wrong {
+    stroke: var(--accent-danger, #dc3545);
+    fill: rgba(220, 53, 69, 0.15);
+}
+/* Ghost preview of the suggested action inside a ringed hint cell: a solid
+   square = fill here, a cross = mark ✗ here. Tinted the theme colour and
+   semi-transparent so it reads as a suggestion, not a committed mark. */
+/* The hint's "fill" ghost and the reveal overlay use identical colour, opacity
+   and geometry so the two read as the same mark. */
+.nono-hint-fill { fill: var(--game-color, #7c3aed); opacity: 0.4; pointer-events: none; }
+.nono-hint-x {
+    stroke: var(--game-color, #7c3aed);
+    stroke-width: 3;
+    stroke-linecap: round;
+    opacity: 0.7;
+    pointer-events: none;
+}
+.nono-reveal { fill: var(--game-color, #7c3aed); opacity: 0.4; pointer-events: none; }
+
+/* ----------------------------------------------------------------
+   Light Up (Akari)
+   ---------------------------------------------------------------- */
+/* Input-mode selector — four minimal icon-only buttons (shares Nonogram's look). */
+.lu-tools {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--space-sm);
+    width: 100%;
+    max-width: 480px;
+    margin: var(--space-md) auto 0;
+}
+.lu-tool {
+    appearance: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 0;
+    border: 1px solid var(--border-strong);
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+    font-size: 1.4rem;
+    line-height: 1;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: background var(--transition-fast), border-color var(--transition-fast),
+        color var(--transition-fast), transform var(--transition-fast);
+}
+.lu-tool:hover { background: var(--bg-hover); border-color: var(--text-muted); }
+.lu-tool:active { transform: translateY(1px); }
+.lu-tool.active { background: var(--game-color, var(--accent-primary)); border-color: var(--game-color, var(--accent-primary)); color: var(--text-on-accent); }
+
+/* Board: white cells, dark walls, numbers on walls. */
+.lu-cell { fill: #ffffff; }
+.lu-wall { fill: #334155; }
+.lu-wall-num { fill: #e8edf3; font-family: var(--font-body); font-weight: 700; user-select: none; }
+.lu-wall-num.over { fill: #ff8a8a; }
+.lu-grid-line { stroke: rgba(0, 0, 0, 0.18); stroke-width: 1; }
+.lu-grid-line.heavy { stroke: #1f2937; stroke-width: 3; stroke-linecap: square; }
+/* "Watched" shading across every floor cell a guard's view reaches; stronger on win. */
+.lu-lit { fill: #c7d2fe; opacity: 0.5; pointer-events: none; }
+/* Win: every watched corridor sweeps to a warm "all secure" gold in a diagonal
+   ripple (per-cell animation-delay set inline); the guards pop to attention in
+   the same wave via the shared board-symbol-pop. Gold matches the collection's
+   victory accent. */
+.lu-lit.won { fill: #facc15; opacity: 0.72; animation: lu-win-sweep 0.5s ease both; }
+@keyframes lu-win-sweep {
+    0%   { fill: #c7d2fe; opacity: 0.5; }
+    45%  { fill: #fef08a; opacity: 0.95; }
+    100% { fill: #facc15; opacity: 0.72; }
+}
+.lu-x { stroke: #94a3b8; stroke-width: 3; stroke-linecap: round; pointer-events: none; }
+
+/* Guards (dark slate); red when two guards can see each other. */
+.board-icon.lu-bulb { color: #1e293b; }
+.board-icon.lu-bulb.bad { color: var(--accent-danger, #dc3545); }
+.board-icon.lu-reveal { color: #4f46e5; opacity: 0.4; }
+.lu-hint-ghost { opacity: 0.55; }
+/* Deep (assume→contradiction) hint: the refuted assumption shows red (the guard
+   reuses .lu-bulb.bad; the ✗ gets a red stroke), and each forced ghost carries a
+   white-haloed step number so the chain reads in order. */
+.lu-x.lu-hint-ghost.bad { stroke: var(--accent-danger, #dc3545); }
+.lu-hint-step { fill: #1e293b; font-family: var(--font-body); font-weight: 700; paint-order: stroke; stroke: #ffffff; stroke-width: 3px; stroke-linejoin: round; pointer-events: none; }
+
+/* Hint (theme indigo, contrasts the dark guards); red for wrong marks. */
+.lu-hint-ring { fill: none; stroke: var(--game-color, #4f46e5); stroke-width: 3; pointer-events: none; animation: zip-hint-pulse 1.15s ease-in-out infinite; }
+.lu-hint-ring.wrong { stroke: var(--accent-danger, #dc3545); fill: rgba(220, 53, 69, 0.15); }
+/* The source (numbered pillar / guard) a batched hint comes from. */
+.lu-hint-anchor-halo { fill: none; stroke: #ffffff; stroke-width: 4; stroke-opacity: 0.4; pointer-events: none; }
+.lu-hint-anchor { fill: none; stroke: var(--game-color, #4f46e5); stroke-width: 2.5; stroke-dasharray: 4 3; pointer-events: none; }
+
+/* Inline help icons. */
+.inline-icon.lu-ico-bulb { color: #64748b; }
+.inline-icon.lu-ico-cycle { color: #94a3b8; }
+.inline-icon.lu-ico-mark { color: #94a3b8; }
+.inline-icon.lu-ico-erase { color: #94a3b8; }
+
+/* ----------------------------------------------------------------
+   Hashi (Bridges)
+   ---------------------------------------------------------------- */
+/* Transparent (so the board carries no tint of its own) but still a hit target,
+   so clicks on an empty corridor register. */
+.hashi-bg { fill: transparent; }
+/* Faint lattice through the island centres — islands read as sitting on grid
+   intersections, making row/column relationships easy to see. */
+.hashi-grid-line { stroke: rgba(138, 90, 44, 0.14); stroke-width: 1; pointer-events: none; }
+
+/* Bridges — theme brown; a double draws as two parallel lines. */
+.hashi-bridge { stroke: var(--game-color, #8a5a2c); stroke-linecap: round; pointer-events: none; }
+.hashi-bridge.bad { stroke: var(--accent-danger, #dc3545); }
+/* On win each bridge conducts from brown to green (delay set per-bridge inline so
+   the colour radiates out from the last-placed bridge). */
+.hashi-bridge.won { stroke: #16a34a; animation: hashi-win-bridge 0.45s ease both; }
+@keyframes hashi-win-bridge { from { stroke: var(--game-color, #8a5a2c); } to { stroke: #16a34a; } }
+/* A confirmed (grey) bridge conducts grey→green on win, so it never snaps to brown. */
+.hashi-bridge.won.marked { stroke: #16a34a; animation: hashi-win-bridge-marked 0.45s ease both; }
+@keyframes hashi-win-bridge-marked { from { stroke: #9ca3af; } to { stroke: #16a34a; } }
+/* "Confirmed" bridge (Mark mode): greyed, reads as settled. */
+.hashi-bridge.marked { stroke: #9ca3af; }
+.hashi-bridge.marked.hashi-hover { opacity: 0.55; }
+
+/* Islands — cream disc, brown ring, dark-brown number; filled tint once the
+   island's bridge count matches its number; red when it's over; green on win. */
+.hashi-island .hashi-isle-disc { fill: #fffdf8; stroke: var(--game-color, #8a5a2c); stroke-width: var(--hashi-isle-sw, 2.5); }
+.hashi-island .hashi-isle-num { fill: #3a2a18; font-family: var(--font-body); font-weight: 700; user-select: none; }
+/* Assist mode: numbers are italic (they're computed remainders, not the printed
+   numbers); a met island shows a faint 0; too many shows −N in red. */
+.hashi-isle-num.remaining { font-style: italic; }
+.hashi-isle-num.met { opacity: 0.4; }
+.hashi-isle-num.over { fill: var(--accent-danger, #dc3545); }
+.hashi-island.done .hashi-isle-disc { fill: #eadbc4; }
+/* Player's "handled" annotation — a calm slate tint (green is reserved for the
+   win state), distinct from the warm "count satisfied" tint and the red error. */
+.hashi-island.marked .hashi-isle-disc { fill: #e5e9f2; stroke: #6b7280; }
+.hashi-island.marked .hashi-isle-num { fill: #475569; }
+.hashi-island.bad .hashi-isle-disc { fill: #f8dcdc; stroke: var(--accent-danger, #dc3545); }
+.hashi-island.bad .hashi-isle-num { fill: var(--accent-danger, #dc3545); }
+.hashi-island.won .hashi-isle-disc { fill: #bbf7d0; stroke: #16a34a; }
+/* Each island pops about ITS OWN centre. The disc/number carry absolute cx/cy,
+   so without fill-box the scale would pivot on the SVG origin and the whole set
+   would lurch toward the corner as one blob. The disc also conducts its colour
+   (tan → green) as it pops; delay is set per-island inline so it radiates out. */
+.hashi-island.won .hashi-isle-disc,
+.hashi-island.won .hashi-isle-num {
+    transform-box: fill-box;
+    transform-origin: center;
+}
+.hashi-island.won .hashi-isle-disc { animation: hashi-win-disc 0.5s ease both; }
+.hashi-island.won .hashi-isle-num { fill: #3a2a18; animation: board-symbol-pop 0.5s ease both; }
+@keyframes hashi-win-disc {
+    0%   { transform: scale(1);    fill: #eadbc4; stroke: var(--game-color, #8a5a2c); }
+    40%  { transform: scale(1.3);  fill: #bbf7d0; stroke: #16a34a; }
+    68%  { transform: scale(0.96); }
+    100% { transform: scale(1);    fill: #bbf7d0; stroke: #16a34a; }
+}
+/* A completed (slate) island conducts slate→green on win, so it never snaps. */
+.hashi-island.won.marked .hashi-isle-disc { animation: hashi-win-disc-marked 0.5s ease both; }
+@keyframes hashi-win-disc-marked {
+    0%   { transform: scale(1);    fill: #e5e9f2; stroke: #6b7280; }
+    40%  { transform: scale(1.3);  fill: #bbf7d0; stroke: #16a34a; }
+    68%  { transform: scale(0.96); }
+    100% { transform: scale(1);    fill: #bbf7d0; stroke: #16a34a; }
+}
+/* Drag highlight: the start island, and the target once the pointer crosses the
+   midline — both discs brighten. */
+.hashi-island.active .hashi-isle-disc { fill: #fff2d6; stroke: var(--game-color, #8a5a2c); stroke-width: calc(var(--hashi-isle-sw, 2.5) * 1.4); }
+
+/* Drag preview of the bridge about to be built (solid) or removed (dashed). */
+.hashi-pending-line { stroke: var(--game-color, #8a5a2c); stroke-linecap: round; opacity: 0.4; }
+.hashi-pending-line.erase { stroke: #94a3b8; stroke-dasharray: 5 4; opacity: 0.7; }
+/* Mouse-hover preview is fainter than an active drag preview. */
+.hashi-pending-line.hashi-hover { opacity: 0.22; }
+
+/* A corridor confirmed empty (Mark mode): a faint dotted ghost down its middle. */
+.hashi-mark-empty { stroke: #94a3b8; stroke-dasharray: 2 5; stroke-linecap: round; opacity: 0.7; pointer-events: none; }
+.hashi-mark-empty.preview { opacity: 0.3; }
+/* On win a confirmed-empty mark fades out in step with the colour wave. */
+.hashi-mark-empty.won-fade { animation: hashi-mark-fade 0.4s ease both; }
+@keyframes hashi-mark-fade { to { opacity: 0; } }
+/* Mark-mode hover: a faint ring on the island you'd flag handled. */
+.hashi-hover-isle { fill: none; stroke: #6b7280; stroke-width: 2.5; opacity: 0.5; pointer-events: none; }
+
+/* Bottom controls: the Build/Mark mode group + the Remaining toggle, one row. */
+.hashi-controls {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: stretch;
+    gap: var(--space-md);
+    width: 100%;
+    max-width: 480px;
+    margin: var(--space-md) auto 0;
+}
+.hashi-tools {
+    display: flex;
+    gap: var(--space-sm);
+}
+/* The Remaining toggle sits a touch apart from the mode pair. */
+.hashi-tool.assist-toggle { margin-left: var(--space-xs); }
+.hashi-tool {
+    appearance: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-xs);
+    padding: 9px 16px;
+    border: 1px solid var(--border-strong);
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+    font-size: 0.95rem;
+    font-weight: 600;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: background var(--transition-fast), border-color var(--transition-fast),
+        color var(--transition-fast), transform var(--transition-fast);
+}
+.hashi-tool:hover { background: var(--bg-hover); border-color: var(--text-muted); }
+.hashi-tool:active { transform: translateY(1px); }
+.hashi-tool.active { background: var(--game-color, var(--accent-primary)); border-color: var(--game-color, var(--accent-primary)); color: var(--text-on-accent); }
+
+/* Hint: a highlight band along the forced connection, a ghost of the bridges to
+   build, and rings on conflicting islands. */
+.hashi-hint-band { stroke: var(--game-color, #8a5a2c); opacity: 0.22; }
+.hashi-hint-band.wrong { stroke: var(--accent-danger, #dc3545); opacity: 0.3; }
+.hashi-hint-ghost { opacity: 0.5; }
+.hashi-hint-ring { fill: none; stroke: var(--game-color, #8a5a2c); stroke-width: 3; pointer-events: none; animation: zip-hint-pulse 1.15s ease-in-out infinite; }
+.hashi-hint-ring.wrong { stroke: var(--accent-danger, #dc3545); }
+/* Source of a direct deduction: the island whose number forces it (dashed ring)
+   or the placed crossing bridge that rules it out (dashed band). */
+.hashi-hint-anchor { fill: none; stroke: var(--game-color, #8a5a2c); stroke-width: 2.5; stroke-dasharray: 4 3; pointer-events: none; animation: zip-hint-pulse 1.15s ease-in-out infinite; }
+.hashi-hint-source { stroke: var(--game-color, #8a5a2c); opacity: 0.45; stroke-dasharray: 6 4; }
+/* The capping neighbours that justify a 'rest'/'cap' deduction — a lighter,
+   static ring so they read as supporting context, not the main answer. */
+.hashi-hint-context { fill: none; stroke: var(--game-color, #8a5a2c); stroke-width: 2; opacity: 0.5; pointer-events: none; }
+/* An already-determined neighbouring connection shown faint to justify an
+   'exact' deduction (e.g. "that link is forced to 2, so this one is 1"). */
+.hashi-bridge.hashi-hint-determined { opacity: 0.3; stroke-dasharray: 5 4; }
+/* Walk-through (assume → contradiction): the refuted assumption is dashed red,
+   each forced step carries a white-haloed number, and the break is ringed red. */
+.hashi-hint-assume { stroke: var(--accent-danger, #dc3545); opacity: 0.7; stroke-dasharray: 5 7; stroke-linecap: butt; }
+.hashi-hint-step { fill: #3a2a18; font-family: var(--font-body); font-weight: 700; paint-order: stroke; stroke: #fff; stroke-width: 3px; stroke-linejoin: round; pointer-events: none; }
+
+/* Reveal overlay. */
+.hashi-reveal-line { stroke: var(--game-color, #8a5a2c); opacity: 0.35; stroke-linecap: round; }
+
+/* ----------------------------------------------------------------
+   Help / footer hints
+   ---------------------------------------------------------------- */
+
+.game-footer {
+    margin-top: var(--space-lg);
+    padding: var(--space-md);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-md);
+    color: var(--text-secondary);
+    font-size: 0.88rem;
+    line-height: 1.6;
+}
+
+.game-footer h4 {
+    color: var(--text-primary);
+    font-size: 0.95rem;
+    margin-bottom: var(--space-xs);
+}
+
+.game-footer ul {
+    margin-left: var(--space-lg);
+}
+
+/* ----------------------------------------------------------------
+   Responsive
+   ---------------------------------------------------------------- */
+
+@media (max-width: 560px) {
+    /* Collapse to a single column so Difficulty / Board size / actions each
+       get their own row. The .toolbar-stack-action override must be repeated
+       here (same specificity, later source) or it would keep its two-column
+       desktop layout and crush the slider on phones. */
+    .game-toolbar,
+    .game-toolbar.toolbar-stack-action {
+        grid-template-columns: 1fr;
+    }
+    .topbar-spacer { display: none; }
+}

@@ -1,0 +1,26 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---- Optional: shared high-score leaderboard (future) ----
+    match /game_scores/{scoreId} {
+      allow read: if true;
+      // A signed-in user may only create/update a row carrying their own UID.
+      allow create, update: if request.auth != null
+                            && request.resource.data.user_id == request.auth.uid;
+      allow delete: if false;
+    }
+
+    // ---- Rune Clash rooms (room-code PvP; collection name kept as duel_rooms) ----
+    // Honor-system MVP: any signed-in (anonymous) player may read/write rooms.
+    // This is enough for playing with friends via a shared room code. It does
+    // NOT stop a determined cheater from reading an opponent's unrevealed data
+    // via F12 — tightening that needs server authority (Cloud Functions).
+    match /duel_rooms/{roomId} {
+      allow read:   if request.auth != null;
+      allow create: if request.auth != null;
+      allow update: if request.auth != null;
+      allow delete: if request.auth != null;
+    }
+  }
+}

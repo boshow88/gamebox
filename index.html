@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GameBox</title>
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg">
+    <link rel="stylesheet" href="./css/launcher.css">
+</head>
+<body>
+    <div class="app-shell">
+        <header class="app-header">
+            <div class="lang-toggle" id="lang-toggle" role="radiogroup" aria-label="Language">
+                <button type="button" data-lang="en" role="radio" aria-checked="true">EN</button>
+                <button type="button" data-lang="zh" role="radio" aria-checked="false">中</button>
+            </div>
+            <h1 class="app-title">Game<span class="title-accent">Box</span></h1>
+            <p class="app-subtitle" id="app-subtitle"></p>
+        </header>
+
+        <nav class="tag-filter" id="tag-filter" aria-label="Filter games by tag"></nav>
+
+        <main class="games-grid" id="games-grid"></main>
+        <p class="no-results" id="no-results" hidden></p>
+
+        <footer class="app-footer" id="app-footer"></footer>
+    </div>
+    <script src="./js/launcher.js"></script>
+</body>
+</html>

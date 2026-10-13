@@ -1,0 +1,1076 @@
+/**
+ * Zip — gameplay, dummy puzzle generation, and SVG rendering.
+ *
+ * Same architectural shape as the other three games (deliberately), but
+ * with a drag-based path-drawing interaction model instead of the
+ * single-cell toggle / select / fill loops. Only depends on
+ * window.PuzzleCommon.
+ *
+ * Puzzle JSON contract:
+ *   {
+ *     id:          string,
+ *     game:        'zip',
+ *     size:        N,                 // 5..12
+ *     difficulty:  'easy' | 'medium' | 'hard',
+ *     holes:       Array<[r, c]>,     // grey, unenterable cells
+ *     walls:       Array<[[r,c],[r,c]]>,  // 4-adj cell pairs the path can't cross
+ *     checkpoints: Array<{ r, c, n }>,   // 1..K numbered markers, n in path order
+ *     solution:    Array<[r, c]>,     // canonical path covering all non-hole cells
+ *   }
+ *
+ * The current generator is intentionally simple: random DFS through the
+ * grid produces a path P; cells not in P become holes; checkpoints are
+ * sampled along P at positions that match the difficulty; a few
+ * incidental walls are dropped between non-P-adjacent cell pairs purely
+ * for visual texture (they don't affect solvability of P). It does NOT
+ * guarantee a unique solution — the proper generator will replace this
+ * one later.
+ */
+(function () {
+    'use strict';
+
+    const PC = window.PuzzleCommon;
+
+    // -----------------------------------------------------------------
+    // Constants
+    // -----------------------------------------------------------------
+
+    const BOARD_SIZE = 480;
+    const MIN_SIZE = 5;
+    const MAX_SIZE = 12;
+
+    // -----------------------------------------------------------------
+    // Helpers
+    // -----------------------------------------------------------------
+
+    function cellKey(r, c) { return `${r},${c}`; }
+
+    /** Canonical key for an unordered edge between two cells. */
+    function edgeKey(a, b) {
+        const [r1, c1] = a;
+        const [r2, c2] = b;
+        if (r1 < r2 || (r1 === r2 && c1 < c2)) {
+            return `${r1},${c1}|${r2},${c2}`;
+        }
+        return `${r2},${c2}|${r1},${c1}`;
+    }
+
+    function isAdjacent4(a, b) {
+        return Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]) === 1;
+    }
+
+    // -----------------------------------------------------------------
+    // Puzzle generation — delegates to the shared generator, driven through
+    // the unified determinate progress bar (mirrors the other games).
+    // -----------------------------------------------------------------
+
+    async function generatePuzzle(size, difficulty, seed) {
+        // Generation is one opaque compute (a single forceUnique search) with no
+        // reliable sub-progress, so we DON'T drive a determinate bar — that would
+        // just stall then jump. We leave the shell's progress overlay in its
+        // indeterminate (sliding) mode by passing no onProgress; the slide is a
+        // compositor animation, so it keeps moving even while the main thread is
+        // blocked generating.
+        return window.PuzzleGenerators.zip(size, difficulty, seed, null);
+    }
+
+    // Shareable-URL state: a link carries (size, diff, seed); the generator is
+    // deterministic, so opening it reproduces the same board. The seed is used
+    // once for the first board; New Game then rolls a fresh one and re-syncs
+    // the address bar. Mirrors the other games.
+    const VALID_DIFFS = new Set(['easy', 'medium', 'hard']);
+
+    function readUrlInitial() {
+        if (!PC.share) return null;
+        const raw = PC.share.readParams();
+        if (!(raw.size >= MIN_SIZE && raw.size <= MAX_SIZE)) return null;
+        if (!VALID_DIFFS.has(raw.difficulty)) return null;
+        if (!Number.isInteger(raw.seed)) return null;
+        return { size: raw.size, difficulty: raw.difficulty, seed: raw.seed };
+    }
+
+    const urlInitial = readUrlInitial();
+    let pendingSeed = urlInitial ? urlInitial.seed : null;
+
+    async function onShareClick() {
+        if (!PC.share) return;
+        const ok = await PC.share.copyCurrentUrl();
+        if (PC.toast) PC.toast.show(PC.i18n.t(ok ? 'shareCopied' : 'shareFailed'));
+    }
+
+    // -----------------------------------------------------------------
+    // Game state
+    // -----------------------------------------------------------------
+
+    const state = {
+        puzzle: null,
+        path: [],                   // Array<[r, c]>; player's current path
+        dragging: null,             // { pointerId, lastCell: [r,c] } | null
+        hint: null,                 // active hint object | null (see computeHint)
+        hintBanner: null,           // DOM node for the hint message banner
+
+        won: false,
+        winAnimating: false,        // true while the victory trace is still drawing
+
+        // Derived puzzle indices (rebuilt on every newPuzzle for fast lookups)
+        holeSet: null,              // Set of "r,c"
+        wallSet: null,              // Set of edgeKey
+        checkpointMap: null,        // Map "r,c" -> number
+        accessibleCount: 0,         // count of non-hole cells
+    };
+
+    let shell = null;
+    let undoHistory = null;
+    let winTimers = [];             // staggered timers that light checkpoints as the trace passes
+
+    function rebuildPuzzleIndices() {
+        const p = state.puzzle;
+        state.holeSet = new Set(p.holes.map(([r, c]) => cellKey(r, c)));
+        state.wallSet = new Set(p.walls.map(([a, b]) => edgeKey(a, b)));
+        state.checkpointMap = new Map(p.checkpoints.map((cp) => [cellKey(cp.r, cp.c), cp.n]));
+        state.accessibleCount = p.size * p.size - p.holes.length;
+    }
+
+    function resetPath() {
+        state.path = [];
+        state.dragging = null;
+        state.won = false;
+    }
+
+    // -----------------------------------------------------------------
+    // Undo (bounded snapshot history — one drag gesture = one step).
+    // -----------------------------------------------------------------
+
+    function clonePath(path) { return path.map((rc) => rc.slice()); }
+
+    function snapshotState() { return { path: clonePath(state.path) }; }
+
+    function restoreSnapshot(snap) {
+        const wasWon = state.won;
+        state.path = clonePath(snap.path);
+        state.dragging = null;
+        state.won = false;
+        if (wasWon) { shell.clearWin(); clearWinAnim(); } // reverse win chrome, resume the clock
+        repaintCheckpoints();
+        repaintPath();
+        updateStatusRow();
+    }
+
+    function pushUndo() {
+        if (!undoHistory || state.won) return;
+        undoHistory.push();
+        updateUndoButton();
+    }
+
+    // Undo stays available after winning (to review the last moves); it's only
+    // cleared on Reset-after-win / New Game.
+    function doUndo() {
+        if (!state.puzzle) return;
+        if (undoHistory && undoHistory.undo()) { clearHint(); updateUndoButton(); }
+    }
+
+    function updateUndoButton() {
+        const btn = document.getElementById('undo-btn');
+        if (btn) btn.disabled = !(undoHistory && undoHistory.canUndo());
+    }
+
+    // -----------------------------------------------------------------
+    // Rules
+    // -----------------------------------------------------------------
+
+    function isHole(r, c) {
+        return state.holeSet.has(cellKey(r, c));
+    }
+    function hasWall(a, b) {
+        return state.wallSet.has(edgeKey(a, b));
+    }
+    function checkpointAt(r, c) {
+        const v = state.checkpointMap.get(cellKey(r, c));
+        return v == null ? 0 : v;
+    }
+    function pathIndexOf(r, c) {
+        for (let i = 0; i < state.path.length; i++) {
+            if (state.path[i][0] === r && state.path[i][1] === c) return i;
+        }
+        return -1;
+    }
+
+    /**
+     * Are the checkpoints visited in correct numerical order so far?
+     * Returns the next-expected-checkpoint number if so, or null if the
+     * path is already out of order.
+     */
+    function checkpointOrderState() {
+        let expected = 1;
+        for (const [r, c] of state.path) {
+            const n = checkpointAt(r, c);
+            if (n === 0) continue;
+            if (n !== expected) return null;
+            expected += 1;
+        }
+        return expected;
+    }
+
+    /**
+     * Find the first index along the path where the checkpoint order
+     * is broken (i.e. the player passed through, say, checkpoint 3
+     * before reaching 2). Returns -1 if the order is currently valid.
+     * Used both for the in-progress red tint and as a fast-path
+     * invariant for the win check.
+     */
+    function computeWrongOrderStart() {
+        let expected = 1;
+        for (let i = 0; i < state.path.length; i++) {
+            const [r, c] = state.path[i];
+            const n = checkpointAt(r, c);
+            if (n === 0) continue;
+            if (n !== expected) return i;
+            expected += 1;
+        }
+        return -1;
+    }
+
+    /**
+     * The invalid (red) tail of the path, if any. Two ways to go wrong:
+     *   • out-of-order: a checkpoint is reached before its predecessor — the
+     *     offending cell and everything after it is red (tinted from it too);
+     *   • overrun: the LAST checkpoint K is reached correctly but the path
+     *     keeps going — the endpoint must be the final cell, so the segments
+     *     leaving K (and the cells after it) are red, while K itself stays
+     *     valid/blue.
+     * Returns { lineFrom, tintFrom }: line segments with index > lineFrom are
+     * red; cells with index >= tintFrom are tinted. Both -1 when the path is
+     * currently valid.
+     */
+    function computeWrongRegion() {
+        const w = computeWrongOrderStart();
+        if (w >= 0) return { lineFrom: w, tintFrom: w };
+        // Order is valid so far; check for an overrun past the final checkpoint.
+        const K = state.puzzle.checkpoints.length;
+        for (let i = 0; i < state.path.length - 1; i++) {
+            const [r, c] = state.path[i];
+            if (checkpointAt(r, c) === K) return { lineFrom: i, tintFrom: i + 1 };
+        }
+        return { lineFrom: -1, tintFrom: -1 };
+    }
+
+    function isWin() {
+        if (state.path.length !== state.accessibleCount) return false;
+        // All checkpoints visited in order? checkpointOrderState() will
+        // be K+1 when all are hit correctly.
+        const K = state.puzzle.checkpoints.length;
+        const next = checkpointOrderState();
+        if (next == null || next !== K + 1) return false;
+        // The path must END at the highest-numbered checkpoint K, not
+        // just pass through it on the way somewhere else.
+        const [lastR, lastC] = state.path[state.path.length - 1];
+        return checkpointAt(lastR, lastC) === K;
+    }
+
+    // -----------------------------------------------------------------
+    // Rendering
+    // -----------------------------------------------------------------
+
+    // Zip-specific DOM. The shell owns the toolbar / timer / win badge.
+    let board = null;
+
+    function cellCentre(N, r, c) {
+        const cs = BOARD_SIZE / N;
+        return { cx: c * cs + cs / 2, cy: r * cs + cs / 2, cs };
+    }
+
+    function renderBoard() {
+        const p = state.puzzle;
+        const N = p.size;
+        const svg = board;
+        while (svg.firstChild) svg.removeChild(svg.firstChild);
+
+        const cs = BOARD_SIZE / N;
+
+        // Layer: cell backgrounds (white normally, grey for holes).
+        // Fill is set inline because the shared `.cell-bg` CSS rule has
+        // no default `fill` — see the comment in game.css.
+        const bgGroup = PC.svgEl('g', { class: 'cells' });
+        for (let r = 0; r < N; r++) {
+            for (let c = 0; c < N; c++) {
+                const hole = isHole(r, c);
+                bgGroup.appendChild(PC.svgEl('rect', {
+                    class: 'cell-bg' + (hole ? ' hole' : ''),
+                    x: c * cs, y: r * cs, width: cs, height: cs,
+                    fill: hole ? '#bdbdbd' : '#ffffff',
+                }));
+            }
+        }
+        svg.appendChild(bgGroup);
+
+        // Layer: outer frame (same shared region-border style).
+        const borderGroup = PC.svgEl('g', { class: 'region-borders' });
+        const W = N * cs;
+        const addBorder = (x1, y1, x2, y2) => {
+            borderGroup.appendChild(PC.svgEl('line', {
+                class: 'region-border', x1, y1, x2, y2,
+            }));
+        };
+        addBorder(0, 0, W, 0);
+        addBorder(0, W, W, W);
+        addBorder(0, 0, 0, W);
+        addBorder(W, 0, W, W);
+        svg.appendChild(borderGroup);
+
+        // Layer: persistent red tint on the cells that form a wrong-
+        // -order portion of the path. Sits between the cells and the
+        // path lines, so the line still draws on top (and itself gets
+        // turned red over the same region).
+        const wrongOrderGroup = PC.svgEl('g', { class: 'wrong-order' });
+        wrongOrderGroup.setAttribute('id', 'wrong-order');
+        svg.appendChild(wrongOrderGroup);
+
+        // Layer: path (reveal underneath, then player path on top).
+        const pathGroup = PC.svgEl('g', { class: 'paths' });
+        pathGroup.setAttribute('id', 'paths');
+        svg.appendChild(pathGroup);
+
+        // Layer: short-lived red flashes for blocked drag attempts. Sits
+        // above paths but below the path head and hit overlay so it
+        // never covers the endpoint marker.
+        const flashGroup = PC.svgEl('g', { class: 'flashes' });
+        flashGroup.setAttribute('id', 'flashes');
+        svg.appendChild(flashGroup);
+
+        // Layer: walls (black thick lines on cell boundaries).
+        const wallStroke = Math.max(5, Math.floor(cs * 0.10));
+        const wallGroup = PC.svgEl('g', { class: 'walls' });
+        for (const [a, b] of p.walls) {
+            const [r1, c1] = a;
+            const [r2, c2] = b;
+            // Vertical wall between (r, c) and (r, c+1)
+            let x1, y1, x2, y2;
+            if (r1 === r2) {
+                const x = Math.max(c1, c2) * cs;
+                x1 = x; x2 = x;
+                y1 = r1 * cs; y2 = (r1 + 1) * cs;
+            } else {
+                const y = Math.max(r1, r2) * cs;
+                y1 = y; y2 = y;
+                x1 = c1 * cs; x2 = (c1 + 1) * cs;
+            }
+            wallGroup.appendChild(PC.svgEl('line', {
+                class: 'wall-line',
+                x1, y1, x2, y2,
+                'stroke-width': wallStroke,
+            }));
+        }
+        svg.appendChild(wallGroup);
+
+        // Layer: path head sits BELOW the checkpoints so a checkpoint
+        // number is never obscured by the head. When the endpoint lands
+        // on a checkpoint, the head circle is fully hidden by the cp;
+        // we keep "endpoint here" visible by drawing an outer halo ring
+        // (also in this group) whose stroke sticks out beyond the cp
+        // outline.
+        const headGroup = PC.svgEl('g', { class: 'path-head-group' });
+        headGroup.setAttribute('id', 'path-head');
+        svg.appendChild(headGroup);
+
+        // Layer: win sweep — a gold line that draws itself along the finished
+        // path on victory. Below the checkpoints so their numbers stay legible.
+        const winGroup = PC.svgEl('g', { class: 'zip-win' });
+        winGroup.setAttribute('id', 'zip-win');
+        svg.appendChild(winGroup);
+
+        // Layer: checkpoint circles + numbers, above the head so the
+        // number is always legible.
+        const cpGroup = PC.svgEl('g', { class: 'checkpoints' });
+        cpGroup.setAttribute('id', 'checkpoints');
+        svg.appendChild(cpGroup);
+
+        // Layer: hint rings (drawn on top so they're clearly visible).
+        const hintGroup = PC.svgEl('g', { class: 'zip-hint' });
+        hintGroup.setAttribute('id', 'zip-hint');
+        svg.appendChild(hintGroup);
+
+        // Layer: invisible hit targets covering every cell — used to map
+        // pointer events to a cell, including the holes (so we can
+        // visually feed the pointer through them and reject the move).
+        const hitGroup = PC.svgEl('g', { class: 'hit' });
+        for (let r = 0; r < N; r++) {
+            for (let c = 0; c < N; c++) {
+                hitGroup.appendChild(PC.svgEl('rect', {
+                    class: 'cell-hover',
+                    x: c * cs, y: r * cs, width: cs, height: cs,
+                    'data-r': r,
+                    'data-c': c,
+                }));
+            }
+        }
+        svg.appendChild(hitGroup);
+
+        repaintCheckpoints();
+        repaintPath();
+    }
+
+    function repaintCheckpoints() {
+        const p = state.puzzle;
+        const N = p.size;
+        const group = board.querySelector('#checkpoints');
+        while (group.firstChild) group.removeChild(group.firstChild);
+
+        const { cs } = cellCentre(N, 0, 0);
+        const radius = Math.max(10, Math.floor(cs * 0.32));
+        const font = Math.max(12, Math.floor(cs * 0.42));
+        // While the victory trace is drawing, checkpoints start plain and get
+        // lit one-by-one by playWinAnimation as the trace passes; only settle
+        // them all gold once it's done (or on a later repaint).
+        const cls = (state.won && !state.winAnimating) ? 'checkpoint-circle victory' : 'checkpoint-circle';
+
+        for (const cp of p.checkpoints) {
+            const cx = cp.c * cs + cs / 2;
+            const cy = cp.r * cs + cs / 2;
+            group.appendChild(PC.svgEl('circle', {
+                class: cls,
+                cx, cy, r: radius,
+                'data-r': cp.r, 'data-c': cp.c,
+            }));
+            const text = PC.svgEl('text', {
+                class: 'checkpoint-text',
+                x: cx, y: cy,
+                'text-anchor': 'middle',
+                'dominant-baseline': 'middle',
+                // Digits sit visually lower than the dominant-baseline
+                // mid; use the same dy as Sudoku digits, not the smaller
+                // dy used for the top-heavy ♛ / ☀ / ☾ glyphs.
+                dy: '0.12em',
+                'font-size': font,
+            });
+            text.textContent = String(cp.n);
+            group.appendChild(text);
+        }
+    }
+
+    /** Interpolate the path colour at fractional position t in [0, 1].
+     *  Correct segments: dark blue-grey (52, 73, 94) → bright blue
+     *  (52, 152, 219). Wrong-order segments: dark red (132, 32, 41) →
+     *  bright red (220, 53, 69) — `#dc3545`, the shared --accent-danger.
+     *  Both gradients use the same t parameter computed over the WHOLE
+     *  path, so a blue→red transition at the wrong-order boundary lines
+     *  up at a similar depth. On win the path keeps its blue gradient —
+     *  the gold victory trace, drawn above it, does the recolouring. */
+    function pathColorAt(t, won, wrong) {
+        // On win the path stays blue; the gold trace (drawn above it) is what
+        // recolours it, sweeping from start to end.
+        if (wrong) {
+            const r = Math.round(132 + (220 - 132) * t);
+            const g = Math.round(32 + (53 - 32) * t);
+            const b = Math.round(41 + (69 - 41) * t);
+            return `rgb(${r}, ${g}, ${b})`;
+        }
+        const g = Math.round(73 + (152 - 73) * t);
+        const b = Math.round(94 + (219 - 94) * t);
+        return `rgb(52, ${g}, ${b})`;
+    }
+
+    function repaintPath() {
+        const p = state.puzzle;
+        const N = p.size;
+        const cs = BOARD_SIZE / N;
+
+        // Invalid tail (out-of-order or overrun past the last checkpoint) —
+        // compute once and reuse for both the cell tint and the per-segment
+        // line colour. Skip entirely once the puzzle has been won.
+        const region = state.won ? { lineFrom: -1, tintFrom: -1 } : computeWrongRegion();
+        const wrongStart = region.lineFrom;
+        const wrongLayer = board.querySelector('#wrong-order');
+        while (wrongLayer.firstChild) wrongLayer.removeChild(wrongLayer.firstChild);
+        if (region.tintFrom >= 0) {
+            for (let i = region.tintFrom; i < state.path.length; i++) {
+                const [r, c] = state.path[i];
+                wrongLayer.appendChild(PC.svgEl('rect', {
+                    class: 'wrong-order-tint',
+                    x: c * cs, y: r * cs, width: cs, height: cs,
+                }));
+            }
+        }
+
+        const group = board.querySelector('#paths');
+        while (group.firstChild) group.removeChild(group.firstChild);
+
+        const stroke = Math.max(10, Math.floor(cs * 0.36));
+
+        // Reveal solution path underneath the player's, drawn in green.
+        if (shell.revealed && !state.won && p.solution.length >= 2) {
+            const points = p.solution
+                .map(([r, c]) => `${c * cs + cs / 2},${r * cs + cs / 2}`)
+                .join(' ');
+            group.appendChild(PC.svgEl('polyline', {
+                class: 'zip-path reveal',
+                points,
+                'stroke-width': stroke * 0.6,
+            }));
+        }
+
+        // Player path as a series of per-segment lines so each segment
+        // can carry its own interpolated colour. Both the correct and
+        // wrong-order gradients share the same t parameter over the
+        // whole path, so the blue→red transition at the wrong-order
+        // boundary lands at roughly the same depth. The segment that
+        // *arrives at* the wrong checkpoint is still blue — only the
+        // segments LEAVING the wrong cell switch to red, so the colour
+        // change visually originates at the wrong number itself.
+        if (state.path.length >= 2) {
+            const segs = state.path.length - 1;
+            for (let i = 1; i < state.path.length; i++) {
+                const isWrong = wrongStart >= 0 && i > wrongStart;
+                const t = segs > 0 ? i / segs : 0;
+                const colour = pathColorAt(t, state.won, isWrong);
+                const [r0, c0] = state.path[i - 1];
+                const [r1, c1] = state.path[i];
+                group.appendChild(PC.svgEl('line', {
+                    class: 'zip-path',
+                    x1: c0 * cs + cs / 2, y1: r0 * cs + cs / 2,
+                    x2: c1 * cs + cs / 2, y2: r1 * cs + cs / 2,
+                    style: `stroke: ${colour}`,
+                    'stroke-width': stroke,
+                }));
+            }
+        }
+
+        // Path head: a larger circle that sits beneath the checkpoint
+        // layer. When the endpoint coincides with a checkpoint, the
+        // small circle is covered up by the cp, so we additionally draw
+        // a halo ring whose stroke sticks out beyond the cp outline —
+        // that's the "endpoint here" cue when the player has crossed
+        // into a numbered cell. Both pieces switch to red whenever the
+        // path is currently parked inside a wrong-order tail.
+        const headGroup = board.querySelector('#path-head');
+        while (headGroup.firstChild) headGroup.removeChild(headGroup.firstChild);
+        if (state.path.length >= 1) {
+            const [hr, hc] = state.path[state.path.length - 1];
+            const cx = hc * cs + cs / 2;
+            const cy = hr * cs + cs / 2;
+            const headR = Math.max(8, Math.floor(cs * 0.27));
+            // Reaching the final checkpoint before every cell is covered is a
+            // dead end (you can't leave it without overrunning), so flag the
+            // head red too — not just the out-of-order / overrun cases.
+            const finalCp = state.puzzle.checkpoints.length;
+            const headOnFinalEarly = !state.won && checkpointAt(hr, hc) === finalCp;
+            // Stays in play colour (blue) while the trace draws; turns gold +
+            // glowing once the trace reaches it, so it recolours like the path.
+            const headState = state.won ? (state.winAnimating ? '' : ' victory lit')
+                : (wrongStart >= 0 || headOnFinalEarly ? ' wrong' : '');
+            headGroup.appendChild(PC.svgEl('circle', {
+                class: 'path-head' + headState, cx, cy, r: headR,
+            }));
+            if (checkpointAt(hr, hc) > 0) {
+                // Place the ring so its INNER edge touches the cp's
+                // outline. The ring's band then extends outward beyond
+                // the cp, which reads as the head "spilling out" from
+                // behind the cp rather than as a separate halo.
+                const cpR = Math.max(10, Math.floor(cs * 0.32));
+                const ringW = Math.max(5, Math.floor(cs * 0.09));
+                const ringR = cpR + ringW / 2;
+                headGroup.appendChild(PC.svgEl('circle', {
+                    class: 'path-head-ring' + headState,
+                    cx, cy, r: ringR,
+                    fill: 'none',
+                    'stroke-width': ringW,
+                }));
+            }
+        }
+    }
+
+    /** Show a brief red wash on the given cell to indicate the drag
+     *  hit an illegal target (wall, hole, etc.). Auto-removed after
+     *  the CSS animation completes. */
+    function flashInvalid(cell) {
+        if (!state.puzzle) return;
+        const N = state.puzzle.size;
+        const cs = BOARD_SIZE / N;
+        const layer = board.querySelector('#flashes');
+        if (!layer) return;
+        const rect = PC.svgEl('rect', {
+            class: 'zip-invalid-flash',
+            x: cell[1] * cs, y: cell[0] * cs,
+            width: cs, height: cs,
+        });
+        layer.appendChild(rect);
+        setTimeout(() => {
+            if (rect.parentNode) rect.parentNode.removeChild(rect);
+        }, 420);
+    }
+
+    function updateStatusRow() {
+        shell.setWin(state.won);
+    }
+
+    // -----------------------------------------------------------------
+    // Pointer / drag interaction
+    // -----------------------------------------------------------------
+
+    /** Map an event to a grid cell, or null if outside the board. */
+    function eventToCell(ev) {
+        const N = state.puzzle.size;
+        const rect = board.getBoundingClientRect();
+        if (rect.width === 0 || rect.height === 0) return null;
+        // The SVG viewBox is "-3 -3 486 486", so the playable area sits
+        // at viewBox coords (0..480, 0..480) which corresponds to the
+        // inner (480/486) of the rendered SVG, offset by (3/486) on
+        // each side.
+        const vbx = (ev.clientX - rect.left) / rect.width * 486 - 3;
+        const vby = (ev.clientY - rect.top) / rect.height * 486 - 3;
+        if (vbx < 0 || vbx >= BOARD_SIZE) return null;
+        if (vby < 0 || vby >= BOARD_SIZE) return null;
+        const cs = BOARD_SIZE / N;
+        return [Math.floor(vby / cs), Math.floor(vbx / cs)];
+    }
+
+    // Pure predicate mirroring tryStartDragAt's guards (no mutation), so the
+    // pointerdown handler can snapshot for undo *before* the path is modified.
+    function canStartDragAt(cell) {
+        if (state.won) return false;
+        const [r, c] = cell;
+        if (isHole(r, c)) return false;
+        if (state.path.length === 0) return checkpointAt(r, c) === 1;
+        return pathIndexOf(r, c) >= 0;
+    }
+
+    function tryStartDragAt(cell, pointerId) {
+        if (state.won) return false;
+        const [r, c] = cell;
+        if (isHole(r, c)) return false;
+        if (state.path.length === 0) {
+            // Path empty: only checkpoint "1" is a valid starting point.
+            if (checkpointAt(r, c) !== 1) return false;
+            state.path = [[r, c]];
+        } else {
+            // Path non-empty: cell must already be on the path. Click
+            // truncates everything AFTER the clicked cell — so clicking
+            // the current endpoint is a no-op, clicking the previous
+            // cell rewinds by one, clicking far back resets to there.
+            const idx = pathIndexOf(r, c);
+            if (idx < 0) return false;
+            state.path = state.path.slice(0, idx + 1);
+        }
+        state.dragging = { pointerId, lastCell: [r, c], lastFlashCell: null };
+        return true;
+    }
+
+    /**
+     * Try to update the path so that its endpoint moves to a single
+     * 4-adjacent cell. Returns a status object the caller can use to
+     * decide whether to repaint, flash, or stop walking:
+     *   { kind: 'extend' }              moved forward into an empty cell
+     *   { kind: 'retract' }             moved back onto the immediate
+     *                                   predecessor (one-cell undo)
+     *   { kind: 'noop' }                the cell is on the path but not
+     *                                   the immediate predecessor; no
+     *                                   change, no error
+     *   { kind: 'nonadj' }              not 4-adjacent to the endpoint
+     *   { kind: 'blocked', cell }       adjacent but blocked by a wall
+     *                                   or a hole
+     *   { kind: 'occupied', cell }      adjacent but already on the path —
+     *                                   the head would run into its own body
+     */
+    function attemptStepTo(cell) {
+        if (state.path.length === 0) return { kind: 'noop' };
+        const [r, c] = cell;
+        const endpoint = state.path[state.path.length - 1];
+        if (endpoint[0] === r && endpoint[1] === c) return { kind: 'noop' };
+
+        // Retract one cell when the cursor enters the cell immediately
+        // before the endpoint. We deliberately don't retract when the
+        // cursor lands on any other path cell — that avoids "accidental"
+        // long-trims when a fast drag sweeps over the middle of the
+        // existing path.
+        if (state.path.length >= 2) {
+            const prev = state.path[state.path.length - 2];
+            if (prev[0] === r && prev[1] === c) {
+                state.path.pop();
+                return { kind: 'retract' };
+            }
+        }
+        if (!isAdjacent4(endpoint, cell)) {
+            // A far sweep over some middle cell of the path is not an attempt
+            // to move there — stay silent; otherwise it's simply not reachable.
+            return pathIndexOf(r, c) >= 0 ? { kind: 'noop' } : { kind: 'nonadj' };
+        }
+        // Adjacent to the head: flag the illegal targets so the caller flashes.
+        if (pathIndexOf(r, c) >= 0) return { kind: 'occupied', cell };
+        if (isHole(r, c)) return { kind: 'blocked', cell };
+        if (hasWall(endpoint, cell)) return { kind: 'blocked', cell };
+        state.path.push([r, c]);
+        return { kind: 'extend' };
+    }
+
+    function onPointerDown(ev) {
+        if (!state.puzzle) return;
+        if (ev.button !== undefined && ev.button !== 0) return;
+        const cell = eventToCell(ev);
+        if (!cell) return;
+        if (!canStartDragAt(cell)) return;
+        clearHint();                            // a fresh gesture invalidates any hint
+        pushUndo();                             // snapshot the pre-gesture path
+        tryStartDragAt(cell, ev.pointerId);     // guaranteed to start now
+        ev.preventDefault();
+        try { board.setPointerCapture(ev.pointerId); } catch (_) { /* ignore */ }
+        repaintPath();
+        updateStatusRow();
+    }
+
+    function onPointerMove(ev) {
+        if (!state.dragging) return;
+        if (ev.pointerId !== state.dragging.pointerId) return;
+        const cell = eventToCell(ev);
+        if (!cell) return;
+        const last = state.dragging.lastCell;
+        if (last && last[0] === cell[0] && last[1] === cell[1]) return;
+        state.dragging.lastCell = cell;
+
+        const result = attemptStepTo(cell);
+        if (result.kind === 'blocked' || result.kind === 'occupied') {
+            const lf = state.dragging.lastFlashCell;
+            if (!lf || lf[0] !== result.cell[0] || lf[1] !== result.cell[1]) {
+                flashInvalid(result.cell);
+                state.dragging.lastFlashCell = result.cell;
+            }
+        } else {
+            state.dragging.lastFlashCell = null;
+        }
+        if (result.kind !== 'extend' && result.kind !== 'retract') return;
+
+        if (isWin() && !state.won) {
+            state.won = true;
+            state.winAnimating = true;   // set first so the repaints render the pre-sweep state
+            shell.markSolved();
+            clearHint();
+            // End the drag the instant the puzzle is solved. Without
+            // this, the player can keep dragging through the same
+            // gesture (e.g. accidentally pulling back over the
+            // penultimate cell) and produce a partly-retracted "gold"
+            // path that looks both won and unfinished.
+            if (state.dragging) {
+                try { board.releasePointerCapture(state.dragging.pointerId); } catch (_) { /* ignore */ }
+                state.dragging = null;
+            }
+            repaintPath();
+            repaintCheckpoints();        // draw checkpoints plain (+ data-r/c) for the sweep to light
+            playWinAnimation();          // sweep + staggered lighting on the fresh elements
+            updateStatusRow();
+            return;
+        }
+        repaintPath();
+        if (state.won) repaintCheckpoints();
+        updateStatusRow();
+    }
+
+    function onPointerEnd(ev) {
+        if (!state.dragging) return;
+        if (ev.pointerId !== state.dragging.pointerId) return;
+        try { board.releasePointerCapture(ev.pointerId); } catch (_) { /* ignore */ }
+        state.dragging = null;
+    }
+
+    // -----------------------------------------------------------------
+    // Win animation — a gold line draws itself along the finished path from
+    // checkpoint 1 to K (a "victory trace"), mirroring how the other games
+    // punctuate a solve. Purely presentational; the underlying path is already
+    // gold, so once the trace completes the two are seamless.
+    // -----------------------------------------------------------------
+
+    function clearWinAnim() {
+        state.winAnimating = false;
+        winTimers.forEach(clearTimeout);
+        winTimers = [];
+        const layer = board && board.querySelector('#zip-win');
+        if (layer) while (layer.firstChild) layer.removeChild(layer.firstChild);
+    }
+
+    function playWinAnimation() {
+        const layer = board && board.querySelector('#zip-win');
+        if (!layer || state.path.length < 2) return;
+        while (layer.firstChild) layer.removeChild(layer.firstChild);
+        const N = state.puzzle.size;
+        const cs = BOARD_SIZE / N;
+        const M = state.path.length;
+        // Trace time scales with board size, so big boards sweep more slowly.
+        const durMs = Math.max(800, Math.round(N * 155));
+        const pts = state.path.map(([r, c]) => (c * cs + cs / 2) + ',' + (r * cs + cs / 2)).join(' ');
+        const len = (M - 1) * cs;
+        const line = PC.svgEl('polyline', {
+            class: 'zip-win-sweep', points: pts,
+            'stroke-width': Math.max(10, Math.floor(cs * 0.36)),
+        });
+        line.style.transitionDuration = durMs + 'ms';
+        line.style.strokeDasharray = String(len);
+        line.style.strokeDashoffset = String(len);
+        layer.appendChild(line);
+        // Kick the CSS transition on the next frame so it animates from the
+        // dashed-hidden state to fully drawn.
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+            line.style.strokeDashoffset = '0';
+        }));
+
+        state.winAnimating = true;
+        winTimers.forEach(clearTimeout);
+        winTimers = [];
+        const at = (idx) => durMs * (idx / (M - 1));   // when the trace reaches path index idx
+
+        // Light each checkpoint (dark → gold + glow) as the trace sweeps past
+        // its position on the path, so the colour travels through them too.
+        const idxByCell = new Map();
+        state.path.forEach(([r, c], i) => idxByCell.set(r * N + c, i));
+        board.querySelectorAll('#checkpoints .checkpoint-circle').forEach((circle) => {
+            const r = +circle.getAttribute('data-r'), c = +circle.getAttribute('data-c');
+            const idx = idxByCell.has(r * N + c) ? idxByCell.get(r * N + c) : 0;
+            winTimers.push(setTimeout(() => circle.classList.add('victory'), at(idx)));
+        });
+
+        // When the trace reaches the end, settle the endpoint to gold + glow.
+        winTimers.push(setTimeout(() => {
+            state.winAnimating = false;
+            repaintPath();
+        }, durMs));
+    }
+
+    // -----------------------------------------------------------------
+    // Hints — Zip has a unique solution, so the player's path is "right so
+    // far" exactly when it's a prefix of that solution. Two kinds:
+    //   • wrong: the path leaves the solution → ring the first off cell
+    //     (retreat to just before it);
+    //   • next : the path is a correct prefix → light up the next cell(s).
+    // -----------------------------------------------------------------
+
+    const HINT_UI_TEXTS = {
+        en: {
+            start: 'Start your path at checkpoint 1 (highlighted).',
+            wrong: 'The highlighted stretch of your path leaves the only solution — retrace to before it starts and try another route.',
+            nextOne: 'Extend your path to the highlighted cell next.',
+            nextMany: 'Extend your path along the highlighted route next.',
+        },
+        zh: {
+            start: '從檢查點 1（醒目標示）開始畫你的路徑。',
+            wrong: '醒目標示的這段路徑偏離了唯一解——請退回到它的起點之前，改走別條路線。',
+            nextOne: '下一步請把路徑延伸到醒目標示的格子。',
+            nextMany: '接下來請沿著醒目標示的路線延伸你的路徑。',
+        },
+    };
+    function hintTexts() {
+        const loc = (PC.i18n && PC.i18n.locale) || 'en';
+        return HINT_UI_TEXTS[loc] || HINT_UI_TEXTS.en;
+    }
+
+    // Reveal a touch more of the route on big boards, where one cell is a
+    // very small nudge.
+    function hintNextCount(N) { return N <= 8 ? 1 : N <= 10 ? 2 : 3; }
+
+    function computeHint() {
+        const sol = state.puzzle.solution || [];
+        const path = state.path;
+        // First index where the path disagrees with the unique solution.
+        const n = Math.min(path.length, sol.length);
+        let i = 0;
+        while (i < n && path[i][0] === sol[i][0] && path[i][1] === sol[i][1]) i++;
+        if (i < path.length) {
+            // The whole tail from the first off-solution cell to the head is
+            // the wrong route to retrace.
+            const cells = [];
+            for (let k = i; k < path.length; k++) cells.push(path[k].slice());
+            return { kind: 'wrong', cells };
+        }
+        if (path.length >= sol.length) return null; // already fully correct
+        const count = hintNextCount(state.puzzle.size);
+        const cells = [];
+        for (let k = path.length; k < Math.min(sol.length, path.length + count); k++) cells.push(sol[k].slice());
+        return { kind: path.length === 0 ? 'start' : 'next', cells };
+    }
+
+    function showHint() {
+        if (!state.puzzle || state.won) return;
+        if (state.hint) { clearHint(); return; }   // toggle off
+        const h = computeHint();
+        if (!h) return;
+        state.hint = h;
+        renderHintBanner();
+        repaintHint();
+    }
+
+    function clearHint() {
+        if (!state.hint && state.hintBanner && state.hintBanner.hidden) return;
+        state.hint = null;
+        if (state.hintBanner) {
+            state.hintBanner.hidden = true;
+            state.hintBanner.textContent = '';
+            state.hintBanner.classList.remove('error');
+        }
+        repaintHint();
+    }
+
+    function renderHintBanner() {
+        const h = state.hint;
+        if (!h || !state.hintBanner) return;
+        const t = hintTexts();
+        let text;
+        if (h.kind === 'wrong') text = t.wrong;
+        else if (h.kind === 'start') text = t.start;
+        else text = (h.cells && h.cells.length > 1) ? t.nextMany : t.nextOne;
+        state.hintBanner.textContent = text;
+        state.hintBanner.classList.toggle('error', h.kind === 'wrong');
+        state.hintBanner.hidden = false;
+    }
+
+    function repaintHint() {
+        if (!board) return;
+        const layer = board.querySelector('#zip-hint');
+        if (!layer) return;
+        while (layer.firstChild) layer.removeChild(layer.firstChild);
+        const h = state.hint;
+        if (!h) return;
+        const N = state.puzzle.size;
+        const cs = BOARD_SIZE / N;
+
+        const centre = (r, c) => (c * cs + cs / 2) + ',' + (r * cs + cs / 2);
+
+        if (h.kind === 'wrong') {
+            // Spotlight the wrong route: dim every cell that isn't on it, so the
+            // mistaken stretch (path line and all) stands out. (Mirrors the
+            // Patches / Sudoku hint dimming.)
+            const focus = new Set();
+            for (const [r, c] of h.cells) focus.add(r * N + c);
+            for (let r = 0; r < N; r++) {
+                for (let c = 0; c < N; c++) {
+                    if (focus.has(r * N + c)) continue;
+                    layer.appendChild(PC.svgEl('rect', {
+                        class: 'zip-hint-dim', x: c * cs, y: r * cs, width: cs, height: cs,
+                    }));
+                }
+            }
+            return;
+        }
+
+        if (h.kind === 'start') {
+            // Empty path: just ring checkpoint 1 (nothing to connect from yet).
+            const [r, c] = h.cells[0];
+            layer.appendChild(PC.svgEl('circle', {
+                class: 'zip-hint-ring next',
+                cx: c * cs + cs / 2, cy: r * cs + cs / 2, r: cs * 0.40,
+                'stroke-width': Math.max(3, Math.floor(cs * 0.09)),
+            }));
+            return;
+        }
+
+        // next: draw a green connector from the head THROUGH the upcoming cells,
+        // so the order is unambiguous (rings alone can't show which comes first).
+        const head = state.path[state.path.length - 1];
+        const pts = [head].concat(h.cells).map(([r, c]) => centre(r, c)).join(' ');
+        layer.appendChild(PC.svgEl('polyline', {
+            class: 'zip-hint-next-line', points: pts,
+            'stroke-width': Math.max(6, Math.floor(cs * 0.20)),
+        }));
+        const [tr, tc] = h.cells[h.cells.length - 1];
+        layer.appendChild(PC.svgEl('circle', {
+            class: 'zip-hint-next-dot',
+            cx: tc * cs + cs / 2, cy: tr * cs + cs / 2, r: cs * 0.14,
+        }));
+    }
+
+    // -----------------------------------------------------------------
+    // Event handlers (toolbar / actions)
+    // -----------------------------------------------------------------
+
+    async function startNewGame() {
+        const seed = (pendingSeed != null)
+            ? pendingSeed
+            : ((Date.now() ^ Math.floor(Math.random() * 0xffffffff)) >>> 0);
+        pendingSeed = null;
+        state.puzzle = await generatePuzzle(shell.size, shell.difficulty, seed);
+        rebuildPuzzleIndices();
+        resetPath();
+        state.hint = null;
+        if (undoHistory) undoHistory.clear();
+        renderBoard();
+        updateStatusRow();
+        updateUndoButton();
+        if (PC.share) {
+            PC.share.replaceUrl({ size: shell.size, difficulty: shell.difficulty, seed });
+        }
+    }
+
+    function resetPathAction() {
+        if (!state.puzzle) return;
+        // Mid-game Reset is undoable; a post-win Reset ends the session and
+        // discards its undo history.
+        if (state.won) { if (undoHistory) undoHistory.clear(); }
+        else pushUndo();
+        resetPath();
+        clearHint();
+        clearWinAnim();
+        repaintCheckpoints();
+        repaintPath();
+        updateStatusRow();
+        updateUndoButton();
+    }
+
+    function onRevealToggle() {
+        clearHint();   // reveal shows the whole solution; a hint would be redundant
+        repaintPath();
+    }
+
+    // -----------------------------------------------------------------
+    // Init
+    // -----------------------------------------------------------------
+
+    function init() {
+        shell = PC.shell.create({
+            gameId: 'zip',
+            difficulty: { default: urlInitial ? urlInitial.difficulty : 'medium' },
+            size: { kind: 'slider', min: MIN_SIZE, max: MAX_SIZE, default: urlInitial ? urlInitial.size : 7 },
+            onNewGame: startNewGame,
+            onReset: resetPathAction,
+            onReveal: onRevealToggle,
+        });
+        board = shell.dom.board;
+        state.hintBanner = document.getElementById('hint-banner');
+
+        undoHistory = PC.history.create({
+            limit: 20,
+            snapshot: snapshotState,
+            restore: restoreSnapshot,
+        });
+
+        const shareBtn = document.getElementById('share-btn');
+        if (shareBtn) shareBtn.addEventListener('click', onShareClick);
+        const undoBtn = document.getElementById('undo-btn');
+        if (undoBtn) undoBtn.addEventListener('click', doUndo);
+        const hintBtn = document.getElementById('hint-btn');
+        if (hintBtn) hintBtn.addEventListener('click', showHint);
+        // Re-render the hint banner if the locale flips while a hint is up.
+        if (PC.i18n && typeof PC.i18n.subscribe === 'function') {
+            PC.i18n.subscribe(() => { if (state.hint) renderHintBanner(); });
+        }
+        // Ctrl/⌘+Z → undo (Shift not held, so we don't hijack redo chords).
+        window.addEventListener('keydown', (ev) => {
+            if ((ev.ctrlKey || ev.metaKey) && !ev.shiftKey && !ev.altKey && (ev.key === 'z' || ev.key === 'Z')) {
+                doUndo();
+                ev.preventDefault();
+            }
+        });
+
+        board.classList.add('drag-board');
+        board.addEventListener('pointerdown', onPointerDown);
+        board.addEventListener('pointermove', onPointerMove);
+        board.addEventListener('pointerup', onPointerEnd);
+        board.addEventListener('pointercancel', onPointerEnd);
+        // Don't let the browser kick in its own touch behaviours (scroll,
+        // long-press) while the player is drawing — we already opt out of
+        // panning via touch-action: manipulation on `.board-svg`, but
+        // belt-and-braces this for older browsers.
+        board.addEventListener('contextmenu', (ev) => ev.preventDefault());
+
+        shell.start();
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
+    }
+})();

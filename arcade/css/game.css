@@ -1,0 +1,486 @@
+/* ================================================================
+   Arcade Games — Shared game-page UI
+   (topbar, HUD, canvas stage, start/pause/over overlay, controls)
+   Builds on css/common.css.
+   ================================================================ */
+
+/* The HTML `hidden` attribute is normally `display:none` via UA styles,
+   but some flex/grid rules below have higher specificity and would
+   silently override it. Restore the expected behaviour. */
+[hidden] {
+    display: none !important;
+}
+
+.game-shell {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: var(--space-lg) var(--space-md) var(--space-2xl);
+}
+
+/* ----------------------------------------------------------------
+   Top bar (Back + title + language)
+   ---------------------------------------------------------------- */
+
+.game-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-md);
+    margin-bottom: var(--space-lg);
+}
+
+.back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: var(--space-xs) var(--space-sm);
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    border-radius: var(--radius-sm);
+    transition: background var(--transition-fast),
+        color var(--transition-fast);
+}
+
+.back-link:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+    text-decoration: none;
+}
+
+.game-title {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    font-family: var(--font-display);
+    font-size: 1.3rem;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+}
+
+.game-title .game-icon {
+    width: 38px;
+    height: 38px;
+    font-size: 1.5rem;
+    border-radius: var(--radius-md);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: color-mix(in srgb, var(--game-color) 22%, var(--bg-tertiary));
+    color: var(--game-color);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--game-color) 40%, transparent);
+}
+
+/* ----------------------------------------------------------------
+   HUD — a row of stat pills (score, best, time, level, …)
+   ---------------------------------------------------------------- */
+
+.hud {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: stretch;
+    gap: var(--space-sm);
+    margin-bottom: var(--space-md);
+}
+
+.hud-stat {
+    flex: 1 1 auto;
+    min-width: 92px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: var(--space-sm) var(--space-md);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+}
+
+.hud-stat .hud-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+}
+
+.hud-stat .hud-value {
+    font-family: var(--font-mono);
+    font-size: 1.25rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-primary);
+    line-height: 1.15;
+}
+
+/* Lives shown as pips instead of a number — readable at a glance. */
+#lives { display: inline-flex; gap: 5px; align-items: center; min-height: 1.15em; }
+.life-pip {
+    box-sizing: border-box;
+    width: 12px; height: 12px; border-radius: 50%;
+    background: #ff6b81;
+    box-shadow: 0 0 5px rgba(255, 107, 129, 0.55);
+}
+.life-pip.lost {
+    background: transparent;
+    box-shadow: none;
+    border: 2px solid rgba(255, 255, 255, 0.25);
+}
+.hud-stat.danger #lives .life-pip:not(.lost) { background: var(--accent-danger); box-shadow: none; }
+
+/* Emphasis variants so the important stats pop with the game accent. */
+.hud-stat.accent .hud-value { color: var(--game-color); }
+.hud-stat.danger .hud-value { color: var(--accent-danger); }
+.hud-stat.success .hud-value { color: var(--accent-success); }
+
+/* A stat can flash briefly when it changes (e.g. score gain, low time). */
+@keyframes hud-flash {
+    0%   { transform: scale(1); }
+    40%  { transform: scale(1.12); }
+    100% { transform: scale(1); }
+}
+.hud-value.flash {
+    animation: hud-flash 320ms ease-out;
+}
+
+@keyframes hud-pulse-danger {
+    0%, 100% { color: var(--accent-danger); }
+    50%      { color: var(--text-primary); }
+}
+.hud-stat.time-low .hud-value {
+    animation: hud-pulse-danger 0.9s ease-in-out infinite;
+}
+
+/* ----------------------------------------------------------------
+   Controls row (Start / Pause / Restart / Sound / game buttons)
+   ---------------------------------------------------------------- */
+
+.control-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-sm);
+    margin-bottom: var(--space-md);
+}
+
+.control-row .spacer {
+    flex: 1 1 auto;
+}
+
+/* The action buttons (Pause / Restart / Sound) stay grouped so they never
+   split across lines mid-group when the row wraps. */
+.control-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-sm);
+}
+
+/* Grouped buttons (e.g. a difficulty selector) inside the control row. */
+.seg {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.btn {
+    appearance: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45em;
+    border: 1px solid var(--border-strong);
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    padding: 9px 16px;
+    font-size: 0.92rem;
+    font-weight: 600;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: background var(--transition-fast),
+        border-color var(--transition-fast),
+        color var(--transition-fast),
+        transform var(--transition-fast),
+        box-shadow var(--transition-fast);
+}
+
+.btn:hover {
+    background: var(--bg-hover);
+    border-color: var(--text-muted);
+}
+
+.btn:active {
+    transform: translateY(1px);
+}
+
+.btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+.btn:disabled:hover {
+    background: var(--bg-secondary);
+    border-color: var(--border-strong);
+}
+.btn:disabled:active {
+    transform: none;
+}
+
+.btn.btn-primary {
+    background: var(--game-color, var(--accent-primary));
+    border-color: var(--game-color, var(--accent-primary));
+    color: var(--text-on-accent);
+    box-shadow: 0 6px 18px color-mix(in srgb, var(--game-color) 35%, transparent);
+}
+
+.btn.btn-primary:hover {
+    filter: brightness(1.06);
+    background: var(--game-color, var(--accent-primary));
+}
+
+.btn.btn-ghost {
+    background: transparent;
+    border-color: transparent;
+    color: var(--text-secondary);
+}
+
+.btn.btn-ghost:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+.btn.btn-icon {
+    min-width: 42px;
+    padding: 9px 11px;
+}
+
+/* Toggle buttons (e.g. Sound on/off) show an active state. */
+.btn.toggle.active {
+    background: var(--game-color, var(--accent-primary));
+    border-color: var(--game-color, var(--accent-primary));
+    color: var(--text-on-accent);
+}
+
+/* "committed" = the value the current run is actually using. When the
+   player has staged a different choice (active ≠ committed), the running
+   one keeps a faint tint so the pending change is visible — applied on
+   the next restart. Mirrors Puzzle Games' segmented control. */
+.btn.toggle.committed:not(.active) {
+    border-color: var(--game-color, var(--accent-primary));
+    color: var(--game-color, var(--accent-primary));
+}
+
+/* A subtle "muted" look for the sound button when audio is off. */
+.btn.is-muted {
+    color: var(--text-muted);
+}
+
+/* ----------------------------------------------------------------
+   Stage — the canvas + overlay live here
+   ---------------------------------------------------------------- */
+
+.stage-wrap {
+    position: relative;
+    width: 100%;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
+    overflow: hidden;
+    /* The canvas sets its own aspect ratio; this just frames it. */
+}
+
+.stage-canvas {
+    display: block;
+    width: 100%;
+    height: auto;
+    /* Keeps pointer coordinates predictable on touch. */
+    touch-action: manipulation;
+    background: #0e0b1a;
+}
+
+/* When a game wants full-drag control (no page scroll on the stage). */
+.stage-canvas.drag-stage {
+    touch-action: none;
+}
+
+/* ---- Overlay (start / paused / game-over panels) ---- */
+
+.overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-lg);
+    background: radial-gradient(120% 120% at 50% 0%,
+        rgba(20, 18, 37, 0.55), rgba(10, 8, 20, 0.86));
+    backdrop-filter: blur(3px);
+    z-index: 5;
+    text-align: center;
+    animation: overlay-in 180ms ease-out;
+}
+
+@keyframes overlay-in {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+
+.overlay-card {
+    max-width: 420px;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-md);
+    padding: var(--space-xl) var(--space-lg);
+    background: linear-gradient(180deg,
+        color-mix(in srgb, var(--game-color) 10%, var(--bg-secondary)),
+        var(--bg-secondary));
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+}
+
+.overlay-badge {
+    width: 64px;
+    height: 64px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-pill);
+    font-size: 1.9rem;
+    background: color-mix(in srgb, var(--game-color) 24%, var(--bg-tertiary));
+    color: var(--game-color);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--game-color) 45%, transparent);
+}
+
+.overlay-title {
+    font-family: var(--font-display);
+    font-size: 1.7rem;
+    font-weight: 800;
+    letter-spacing: 0.01em;
+    color: var(--text-primary);
+}
+
+.overlay-message {
+    color: var(--text-secondary);
+    font-size: 0.98rem;
+    line-height: 1.55;
+}
+
+.overlay-message strong {
+    color: var(--game-color);
+}
+
+.overlay-btn {
+    margin-top: var(--space-xs);
+    font-size: 1.02rem;
+    padding: 11px 26px;
+}
+
+.overlay-hint {
+    font-size: 0.82rem;
+    color: var(--text-muted);
+}
+
+.overlay-hint kbd {
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    padding: 1px 6px;
+    border-radius: 4px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-strong);
+    color: var(--text-secondary);
+}
+
+/* ----------------------------------------------------------------
+   How-to-play footer
+   ---------------------------------------------------------------- */
+
+.game-footer {
+    margin-top: var(--space-lg);
+    padding: var(--space-md) var(--space-lg);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-md);
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    line-height: 1.65;
+}
+
+.game-footer h4 {
+    color: var(--text-primary);
+    font-size: 0.98rem;
+    margin-bottom: var(--space-xs);
+}
+
+.game-footer ul {
+    margin-left: var(--space-lg);
+}
+
+.game-footer kbd {
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    padding: 1px 6px;
+    border-radius: 4px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-strong);
+    color: var(--text-secondary);
+}
+
+/* ----------------------------------------------------------------
+   Responsive
+   ---------------------------------------------------------------- */
+
+@media (max-width: 560px) {
+    /* Keep every HUD stat on a single row — equal, shrinkable columns — so a
+       long Score/Best value can never push the "Best" pill onto its own line. */
+    .hud {
+        display: grid;
+        grid-auto-flow: column;
+        grid-auto-columns: minmax(0, 1fr);
+        gap: 6px;
+    }
+    .hud-stat {
+        min-width: 0;
+        padding: 6px 7px;
+    }
+    .hud-stat .hud-label {
+        font-size: 0.6rem;
+        letter-spacing: 0.03em;
+        gap: 3px;
+    }
+    .hud-stat .hud-value {
+        font-size: 0.95rem;
+    }
+    /* Shrink the life pips so five of them fit a narrow column. */
+    #lives { gap: 3px; }
+    .life-pip { width: 9px; height: 9px; }
+
+    /* Stack the controls into two tidy rows (difficulty / actions) instead of
+       letting individual buttons wrap and break a group apart. */
+    .control-row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .control-row .spacer {
+        display: none;
+    }
+    .seg {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        width: 100%;
+    }
+    .control-actions {
+        display: flex;
+        width: 100%;
+    }
+    .control-actions > .btn:not(.btn-icon) {
+        flex: 1 1 0;
+    }
+
+    .overlay-title {
+        font-size: 1.4rem;
+    }
+}

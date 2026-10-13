@@ -1,0 +1,303 @@
+/* ================================================================
+   GameBox — unified launcher (hub)
+   A neutral dark "hub" shell that is intentionally distinct from the
+   two game collections (Arcade = dark neon, Puzzle = light). Every
+   card keeps its own game's accent colour so the grid stays colourful.
+   Self-contained: depends on no other stylesheet.
+   ================================================================ */
+
+:root {
+    --bg-primary: #0e1117;
+    --bg-elevated: #161b25;
+    --bg-card: #171d28;
+    --bg-hover: #1f2634;
+    --bg-chip: #1b2230;
+
+    --text-primary: #eef1f6;
+    --text-secondary: #aab3c2;
+    --text-muted: #6f7b8d;
+    --text-on-accent: #0b0e13;
+
+    --border-color: #27303f;
+    --border-light: #212936;
+    --border-strong: #35415400;
+
+    --accent: #6ea8fe;
+    --accent-success: #37d399;
+
+    --game-color: var(--accent);
+
+    --space-xs: 4px;
+    --space-sm: 8px;
+    --space-md: 16px;
+    --space-lg: 24px;
+    --space-xl: 32px;
+    --space-2xl: 48px;
+
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-lg: 16px;
+    --radius-pill: 999px;
+
+    --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans TC",
+        "Microsoft JhengHei", system-ui, sans-serif;
+
+    --transition-fast: 120ms ease;
+    --transition-normal: 220ms ease;
+}
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+html { font-size: 16px; -webkit-text-size-adjust: 100%; }
+
+body {
+    font-family: var(--font-body);
+    background:
+        radial-gradient(1100px 560px at 12% -8%, rgba(110, 168, 254, 0.10), transparent 60%),
+        radial-gradient(900px 480px at 100% 0%, rgba(55, 211, 153, 0.08), transparent 55%),
+        var(--bg-primary);
+    background-attachment: fixed;
+    color: var(--text-primary);
+    line-height: 1.5;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+a { color: inherit; text-decoration: none; }
+button { font-family: inherit; cursor: pointer; }
+
+/* ---------------- Shell + header ---------------- */
+
+.app-shell {
+    max-width: 1160px;
+    margin: 0 auto;
+    padding: var(--space-2xl) var(--space-lg) var(--space-xl);
+}
+
+.app-header {
+    position: relative;
+    text-align: center;
+    margin-bottom: var(--space-xl);
+}
+
+.app-title {
+    font-size: 2.5rem;
+    font-weight: 800;
+    letter-spacing: 0.01em;
+    text-shadow: 0 0 28px rgba(110, 168, 254, 0.25);
+}
+
+.app-title .title-accent { color: var(--accent); }
+
+.app-subtitle {
+    font-size: 1.02rem;
+    color: var(--text-secondary);
+    margin-top: var(--space-sm);
+}
+
+.lang-toggle {
+    position: absolute;
+    top: 0;
+    right: 0;
+    display: inline-flex;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    background: var(--bg-elevated);
+    font-size: 0.78rem;
+    line-height: 1;
+}
+
+.lang-toggle button {
+    appearance: none;
+    background: transparent;
+    border: 0;
+    padding: 6px 11px;
+    color: var(--text-secondary);
+    transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.lang-toggle button + button { border-left: 1px solid var(--border-color); }
+.lang-toggle button:hover { background: var(--bg-hover); color: var(--text-primary); }
+.lang-toggle button.active { background: var(--bg-hover); color: var(--text-primary); font-weight: 600; }
+
+/* ---------------- Tag filter bar ---------------- */
+
+.tag-filter {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: var(--space-sm);
+    margin-bottom: var(--space-xl);
+}
+
+.tag-chip {
+    appearance: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 14px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-pill);
+    background: var(--bg-chip);
+    color: var(--text-secondary);
+    font-size: 0.86rem;
+    transition: background var(--transition-fast), color var(--transition-fast),
+        border-color var(--transition-fast);
+}
+
+.tag-chip:hover { background: var(--bg-hover); color: var(--text-primary); }
+
+.tag-chip.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--text-on-accent);
+    font-weight: 600;
+}
+
+.tag-chip .chip-count {
+    font-variant-numeric: tabular-nums;
+    font-size: 0.78rem;
+    color: var(--text-muted);
+}
+
+.tag-chip.active .chip-count { color: var(--text-on-accent); opacity: 0.75; }
+
+/* ---------------- Game grid + cards ---------------- */
+
+.games-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: var(--space-lg);
+}
+
+.game-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    background: linear-gradient(180deg,
+        color-mix(in srgb, var(--game-color) 9%, var(--bg-card)),
+        var(--bg-card));
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: var(--space-lg);
+    overflow: hidden;
+    transition: transform var(--transition-fast), border-color var(--transition-fast),
+        box-shadow var(--transition-fast);
+}
+
+.game-card::before {
+    content: "";
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 4px;
+    background: var(--game-color);
+}
+
+.game-card:hover {
+    transform: translateY(-3px);
+    border-color: var(--game-color);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--game-color) 45%, transparent),
+        0 14px 36px color-mix(in srgb, var(--game-color) 22%, transparent);
+}
+
+.game-card-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    margin-top: var(--space-xs);
+    margin-bottom: var(--space-sm);
+}
+
+.game-icon {
+    flex: none;
+    width: 52px;
+    height: 52px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.7rem;
+    border-radius: var(--radius-md);
+    background: color-mix(in srgb, var(--game-color) 20%, var(--bg-elevated));
+    color: var(--game-color);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--game-color) 40%, transparent);
+}
+
+.icon { width: 1em; height: 1em; overflow: visible; }
+
+.game-name { font-size: 1.25rem; font-weight: 700; color: var(--text-primary); }
+.game-tagline { font-size: 0.85rem; color: var(--text-secondary); margin-top: 2px; }
+
+.game-card-body {
+    color: var(--text-secondary);
+    font-size: 0.92rem;
+    margin-top: var(--space-xs);
+}
+
+.game-card-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: var(--space-md);
+}
+
+.tag {
+    display: inline-block;
+    padding: 2px 9px;
+    border-radius: var(--radius-pill);
+    font-size: 0.72rem;
+    background: var(--bg-chip);
+    color: var(--text-secondary);
+    border: 1px solid var(--border-light);
+}
+
+.game-card-footer {
+    margin-top: var(--space-md);
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+}
+
+.badge {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: var(--radius-pill);
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    background: color-mix(in srgb, var(--accent-success) 16%, transparent);
+    color: var(--accent-success);
+    border: 1px solid color-mix(in srgb, var(--accent-success) 38%, transparent);
+    white-space: nowrap;
+}
+
+/* ---------------- Misc ---------------- */
+
+.no-results {
+    text-align: center;
+    color: var(--text-muted);
+    padding: var(--space-2xl) 0;
+    font-size: 0.95rem;
+}
+
+.app-footer {
+    margin-top: var(--space-2xl);
+    text-align: center;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+@media (max-width: 600px) {
+    .app-shell { padding: var(--space-xl) var(--space-md) var(--space-lg); }
+    .app-title { font-size: 2rem; }
+    .lang-toggle { position: static; display: inline-flex; margin-bottom: var(--space-md); }
+    .app-header { text-align: center; }
+}

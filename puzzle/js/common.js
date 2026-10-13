@@ -1,0 +1,1742 @@
+/**
+ * Puzzle Games — shared utilities
+ *
+ * Everything in here is intentionally framework-free so it works on
+ * GitHub Pages / file:// / `python -m http.server` without any build.
+ */
+(function (global) {
+    'use strict';
+
+    // -----------------------------------------------------------------
+    // localStorage helpers
+    // -----------------------------------------------------------------
+
+    const STORAGE_PREFIX = 'puzzleGames';
+
+    function storageKey(...parts) {
+        return [STORAGE_PREFIX, ...parts].join(':');
+    }
+
+    function readJSON(key, fallback) {
+        try {
+            const raw = localStorage.getItem(key);
+            if (raw == null) return fallback;
+            return JSON.parse(raw);
+        } catch (e) {
+            console.warn('[common] readJSON failed for', key, e);
+            return fallback;
+        }
+    }
+
+    function writeJSON(key, value) {
+        try {
+            localStorage.setItem(key, JSON.stringify(value));
+        } catch (e) {
+            console.warn('[common] writeJSON failed for', key, e);
+        }
+    }
+
+    // -----------------------------------------------------------------
+    // Per-game preferences (size, difficulty)
+    // -----------------------------------------------------------------
+
+    function getPrefs(game) {
+        return readJSON(storageKey('prefs', game), {});
+    }
+
+    function setPrefs(game, patch) {
+        const current = getPrefs(game);
+        const next = Object.assign({}, current, patch);
+        writeJSON(storageKey('prefs', game), next);
+        return next;
+    }
+
+    // -----------------------------------------------------------------
+    // Solved-puzzle log
+    //
+    // We store the *count* of solves per (game,size,difficulty) plus a
+    // small ring buffer of recent solve timestamps. That's enough for a
+    // launcher badge later without saturating localStorage.
+    // -----------------------------------------------------------------
+
+    function logSolve(game, size, difficulty, elapsedMs) {
+        const key = storageKey('solves', game);
+        const data = readJSON(key, { byBucket: {}, recent: [] });
+        const bucket = `${size}x${size}:${difficulty}`;
+        data.byBucket[bucket] = (data.byBucket[bucket] || 0) + 1;
+        data.recent.unshift({
+            t: Date.now(),
+            size,
+            difficulty,
+            elapsedMs: elapsedMs || null,
+        });
+        data.recent = data.recent.slice(0, 25);
+        writeJSON(key, data);
+    }
+
+    function getSolveStats(game) {
+        return readJSON(storageKey('solves', game), { byBucket: {}, recent: [] });
+    }
+
+    // -----------------------------------------------------------------
+    // Timer
+    // -----------------------------------------------------------------
+
+    function createTimer(displayEl) {
+        // `startedAt` is the *effective* start: on resume it's back-dated by
+        // the already-elapsed time so the display continues seamlessly.
+        let startedAt = null;
+        let rafId = null;
+        let stopped = true;
+        let elapsedMs = 0; // time accumulated as of the last stop()
+
+        function format(ms) {
+            const s = Math.floor(ms / 1000);
+            const mm = String(Math.floor(s / 60)).padStart(2, '0');
+            const ss = String(s % 60).padStart(2, '0');
+            return `${mm}:${ss}`;
+        }
+
+        function tick() {
+            if (stopped) return;
+            const ms = Date.now() - startedAt;
+            if (displayEl) displayEl.textContent = format(ms);
+            rafId = requestAnimationFrame(tick);
+        }
+
+        return {
+            start() {
+                stopped = false;
+                startedAt = Date.now();
+                elapsedMs = 0;
+                if (displayEl) displayEl.textContent = format(0);
+                cancelAnimationFrame(rafId);
+                rafId = requestAnimationFrame(tick);
+            },
+            stop() {
+                stopped = true;
+                cancelAnimationFrame(rafId);
+                elapsedMs = startedAt != null ? Date.now() - startedAt : 0;
+                return elapsedMs;
+            },
+            // Continue counting from where stop() left off (no reset to 0).
+            // Used when a game undoes back out of a solved state.
+            resume() {
+                if (!stopped || startedAt == null) return;
+                stopped = false;
+                startedAt = Date.now() - elapsedMs;
+                cancelAnimationFrame(rafId);
+                rafId = requestAnimationFrame(tick);
+            },
+            reset() {
+                this.stop();
+                startedAt = null;
+                elapsedMs = 0;
+                if (displayEl) displayEl.textContent = format(0);
+            },
+            elapsed() {
+                if (startedAt == null) return 0;
+                return (stopped ? elapsedMs : Date.now() - startedAt);
+            },
+        };
+    }
+
+    // -----------------------------------------------------------------
+    // Tiny PRNG so puzzle generation is reproducible from a seed.
+    // mulberry32 — small, fast, good-enough for level shuffling.
+    // -----------------------------------------------------------------
+
+    function makeRng(seed) {
+        let a = (seed >>> 0) || 1;
+        return function () {
+            a |= 0;
+            a = (a + 0x6d2b79f5) | 0;
+            let t = a;
+            t = Math.imul(t ^ (t >>> 15), t | 1);
+            t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+            return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+        };
+    }
+
+    function pickRandomInt(rng, min, maxExclusive) {
+        return Math.floor(rng() * (maxExclusive - min)) + min;
+    }
+
+    function shuffleInPlace(arr, rng) {
+        for (let i = arr.length - 1; i > 0; i--) {
+            const j = Math.floor(rng() * (i + 1));
+            const tmp = arr[i];
+            arr[i] = arr[j];
+            arr[j] = tmp;
+        }
+        return arr;
+    }
+
+    // -----------------------------------------------------------------
+    // Misc
+    // -----------------------------------------------------------------
+
+    function clamp(value, min, max) {
+        return Math.min(max, Math.max(min, value));
+    }
+
+    // Nearest entry in a discrete values list (for stepped sliders).
+    function nearestValue(v, values) {
+        let best = values[0];
+        for (const x of values) if (Math.abs(x - v) < Math.abs(best - v)) best = x;
+        return best;
+    }
+
+    function el(tag, attrs, ...children) {
+        const node = document.createElement(tag);
+        if (attrs) {
+            for (const k in attrs) {
+                if (k === 'class') node.className = attrs[k];
+                else if (k === 'text') node.textContent = attrs[k];
+                else if (k.startsWith('on') && typeof attrs[k] === 'function') {
+                    node.addEventListener(k.slice(2).toLowerCase(), attrs[k]);
+                } else if (attrs[k] != null) {
+                    node.setAttribute(k, attrs[k]);
+                }
+            }
+        }
+        for (const c of children) {
+            if (c == null) continue;
+            node.appendChild(typeof c === 'string' ? document.createTextNode(c) : c);
+        }
+        return node;
+    }
+
+    function svgEl(tag, attrs) {
+        const node = document.createElementNS('http://www.w3.org/2000/svg', tag);
+        if (attrs) {
+            for (const k in attrs) {
+                if (attrs[k] != null) node.setAttribute(k, attrs[k]);
+            }
+        }
+        return node;
+    }
+
+    // -----------------------------------------------------------------
+    // Icons — a tiny self-contained subset of Lucide (lucide.dev, ISC).
+    // Kept inline so the site stays dependency-free / offline-capable
+    // (no CDN). Each entry is the inner markup of a 24×24 stroke icon;
+    // `icon(name)` wraps it in an <svg> that inherits colour via
+    // `stroke: currentColor` and scales with font-size (width/height
+    // 1em). `renderIcons(root)` fills every `[data-icon]` placeholder,
+    // so static HTML can just write `<span data-icon="crown"></span>`.
+    // -----------------------------------------------------------------
+
+    const ICONS = {
+        'rotate-ccw':
+            '<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>'
+            + '<path d="M3 3v5h5"/>',
+        'undo-2':
+            '<path d="M9 14 4 9l5-5"/>'
+            + '<path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5 5.5 5.5 0 0 1-5.5 5.5H11"/>',
+        dices:
+            '<rect width="12" height="12" x="2" y="10" rx="2" ry="2"/>'
+            + '<path d="m17.92 14 3.5-3.5a2.24 2.24 0 0 0 0-3l-5-4.92a2.24 2.24 0 0 0-3 0L10 6"/>'
+            + '<path d="M6 18h.01"/><path d="M10 14h.01"/>'
+            + '<path d="M15 6h.01"/><path d="M18 9h.01"/>',
+        lightbulb:
+            '<path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/>'
+            + '<path d="M9 18h6"/><path d="M10 22h4"/>',
+        eye:
+            '<path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/>'
+            + '<circle cx="12" cy="12" r="3"/>',
+        share:
+            '<path d="M9 17H7A5 5 0 0 1 7 7h2"/>'
+            + '<path d="M15 7h2a5 5 0 1 1 0 10h-2"/>'
+            + '<line x1="8" x2="16" y1="12" y2="12"/>',
+        pencil:
+            '<path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/>'
+            + '<path d="m15 5 4 4"/>',
+        eraser:
+            '<path d="M21 21H8a2 2 0 0 1-1.42-.587l-3.994-3.999a2 2 0 0 1 0-2.828l10-10a2 2 0 0 1 2.829 0l5.999 6a2 2 0 0 1 0 2.828L12.834 21"/>'
+            + '<path d="m5.082 11.09 8.828 8.828"/>',
+        'arrow-left':
+            '<path d="m12 19-7-7 7-7"/><path d="M19 12H5"/>',
+        sparkles:
+            '<path d="M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z"/>'
+            + '<path d="M20 2v4"/><path d="M22 4h-4"/><circle cx="4" cy="20" r="2"/>',
+        'triangle-alert':
+            '<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/>'
+            + '<path d="M12 9v4"/><path d="M12 17h.01"/>',
+        crown:
+            '<path d="M11.562 3.266a.5.5 0 0 1 .876 0L15.39 8.87a1 1 0 0 0 1.516.294L21.183 5.5a.5.5 0 0 1 .798.519l-2.834 10.246a1 1 0 0 1-.956.734H5.81a1 1 0 0 1-.957-.734L2.02 6.02a.5.5 0 0 1 .798-.519l4.276 3.664a1 1 0 0 0 1.516-.294z"/>'
+            + '<path d="M5 21h14"/>',
+        sun:
+            '<circle cx="12" cy="12" r="4"/>'
+            + '<path d="M12 2v2"/><path d="M12 20v2"/>'
+            + '<path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/>'
+            + '<path d="M2 12h2"/><path d="M20 12h2"/>'
+            + '<path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/>',
+        moon:
+            '<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>',
+        'grid-3x3':
+            '<rect width="18" height="18" x="3" y="3" rx="2"/>'
+            + '<path d="M3 9h18"/><path d="M3 15h18"/>'
+            + '<path d="M9 3v18"/><path d="M15 3v18"/>',
+        image:
+            '<rect width="18" height="18" x="3" y="3" rx="2" ry="2"/>'
+            + '<circle cx="9" cy="9" r="2"/>'
+            + '<path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>',
+        square:
+            '<rect width="18" height="18" x="3" y="3" rx="2"/>',
+        x:
+            '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
+        'refresh-cw':
+            '<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/>'
+            + '<path d="M21 3v5h-5"/>'
+            + '<path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/>'
+            + '<path d="M3 21v-5h5"/>',
+        user:
+            '<path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/>'
+            + '<circle cx="12" cy="7" r="4"/>',
+        'gamepad-2':
+            '<line x1="6" x2="10" y1="11" y2="11"/>'
+            + '<line x1="8" x2="8" y1="9" y2="13"/>'
+            + '<line x1="15" x2="15.01" y1="12" y2="12"/>'
+            + '<line x1="18" x2="18.01" y1="10" y2="10"/>'
+            + '<path d="M17.32 5H6.68a4 4 0 0 0-3.978 3.59c-.006.052-.01.101-.017.152C2.604 9.416 2 14.456 2 16a3 3 0 0 0 3 3c1 0 1.5-.5 2-1l1.414-1.414A2 2 0 0 1 9.828 16h4.344a2 2 0 0 1 1.414.586L17 18c.5.5 1 1 2 1a3 3 0 0 0 3-3c0-1.544-.604-6.584-.685-7.258-.007-.05-.011-.1-.017-.151A4 4 0 0 0 17.32 5z"/>',
+        route:
+            '<circle cx="6" cy="19" r="3"/>'
+            + '<path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15"/>'
+            + '<circle cx="18" cy="5" r="3"/>',
+        waypoints:
+            '<circle cx="12" cy="4.5" r="2.5"/>'
+            + '<path d="m10.2 6.3-3.9 3.9"/>'
+            + '<circle cx="4.5" cy="12" r="2.5"/>'
+            + '<path d="M7 12h10"/>'
+            + '<circle cx="19.5" cy="12" r="2.5"/>'
+            + '<path d="m13.8 17.7 3.9-3.9"/>'
+            + '<circle cx="12" cy="19.5" r="2.5"/>',
+        shapes:
+            '<path d="M8.3 10a.7.7 0 0 1-.626-1.079L11.4 3a.7.7 0 0 1 1.199 0l3.726 5.921A.7.7 0 0 1 15.7 10Z"/>'
+            + '<rect width="7" height="7" x="3" y="14" rx="1"/>'
+            + '<circle cx="17.5" cy="17.5" r="3.5"/>',
+        check:
+            '<path d="M20 6 9 17l-5-5"/>',
+        lock:
+            '<rect width="18" height="11" x="3" y="11" rx="2" ry="2"/>'
+            + '<path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
+        sigma:
+            '<path d="M18 7V5a1 1 0 0 0-1-1H7l6 8-6 8h10a1 1 0 0 0 1-1v-2"/>',
+    };
+
+    function icon(name, opts) {
+        const inner = ICONS[name];
+        if (!inner) return null;
+        const cls = 'icon' + (opts && opts.className ? ' ' + opts.className : '');
+        const markup = `<svg class="${cls}" viewBox="0 0 24 24"`
+            + ' width="1em" height="1em" fill="none" stroke="currentColor"'
+            + ' stroke-width="2" stroke-linecap="round" stroke-linejoin="round"'
+            + ' aria-hidden="true">' + inner + '</svg>';
+        const tmp = document.createElement('div');
+        tmp.innerHTML = markup;
+        return tmp.firstElementChild;
+    }
+
+    function renderIcons(root) {
+        const scope = root || document;
+        const nodes = scope.querySelectorAll('[data-icon]');
+        for (const node of nodes) {
+            if (node.getAttribute('data-icon-done') === '1') continue;
+            const svg = icon(node.getAttribute('data-icon'));
+            if (!svg) continue;
+            node.insertBefore(svg, node.firstChild);
+            node.setAttribute('data-icon-done', '1');
+        }
+    }
+
+    // Build a positioned board symbol: a Lucide icon centred at (cx, cy)
+    // and scaled to `size`, wrapped so it can "pop" in place on win.
+    // Structure:
+    //   <g translate(cx,cy)>            positioning (SVG attribute)
+    //     <g class="board-pop [pop]">   animation target
+    //       <svg class="board-icon …"/> the icon, centred on 0,0
+    // A CSS scale on the inner group pivots around its local origin,
+    // which the outer translate has placed at the cell centre — so the
+    // symbol scales in place with no `transform-box` needed (that trick
+    // is unreliable on nested <svg> and made every symbol lurch toward
+    // the board corner). `opts.className` is appended to the icon
+    // (`board-icon <className>`); `opts.pop` toggles the win animation.
+    function boardIcon(name, cx, cy, size, opts) {
+        const svg = icon(name);
+        if (!svg) return null;
+        svg.setAttribute('x', -size / 2);
+        svg.setAttribute('y', -size / 2);
+        svg.setAttribute('width', size);
+        svg.setAttribute('height', size);
+        svg.setAttribute('class',
+            'board-icon' + (opts && opts.className ? ' ' + opts.className : ''));
+        const animG = svgEl('g',
+            { class: 'board-pop' + (opts && opts.pop ? ' pop' : '') });
+        animG.appendChild(svg);
+        const posG = svgEl('g', { transform: `translate(${cx}, ${cy})` });
+        posG.appendChild(animG);
+        return posG;
+    }
+
+    // -----------------------------------------------------------------
+    // Game shell
+    //
+    // Every game page shares the same chrome: a difficulty segmented
+    // control, a size selector (slider or segmented), New / Reset /
+    // Reveal buttons, a timer, and a win badge. `createShell` owns that
+    // wiring so each game only writes its own rules + rendering.
+    //
+    // The shell handles:
+    //   - Reading / writing prefs (game id namespaced).
+    //   - Wiring difficulty buttons; difficulty values are read from
+    //     `data-value` on the segmented control's buttons.
+    //   - Wiring the size control. Two kinds:
+    //       { kind: 'slider', min, max, default }
+    //       { kind: 'segmented', default }   (values from data-value)
+    //     The shell expects the matching DOM ids in the page.
+    //   - Wiring New / Reset / Reveal buttons.
+    //   - Owning `shell.revealed` and keeping the button's
+    //     `active` class + `aria-pressed` in sync. Whenever a new game
+    //     starts the shell resets `revealed` to false automatically.
+    //   - Creating a Timer bound to `#timer`.
+    //   - `setWin(bool)` toggling `#win-message` visibility.
+    //   - `setViolationCount(n)` for the three games that share the
+    //     "⚠ N conflict(s)" pill format. Zip ignores this and writes
+    //     into its own pill element directly.
+    //
+    // The game supplies callbacks:
+    //   onNewGame()         — start a fresh puzzle (timer is auto-started
+    //                         by the shell *after* onNewGame returns)
+    //   onReset()           — clear placements but keep the same puzzle
+    //                         (also followed by an auto timer restart)
+    //   onReveal(revealed)  — repaint to reflect the new reveal state
+    //
+    // Returned shell object exposes:
+    //   shell.dom.board    — the SVG board element
+    //   shell.timer        — PC.timer instance (already wired to #timer)
+    //   shell.difficulty   — current difficulty string
+    //   shell.size         — current size number
+    //   shell.revealed     — current reveal flag (read-only from games)
+    //   shell.setWin(b)
+    //   shell.setViolationCount(n)
+    //   shell.markSolved() — convenience: stops timer + logs solve +
+    //                        sets win. Returns elapsed ms.
+    //   shell.start()      — fire the first game. Caller is responsible
+    //                        for invoking this after attaching their
+    //                        own board listeners.
+    // -----------------------------------------------------------------
+
+    const DIFFICULTY_VALUES = ['easy', 'medium', 'hard'];
+
+    function createShell(opts) {
+        const gameId = opts.gameId;
+        const sizeCfg = opts.size;
+        const diffCfg = opts.difficulty || { default: 'medium' };
+        const onNewGame = opts.onNewGame || (() => {});
+        const onReset = opts.onReset || (() => {});
+        const onReveal = opts.onReveal || (() => {});
+
+        const dom = {
+            board: document.getElementById('board'),
+            difficultySeg: document.getElementById('difficulty-seg'),
+            sizeSeg: document.getElementById('size-seg'),
+            sizeSlider: document.getElementById('size-slider'),
+            sizeReadout: document.getElementById('size-readout'),
+            newGameBtn: document.getElementById('new-game-btn'),
+            resetBtn: document.getElementById('reset-btn'),
+            revealBtn: document.getElementById('reveal-btn'),
+            hintBtn: document.getElementById('hint-btn'),
+            timer: document.getElementById('timer'),
+            violations: document.getElementById('violations'),
+            violationsText: document.getElementById('violations-text'),
+            winMessage: document.getElementById('win-message'),
+        };
+
+        // iOS Safari ignores `touch-action` on SVG elements (and doesn't honour
+        // an HTML ancestor's value for an SVG target), so double-tap-to-zoom
+        // still fires on the board — which collides with tapping a cell twice.
+        // Suppress it in JS: preventDefault the quick second touchend (kills the
+        // zoom + its synthesized click) and re-dispatch a synthetic click so the
+        // click-based games (Tango/Sudoku) still register the tap. The pointer
+        // games already acted on pointerup and don't listen for board clicks, so
+        // the synthetic click is a harmless no-op for them.
+        if (dom.board) {
+            let lastT = 0, lastX = 0, lastY = 0;
+            dom.board.addEventListener('touchend', (e) => {
+                if (e.changedTouches.length !== 1) { lastT = 0; return; }
+                const t = e.changedTouches[0];
+                const now = Date.now();
+                const near = Math.abs(t.clientX - lastX) < 40 && Math.abs(t.clientY - lastY) < 40;
+                if (now - lastT <= 350 && near) {
+                    e.preventDefault();
+                    const el = document.elementFromPoint(t.clientX, t.clientY);
+                    if (el) {
+                        el.dispatchEvent(new MouseEvent('click', {
+                            bubbles: true, cancelable: true, view: window,
+                            clientX: t.clientX, clientY: t.clientY,
+                        }));
+                    }
+                }
+                lastT = now; lastX = t.clientX; lastY = t.clientY;
+            }, { passive: false });
+        }
+
+        // Size / difficulty intentionally do NOT persist across reloads —
+        // we always boot at each game's declared default. Stats (solve
+        // counts) are still tracked via the separate `solves:<game>` key.
+        let segmentedSizes = null;
+        if (sizeCfg.kind === 'segmented' && dom.sizeSeg) {
+            segmentedSizes = Array.from(dom.sizeSeg.querySelectorAll('button'))
+                .map((b) => parseInt(b.dataset.value, 10))
+                .filter((n) => !Number.isNaN(n));
+        }
+
+        let difficulty = diffCfg.default;
+        let size = sizeCfg.kind === 'slider'
+            ? (sizeCfg.values
+                ? nearestValue(sizeCfg.default, sizeCfg.values)
+                : clamp(sizeCfg.default, sizeCfg.min, sizeCfg.max))
+            : sizeCfg.default;
+        // "Committed" mirrors the difficulty/size that the currently
+        // displayed puzzle was generated with. It diverges from
+        // `difficulty`/`size` the moment the player picks a new value
+        // in the toolbar and snaps back when they press New Game.
+        // The toolbar paints both states so the player can see what's
+        // running and what they've staged.
+        let appliedDifficulty = difficulty;
+        let appliedSize = size;
+        let revealed = false;
+        // Whether this puzzle's solve has already been recorded, so that
+        // undoing a win and re-solving doesn't double-count it in the stats.
+        let solveLogged = false;
+
+        const timer = createTimer(dom.timer);
+
+        // Last-rendered conflict count, kept so a locale change can
+        // re-render the violations pill without the game needing to
+        // know to recall setViolationCount.
+        let lastViolationN = 0;
+
+        function renderViolationCount() {
+            if (!dom.violations || !dom.violationsText) return;
+            if (lastViolationN > 0) {
+                dom.violations.hidden = false;
+                dom.violations.classList.add('active');
+                dom.violationsText.textContent =
+                    global.PuzzleCommon.i18n.t('conflict', lastViolationN);
+            } else {
+                dom.violations.hidden = true;
+                dom.violations.classList.remove('active');
+            }
+        }
+
+        // Subscribe BEFORE returning the shell so games that never
+        // call setViolationCount (Zip) still get any future label
+        // re-renders for free.
+        global.PuzzleCommon.i18n.subscribe(renderViolationCount);
+
+        const shell = {
+            dom,
+            timer,
+            get difficulty() { return difficulty; },
+            get size() { return size; },
+            get revealed() { return revealed; },
+            setWin(b) {
+                if (dom.winMessage) dom.winMessage.hidden = !b;
+            },
+            setViolationCount(n) {
+                lastViolationN = n;
+                renderViolationCount();
+            },
+            markSolved() {
+                const elapsed = timer.stop();
+                // Log the solve once per puzzle (an undo-then-re-solve must
+                // not double-count it).
+                if (!solveLogged) {
+                    logSolve(gameId, size, difficulty, elapsed);
+                    solveLogged = true;
+                }
+                shell.setWin(true);
+                // Once solved the reveal overlay is redundant, and
+                // re-toggling it would replay the win animation, so drop
+                // it and lock the button. The caller's own repaint (run
+                // right after markSolved) picks up revealed=false. Re-
+                // enabled on New Game / Reset / undo-out-of-win.
+                revealed = false;
+                syncRevealButton();
+                if (dom.revealBtn) dom.revealBtn.disabled = true;
+                // Nothing left to hint once solved — disable it too (matches
+                // Reveal). Re-enabled on New Game / Reset / undo-out-of-win.
+                if (dom.hintBtn) dom.hintBtn.disabled = true;
+                return elapsed;
+            },
+            // Reverse the win chrome when a game undoes back out of a solved
+            // state: hide the badge, re-enable Hint / Reveal, and resume the
+            // clock (you're playing again). The solve stays logged just once,
+            // so re-finishing won't double-count it.
+            clearWin() {
+                shell.setWin(false);
+                if (dom.revealBtn) dom.revealBtn.disabled = false;
+                if (dom.hintBtn) dom.hintBtn.disabled = false;
+                // Back in play → resume the clock from the finish time.
+                timer.resume();
+            },
+        };
+
+        function syncRevealButton() {
+            if (!dom.revealBtn) return;
+            dom.revealBtn.classList.toggle('active', revealed);
+            dom.revealBtn.setAttribute(
+                'aria-pressed', revealed ? 'true' : 'false');
+        }
+
+        function syncDifficultyButtons() {
+            if (!dom.difficultySeg) return;
+            dom.difficultySeg.querySelectorAll('button').forEach((btn) => {
+                const v = btn.dataset.value;
+                btn.classList.toggle('active', v === difficulty);
+                btn.classList.toggle('committed', v === appliedDifficulty);
+            });
+        }
+
+        function syncSizeButtons() {
+            if (sizeCfg.kind === 'segmented' && dom.sizeSeg) {
+                dom.sizeSeg.querySelectorAll('button').forEach((btn) => {
+                    const v = parseInt(btn.dataset.value, 10);
+                    btn.classList.toggle('active', v === size);
+                    btn.classList.toggle('committed', v === appliedSize);
+                });
+            } else if (sizeCfg.kind === 'slider' && dom.sizeSlider) {
+                dom.sizeSlider.value = sizeCfg.values ? String(sizeCfg.values.indexOf(size)) : String(size);
+                if (dom.sizeReadout) {
+                    if (size === appliedSize) {
+                        dom.sizeReadout.textContent = `${size}×${size}`;
+                        dom.sizeReadout.classList.remove('pending');
+                    } else {
+                        // Render "current → pending" so the player can
+                        // tell at a glance that the slider value isn't
+                        // yet what the board shows.
+                        dom.sizeReadout.innerHTML = '';
+                        const cur = document.createElement('span');
+                        cur.className = 'readout-current';
+                        cur.textContent = `${appliedSize}×${appliedSize}`;
+                        const arrow = document.createElement('span');
+                        arrow.className = 'readout-arrow';
+                        arrow.textContent = '→';
+                        const next = document.createElement('span');
+                        next.className = 'readout-next';
+                        next.textContent = `${size}×${size}`;
+                        dom.sizeReadout.appendChild(cur);
+                        dom.sizeReadout.appendChild(arrow);
+                        dom.sizeReadout.appendChild(next);
+                        dom.sizeReadout.classList.add('pending');
+                    }
+                }
+            }
+        }
+
+        let isGenerating = false;
+        async function startFreshGame() {
+            if (isGenerating) return;
+            isGenerating = true;
+            try {
+                // Commit the toolbar's pending selection — the board is
+                // about to regenerate at these values.
+                appliedDifficulty = difficulty;
+                appliedSize = size;
+                syncDifficultyButtons();
+                syncSizeButtons();
+                revealed = false;
+                syncRevealButton();
+                if (dom.revealBtn) dom.revealBtn.disabled = false;
+                if (dom.hintBtn) dom.hintBtn.disabled = false;
+                solveLogged = false;
+                shell.setWin(false);
+                if (dom.newGameBtn) dom.newGameBtn.disabled = true;
+                progress.start(t('generatingPuzzle'));
+                // Let the browser paint the overlay (still invisible
+                // thanks to its CSS fade-in delay) before we hand the
+                // main thread to the generator. The fade-in then
+                // continues on the compositor thread even while
+                // onNewGame() blocks.
+                await progress.waitNextPaint();
+                try {
+                    await onNewGame();
+                } finally {
+                    progress.finish();
+                    if (dom.newGameBtn) dom.newGameBtn.disabled = false;
+                }
+                timer.start();
+            } finally {
+                isGenerating = false;
+            }
+        }
+
+        function applyReset() {
+            shell.setWin(false);
+            if (dom.revealBtn) dom.revealBtn.disabled = false;
+            if (dom.hintBtn) dom.hintBtn.disabled = false;
+            solveLogged = false;
+            onReset();
+            timer.start();
+        }
+
+        // Difficulty / size selection updates only the toolbar state.
+        // The actual puzzle isn't regenerated until the player clicks
+        // New Game — this lets them flip multiple settings at once
+        // without spawning a throwaway puzzle in between.
+        function setDifficulty(value) {
+            if (!DIFFICULTY_VALUES.includes(value)) return;
+            if (value === difficulty) return;
+            difficulty = value;
+            syncDifficultyButtons();
+        }
+
+        function setSize(rawValue) {
+            let n;
+            if (sizeCfg.kind === 'slider') {
+                if (sizeCfg.values) {
+                    const idx = clamp(parseInt(rawValue, 10) || 0, 0, sizeCfg.values.length - 1);
+                    n = sizeCfg.values[idx];
+                } else {
+                    n = clamp(parseInt(rawValue, 10) || sizeCfg.default,
+                        sizeCfg.min, sizeCfg.max);
+                }
+            } else {
+                n = parseInt(rawValue, 10);
+                if (!segmentedSizes || !segmentedSizes.includes(n)) return;
+            }
+            if (n === size) return;
+            size = n;
+            syncSizeButtons();
+        }
+
+        function toggleReveal() {
+            revealed = !revealed;
+            syncRevealButton();
+            onReveal(revealed);
+        }
+
+        // ---------- wire DOM events ----------
+
+        if (dom.difficultySeg) {
+            dom.difficultySeg.querySelectorAll('button').forEach((btn) => {
+                btn.addEventListener('click',
+                    () => setDifficulty(btn.dataset.value));
+            });
+        }
+
+        if (sizeCfg.kind === 'segmented' && dom.sizeSeg) {
+            dom.sizeSeg.querySelectorAll('button').forEach((btn) => {
+                btn.addEventListener('click',
+                    () => setSize(btn.dataset.value));
+            });
+        } else if (sizeCfg.kind === 'slider' && dom.sizeSlider) {
+            if (sizeCfg.values) {
+                // Discrete steps at equidistant slider positions: the slider
+                // indexes into the values list rather than being the size itself.
+                dom.sizeSlider.min = '0';
+                dom.sizeSlider.max = String(sizeCfg.values.length - 1);
+                dom.sizeSlider.step = '1';
+            }
+            // 'input' (not 'change') so the "current → pending" readout updates
+            // live as the player drags, before releasing — setSize only stages
+            // the size (no board work), so this is cheap to fire every step.
+            dom.sizeSlider.addEventListener('input',
+                (ev) => setSize(ev.target.value));
+        }
+
+        if (dom.newGameBtn) {
+            dom.newGameBtn.addEventListener('click', startFreshGame);
+        }
+        if (dom.resetBtn) {
+            dom.resetBtn.addEventListener('click', applyReset);
+        }
+        if (dom.revealBtn) {
+            dom.revealBtn.addEventListener('click', toggleReveal);
+        }
+
+        // ---------- initial paint ----------
+
+        syncDifficultyButtons();
+        syncSizeButtons();
+        syncRevealButton();
+        shell.setWin(false);
+
+        // The caller decides when to fire the first game (after attaching
+        // its own board listeners) by calling shell.start().
+        shell.start = startFreshGame;
+
+        return shell;
+    }
+
+    // -----------------------------------------------------------------
+    // Public surface
+    // -----------------------------------------------------------------
+
+    // -----------------------------------------------------------------
+    // i18n
+    //
+    // English is the active default. Users can flip to 'zh' via the
+    // lang-toggle in every page's topbar; the choice is persisted to
+    // localStorage so reloads keep it.
+    //
+    // Strings table is intentionally flat: one key → one string (or
+    // formatter function) per locale. Games can extend it at load
+    // time by mutating PC.i18n.STRINGS[loc] before subscribers fire.
+    //
+    // Translation reaches the DOM through `data-i18n="key"` attrs on
+    // any element that should carry localised text:
+    //   <span data-i18n="difficulty">Difficulty</span>
+    // Plus `data-i18n-title="..."` for tooltips and
+    // `data-i18n-aria-label="..."` for ARIA labels.
+    //
+    // Anything dynamic (the violations pill, the hint banner) calls
+    // PC.i18n.subscribe(cb) so it knows to re-render on a locale
+    // change without an extra event-bus.
+    // -----------------------------------------------------------------
+
+    const STRINGS = {
+        en: {
+            // Shared topbar / toolbar / actions
+            menu: 'Menu',
+            language: 'Language',
+            generatingPuzzle: 'Generating puzzle…',
+            difficulty: 'Difficulty',
+            easy: 'Easy',
+            medium: 'Medium',
+            hard: 'Hard',
+            boardSize: 'Board size',
+            gameSettings: 'Game settings',
+            newGame: 'New Game',
+            reset: 'Reset',
+            undo: 'Undo',
+            undoTitle: 'Undo the last move (Ctrl+Z)',
+            hint: 'Hint',
+            reveal: 'Reveal',
+            share: 'Share',
+            shareTitle: 'Copy a link to this puzzle',
+            shareCopied: 'Link copied!',
+            shareFailed: 'Copy failed — copy from the address bar instead.',
+            winMessage: 'You Win!',
+            howToPlay: 'How to play',
+            conflict: (n) => `${n} conflict${n === 1 ? '' : 's'}`,
+            clearPlacements: 'Clear placements',
+            clearPath: 'Clear path',
+            highlightDeducible: 'Highlight one deducible cell',
+            showSolution: 'Show solution overlay',
+            showSolutionPath: 'Show solution path',
+
+            // Index / launcher
+            appTitle: 'Puzzle Games',
+            appSubtitle: "A collection of logic puzzles inspired by LinkedIn's daily games.",
+            playable: 'Playable',
+            wip: 'WIP',
+            builtNote: 'Built as a static site — works offline, deployable on GitHub Pages.',
+
+            // Queens
+            queensName: 'Queens',
+            queensTagline: 'Royal regions, one queen each.',
+            queensCardBody:
+                'Place N queens so that every row, column, color region and 8-neighborhood contains exactly one.',
+            queensBoardAria: 'Queens puzzle board',
+            queensHelp1Html:
+                'Click a cell to cycle through <strong>empty → <span class="inline-icon queen-x" data-icon="x"></span> → <span class="inline-icon queen" data-icon="crown"></span></strong> (the <span class="inline-icon queen-x" data-icon="x"></span> is just a personal "no" marker).',
+            queensHelp2Html:
+                'Every row, every column, and every color region may hold at most one <span class="inline-icon queen" data-icon="crown"></span>, and no two queens may occupy adjacent cells (including diagonal ones).',
+            queensHelp3Html:
+                'Solve the board by placing exactly N <span class="inline-icon queen" data-icon="crown"></span> — one per row, column, and region — with no two adjacent.',
+            // Queens hint texts. Wording is kept close to the trace-tool
+            // strings so a player who reads the debug view sees the same
+            // reasoning.
+            queensHintKindRow: 'row',
+            queensHintKindCol: 'column',
+            queensHintKindRegion: 'region',
+            queensHintT1:
+                'The highlighted <span class="inline-icon queen" data-icon="crown"></span> dominates its row, column, region, and adjacent cells. Rule out the striped cells.',
+            queensHintT2: (kind) =>
+                `Every other cell in the highlighted ${kind} has been ruled out — place <span class="inline-icon queen" data-icon="crown"></span> on the marked cell.`,
+            queensHintT3: (axis) =>
+                `Each highlighted region needs one <span class="inline-icon queen" data-icon="crown"></span>, and those ${axis}s are already spoken for — every other region's cell in them is impossible.`,
+            queensHintCover: (kind) =>
+                `The highlighted ${kind} must contain a <span class="inline-icon queen" data-icon="crown"></span>. Every candidate here would kill the striped cells, so the striped cells cannot hold a queen.`,
+            queensHintConflict:
+                'The highlighted <span class="inline-icon queen" data-icon="crown"></span> break a rule (same row, column, region, or adjacent).',
+            queensHintWrongOne:
+                'The highlighted cell is incorrect.',
+            queensHintWrongMany: (n) =>
+                `${n} highlighted cells are incorrect.`,
+            queensHintNoAvail:
+                'No more deductions available right now. You may need to look for a subtler pattern.',
+
+            // Tango
+            tangoName: 'Tango',
+            tangoTagline: 'Sun & moon balance.',
+            tangoCardBody:
+                'Fill the grid with suns and moons — half of each per row and column, no three in a row, respect the walls.',
+            tangoBoardAria: 'Tango puzzle board',
+            tangoHelp1Html:
+                'Click a cell to cycle through <strong>empty → <span class="inline-icon sun" data-icon="sun"></span> → <span class="inline-icon moon" data-icon="moon"></span></strong>. Pre-filled cells are locked.',
+            tangoHelp2Html:
+                'Each row and column must contain <strong>half <span class="inline-icon sun" data-icon="sun"></span> and half <span class="inline-icon moon" data-icon="moon"></span></strong>, and never three of the same in a row.',
+            tangoHelp3Html:
+                'The badges between cells are constraints: <strong>=</strong> means the two neighbours must match, <strong>×</strong> means they must differ.',
+            tangoHelp4: 'The puzzle is solved when every cell is filled and no rule is broken.',
+
+            // Sudoku
+            sudokuName: 'Sudoku',
+            sudokuTagline: 'Classic number logic.',
+            sudokuCardBody:
+                'Fill the grid so every row, column and box contains each digit exactly once.',
+            sudokuBoardAria: 'Sudoku puzzle board',
+            sudokuNumPadAria: 'Number pad',
+            sudokuNotes: 'Notes',
+            sudokuErase: 'Erase',
+            sudokuEraseAria: 'Erase',
+            sudokuEraseTitle: 'Erase (Backspace / Delete / 0)',
+            sudokuHelp1: 'Click a cell to select it. Pre-filled (locked) cells stay grey.',
+            sudokuHelp2:
+                'Fill a digit with the on-screen keypad or your keyboard. The same key again clears that digit.',
+            sudokuHelp3Html:
+                'Toggle <strong>Notes</strong> (or press <kbd>N</kbd>) to write small candidate marks instead of a full digit.',
+            sudokuHelp4Html:
+                'Each <strong>row</strong>, <strong>column</strong> and <strong>box</strong> must contain every digit exactly once.',
+            sudokuHelp5Html:
+                '<kbd>Backspace</kbd> / <kbd>Delete</kbd> / <kbd>0</kbd> clears the cell. Arrow keys move the selection.',
+            // Sudoku hint texts (unit names + one string per solver step).
+            sudokuHintUnitRow: 'row',
+            sudokuHintUnitCol: 'column',
+            sudokuHintUnitBox: 'box',
+            sudokuHintFullHouse: (unit, v) =>
+                `This ${unit} has only ${v} left as an option.`,
+            sudokuHintNaked: (v) =>
+                `Given its row, column and box, this cell can only be ${v}.`,
+            sudokuHintNakedDerived: (v) =>
+                `The earlier eliminations leave this cell with only ${v}.`,
+            sudokuHintHidden: (unit, v) =>
+                `Every other cell in this ${unit} is blocked by another ${v}, so ${v} can only go here.`,
+            sudokuHintHiddenDerived: (unit, v) =>
+                `After the earlier eliminations, ${v} can only go in this cell of the ${unit}.`,
+            sudokuHintLockedPointing: (unit, d) =>
+                `In this ${unit}, ${d} only fits along one line — so ${d} can be removed from the rest of that line.`,
+            sudokuHintLockedClaiming: (unit, d) =>
+                `In this ${unit}, ${d} only fits inside one box — so ${d} can be removed from the rest of that box.`,
+            sudokuHintNakedPair: (unit, d) =>
+                `These two cells (yellow) can only be ${d}, so those digits can be removed from the rest of the ${unit}.`,
+            sudokuHintHiddenPair: (unit, d) =>
+                `In this ${unit}, ${d} fit only these two cells (yellow) — every other candidate in them can be removed.`,
+            sudokuHintNakedTriple: (unit, d) =>
+                `These three cells (yellow) only hold ${d}, so those digits can be removed from the rest of the ${unit}.`,
+            sudokuHintHiddenTriple: (unit, d) =>
+                `In this ${unit}, ${d} fit only these three cells (yellow) — every other candidate in them can be removed.`,
+            sudokuHintXWing: (d, fish) => (fish === 'col'
+                ? `X-Wing: ${d} is confined to the same two rows across two columns, so ${d} can be removed from the rest of those rows.`
+                : `X-Wing: ${d} is confined to the same two columns across two rows, so ${d} can be removed from the rest of those columns.`),
+            sudokuHintXYWing: (d) =>
+                `XY-Wing: whichever value the pivot (purple) takes, one of its two wings must be ${d}, so any cell seeing both wings can drop ${d}.`,
+            sudokuHintContradiction: (unit, v, n) =>
+                `This ${unit} has too many ${v}s. Every ${unit} must contain the digits 1–${n} without repeats.`,
+            sudokuHintWrong: 'The highlighted cell is incorrect.',
+            sudokuHintNoteConflict:
+                'These pencil marks clash with a placed digit — cleared for you (struck red).',
+            sudokuHintNoteMissing:
+                'The correct candidate was crossed out here — added back for you (green).',
+            sudokuHintNoAvail:
+                'No simple next step found from the current board.',
+            sudokuHintTierStep: 'STEP',
+            sudokuHintTierError: 'ERROR',
+
+            // Zip
+            zipName: 'Zip',
+            zipTagline: 'One path, every cell.',
+            zipCardBodyHtml:
+                'Drag from <strong>1</strong> to draw a single path covering every open cell, hitting checkpoints in numerical order.',
+            zipBoardAria: 'Zip puzzle board',
+            nonogramName: 'Nonogram',
+            nonogramTagline: 'Reveal the hidden picture.',
+            nonogramCardBody:
+                'Use the row and column number clues to fill the grid and reveal the picture.',
+            // Cross-link to the sibling Arcade Games site.
+            arcadeGamesName: 'Arcade Games',
+            arcadeGamesTagline: 'Arcade-style games.',
+            arcadeGamesCardBody:
+                'A separate site with arcade games.',
+            visitLink: 'Visit \u2197',
+            nonogramBoardAria: 'Nonogram puzzle board',
+            nonogramToolsAria: 'Input mode',
+            nonogramToolCycle: 'Cycle',
+            nonogramToolFill: 'Fill',
+            nonogramToolMark: 'Mark',
+            nonogramToolErase: 'Erase',
+            nonogramHelp1Html:
+                'Each clue number is a run of <strong>that many consecutive <span class="inline-icon nono-ico-fill" data-icon="square"></span> cells</strong>, in the listed order (left→right for rows, top→bottom for columns), with at least one gap between runs.',
+            nonogramHelp2Html:
+                'Four input modes: <span class="inline-icon nono-ico-cycle" data-icon="refresh-cw"></span> cycle, <span class="inline-icon nono-ico-fill" data-icon="square"></span> fill, <span class="inline-icon nono-ico-mark" data-icon="x"></span> mark, <span class="inline-icon nono-ico-erase" data-icon="eraser"></span> erase. Tap to apply, or drag to paint from the first cell.',
+            nonogramHelp3Html:
+                'Solved when the <span class="inline-icon nono-ico-fill" data-icon="square"></span> cells match every row and column clue.',
+            lightupName: 'Guards',
+            lightupTagline: 'Watch every corridor.',
+            lightupCardBody:
+                'Post the right number of guards to watch the corridors — none may see another.',
+            lightupBoardAria: 'Guards puzzle board',
+            lightupToolsAria: 'Input mode',
+            lightupToolCycle: 'Cycle',
+            lightupToolBulb: 'Guard',
+            lightupToolMark: 'Mark',
+            lightupToolErase: 'Erase',
+            lightupHelp1Html:
+                'Post a <span class="inline-icon lu-ico-bulb" data-icon="user"></span> on a white <strong>floor</strong> cell to watch its whole row and column; its view runs until it meets a black <strong>pillar</strong> or the board edge.',
+            lightupHelp2Html:
+                'No two <span class="inline-icon lu-ico-bulb" data-icon="user"></span> may see each other, and a numbered pillar must hold <strong>exactly that many</strong> <span class="inline-icon lu-ico-bulb" data-icon="user"></span> in the four cells next to it (up, down, left, right).',
+            lightupHelp3Html:
+                'Four input modes: <span class="inline-icon lu-ico-cycle" data-icon="refresh-cw"></span> cycle, <span class="inline-icon lu-ico-bulb" data-icon="user"></span> guard, <span class="inline-icon lu-ico-mark" data-icon="x"></span> mark, <span class="inline-icon lu-ico-erase" data-icon="eraser"></span> erase. Tap to apply, or drag to paint from the first cell.',
+            lightupHelp4Html:
+                'Solved when every floor cell is watched and no rule is broken.',
+            hashiName: 'Hashi',
+            hashiTagline: 'Bridge every island.',
+            hashiCardBody:
+                'Link the numbered islands with the right number of bridges — no crossings, all connected.',
+            hashiBoardAria: 'Hashi puzzle board',
+            hashiCrossBlocked: 'A bridge there would cross an existing one.',
+            hashiToolsAria: 'Input mode',
+            hashiToolBuild: 'Build',
+            hashiToolMark: 'Mark',
+            hashiMarkNeedsFull: 'That island isn\u2019t full yet \u2014 finish it before marking it done.',
+            hashiAssist: 'Left',
+            hashiAssistTitle: 'Show each island\u2019s remaining bridges instead of its number',
+            hashiHelp1Html:
+                'Each <strong>island</strong>\u2019s number is how many <strong>bridges</strong> connect to it. Bridges run straight (horizontal or vertical), at most two between a pair, and never cross.',
+            hashiHelp2Html:
+                '<strong>Build</strong> mode: <strong>drag</strong> island to island, or <strong>click the gap</strong> between two. Left adds a bridge (0 \u2192 1 \u2192 2 \u2192 0), right reverses.',
+            hashiHelp3Html:
+                '<strong>Mark</strong> mode: click a corridor to confirm its count, or a full island to mark it done (locking its connections). Marks are just aids and don\u2019t affect the puzzle.',
+            hashiHelpLeftHtml:
+                '<strong>Left (\u03A3)</strong>: show each island\u2019s remaining bridges.',
+            hashiHelp4Html:
+                'Solved when every island\u2019s number is met and all islands form <strong>one connected network</strong>.',
+            clearBoard: 'Clear the board',
+            zipHelp1Html:
+                'Drag from the cell marked <strong>1</strong> to draw a path through every white cell.',
+            zipHelp2Html:
+                'Visit the numbered checkpoints in order — <strong>1 → 2 → 3 → … → N</strong>.',
+            zipHelp3Html:
+                'The path cannot cross black <strong>walls</strong>; only orthogonal (up/down/left/right) moves.',
+            zipHelp4:
+                'You can pick up the drag from any cell already on the path — everything after that cell is dropped.',
+            zipHelp5:
+                'Solved when the path covers every white cell with checkpoints in the right order.',
+            patchesName: 'Patches',
+            patchesTagline: 'Tile the grid with shapes.',
+            patchesCardBody:
+                'Split the grid into rectangles — one per clue — matching each clue\u2019s shape and size.',
+            patchesBoardAria: 'Patches puzzle board',
+            patchesHelp1:
+                'Divide the whole grid into rectangles so that every rectangle contains exactly one clue.',
+            patchesHelp2Html:
+                'A clue\u2019s shape fixes its rectangle: <strong>square</strong>, <strong>wide</strong> (w&gt;h), <strong>tall</strong> (h&gt;w), or <strong>any</strong>.',
+            patchesHelp3:
+                'If a clue shows a number, its rectangle must have exactly that many cells.',
+            patchesHelp4:
+                'Drag over a clue to draw its rectangle; drag from inside a placed rectangle to expand it. Click a placed rectangle to remove it.',
+            patchesHelp5:
+                'Solved when every clue owns one valid rectangle and the rectangles fill the grid with no gaps or overlaps.',
+            patchesHint1:
+                'The outlined shape has only one way to be completed. With the current cells locked in, this is the only way to complete the shape.',
+            patchesHint2:
+                'The outlined shape has only one valid placement. Every other placement conflicts with another clue, so this is the only valid placement.',
+            patchesHint3:
+                'The outlined cell can only belong to the highlighted shape\u2019s region. It can\u2019t connect to any other clue or region without breaking a rule, so it must go here.',
+            patchesHint3Multi:
+                'The outlined cells can only belong to the highlighted shape\u2019s region. None can connect to any other clue or region without breaking a rule, so they must all go here.',
+            patchesHintCore:
+                'The outlined cell must belong to the highlighted shape\u2019s region: however that shape is finally drawn, it always covers this cell \u2014 so you can extend it here.',
+            patchesHintCoreMulti:
+                'The outlined cells must belong to the highlighted shape\u2019s region: however that shape is finally drawn, it always covers them \u2014 so you can extend it to include them.',
+            patchesConflictSizeOver: (x) =>
+                `This patch can hold at most ${x} cell${x === 1 ? '' : 's'}.`,
+            patchesConflictShapeSquare: 'This patch must be a square.',
+            patchesConflictShapeWide:
+                'This patch must be a wide rectangle (wider than tall).',
+            patchesConflictShapeTall:
+                'This patch must be a tall rectangle (taller than wide).',
+            patchesHintWrong:
+                'This rectangle can\u2019t be part of the solution — remove it and try another shape.',
+            patchesHintWrongMulti:
+                'None of these rectangles can be part of the solution — remove them and try other shapes.',
+            patchesHintNone: 'No further deductions available right now.',
+            patchesMinSize: 'Every region is at least 2 cells — drag to draw a rectangle.',
+        },
+        zh: {
+            menu: '選單',
+            language: '語言',
+            generatingPuzzle: '正在產生關卡…',
+            difficulty: '難度',
+            easy: '簡單',
+            medium: '中等',
+            hard: '困難',
+            boardSize: '盤面大小',
+            gameSettings: '遊戲設定',
+            newGame: '新局',
+            reset: '重設',
+            undo: '復原',
+            undoTitle: '復原上一步（Ctrl+Z）',
+            hint: '提示',
+            reveal: '解答',
+            share: '分享',
+            shareTitle: '複製本關卡的連結',
+            shareCopied: '連結已複製！',
+            shareFailed: '複製失敗 — 請從網址列手動複製。',
+            winMessage: '你贏了！',
+            howToPlay: '遊玩方式',
+            conflict: (n) => `${n} 個衝突`,
+            clearPlacements: '清除目前的標記',
+            clearPath: '清除路徑',
+            highlightDeducible: '標出一格可推論的位置',
+            showSolution: '顯示解答',
+            showSolutionPath: '顯示解答路徑',
+
+            appTitle: 'Puzzle Games',
+            appSubtitle: '一組受 LinkedIn 每日小遊戲啟發的邏輯謎題。',
+            playable: '可玩',
+            wip: '開發中',
+            builtNote: '純靜態網站 — 可離線使用，也可部署於 GitHub Pages。',
+
+            queensName: 'Queens',
+            queensTagline: '皇家領地，每區一后。',
+            queensCardBody: '在每個列、行、色塊區域與 8 鄰域中各放一個皇后。',
+            queensBoardAria: 'Queens 盤面',
+            queensHelp1Html:
+                '點擊格子在 <strong>空 → <span class="inline-icon queen-x" data-icon="x"></span> → <span class="inline-icon queen" data-icon="crown"></span></strong> 之間循環（<span class="inline-icon queen-x" data-icon="x"></span> 為個人「不放這」的標記）。',
+            queensHelp2Html:
+                '每個列、每個行、每個色塊區域最多只能有一個 <span class="inline-icon queen" data-icon="crown"></span>，且任兩個皇后不能位於相鄰的格子（含對角）。',
+            queensHelp3Html:
+                '在不違反規則的情況下放下 N 個 <span class="inline-icon queen" data-icon="crown"></span> 即過關 — 每列、每行、每區域各一，且不互相相鄰。',
+            queensHintKindRow: '列',
+            queensHintKindCol: '行',
+            queensHintKindRegion: '區域',
+            queensHintT1:
+                '此<span class="inline-icon queen" data-icon="crown"></span>把同行、同列、同區域或相鄰位置的格子封死了。排除掉條紋格子。',
+            queensHintT2: (kind) =>
+                `此${kind}的其他所有格子都被排除了。請將<span class="inline-icon queen" data-icon="crown"></span>放置在醒目標示的格子中。`,
+            queensHintT3: (axis) =>
+                `每個醒目標示的區域都需要一個<span class="inline-icon queen" data-icon="crown"></span>。這幾${axis}已經沒有地方放其他區域的<span class="inline-icon queen" data-icon="crown"></span>了。排除掉條紋格子。`,
+            queensHintCover: (kind) =>
+                `醒目標示的${kind}內必須有<span class="inline-icon queen" data-icon="crown"></span>。條紋格子中的<span class="inline-icon queen" data-icon="crown"></span>把此${kind}封死了。排除掉條紋格子。`,
+            queensHintConflict:
+                '醒目標示的 <span class="inline-icon queen" data-icon="crown"></span> 違反了規則（同行、同列、同區域或相鄰）。',
+            queensHintWrongOne:
+                '醒目標示的格子不正確。',
+            queensHintWrongMany: (n) =>
+                `醒目標示的 ${n} 格不正確。`,
+            queensHintNoAvail:
+                '目前沒有更進一步可以推論的地方了，可能需要找更細微的線索。',
+
+            tangoName: 'Tango',
+            tangoTagline: '太陽與月亮的平衡。',
+            tangoCardBody:
+                '用太陽和月亮填滿盤面 — 每列每行各半，不能連續三個相同，並遵循牆的限制。',
+            tangoBoardAria: 'Tango 盤面',
+            tangoHelp1Html:
+                '點擊格子在 <strong>空 → <span class="inline-icon sun" data-icon="sun"></span> → <span class="inline-icon moon" data-icon="moon"></span></strong> 之間循環。預填的格子是鎖定的。',
+            tangoHelp2Html:
+                '每列、每行必須是<strong>半數 <span class="inline-icon sun" data-icon="sun"></span>、半數 <span class="inline-icon moon" data-icon="moon"></span></strong>，且不能連續三個相同。',
+            tangoHelp3Html:
+                '格子間的標記是限制：<strong>=</strong> 表示兩格相同，<strong>×</strong> 表示兩格相異。',
+            tangoHelp4: '所有格子都填滿、且無違規時即過關。',
+
+            sudokuName: 'Sudoku',
+            sudokuTagline: '經典數字邏輯。',
+            sudokuCardBody:
+                '填滿盤面，使每列、每行、每個區域都恰好包含 1 至 N 各一次。',
+            sudokuBoardAria: 'Sudoku 盤面',
+            sudokuNumPadAria: '數字鍵盤',
+            sudokuNotes: '筆記',
+            sudokuErase: '清除',
+            sudokuEraseAria: '清除',
+            sudokuEraseTitle: '清除（Backspace / Delete / 0）',
+            sudokuHelp1: '點擊格子選取它。預填（鎖定）的格子為灰色。',
+            sudokuHelp2:
+                '用螢幕鍵盤或實體鍵盤輸入數字。再按一次同一個鍵會清除該數字。',
+            sudokuHelp3Html:
+                '切換 <strong>筆記</strong>（或按 <kbd>N</kbd>）可寫入小型候選數字，而非正式數字。',
+            sudokuHelp4Html:
+                '每個 <strong>列</strong>、<strong>行</strong>、<strong>區域</strong> 都必須恰好包含每個數字各一次。',
+            sudokuHelp5Html:
+                '<kbd>Backspace</kbd> / <kbd>Delete</kbd> / <kbd>0</kbd> 清除格子；方向鍵移動選取。',
+            sudokuHintUnitRow: '列',
+            sudokuHintUnitCol: '行',
+            sudokuHintUnitBox: '區域',
+            sudokuHintFullHouse: (unit, v) =>
+                `此${unit}只剩下 ${v} 這個選項。`,
+            sudokuHintNaked: (v) =>
+                `根據其所屬行、列、區域的情況，這格只剩下 ${v} 這個選項。`,
+            sudokuHintNakedDerived: (v) =>
+                `此格其餘候選都已被先前的推理排除，只剩下 ${v}。`,
+            sudokuHintHidden: (unit, v) =>
+                `此${unit}其餘所有格子都因為其他 ${v} 的存在而無法再放置，所以 ${v} 只能放在這一格。`,
+            sudokuHintHiddenDerived: (unit, v) =>
+                `經過先前的候選排除後，此${unit}只剩這一格能放 ${v}。`,
+            sudokuHintLockedPointing: (unit, d) =>
+                `此${unit}內的 ${d} 只能落在同一條線上，因此該線其餘格子可以排除 ${d}。`,
+            sudokuHintLockedClaiming: (unit, d) =>
+                `此${unit}內的 ${d} 只能落在同一個區域裡，因此該區域其餘格子可以排除 ${d}。`,
+            sudokuHintNakedPair: (unit, d) =>
+                `這兩格（黃色）只可能是 ${d}，所以同${unit}其餘格子可以排除這些數字。`,
+            sudokuHintHiddenPair: (unit, d) =>
+                `此${unit}中的 ${d} 只能放在這兩格（黃色），因此這兩格其餘候選都可以排除。`,
+            sudokuHintNakedTriple: (unit, d) =>
+                `這三格（黃色）只可能是 ${d}，所以同${unit}其餘格子可以排除這些數字。`,
+            sudokuHintHiddenTriple: (unit, d) =>
+                `此${unit}中的 ${d} 只能放在這三格（黃色），因此這三格其餘候選都可以排除。`,
+            sudokuHintXWing: (d, fish) => (fish === 'col'
+                ? `X-Wing：${d} 在這兩行都只能落在相同的兩列，所以這兩列的其餘格子都可以排除 ${d}。`
+                : `X-Wing：${d} 在這兩列都只能落在相同的兩行，所以這兩行的其餘格子都可以排除 ${d}。`),
+            sudokuHintXYWing: (d) =>
+                `XY-Wing：不論樞紐格（紫色）填哪個值，它的兩個翼之一必為 ${d}，所以同時看到這兩個翼的格子都可以排除 ${d}。`,
+            sudokuHintContradiction: (unit, v, n) =>
+                `此${unit}有太多 ${v} 了。每${unit}都必須包含數字 1–${n}，不得重複。`,
+            sudokuHintWrong: '醒目標示的格子不正確。',
+            sudokuHintNoteConflict:
+                '這些筆記和已填入的數字衝突，已為你清除（紅色刪除線）。',
+            sudokuHintNoteMissing:
+                '這幾格的正確候選被劃掉了，已為你補回（綠色）。',
+            sudokuHintNoAvail: '從目前的盤面找不到簡單的下一步。',
+            sudokuHintTierStep: '步驟',
+            sudokuHintTierError: '錯誤',
+
+            zipName: 'Zip',
+            zipTagline: '一條路徑，貫穿每格。',
+            zipCardBodyHtml:
+                '從 <strong>1</strong> 開始拖曳，畫出一條覆蓋每個白色格子的路徑，並依序通過編號的檢查點。',
+            zipBoardAria: 'Zip 盤面',
+            nonogramName: 'Nonogram',
+            nonogramTagline: '還原隱藏的圖案。',
+            nonogramCardBody:
+                '依每列與每行的數字線索把格子填滿，還原出圖案。',
+            // Cross-link to the sibling Arcade Games site.
+            arcadeGamesName: 'Arcade Games',
+            arcadeGamesTagline: '街機風格的遊戲。',
+            arcadeGamesCardBody:
+                '另一個網站，收錄街機遊戲。',
+            visitLink: '前往 \u2197',
+            nonogramBoardAria: 'Nonogram 盤面',
+            nonogramToolsAria: '輸入模式',
+            nonogramToolCycle: '循環',
+            nonogramToolFill: '填滿',
+            nonogramToolMark: '標記',
+            nonogramToolErase: '擦除',
+            nonogramHelp1Html:
+                '每個線索數字代表一段<strong>連續的 <span class="inline-icon nono-ico-fill" data-icon="square"></span> 格</strong>，依數字順序排列（列由左到右、行由上到下），且段與段之間至少空一格。',
+            nonogramHelp2Html:
+                '四種輸入模式：<span class="inline-icon nono-ico-cycle" data-icon="refresh-cw"></span> 循環、<span class="inline-icon nono-ico-fill" data-icon="square"></span> 填滿、<span class="inline-icon nono-ico-mark" data-icon="x"></span> 標記、<span class="inline-icon nono-ico-erase" data-icon="eraser"></span> 擦除。點一下套用，或從起點拖曳連續塗畫。',
+            nonogramHelp3Html:
+                '當 <span class="inline-icon nono-ico-fill" data-icon="square"></span> 格子符合所有列與行的線索即過關。',
+            lightupName: 'Guards',
+            lightupTagline: '看守每一條走廊。',
+            lightupCardBody:
+                '部署符合數量的守衛看守走廊 — 彼此不能互相看到。',
+            lightupBoardAria: '守衛盤面',
+            lightupToolsAria: '輸入模式',
+            lightupToolCycle: '循環',
+            lightupToolBulb: '守衛',
+            lightupToolMark: '標記',
+            lightupToolErase: '擦除',
+            lightupHelp1Html:
+                '在白色的<strong>地板</strong>格上放一名 <span class="inline-icon lu-ico-bulb" data-icon="user"></span>，看守其整行與整列；視線會一直延伸，直到被黑色的<strong>柱子</strong>或邊界擋住。',
+            lightupHelp2Html:
+                '任兩名 <span class="inline-icon lu-ico-bulb" data-icon="user"></span> <strong>不能</strong>互相看到；有數字的柱子，其上下左右緊鄰的 <span class="inline-icon lu-ico-bulb" data-icon="user"></span> 數必須<strong>剛好</strong>等於該數字。',
+            lightupHelp3Html:
+                '四種輸入模式：<span class="inline-icon lu-ico-cycle" data-icon="refresh-cw"></span> 循環、<span class="inline-icon lu-ico-bulb" data-icon="user"></span> 守衛、<span class="inline-icon lu-ico-mark" data-icon="x"></span> 標記、<span class="inline-icon lu-ico-erase" data-icon="eraser"></span> 擦除。點一下套用，或從起點拖曳連續塗畫。',
+            lightupHelp4Html:
+                '當每一格地板都被看守、且沒有違反任何規則時即過關。',
+            hashiName: 'Hashi',
+            hashiTagline: '把每座島連起來。',
+            hashiCardBody:
+                '用正確數量的橋連接數字島 — 不可交叉，且全部連成一網。',
+            hashiBoardAria: 'Hashi 盤面',
+            hashiCrossBlocked: '這裡會和現有的橋交叉，不能架。',
+            hashiToolsAria: '輸入模式',
+            hashiToolBuild: '建橋',
+            hashiToolMark: '標記',
+            hashiMarkNeedsFull: '這座島還沒湊滿，無法標為完成。',
+            hashiAssist: '剩餘',
+            hashiAssistTitle: '島上顯示「還差幾座橋」，而非原本的數字',
+            hashiHelp1Html:
+                '每座<strong>島</strong>上的數字，代表要連到它的<strong>橋</strong>數。橋只走直線 (上下或左右)，一對島之間最多兩座，且不可交叉。',
+            hashiHelp2Html:
+                '<strong>建橋</strong>模式：從島<strong>拖</strong>到相鄰的島，或<strong>點兩島之間的橋位</strong>。左鍵加橋 (0 → 1 → 2 → 0)，右鍵反向。',
+            hashiHelp3Html:
+                '<strong>標記</strong>模式：點橋位標為確定，或點已湊滿的島標為完成 (會一併鎖定四周)。標記只是輔助，不影響解答。',
+            hashiHelpLeftHtml:
+                '<strong>剩餘 (\u03A3)</strong>：島上改顯示「還差幾座橋」。',
+            hashiHelp4Html:
+                '當每座島的橋數都剛好、且所有島連成<strong>單一相通的網路</strong>時過關。',
+            clearBoard: '清空盤面',
+            zipHelp1Html:
+                '從標示 <strong>1</strong> 的格子開始拖曳，畫一條經過每個白色格子的路徑。',
+            zipHelp2Html:
+                '依數字順序通過檢查點 — <strong>1 → 2 → 3 → … → N</strong>。',
+            zipHelp3Html:
+                '路徑不能越過黑色<strong>牆</strong>；只能沿上下左右正交方向移動。',
+            zipHelp4:
+                '可以從路徑上任何一格重新拖曳 — 該格之後的部分都會被取消。',
+            zipHelp5: '當路徑覆蓋每個白格，且檢查點都依序通過時即過關。',
+            patchesName: 'Patches',
+            patchesTagline: '用形狀鋪滿整個盤面。',
+            patchesCardBody:
+                '把盤面切成一個個矩形 — 每個提示對應一個 — 並符合該提示的形狀與大小。',
+            patchesBoardAria: 'Patches 盤面',
+            patchesHelp1:
+                '把整個盤面切成數個矩形，使每個矩形內恰好包含一個提示。',
+            patchesHelp2Html:
+                '提示的形狀決定其矩形：<strong>方形</strong>、<strong>寬</strong>（寬&gt;高）、<strong>高</strong>（高&gt;寬）或<strong>任意</strong>。',
+            patchesHelp3:
+                '若提示上有數字，其矩形就必須剛好是那麼多格。',
+            patchesHelp4:
+                '在盤面拖曳畫出涵蓋某提示的矩形；從已放置矩形內部拖曳可將它擴大。點擊已放置的矩形可移除它。',
+            patchesHelp5:
+                '當每個提示都擁有一個合法矩形，且所有矩形不重疊、無空隙地填滿盤面時即過關。',
+            patchesHint1:
+                '此外框形狀只有一種完成方式。目前格子已鎖定，這是完成該形狀的唯一解法。',
+            patchesHint2:
+                '此外框形狀只有一個有效位置。由於其他位置皆與既有線索衝突，因此這是唯一的有效位置。',
+            patchesHint3:
+                '畫出外框的格子只能屬於此醒目標示形狀的區域。在不違反規則的情況下，它無法與任何其他線索或區域相連，因此必須置於此處。',
+            patchesHint3Multi:
+                '畫出外框的格子只能屬於此醒目標示形狀的區域。在不違反規則的情況下，它們無法與任何其他線索或區域相連，因此必須置於此處。',
+            patchesHintCore:
+                '外框的格子必屬於此醒目標示形狀的區域：無論該形狀最後怎麼畫，都一定會涵蓋此格，因此可以先把它畫進來。',
+            patchesHintCoreMulti:
+                '外框的格子必屬於此醒目標示形狀的區域：無論該形狀最後怎麼畫，都一定會涵蓋這些格，因此可以先把它們畫進來。',
+            patchesConflictSizeOver: (x) => `此有色區域最多只能有 ${x} 格。`,
+            patchesConflictShapeSquare: '此有色區域必須是正方形。',
+            patchesConflictShapeWide: '此有色區域必須是橫向長方形（寬 > 高）。',
+            patchesConflictShapeTall: '此有色區域必須是直向長方形（高 > 寬）。',
+            patchesHintWrong: '這個矩形不是解答的一部分，把它移除再試試別的形狀。',
+            patchesHintWrongMulti: '這些矩形都不是解答的一部分，把它們移除再試試別的形狀。',
+            patchesHintNone: '目前沒有更進一步可推論的地方了。',
+            patchesMinSize: '每個區域至少要有 2 格，用拖曳畫出矩形。',
+        },
+    };
+
+    const LANG_KEY = storageKey('lang');
+    const LANG_SUPPORTED = ['en', 'zh'];
+    const localeSubscribers = new Set();
+    let currentLocale = readJSON(LANG_KEY, 'en');
+    if (!LANG_SUPPORTED.includes(currentLocale)) currentLocale = 'en';
+
+    function tForLocale(loc, key, ...args) {
+        const table = STRINGS[loc] || STRINGS.en;
+        let entry = table[key];
+        if (entry == null) entry = STRINGS.en[key];
+        if (entry == null) return key;
+        return typeof entry === 'function' ? entry(...args) : entry;
+    }
+
+    function t(key, ...args) {
+        return tForLocale(currentLocale, key, ...args);
+    }
+
+    function translateNode(rootEl) {
+        if (!rootEl) return;
+        const isHtmlKey = (key) => /Html$/.test(key);
+        const textNodes = rootEl.querySelectorAll('[data-i18n]');
+        for (const el of textNodes) {
+            const key = el.getAttribute('data-i18n');
+            const text = t(key);
+            if (isHtmlKey(key)) el.innerHTML = text;
+            else el.textContent = text;
+        }
+        const titleNodes = rootEl.querySelectorAll('[data-i18n-title]');
+        for (const el of titleNodes) {
+            el.setAttribute('title', t(el.getAttribute('data-i18n-title')));
+        }
+        const ariaNodes = rootEl.querySelectorAll('[data-i18n-aria-label]');
+        for (const el of ariaNodes) {
+            el.setAttribute('aria-label', t(el.getAttribute('data-i18n-aria-label')));
+        }
+        // HTML i18n strings can embed [data-icon] placeholders (e.g. the
+        // help text). Re-injecting the string wipes any previously
+        // rendered icon, so re-render after every translate.
+        renderIcons(rootEl);
+    }
+
+    function setLocale(newLoc) {
+        if (!LANG_SUPPORTED.includes(newLoc)) return;
+        if (newLoc === currentLocale) return;
+        currentLocale = newLoc;
+        writeJSON(LANG_KEY, currentLocale);
+        document.documentElement.lang = currentLocale === 'zh' ? 'zh-Hant' : 'en';
+        translateNode(document);
+        syncLangToggle();
+        for (const cb of localeSubscribers) {
+            try { cb(currentLocale); } catch (e) { console.warn('[i18n] subscriber threw', e); }
+        }
+    }
+
+    function subscribe(cb) {
+        localeSubscribers.add(cb);
+        return () => localeSubscribers.delete(cb);
+    }
+
+    function syncLangToggle() {
+        const tog = document.getElementById('lang-toggle');
+        if (!tog) return;
+        for (const btn of tog.querySelectorAll('button[data-lang]')) {
+            const isActive = btn.dataset.lang === currentLocale;
+            btn.classList.toggle('active', isActive);
+            btn.setAttribute('aria-checked', isActive ? 'true' : 'false');
+        }
+    }
+
+    function wireLangToggle() {
+        const tog = document.getElementById('lang-toggle');
+        if (!tog) return;
+        tog.addEventListener('click', (ev) => {
+            const btn = ev.target.closest('button[data-lang]');
+            if (!btn) return;
+            setLocale(btn.dataset.lang);
+        });
+        syncLangToggle();
+    }
+
+    function bootstrapI18n() {
+        document.documentElement.lang = currentLocale === 'zh' ? 'zh-Hant' : 'en';
+        translateNode(document); // also renders [data-icon] placeholders
+        wireLangToggle();
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', bootstrapI18n);
+    } else {
+        bootstrapI18n();
+    }
+
+    // -----------------------------------------------------------------
+    // Progress indicator
+    //
+    // A single shared overlay rendered into `.board-wrap` (or the body,
+    // if no board exists) while a long synchronous task — currently
+    // just puzzle generation — runs on the main thread. The visible
+    // part is delayed by ~250ms via a CSS keyframe so quick generations
+    // don't flash a card on screen for ~50ms.
+    //
+    // The indeterminate progress bar is driven entirely by a CSS
+    // transform animation. Compositor-thread animations keep ticking
+    // even when the JS thread is blocked, so the bar continues to
+    // visibly move during a multi-second generate() call without us
+    // needing to make the generator async.
+    // -----------------------------------------------------------------
+
+    const progress = (function () {
+        let overlay = null;
+        let textEl = null;
+        let attachedTo = null;
+        let activeCount = 0;
+
+        function ensureDom(host) {
+            if (overlay && attachedTo === host) return;
+            if (overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay);
+            overlay = document.createElement('div');
+            overlay.className = 'puzzle-progress';
+            overlay.setAttribute('role', 'status');
+            overlay.setAttribute('aria-live', 'polite');
+            overlay.hidden = true;
+            const card = document.createElement('div');
+            card.className = 'puzzle-progress-card';
+            textEl = document.createElement('div');
+            textEl.className = 'puzzle-progress-text';
+            const bar = document.createElement('div');
+            bar.className = 'puzzle-progress-bar';
+            const fill = document.createElement('span');
+            fill.className = 'puzzle-progress-bar-fill';
+            bar.appendChild(fill);
+            card.appendChild(textEl);
+            card.appendChild(bar);
+            overlay.appendChild(card);
+            host.appendChild(overlay);
+            attachedTo = host;
+        }
+
+        function resolveHost() {
+            return document.querySelector('.board-wrap')
+                || document.querySelector('main')
+                || document.body;
+        }
+
+        function start(text) {
+            const host = resolveHost();
+            ensureDom(host);
+            // Reset the keyframe so each new generate restarts its
+            // fade-in delay. Cheap trick: remove + reflow + add the
+            // running class.
+            textEl.textContent = text || '';
+            overlay.classList.remove('is-running', 'is-determinate');
+            const fillEl = overlay.querySelector('.puzzle-progress-bar-fill');
+            if (fillEl) {
+                fillEl.style.width = '';
+                fillEl.style.transform = '';
+            }
+            overlay.hidden = false;
+            void overlay.offsetWidth;
+            overlay.classList.add('is-running');
+            activeCount += 1;
+        }
+
+        function update(text) {
+            if (!textEl) return;
+            textEl.textContent = text || '';
+        }
+
+        // Switch the bar to determinate mode and set its fill ratio
+        // (0..1). First call also kills the indeterminate slide
+        // animation. Safe to call repeatedly with the same overlay.
+        function setFraction(fraction) {
+            if (!overlay) return;
+            const fillEl = overlay.querySelector('.puzzle-progress-bar-fill');
+            if (!fillEl) return;
+            const f = Math.max(0, Math.min(1, fraction));
+            const pct = (f * 100).toFixed(2) + '%';
+            if (!overlay.classList.contains('is-determinate')) {
+                // First determinate frame: snap the width in place with
+                // the CSS transition suppressed. Otherwise the bar
+                // animates from the indeterminate 40% slide down to the
+                // real fraction — and if the generator then blocks the
+                // main thread mid-transition, that width freezes around
+                // the middle (while the compositor-driven fade still
+                // reveals the overlay), so the bar appears to start
+                // "in the middle" before snapping to the first cell.
+                fillEl.style.transition = 'none';
+                overlay.classList.add('is-determinate');
+                fillEl.style.width = pct;
+                void fillEl.offsetWidth; // commit without transition
+                fillEl.style.transition = '';
+                return;
+            }
+            fillEl.style.width = pct;
+        }
+
+        function finish() {
+            if (activeCount > 0) activeCount -= 1;
+            if (activeCount > 0) return;
+            if (overlay) {
+                overlay.classList.remove('is-running', 'is-determinate');
+                overlay.hidden = true;
+            }
+        }
+
+        function waitNextPaint() {
+            return new Promise((resolve) => {
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => resolve());
+                });
+            });
+        }
+
+        return { start, update, setFraction, finish, waitNextPaint };
+    })();
+
+    // -----------------------------------------------------------------
+    // Share helpers
+    //
+    // A game page that wants shareable URLs publishes its current
+    // (size, difficulty, seed) into the address bar via
+    // `share.replaceUrl(...)` after every successful generation. The
+    // friend who opens the link reads the same three values via
+    // `share.readParams()` on boot and uses them to seed their first
+    // puzzle. Anything missing or malformed is silently ignored —
+    // partial state is treated as "no shared puzzle, use defaults".
+    //
+    // The seed travels as base36 (uint32 → up to 7 chars) to match
+    // the format already baked into `puzzle.id`. Determinism of the
+    // generator given (size, difficulty, seed) is the contract that
+    // makes this work end-to-end.
+    // -----------------------------------------------------------------
+
+    const share = (function () {
+        const KEY_SIZE = 'size';
+        const KEY_DIFF = 'diff';
+        const KEY_SEED = 'seed';
+
+        function parseSeed(raw) {
+            if (raw == null) return null;
+            // base36 uint32 — matches puzzle.id encoding.
+            const n = parseInt(String(raw).trim(), 36);
+            if (!Number.isFinite(n) || n < 0) return null;
+            return (n >>> 0);
+        }
+
+        function formatSeed(n) {
+            return ((n >>> 0)).toString(36);
+        }
+
+        function readParams() {
+            try {
+                const sp = new URL(location.href).searchParams;
+                const sizeRaw = sp.get(KEY_SIZE);
+                const sizeNum = sizeRaw == null ? null
+                    : parseInt(sizeRaw, 10);
+                return {
+                    size: Number.isFinite(sizeNum) ? sizeNum : null,
+                    difficulty: sp.get(KEY_DIFF),
+                    seed: parseSeed(sp.get(KEY_SEED)),
+                };
+            } catch (e) {
+                return { size: null, difficulty: null, seed: null };
+            }
+        }
+
+        function replaceUrl(params) {
+            try {
+                const url = new URL(location.href);
+                if (params.size != null) {
+                    url.searchParams.set(KEY_SIZE, String(params.size));
+                }
+                if (params.difficulty != null) {
+                    url.searchParams.set(KEY_DIFF, params.difficulty);
+                }
+                if (params.seed != null) {
+                    url.searchParams.set(KEY_SEED, formatSeed(params.seed));
+                }
+                history.replaceState(null, '', url.toString());
+            } catch (e) {
+                // history API can throw on file:// — silently ignore so
+                // the rest of the page keeps working.
+            }
+        }
+
+        async function copyCurrentUrl() {
+            return copyText(location.href);
+        }
+
+        async function copyText(text) {
+            try {
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    await navigator.clipboard.writeText(text);
+                    return true;
+                }
+            } catch (e) {
+                // Permissions denied / not in secure context — fall
+                // through to the legacy path.
+            }
+            try {
+                const ta = document.createElement('textarea');
+                ta.value = text;
+                ta.setAttribute('readonly', '');
+                ta.style.position = 'fixed';
+                ta.style.top = '0';
+                ta.style.left = '0';
+                ta.style.opacity = '0';
+                document.body.appendChild(ta);
+                ta.select();
+                const ok = document.execCommand
+                    && document.execCommand('copy');
+                document.body.removeChild(ta);
+                return !!ok;
+            } catch (e) {
+                return false;
+            }
+        }
+
+        return { readParams, replaceUrl, copyCurrentUrl, copyText };
+    })();
+
+    // -----------------------------------------------------------------
+    // Toast
+    //
+    // A single shared pill-shaped notice that fades in at the bottom
+    // of the viewport for a couple of seconds. Used for transient
+    // confirmations like "link copied" — anything that demands user
+    // attention should still go through a modal/alert.
+    // -----------------------------------------------------------------
+
+    const toast = (function () {
+        let el = null;
+        let hideTimer = null;
+
+        function ensureEl() {
+            if (el) return el;
+            el = document.createElement('div');
+            el.className = 'toast';
+            el.setAttribute('role', 'status');
+            el.setAttribute('aria-live', 'polite');
+            document.body.appendChild(el);
+            return el;
+        }
+
+        function show(text, ms) {
+            const node = ensureEl();
+            node.textContent = text || '';
+            // Restart the fade so consecutive show() calls reset
+            // their own timer rather than inheriting the previous.
+            node.classList.remove('toast-visible');
+            void node.offsetWidth;
+            node.classList.add('toast-visible');
+            if (hideTimer) clearTimeout(hideTimer);
+            hideTimer = setTimeout(() => {
+                node.classList.remove('toast-visible');
+            }, ms || 1800);
+        }
+
+        return { show };
+    })();
+
+    // -----------------------------------------------------------------
+    // Undo history
+    //
+    // A tiny bounded snapshot stack. The caller supplies `snapshot()` (return
+    // a deep copy of whatever mutable state matters) and `restore(snap)`
+    // (put it back + repaint). We never diff or invert actions — for the
+    // small boards here, copying the whole state before each edit is simplest
+    // and impossible to get subtly wrong.
+    // -----------------------------------------------------------------
+
+    function createHistory(opts) {
+        const limit = (opts && opts.limit) || 20;
+        const snapshot = opts.snapshot;
+        const restore = opts.restore;
+        let stack = [];
+        return {
+            push() {
+                stack.push(snapshot());
+                if (stack.length > limit) stack.shift();
+            },
+            undo() {
+                if (!stack.length) return false;
+                restore(stack.pop());
+                return true;
+            },
+            clear() { stack = []; },
+            canUndo() { return stack.length > 0; },
+        };
+    }
+
+    global.PuzzleCommon = {
+        storage: { readJSON, writeJSON, storageKey },
+        prefs: { get: getPrefs, set: setPrefs },
+        solves: { log: logSolve, get: getSolveStats },
+        timer: createTimer,
+        shell: { create: createShell },
+        rng: { make: makeRng, pickInt: pickRandomInt, shuffle: shuffleInPlace },
+        clamp,
+        el,
+        svgEl,
+        icon,
+        icons: { render: renderIcons },
+        boardIcon,
+        i18n: {
+            get locale() { return currentLocale; },
+            setLocale,
+            t,
+            tForLocale,
+            subscribe,
+            translateNode,
+            STRINGS,
+        },
+        progress,
+        share,
+        toast,
+        history: { create: createHistory },
+    };
+})(window);
