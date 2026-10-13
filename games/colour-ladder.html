@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Colour Ladder · Arcade Games</title>
+    <link rel="icon" type="image/svg+xml" href="../favicon.svg">
+    <link rel="stylesheet" href="../css/common.css">
+    <link rel="stylesheet" href="../css/arcade.css">
+    <style>
+        body { --game-color: #5ad0e0; }
+        /* The board is portrait, so cap and centre the stage. */
+        .stage-wrap { max-width: 480px; margin: 0 auto; }
+    </style>
+</head>
+<body data-theme="arcade">
+    <div class="game-shell">
+        <header class="game-topbar">
+            <a class="back-link" href="../index.html">
+                <span data-icon="arrow-left" aria-hidden="true"></span>
+                <span data-i18n="menu">Menu</span>
+            </a>
+            <div class="game-title">
+                <span class="game-icon" data-icon="ladder" aria-hidden="true"></span>
+                <span data-i18n="ladderConnectName">Colour Ladder</span>
+            </div>
+            <div class="lang-toggle" id="lang-toggle" role="radiogroup" data-i18n-aria-label="language">
+                <button type="button" data-lang="en" role="radio" aria-checked="true">EN</button>
+                <button type="button" data-lang="zh" role="radio" aria-checked="false">中</button>
+            </div>
+        </header>
+
+        <div class="hud">
+            <div class="hud-stat">
+                <span class="hud-label"><span data-icon="heart" aria-hidden="true"></span><span data-i18n="lives">Lives</span></span>
+                <span class="hud-value" id="lives">5</span>
+            </div>
+            <div class="hud-stat accent">
+                <span class="hud-label"><span data-icon="coins" aria-hidden="true"></span><span data-i18n="score">Score</span></span>
+                <span class="hud-value" id="score">0</span>
+            </div>
+            <div class="hud-stat">
+                <span class="hud-label"><span data-icon="trophy" aria-hidden="true"></span><span data-i18n="best">Best</span></span>
+                <span class="hud-value" id="best">0</span>
+            </div>
+        </div>
+
+        <div class="control-row">
+            <div class="seg" id="difficulty-seg" role="radiogroup" data-i18n-aria-label="difficulty">
+                <button type="button" class="btn toggle" data-diff="easy" data-i18n="lcEasy">Easy</button>
+                <button type="button" class="btn toggle" data-diff="normal" data-i18n="lcNormal">Normal</button>
+                <button type="button" class="btn toggle" data-diff="hard" data-i18n="lcHard">Hard</button>
+            </div>
+            <span class="spacer"></span>
+            <div class="control-actions">
+                <button class="btn" id="pause-btn" type="button" disabled>
+                    <span data-icon="pause" aria-hidden="true"></span>
+                    <span data-role="pause-label" data-i18n="pause">Pause</span>
+                </button>
+                <button class="btn" id="restart-btn" type="button" disabled>
+                    <span data-icon="rotate-ccw" aria-hidden="true"></span>
+                    <span data-i18n="restart">Restart</span>
+                </button>
+                <button class="btn btn-icon toggle" id="sound-btn" type="button" aria-pressed="true" data-i18n-title="sound" title="Sound">
+                    <span data-role="sound-icon" aria-hidden="true"></span>
+                </button>
+            </div>
+        </div>
+
+        <div class="stage-wrap">
+            <canvas class="stage-canvas drag-stage" id="stage" width="600" height="760"
+                    role="img" aria-label="Ladder Connect play field"></canvas>
+            <div class="overlay" id="overlay" hidden>
+                <div class="overlay-card">
+                    <span class="overlay-badge" id="overlay-badge" aria-hidden="true"></span>
+                    <h2 class="overlay-title" id="overlay-title"></h2>
+                    <p class="overlay-message" id="overlay-message"></p>
+                    <button class="btn btn-primary overlay-btn" id="overlay-btn" type="button"></button>
+                    <p class="overlay-hint" id="overlay-hint"></p>
+                </div>
+            </div>
+        </div>
+
+        <section class="game-footer">
+            <h4 data-i18n="howToPlay">How to play</h4>
+            <ul>
+                <li data-i18n="lcHelp1Html">Coloured balls fall down the <strong>lanes</strong>. Land each in the basket of its <strong>own colour</strong>; a wrong basket costs a <strong>life</strong>.</li>
+                <li data-i18n="lcHelp2Html">Press and hold a <strong>rung</strong>, then drop it elsewhere — each rung <strong>steps a ball across</strong> to the next lane, so you redirect the falls. On <strong>Hard</strong>, a rung lets its <strong>own colour</strong> pass straight through.</li>
+                <li data-i18n="lcHelp3Html">You have a few movable <strong>rungs</strong>. After you move one it <strong>recharges</strong> briefly before it can move again — so you plan across all of them.</li>
+                <li data-i18n="lcHelp4Html">Faint <strong>grey bars</strong> are fixed walls that block <strong>every</strong> colour and can't be moved — route around them.</li>
+                <li data-i18n="lcHelp5Html">A ball marked <strong>+</strong> is a faster <strong>heal</strong> ball — land it in its colour to <strong>regain a life</strong>; missing it is harmless.</li>
+                <li data-i18n="lcHelp6Html">Over time it gets <strong>busier and a little faster</strong>. <kbd>P</kbd> pause · <kbd>R</kbd> restart · <kbd>M</kbd> mute.</li>
+            </ul>
+        </section>
+    </div>
+
+    <script src="../js/arcade.js"></script>
+    <script src="../js/games/colour-ladder.js"></script>
+</body>
+</html>

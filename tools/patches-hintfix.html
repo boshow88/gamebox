@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Patches — hint soundness (solver-backed) self-test</title>
+  <style>
+    body { font: 14px/1.5 ui-monospace, Consolas, monospace; margin: 16px; }
+    .pass { color: #128a12; } .fail { color: #c0272d; font-weight: 700; }
+    pre { white-space: pre-wrap; }
+  </style>
+  <script src="../js/puzzle.js"></script>
+  <script src="../js/generators/patches.js"></script>
+</head>
+<body data-theme="puzzle">
+  <h1 id="verdict">running…</h1>
+  <pre id="out"></pre>
+  <script>
+  (function () {
+    const I = window.PuzzleGenerators.patchesInternals;
+    const PC = window.PuzzleCommon;
+    const S = I.SHAPES;
+    const TECH = I.TECHNIQUES_BY_DIFFICULTY;
+    const out = [];
+    let fails = 0;
+    const ok = (s, cond) => { out.push((cond ? '  ok  ' : ' FAIL ') + s); if (!cond) fails++; };
+    const note = (s) => out.push('       ' + s);
+
+    // --- 1) no-leak regression: a growable no-size neighbour that can reach a
+    //         shared cell must NOT let that cell be "forced" to another clue.
+    {
+      const N = 4;
+      const clues = [
+        { r: 1, c: 0, shape: S.WIDE, size: null }, // idx 0 (B): wide, no size
+        { r: 0, c: 3, shape: S.ANY, size: 2 },      // idx 1 (A): any, size 2
+      ];
+      const seed = [{ r: 1, c: 0, w: 3, h: 1, clue: 0 }]; // B as 1x3
+      const st = I.makeState(N, clues, seed);
+      const step = I.nextStep(st, TECH.hard);
+      const bad = step && step.kind === 'forceCell' && step.cell[0] === 1 && step.cell[1] === 3;
+      ok('cell (1,3) not falsely forced (B can grow 1x4 to reach it)'
+        + (step ? ` [got ${step.technique}/${step.kind}${step.cell ? ' @' + step.cell : ''}]` : ' [got null]'), !bad);
+    }
+
+    // --- helpers ----------------------------------------------------------
+    const ownerOf = (N, rects) => {
+      const o = new Int32Array(N * N).fill(-1);
+      rects.forEach((rc, i) => { for (let r = rc.r; r < rc.r + rc.h; r++) for (let c = rc.c; c < rc.c + rc.w; c++) o[r * N + c] = i; });
+      return o;
+    };
+    const sol = {}; // filled per puzzle
+    const inRect = (R, r, c) => R.r <= r && r < R.r + R.h && R.c <= c && c < R.c + R.w;
+    const eqRect = (a, b) => a.r === b.r && a.c === b.c && a.w === b.w && a.h === b.h;
+    function pickBase(N, seed, capMs) {
+      const rng = PC.rng.make(seed >>> 0); const dl = Date.now() + capMs;
+      let rects = null, clues = null;
+      for (let a = 0; a < 40; a++) { const rr = I.tileGrid(N, rng), cc = I.cluesFromTiling(rr, rng); if (I.isUnique(N, cc)) { rects = rr; clues = cc; break; } if (Date.now() > dl) { rects = rr; clues = cc; break; } }
+      if (!clues) { rects = I.tileGrid(N, rng); clues = I.cluesFromTiling(rects, rng); }
+      return { rng, clues, rects };
+    }
+    const cloneClues = (cs) => cs.map((c) => ({ ...c }));
+
+    // Mirror the game's step→conclusion soundness check against the solution.
+    function stepIsSound(step, solByClue) {
+      const s = solByClue.get(step.clue);
+      if (!s) return false;
+      if (step.kind === 'commit') return eqRect(step.rect, s);
+      if (step.kind === 'forceCell') return inRect(s, step.cell[0], step.cell[1]);
+      if (step.kind === 'elim') return !eqRect(step.rect, s); // the impossible cand isn't the true one
+      return false;
+    }
+
+    // --- 2) per-difficulty: every hint sound + hint-walkthrough solves -----
+    for (const N of [6, 8, 10]) {
+      let base; try { base = pickBase(N, 3100 + N, 1200); } catch (e) { ok(`pickBase ${N}`, false); continue; }
+      const solRects = base.rects.map((rc, i) => ({ ...rc, clue: i }));
+      const solByClue = new Map(solRects.map((r) => [r.clue, r]));
+      for (const diff of ['easy', 'medium', 'hard']) {
+        const clues = cloneClues(base.clues);
+        const rng = PC.rng.make(6000 + N * 13 + diff.length);
+        try { I.digDifficulty(N, clues, ownerOf(N, base.rects), diff, rng, Date.now() + 900); }
+        catch (e) { ok(`${N} ${diff} dig`, false); continue; }
+
+        // Walk the solver step-by-step (the same nextStep the game hint uses),
+        // asserting each step's CONCLUSION agrees with the unique solution, and
+        // that the sequence reaches a full cover.
+        const st = I.makeState(N, clues);
+        let unsound = 0, steps = 0;
+        let budget = N * N + 50;
+        for (let i = 0; i < st.K; i++) budget += st.cands[i].length;
+        while (steps++ < budget) {
+          if (st.dead) break;
+          const step = I.nextStep(st, TECH[diff]);
+          if (!step) break;
+          if (!stepIsSound(step, solByClue)) unsound++;
+          if (!I.applyStep(st, step)) break;
+        }
+        let solved = !st.dead && st.remaining === 0;
+        if (solved) for (let k = 0; k < N * N; k++) if (st.owner[k] === -1) { solved = false; break; }
+        ok(`${N}x${N} ${diff}: every hint step sound`, unsound === 0);
+        ok(`${N}x${N} ${diff}: hint sequence solves fully`, solved);
+      }
+    }
+
+    // --- 3) merge check: a clue's simultaneous forced cells group soundly ---
+    // (the game hint merges same-clue forceCells into one multi-cell hint; here
+    // we verify such groups occur and every grouped cell is in that clue's
+    // solution rect, so merging never points at a wrong cell.)
+    {
+      let states = 0, groups = 0, maxGroup = 0, unsound = 0;
+      for (const N of [8, 10]) {
+        const base = pickBase(N, 5200 + N, 1200);
+        const solOwner = ownerOf(N, base.rects);
+        const solByClue = new Map(base.rects.map((rc, i) => [i, rc]));
+        for (let s = 1; s <= 6; s++) {
+          const clues = cloneClues(base.clues);
+          try { I.digDifficulty(N, clues, solOwner, 'hard', PC.rng.make(3300 + N * 11 + s * 97), Date.now() + 700); } catch (e) { continue; }
+          const st = I.makeState(N, clues);
+          for (let step = 0; step < clues.length + 5; step++) {
+            if (st.dead) break;
+            const res = I.findAllDeductions(st, TECH.hard);
+            if (!res) break;
+            const byClue = new Map();
+            for (const x of res.steps) if (x.kind === 'forceCell') { let g = byClue.get(x.clue); if (!g) byClue.set(x.clue, (g = [])); g.push(x.cell); }
+            states++;
+            for (const [clue, cells] of byClue) {
+              groups++; maxGroup = Math.max(maxGroup, cells.length);
+              const sol = solByClue.get(clue);
+              for (const [r, c] of cells) if (!(sol.r <= r && r < sol.r + sol.h && sol.c <= c && c < sol.c + sol.w)) unsound++;
+            }
+            const s0 = I.nextStep(st, TECH.hard); if (!s0) break; I.applyStep(st, s0);
+          }
+        }
+      }
+      note(`merge: states=${states}, forceCell-groups=${groups}, max group size=${maxGroup}, unsound cells=${unsound}`);
+      ok('merged forced cells are all in their clue\u2019s solution rect', unsound === 0);
+    }
+
+    document.getElementById('out').textContent = out.join('\n');
+    const v = document.getElementById('verdict');
+    v.textContent = fails === 0 ? 'ALL TESTS PASSED' : (fails + ' TEST(S) FAILED');
+    v.className = fails === 0 ? 'pass' : 'fail';
+  })();
+  </script>
+</body>
+</html>

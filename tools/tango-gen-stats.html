@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Tango generator stats</title>
+    <style>
+        body { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+               background: #fafafa; color: #222; padding: 24px;
+               line-height: 1.5; }
+        h1 { font-family: system-ui, sans-serif; font-size: 18px;
+             margin: 0 0 12px; }
+        p { font-family: system-ui, sans-serif; margin: 0 0 16px;
+            color: #555; }
+        table { border-collapse: collapse; }
+        th, td { padding: 6px 12px; text-align: right; border-bottom: 1px solid #eee; }
+        th:first-child, td:first-child { text-align: left; }
+        th { background: #f0f0f0; }
+        .warn { color: #c0392b; font-weight: bold; }
+        button { font: inherit; padding: 6px 14px; cursor: pointer;
+                 margin-bottom: 16px; }
+    </style>
+</head>
+<body data-theme="puzzle">
+    <h1>Tango generator stats</h1>
+    <p>
+        Runs N puzzles per (size, difficulty) combination and reports
+        per-tier solver-walk counts plus the carve's hardness score.
+        Tier definitions (chain length measured by backward closure —
+        only the L1 placements actually needed for the contradiction
+        count): L1 = direct rules; L2 = single-line hypothesis,
+        chain = 1; L3 = single-line hypothesis, chain ≥ 2; L4 =
+        anywhere-on-board hypothesis, chain ≤ 5 (with a wall-chain
+        discount: any maximal connected run of T-wall placements of
+        size K inside the chain is counted as ceil(K/3), since
+        consecutive walls are visually mechanical). Difficulty:
+        Easy = L1+L2, Medium = +L3, Hard = +L4.
+        L1 splits into <b>L1w cells</b> (T-wall — `=` / `×` to a known
+        neighbour) and <b>L1o cells</b> (T-count / T-three). T-wall is
+        weighted 0.5 in <b>hard</b>; the rest follow Σ L1o·1 + L2·1.5
+        + L3·N/2 + L4-score. <b>L4 score</b> is the sum of log10(E)·N
+        over the L4 steps (E = empty count at the moment the step
+        fires).
+        After K-selection, Medium / Hard run a cluster-simplification
+        pass that absorbs prefill-adjacent walls (turning the trivial
+        T-wall step into a given). <b>simp s</b> is the average per-
+        puzzle intensity (sampled U(0.3, 1) for Hard, U(0.2, 0.8) for
+        Medium); <b>simp abs</b> is the average # walls absorbed;
+        <b>simp red</b> is the average # redundant walls (both sides
+        prefilled) swept unconditionally.
+        For Hard we also walk the solve trace and report how many L4
+        deductions actually used the wall-chain discount
+        (rawChainLength &gt; chainLength): <b>L4 disc avg</b> = avg
+        discounted L4 steps per puzzle, <b>disc K</b> = puzzles with
+        ≥1 such step, <b>max save</b> = largest single-step savings.
+        <b>unverified</b> shows how many puzzles in the sample
+        ultimately ended up unverified. <b>attempts</b> is the
+        average K (carves actually run); easy is always 1.
+        Open the browser console for self-check warnings.
+    </p>
+
+    <label>Runs per combo: <input id="k" type="number" value="20" min="1" max="500"></label>
+    <button id="run">Generate</button>
+
+    <pre id="out" style="font-size: 13px;">Click "Generate".</pre>
+
+    <script src="../js/puzzle.js"></script>
+    <script src="../js/generators/tango.js"></script>
+    <script>
+        const SIZES = [6, 8, 10];
+        const DIFFS = ['easy', 'medium', 'hard'];
+
+        // For a generated puzzle, simulate the full deduction trace
+        // (using `nextDeduction`) and report how many L4 steps fired
+        // the wall-chain discount (rawChainLength > chainLength).
+        function traceL4DiscountStats(p) {
+            const f = p.prefilled.map((row) => row.slice());
+            const tiers = ['L1', 'L2', 'L3', 'L4'];
+            let l4Steps = 0, l4Discounted = 0, maxSavings = 0;
+            let safety = p.size * p.size + 10;
+            while (safety-- > 0) {
+                const next = window.PuzzleSolvers.tango.nextDeduction(
+                    f, p.walls, p.size, tiers);
+                if (!next) break;
+                if (next.reason.kind === 'L4') {
+                    l4Steps += 1;
+                    const raw = next.reason.rawChainLength || 0;
+                    const compressed = next.reason.chainLength || 0;
+                    if (raw > compressed) {
+                        l4Discounted += 1;
+                        maxSavings = Math.max(maxSavings, raw - compressed);
+                    }
+                }
+                f[next.cell[0]][next.cell[1]] = next.value;
+            }
+            return { l4Steps, l4Discounted, maxSavings };
+        }
+
+        async function run(K) {
+            const rows = [['size', 'diff', 'prefill', 'walls',
+                'L1w cells', 'L1o cells', 'L2 cells', 'L3 cells', 'L4 cells',
+                'L4 score', 'hard',
+                'simp s', 'simp abs', 'simp red',
+                'L4 req K',
+                'L4 disc avg', 'disc K', 'max save',
+                'unverified', 'attempts', 'time ms', 'warn']];
+            let totalWarn = 0;
+            const origWarn = console.warn;
+            for (const N of SIZES) {
+                for (const d of DIFFS) {
+                    let pSum = 0, wSum = 0;
+                    let l1wSum = 0, l1oSum = 0, l2Sum = 0, l3Sum = 0, l4Sum = 0;
+                    let l4scoreSum = 0, hardSum = 0;
+                    let simpSSum = 0, simpAbsSum = 0, simpRedSum = 0;
+                    let simpSCount = 0;
+                    let l4reqCount = 0;
+                    let l4discSum = 0, l4discCount = 0, maxSave = 0;
+                    let atSum = 0, tSum = 0, warns = 0;
+                    let unverified = 0;
+                    console.warn = function () { warns += 1; origWarn.apply(console, arguments); };
+                    for (let i = 0; i < K; i++) {
+                        const seed = ((Date.now() + i * 0x9e3779b9) >>> 0);
+                        const t0 = performance.now();
+                        const p = await window.PuzzleGenerators.tango(N, d, seed);
+                        const t1 = performance.now();
+                        pSum += p.stats.prefillCount;
+                        wSum += p.stats.wallCount;
+                        l1wSum += p.stats.l1WallCells || 0;
+                        l1oSum += p.stats.l1OtherCells || 0;
+                        l2Sum += p.stats.l2OnlyCells || 0;
+                        l3Sum += p.stats.l3OnlyCells || 0;
+                        l4Sum += p.stats.l4OnlyCells || 0;
+                        l4scoreSum += p.stats.l4Score || 0;
+                        hardSum += p.stats.hardnessScore || 0;
+                        if (typeof p.stats.simplifyS === 'number') {
+                            simpSSum += p.stats.simplifyS;
+                            simpSCount += 1;
+                        }
+                        simpAbsSum += p.stats.simplifyAbsorbed || 0;
+                        simpRedSum += p.stats.simplifyRedundantRemoved || 0;
+                        if ((p.stats.l4RequiredCells || 0) > 0) l4reqCount += 1;
+                        atSum += p.stats.attemptsUsed || 1;
+                        tSum += (t1 - t0);
+                        if (p.stats.verified === false) unverified += 1;
+                        // Only walk the solve trace for difficulties that
+                        // allow L4 — saves a noticeable chunk of time on
+                        // easy/medium runs.
+                        if (d === 'hard') {
+                            const td = traceL4DiscountStats(p);
+                            l4discSum += td.l4Discounted;
+                            if (td.l4Discounted > 0) l4discCount += 1;
+                            if (td.maxSavings > maxSave) maxSave = td.maxSavings;
+                        }
+                    }
+                    console.warn = origWarn;
+                    totalWarn += warns;
+                    const total = N * N;
+                    rows.push([
+                        `${N}x${N}`,
+                        d,
+                        (pSum / K).toFixed(1) + '/' + total,
+                        (wSum / K).toFixed(1),
+                        (l1wSum / K).toFixed(1),
+                        (l1oSum / K).toFixed(1),
+                        (l2Sum / K).toFixed(1),
+                        (l3Sum / K).toFixed(1),
+                        (l4Sum / K).toFixed(1),
+                        (l4scoreSum / K).toFixed(2),
+                        (hardSum / K).toFixed(2),
+                        simpSCount > 0 ? (simpSSum / simpSCount).toFixed(2) : '—',
+                        (simpAbsSum / K).toFixed(1),
+                        (simpRedSum / K).toFixed(1),
+                        l4reqCount + '/' + K,
+                        d === 'hard' ? (l4discSum / K).toFixed(2) : '—',
+                        d === 'hard' ? `${l4discCount}/${K}` : '—',
+                        d === 'hard' ? (maxSave > 0 ? `${maxSave}` : '0') : '—',
+                        `${unverified}/${K}`,
+                        (atSum / K).toFixed(1),
+                        (tSum / K).toFixed(1),
+                        warns > 0 ? `${warns}` : 'ok',
+                    ]);
+                }
+            }
+            // Render as a fixed-width text table.
+            const widths = rows[0].map((_, i) =>
+                Math.max(...rows.map((r) => String(r[i]).length)));
+            const lines = rows.map((r) =>
+                r.map((cell, i) => String(cell).padEnd(widths[i] + 2)).join(''));
+            // Underline header.
+            lines.splice(1, 0, widths.map((w) => '-'.repeat(w)).join('  '));
+            return lines.join('\n')
+                + (totalWarn > 0
+                    ? `\n\n${totalWarn} self-check warnings — see console.`
+                    : '\n\nNo self-check warnings.');
+        }
+
+        document.getElementById('run').addEventListener('click', () => {
+            const K = parseInt(document.getElementById('k').value, 10) || 20;
+            const out = document.getElementById('out');
+            out.textContent = 'Running…';
+            setTimeout(async () => { out.textContent = await run(K); }, 0);
+        });
+    </script>
+</body>
+</html>

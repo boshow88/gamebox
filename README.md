@@ -1,34 +1,53 @@
 # GameBox
 
 A single static site that hosts every game from the old **Arcade Games** and
-**Puzzle Games** collections, browsable by **tags** instead of by collection.
-Pure static HTML/CSS/JS — no build step, works offline, deployable on GitHub
-Pages (same as the two sites it replaces).
+**Puzzle Games** collections, browsable by **tags**. Pure static HTML/CSS/JS —
+no build step, works offline, deployable on GitHub Pages.
+
+"Arcade" and "Puzzle" are **no longer folders or separate sites** — they are
+just a **theme**, chosen per page with `<body data-theme="arcade">` or
+`<body data-theme="puzzle">`. Everything lives in one flat tree.
 
 ## Layout
 
 ```
 index.html            Unified launcher (tag-driven game picker)
-css/launcher.css      Launcher theme (a neutral "hub" — distinct from both collections)
-js/launcher.js        Game manifest (GAMES) + tag taxonomy (TAGS) + render + filter
 favicon.svg           GameBox mark
-arcade/               The former Arcade Games repo, verbatim (dark neon theme)
-  index.html          Redirects up to the launcher
-  games/*.html        One page per game (Back → ../../index.html)
-  js/ css/ ...         Its own common.js (ArcadeCommon), firebase-config.js, net/, firestore.rules
-puzzle/               The former Puzzle Games repo, verbatim (light theme)
-  index.html          Redirects up to the launcher
-  games/*.html        One page per game (Back → ../../index.html)
-  js/ css/ tools/ ...  Its own common.js (PuzzleCommon), generators/, dev tools
+firestore.rules       Firestore security rules (Rune Stones online PvP)
+css/
+  common.css          Shared base + BOTH themes, scoped under [data-theme="…"]
+  launcher.css        Launcher-only hub theme
+  arcade.css          Arcade game-page chrome (HUD, canvas stage, overlay)
+  puzzle.css          Puzzle game-page chrome (board, cells, hints, keypad)
+js/
+  launcher.js         Game manifest (GAMES) + tag taxonomy (TAGS) + render + filter
+  arcade.js           Arcade engine (window.ArcadeCommon: loop, input, audio, scores, shell)
+  puzzle.js           Puzzle engine (window.PuzzleCommon: timer, generate, undo, share, shell)
+  firebase-config.js  Public Firebase web config (online PvP)
+  net/net.js          Firebase room layer (window.ArcadeNet)
+  games/*.js          One module per game (logic + rendering)
+  generators/*.js     Puzzle generators & solvers
+games/*.html          One page per game (all 11, each sets <body data-theme="…">)
+tools/*.html          Puzzle dev tools (generators/solvers test harnesses)
+docs/
+  rules.md            Full player-facing rules for every game (merged)
+  DEV.md              Arcade engine architecture & conventions
+  DEBUG.md            Puzzle generator/solver debug notes
 ```
 
-Each collection keeps its **own** `common.js` / `common.css` / `game.css`, so
-both designs (Arcade dark, Puzzle light) are preserved exactly — the launcher
-does not touch them. The only edits made during the merge were: each game
-page's Back link (`../index.html` → `../../index.html`), the two collection
-`index.html` files (now redirects to the launcher), and the language-storage
-key in each `common.js` (now the shared `gamebox:lang`, so the EN/中 choice
-carries across the launcher and both collections).
+## Themes
+
+Both palettes live in `css/common.css`, scoped so they never clobber each
+other. A game page loads `css/common.css` + its chrome file
+(`css/arcade.css` or `css/puzzle.css`) and declares one attribute:
+
+```html
+<body data-theme="arcade">   <!-- dark neon -->
+<body data-theme="puzzle">   <!-- light -->
+```
+
+The language choice (EN/中) is stored under the shared key `gamebox:lang`, so
+it carries across the launcher and every game.
 
 ## Tags
 
@@ -49,27 +68,26 @@ A tag with **zero** games is auto-hidden from the filter bar (so `casual` and
 
 ## Adding a game
 
-1. Put the game page + assets under `arcade/` or `puzzle/` (whichever theme it
-   uses). Make its Back link point to `../../index.html`.
-2. Append one entry to `GAMES` in `js/launcher.js` with `id`, `href`, `icon`,
-   `color`, and its `tags` array.
+1. Drop the game page at `games/<id>.html` with `<body data-theme="arcade">`
+   or `"puzzle"`, a Back link to `../index.html`, and `<link>`/`<script>`
+   paths pointing at `../css/…` and `../js/…`. Put its module at
+   `js/games/<id>.js` (and any generator at `js/generators/<id>.js`).
+2. Append one entry to `GAMES` in `js/launcher.js` (`id`, `href`, `icon`,
+   `color`, `tags`).
 3. Add that game's `*_name` / `*_tagline` / `*_body` strings (EN + 中) to
-   `STRINGS` in the same file.
+   `STRINGS` in `js/launcher.js`.
 
-Nothing else needs editing — the launcher renders cards and the tag bar from
-`GAMES`. Because adding a game is an **append**, two people adding different
-games rarely conflict.
+Adding a game is an **append**, so two people adding different games rarely
+conflict on shared files.
 
 ## Run locally
 
 ```powershell
-# from this folder
-python -m http.server 8000
-# then open http://localhost:8000
+python -m http.server 8000   # then open http://localhost:8000
 ```
 
 ## Deploy on GitHub Pages
 
 Settings → Pages → Source: `main` branch, `/` (root). All paths are relative.
-The online PvP in Rune Stones uses Firebase; its authorized domains are
-domain-level (`boshow88.github.io`), so sign-in keeps working on the new path.
+Rune Stones' online PvP uses Firebase; its authorized domains are domain-level
+(`boshow88.github.io`), so sign-in keeps working.

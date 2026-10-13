@@ -36,57 +36,57 @@
     var GAMES = [
         {
             id: 'rune-stones', theme: 'arcade', icon: 'stone', color: '#d9544e',
-            href: './arcade/games/rune-stones.html',
+            href: './games/rune-stones.html',
             tags: ['puzzle', 'timeattack', 'single', 'multi'],
         },
         {
             id: 'colour-ladder', theme: 'arcade', icon: 'ladder', color: '#5ad0e0',
-            href: './arcade/games/colour-ladder.html',
+            href: './games/colour-ladder.html',
             tags: ['action', 'single'],
         },
         {
             id: 'bullet-storm', theme: 'arcade', icon: 'target', color: '#a78bfa',
-            href: './arcade/games/bullet-storm.html',
+            href: './games/bullet-storm.html',
             tags: ['action', 'single'],
         },
         {
             id: 'patches', theme: 'puzzle', icon: 'shapes', color: '#e5484d',
-            href: './puzzle/games/patches.html',
+            href: './games/patches.html',
             tags: ['puzzle', 'single'],
         },
         {
             id: 'hashi', theme: 'puzzle', icon: 'waypoints', color: '#8a5a2c',
-            href: './puzzle/games/hashi.html',
+            href: './games/hashi.html',
             tags: ['puzzle', 'single'],
         },
         {
             id: 'tango', theme: 'puzzle', icon: 'sun', color: '#f5a623',
-            href: './puzzle/games/tango.html',
+            href: './games/tango.html',
             tags: ['puzzle', 'single'],
         },
         {
             id: 'sudoku', theme: 'puzzle', icon: 'grid-3x3', color: '#2e7d32',
-            href: './puzzle/games/sudoku.html',
+            href: './games/sudoku.html',
             tags: ['puzzle', 'single'],
         },
         {
             id: 'zip', theme: 'puzzle', icon: 'route', color: '#3498db',
-            href: './puzzle/games/zip.html',
+            href: './games/zip.html',
             tags: ['puzzle', 'single'],
         },
         {
             id: 'guards', theme: 'puzzle', icon: 'user', color: '#4f46e5',
-            href: './puzzle/games/guards.html',
+            href: './games/guards.html',
             tags: ['puzzle', 'single'],
         },
         {
             id: 'nonogram', theme: 'puzzle', icon: 'image', color: '#7c3aed',
-            href: './puzzle/games/nonogram.html',
+            href: './games/nonogram.html',
             tags: ['puzzle', 'single'],
         },
         {
             id: 'queens', theme: 'puzzle', icon: 'crown', color: '#b341d1',
-            href: './puzzle/games/queens.html',
+            href: './games/queens.html',
             tags: ['puzzle', 'single'],
         },
     ];

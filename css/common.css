@@ -1,0 +1,237 @@
+/* ================================================================
+   GameBox — shared base + scoped themes for game pages.
+
+   "Arcade" and "Puzzle" are no longer separate folders or separate
+   stylesheets — they are just a THEME, selected per page with
+   <body data-theme="arcade"> or <body data-theme="puzzle">. Both
+   palettes live here, scoped under [data-theme="…"], so the two can
+   coexist without clobbering each other. Each game page loads this
+   file plus its chrome file (css/arcade.css or css/puzzle.css).
+   ================================================================ */
+
+/* ----------------------------------------------------------------
+   Reset (theme-agnostic)
+   ---------------------------------------------------------------- */
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+html {
+    font-size: 16px;
+    -webkit-text-size-adjust: 100%;
+}
+
+body {
+    font-family: var(--font-body);
+    color: var(--text-primary);
+    line-height: 1.5;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+a { color: var(--accent-primary); text-decoration: none; }
+a:hover { text-decoration: underline; }
+button { font-family: inherit; cursor: pointer; }
+
+/* Inline icons (injected by each engine's icons.render). Inherit colour
+   via stroke: currentColor and scale with font-size (1em). overflow:visible
+   so Lucide glyphs that bleed a hair past the 24×24 box aren't clipped. */
+.icon {
+    flex: none;
+    width: 1em;
+    height: 1em;
+    vertical-align: -0.125em;
+    overflow: visible;
+}
+
+/* ----------------------------------------------------------------
+   Language toggle (shared chrome in every game topbar)
+   ---------------------------------------------------------------- */
+.lang-toggle {
+    display: inline-flex;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    background: var(--bg-tertiary);
+    font-size: 0.78rem;
+    line-height: 1;
+}
+
+.lang-toggle button {
+    appearance: none;
+    background: transparent;
+    border: 0;
+    padding: 5px 10px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-family: inherit;
+    transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.lang-toggle button + button { border-left: 1px solid var(--border-color); }
+.lang-toggle button:hover { background: var(--bg-hover); color: var(--text-primary); }
+.lang-toggle button.active { background: var(--bg-hover); color: var(--text-primary); font-weight: 600; }
+
+/* ----------------------------------------------------------------
+   Toast (transient bottom-centre notice). Background/border are
+   theme-scoped below; everything else is shared.
+   ---------------------------------------------------------------- */
+.toast {
+    position: fixed;
+    left: 50%;
+    bottom: 28px;
+    transform: translateX(-50%) translateY(12px);
+    background: rgba(20, 18, 33, 0.92);
+    color: #fff;
+    padding: 10px 18px;
+    border-radius: var(--radius-pill);
+    font-size: 0.9rem;
+    box-shadow: var(--shadow-md);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 180ms ease, transform 180ms ease;
+    z-index: 1000;
+    max-width: calc(100vw - 32px);
+    text-align: center;
+}
+
+.toast.toast-visible { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ================================================================
+   THEME: arcade — arcade-cabinet night, neon accents.
+   ================================================================ */
+[data-theme="arcade"] {
+    --bg-primary: #141225;
+    --bg-secondary: #1e1b33;
+    --bg-tertiary: #262041;
+    --bg-hover: #2f294f;
+
+    --text-primary: #f4f1ff;
+    --text-secondary: #b7b0d8;
+    --text-muted: #7d769c;
+    --text-on-accent: #1a1730;
+
+    --border-color: #332c52;
+    --border-light: #2a2447;
+    --border-strong: #453c6d;
+
+    --accent-primary: #ffb01f;
+    --accent-primary-hover: #ffc65c;
+    --accent-secondary: #ff5d8f;
+    --accent-success: #38e08a;
+    --accent-warning: #ffb01f;
+    --accent-danger: #ff5470;
+
+    --game-color: var(--accent-primary);
+
+    --space-xs: 4px;
+    --space-sm: 8px;
+    --space-md: 16px;
+    --space-lg: 24px;
+    --space-xl: 32px;
+    --space-2xl: 48px;
+
+    --radius-sm: 4px;
+    --radius-md: 8px;
+    --radius-lg: 14px;
+    --radius-pill: 999px;
+
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
+    --shadow-md: 0 6px 18px rgba(0, 0, 0, 0.4);
+    --shadow-lg: 0 14px 40px rgba(0, 0, 0, 0.5);
+    --glow: 0 0 0 1px color-mix(in srgb, var(--game-color) 40%, transparent),
+        0 8px 26px color-mix(in srgb, var(--game-color) 30%, transparent);
+
+    --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans TC",
+        "Microsoft JhengHei", system-ui, sans-serif;
+    --font-display: "Segoe UI", "Noto Sans TC", "Microsoft JhengHei",
+        system-ui, sans-serif;
+    --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+    --transition-fast: 120ms ease;
+    --transition-normal: 220ms ease;
+}
+
+[data-theme="arcade"] body {
+    background:
+        radial-gradient(1200px 600px at 15% -10%,
+            color-mix(in srgb, var(--accent-secondary) 12%, transparent), transparent 60%),
+        radial-gradient(1000px 500px at 100% 0%,
+            color-mix(in srgb, var(--accent-primary) 12%, transparent), transparent 55%),
+        var(--bg-primary);
+    background-attachment: fixed;
+}
+
+[data-theme="arcade"] .toast {
+    background: rgba(10, 8, 20, 0.94);
+    border: 1px solid var(--border-strong);
+}
+
+/* ================================================================
+   THEME: puzzle — LinkedIn-light, white surfaces, blue accents.
+   ================================================================ */
+[data-theme="puzzle"] {
+    --bg-primary: #f3f2ef;
+    --bg-secondary: #ffffff;
+    --bg-tertiary: #f8f9fa;
+    --bg-hover: #f1f3f5;
+
+    --text-primary: #2c3e50;
+    --text-secondary: #6c757d;
+    --text-muted: #adb5bd;
+    --text-on-accent: #ffffff;
+
+    --border-color: #dee2e6;
+    --border-light: #e9ecef;
+    --border-strong: #ced4da;
+
+    --accent-primary: #0a66c2;
+    --accent-primary-hover: #004182;
+    --accent-secondary: #378fe9;
+    --accent-success: #198754;
+    --accent-warning: #fd7e14;
+    --accent-danger: #dc3545;
+
+    --game-color: var(--accent-primary);
+
+    --space-xs: 4px;
+    --space-sm: 8px;
+    --space-md: 16px;
+    --space-lg: 24px;
+    --space-xl: 32px;
+    --space-2xl: 48px;
+
+    --radius-sm: 4px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --radius-pill: 999px;
+
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+    --shadow-lg: 0 10px 30px rgba(0, 0, 0, 0.10);
+
+    --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans TC",
+        "Microsoft JhengHei", system-ui, sans-serif;
+    --font-display: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans TC",
+        "Microsoft JhengHei", system-ui, sans-serif;
+    --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+    --transition-fast: 120ms ease;
+    --transition-normal: 220ms ease;
+}
+
+[data-theme="puzzle"] body {
+    background: var(--bg-primary);
+    /* Kill iOS Safari double-tap-to-zoom (breaks tap-a-cell-twice) while
+       keeping pinch-zoom. Drag boards override with touch-action: none. */
+    touch-action: manipulation;
+}
+
+[data-theme="puzzle"] .toast {
+    background: rgba(33, 37, 41, 0.92);
+}
