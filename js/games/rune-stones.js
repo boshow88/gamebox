@@ -71,7 +71,7 @@
         rdModeDuel: 'Versus', rdModeSandbox: 'Sandbag',
         rdColBestRounds: 'Fewest', rdColBestSpin: 'Best hit', rdColDamage: 'Damage', rdColBestTotal: 'Best total',
         rdSandDone: 'Time!',
-        rdSandIntro: 'Sandbag — spin for 50 rounds against 3 elemental enemies and chase the highest total (and single-spin) damage.',
+        rdSandIntro: 'Spin for 50 rounds against 3 elemental enemies and chase the highest total (and single-spin) damage.',
         rdSandStartHint: 'Drag a rune to spin · P pause',
         rdSandRunBest: 'Run best',
         rdSandVs: 'Your damage ×',
@@ -127,7 +127,7 @@
         rdModeDuel: '對戰', rdModeSandbox: '沙包',
         rdColBestRounds: '最短回合', rdColBestSpin: '最高單波', rdColDamage: '傷害', rdColBestTotal: '最高傷害',
         rdSandDone: '時間到！',
-        rdSandIntro: '沙包——對三隻屬性敵人連轉 50 回合，拚最高總傷害與單次轉珠傷害。',
+        rdSandIntro: '對三隻屬性敵人連轉 50 回合，拚最高總傷害與單次轉珠傷害。',
         rdSandStartHint: '拖動符石轉珠 · P 暫停',
         rdSandRunBest: '本場最高',
         rdSandVs: '你的攻擊倍率',
@@ -2961,7 +2961,7 @@
         if (!AI_LEVELS[d] || d === staged) return;
         staged = d;
         try { AC.prefs.set('rune-clash', { difficulty: d }); } catch (e) { /* ignore */ }
-        if (shell && shell.state === 'idle') { resetRun(); render(); }   // ready screen → apply now
+        if (shell && shell.state === 'idle') { resetRun(); render(); shell.refreshOverlay(); }   // ready screen → apply now (incl. the ready message)
         else { syncDiffButtons(); updateHud(); }                         // mid-run → stage for next run
     }
     function setupDifficulty() {
@@ -2992,7 +2992,7 @@
         if ((m !== 'duel' && m !== 'sandbox') || m === stagedMode) return;
         stagedMode = m;
         try { AC.prefs.set('rune-clash', { mode: m }); } catch (e) { /* ignore */ }
-        if (shell && shell.state === 'idle') { resetRun(); render(); }   // ready screen → apply now
+        if (shell && shell.state === 'idle') { resetRun(); render(); shell.refreshOverlay(); }   // ready screen → apply now (incl. the ready message)
         else { syncModeButtons(); rebuildHelp(); }                       // mid-run → stage for next run
     }
     function setupMode() {

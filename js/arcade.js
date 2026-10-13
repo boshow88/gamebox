@@ -1115,6 +1115,15 @@
         shell.gameOver = gameOver;
         shell.refreshBest = refreshBest;
         shell.syncButtons = syncButtons;   // let games refresh pause/restart enablement (e.g. online start/end)
+        // Re-paint the overlay for the CURRENT state. A game calls this after
+        // changing something the overlay text depends on while not actively
+        // playing (e.g. switching mode on the ready screen) so the panel's
+        // message/hint stay in sync with the staged choice.
+        shell.refreshOverlay = function () {
+            if (state === 'idle') showOverlay('idle');
+            else if (state === 'paused') showOverlay('paused');
+            else if (state === 'over') showOverlay('over', lastResult);
+        };
 
         return shell;
     }
