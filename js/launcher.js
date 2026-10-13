@@ -225,8 +225,25 @@
     // ---------------------------------------------------------------
     var LANG_KEY = 'gamebox:lang';
     var SUPPORTED = ['en', 'zh'];
-    var lang = localStorage.getItem(LANG_KEY) || 'en';
-    if (SUPPORTED.indexOf(lang) === -1) lang = 'en';
+    // Stored JSON-encoded to match the game engines' writeJSON/readJSON on the
+    // same shared key (they JSON.stringify the value) — otherwise the engine's
+    // JSON.parse on a raw "zh" throws and silently falls back to English.
+    var lang = 'en';
+    (function () {
+        var raw = localStorage.getItem(LANG_KEY);
+        if (raw != null) {
+            try {
+                var v = JSON.parse(raw);
+                if (typeof v === 'string') lang = v;
+            } catch (e) {
+                if (SUPPORTED.indexOf(raw) !== -1) lang = raw; // tolerate a legacy raw value
+            }
+        }
+        if (SUPPORTED.indexOf(lang) === -1) lang = 'en';
+        // Normalise storage to the JSON form the engines expect, so a legacy
+        // raw value self-heals even if the user never toggles again.
+        try { localStorage.setItem(LANG_KEY, JSON.stringify(lang)); } catch (e) {}
+    })();
     var activeTag = null; // null = show all
 
     function t(key) {
@@ -349,7 +366,7 @@
     function setLang(next) {
         if (SUPPORTED.indexOf(next) === -1 || next === lang) return;
         lang = next;
-        localStorage.setItem(LANG_KEY, lang);
+        localStorage.setItem(LANG_KEY, JSON.stringify(lang));
         renderAll();
     }
 
