@@ -82,7 +82,7 @@
         rdPowers: 'Powers', rdPowersTitle: 'Your powers', rdPowersNone: 'No powers yet.',
         sdAtk_name: 'Attack up', sdAtk_desc: 'All your damage rises.',
         sdDmg_name: 'Element power', sdDmg_desc: 'That element\u2019s damage climbs sharply.',
-        sdAoe4_name: 'AoE at 4', sdAoe4_desc: 'Every colour hits all three at 4 \u2014 but no enhanced runes drop.',
+        sdAoe4_name: 'AoE at 4', sdAoe4_desc: 'Every colour hits all three at 4.',
         sdFocus_name: 'Flood', sdFocus_desc: 'Chosen element drops far more often.',
         sdTime_name: 'Spin +1s', sdTime_desc: 'More time on every spin.',
         sdQuick_name: 'Match 2', sdQuick_desc: 'Chosen element clears with just 2 in a row.',
@@ -90,7 +90,7 @@
         sdFirst_name: 'First-wave boost', sdFirst_desc: 'First-wave clears hit harder.',
         sdLater_name: 'Cascade boost', sdLater_desc: 'Cascade (non-first-wave) clears hit harder.',
         sdAllAoe_name: 'Extra target', sdAllAoe_desc: 'That element\u2019s attacks hit one more enemy.',
-        sdFree_name: 'Free spin', sdFree_desc: 'Shorter spin, but keep rearranging runes until time runs out.',
+        sdFree_name: 'Free spin', sdFree_desc: 'Keep rearranging runes until the timer runs out.',
     });
     Object.assign(AC.i18n.STRINGS.zh, {
         rdRound: '回合', rdHp: '生命', rdReady: '準備開始', rdRival: '對手',
@@ -152,7 +152,7 @@
         rdPowers: '能力', rdPowersTitle: '目前能力', rdPowersNone: '尚無能力。',
         sdAtk_name: '攻擊力增強', sdAtk_desc: '所有傷害提升。',
         sdDmg_name: '屬性強攻', sdDmg_desc: '該屬性傷害大幅提升。',
-        sdAoe4_name: '4 顆即 AoE', sdAoe4_desc: '所有屬性消 4 顆就攻擊全體，但不再掉落強化符石。',
+        sdAoe4_name: '4 顆即 AoE', sdAoe4_desc: '所有屬性消 4 顆就攻擊全體。',
         sdFocus_name: '大量掉落', sdFocus_desc: '指定屬性掉落機率大增。',
         sdTime_name: '轉珠 +1 秒', sdTime_desc: '每次轉珠時間 +1 秒。',
         sdQuick_name: '2 顆即消', sdQuick_desc: '指定屬性只要相連 2 顆就能消除。',
@@ -160,7 +160,7 @@
         sdFirst_name: '首消強化', sdFirst_desc: '首批消除的傷害提升。',
         sdLater_name: '連鎖強化', sdLater_desc: '非首批（連鎖）消除的傷害提升。',
         sdAllAoe_name: '增加攻擊目標', sdAllAoe_desc: '該屬性攻擊多打一隻敵人。',
-        sdFree_name: '自由轉珠', sdFree_desc: '轉珠時間縮短，但可持續重排符石直到時間用盡。',
+        sdFree_name: '自由轉珠', sdFree_desc: '可持續重排符石，直到時間用盡。',
     });
 
     // =================================================================
@@ -233,6 +233,8 @@
         grid2x2: ['M12 3v18', 'M3 12h18', 'M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z'],
         wand: ['M15 4V2', 'M15 16v-2', 'M8 9h2', 'M20 9h2', 'M17.8 11.8 19 13', 'M15 9h.01', 'M17.8 6.2 19 5', 'm3 21 9-9', 'M12.2 6.2 11 5'],
         columns2: ['M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z', 'M12 3v18'],
+        hourglass: ['M5 22h14', 'M5 2h14', 'M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22', 'M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2'],
+        layoutGrid: ['M4 3h5a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1h-5a1 1 0 0 1-1-1v-5a1 1 0 0 1 1-1z', 'M15 3h5a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1h-5a1 1 0 0 1-1-1v-5a1 1 0 0 1 1-1z', 'M15 14h5a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1h-5a1 1 0 0 1-1-1v-5a1 1 0 0 1 1-1z', 'M4 14h5a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1h-5a1 1 0 0 1-1-1v-5a1 1 0 0 1 1-1z'],
     };
     const UI_PATHS = {};
     for (const _k in UI_ICON_OPS) UI_PATHS[_k] = UI_ICON_OPS[_k].map((op) => {
@@ -300,15 +302,14 @@
         every: 5, offer: 3, openPicks: 3,   // drafts after rounds 5/10/15/20/25; the opening offers 3 picks
         atkPerStack: 0.2,              // sd_atk:   +0.2× to ALL damage per stack
         dmgPerStack: 1.0,              // sd_dmg:   +100% damage to one element (stacks)
-        aoeThreshold: 4,               // sd_aoe4:  EVERY colour AoEs at 4 (and no enhanced runes drop while active)
+        aoeThreshold: 4,               // sd_aoe4:  EVERY colour AoEs at 4
         focusDropMult: 5,              // sd_focus: chosen element drops this many× as often as each other
         spinBonusSec: 1,               // sd_time:  +1s spin window per stack
         quickMatchLen: 2,              // sd_quick: chosen element matches at 2 in a row
         comboStepPerStack: 0.08,       // sd_combo: comboStep 0.25 -> 0.33 -> 0.41 ... per stack
         firstWavePerStack: 0.3,        // sd_first: +0.3× first-wave damage per stack
-        laterWavePerStack: 0.35,       // sd_later: +0.35× cascade (non-first-wave) damage per stack
+        laterWavePerStack: 0.4,        // sd_later: +0.4× cascade (non-first-wave) damage per stack
         extraTargetMax: 2,             // sd_allaoe: +1 attack target per stack, up to this many per element
-        freeSpinMult: 0.8,             // sd_free:  spin window ×0.8, and you keep rearranging until it ends
     };
     // key   = i18n prefix (key_name / key_desc).
     // mode  = how the element is chosen: 'global' (none) | 'elem' (a rolled element) | 'anyElem' (always player-chosen).
@@ -322,10 +323,10 @@
         sd_dmg:    { key: 'sdDmg',    mode: 'elem',    limit: 'stack',      weight: 6, tier: 'purple', icon: 'circlePlus' },
         sd_first:  { key: 'sdFirst',  mode: 'global',  limit: 'stack',      weight: 4, tier: 'purple', icon: 'box' },
         sd_later:  { key: 'sdLater',  mode: 'global',  limit: 'stack',      weight: 4, tier: 'purple', icon: 'link' },
-        sd_aoe4:   { key: 'sdAoe4',   mode: 'global',  limit: 'once',       weight: 2, tier: 'gold',   icon: 'grid2x2' },
+        sd_aoe4:   { key: 'sdAoe4',   mode: 'global',  limit: 'once',       weight: 2, tier: 'gold',   icon: 'layoutGrid' },
         sd_focus:  { key: 'sdFocus',  mode: 'anyElem', limit: 'once',       weight: 2, tier: 'gold',   icon: 'wand' },
         sd_quick:  { key: 'sdQuick',  mode: 'anyElem', limit: 'once',       weight: 1, tier: 'red',    icon: 'columns2' },
-        sd_free:   { key: 'sdFree',   mode: 'global',  limit: 'once',       weight: 1, tier: 'red',    icon: 'columns2' },
+        sd_free:   { key: 'sdFree',   mode: 'global',  limit: 'once',       weight: 1, tier: 'red',    icon: 'hourglass' },
     };
     const DRAFT_ORDER = ['sd_atk', 'sd_allaoe', 'sd_combo', 'sd_time', 'sd_dmg', 'sd_first', 'sd_later', 'sd_aoe4', 'sd_focus', 'sd_quick', 'sd_free'];
     const DRAFT_TIER = { blue: '#5aa0e0', purple: '#a86fe0', gold: '#e3b63a', red: '#e0554f' };   // draft frame colour per rarity
@@ -767,6 +768,11 @@
             if (e.cancelable) e.preventDefault();
             return;
         }
+        // Sandbag "your powers": the top-left button toggles it (works during the draft too)
+        if (G.mode === 'sandbox' && (G.phase === 'sanddraft' || G.phase === 'attack' || G.phase === 'sandatk')) {
+            if (inRect(p, powersBtnRect())) { G.sandPowers = !G.sandPowers; markDirty(); if (e.cancelable) e.preventDefault(); return; }
+            if (G.sandPowers) { G.sandPowers = false; markDirty(); if (e.cancelable) e.preventDefault(); return; }   // any other tap closes it
+        }
         // Sandbag draft: tap one of the three offered cards (board is locked until you choose)
         if (G.mode === 'sandbox' && G.phase === 'sanddraft' && G.sandDraft) {
             for (const r of sandDraftRects()) {
@@ -774,11 +780,6 @@
             }
             if (e.cancelable) e.preventDefault();
             return;
-        }
-        // Sandbag "your powers": the top-left button toggles it; any other tap closes it
-        if (G.mode === 'sandbox' && (G.phase === 'attack' || G.phase === 'sandatk')) {
-            if (inRect(p, powersBtnRect())) { G.sandPowers = !G.sandPowers; markDirty(); if (e.cancelable) e.preventDefault(); return; }
-            if (G.sandPowers) { G.sandPowers = false; markDirty(); if (e.cancelable) e.preventDefault(); return; }
         }
         // tap a shield / played-card chip to read its full effect
         for (const ch of (G._rivalChips || []).concat(G._rivalUsed || [], G._youChips || [])) {
@@ -841,9 +842,7 @@
     function effectiveSpinTime() {
         if (G.mode === 'sandbox') {
             const ab = G.sandAbil || {};
-            let base = SAND.spinTime + (ab.spinBonusSec || 0);                        // sd_time: +1s per stack
-            if (ab.freeArrange) base *= DRAFT.freeSpinMult;                           // sd_free: ×0.7 (and keep rearranging)
-            return Math.max(0.5, base);
+            return Math.max(0.5, SAND.spinTime + (ab.spinBonusSec || 0));             // sd_time: +1s per stack
         }
         return Math.max(0.5, BALANCE.spinTime * (G.spinMultSelf || 1) * (G.spinMultOpp || 1));
     }
@@ -1012,7 +1011,7 @@
         let enh = 0;
         for (const idx of g.cells) { const o = board[idx]; if (o.enhanced) enh++; o.scale = 1; G.clearing.push(o); board[idx] = null; }
         g.enhanced = enh;
-        const big = (g.cells.length >= CONFIG.bigThreshold) && (G.mode !== 'sandbox' || sandForges());   // sd_aoe4 stops enhanced forging
+        const big = g.cells.length >= CONFIG.bigThreshold;   // 5+ clear: forge an enhanced rune + fiercer sound (both modes)
         if (big) G.resolve.enhNext.push(g.el);   // forge an enhanced of this colour in the next drop
         G.resolve.combos.push(g);
         G.resolve.stage = 'pop'; G.resolve.t = 0;
@@ -1660,11 +1659,10 @@
         updateHud();
         openSandDraft();                    // opening drafts before the first round
     }
-    // Sandbag draft helpers. sd_aoe4 (global) makes EVERY colour AoE at DRAFT.aoeThreshold (4)
-    // and disables enhanced forging; otherwise AoE needs a 5+ group (CONFIG.bigThreshold).
+    // Sandbag draft helper: sd_aoe4 (global) makes EVERY colour AoE at DRAFT.aoeThreshold (4);
+    // otherwise AoE needs a 5+ group (CONFIG.bigThreshold).
     function sandAoe4() { return !!(G.sandAbil && G.sandAbil.aoe4All); }
     function sandIsAoe(cells) { return cells >= (sandAoe4() ? DRAFT.aoeThreshold : CONFIG.bigThreshold); }
-    function sandForges() { return !sandAoe4(); }   // enhanced runes stop dropping while sd_aoe4 is active
     // After a sandbox spin resolves: turn the cleared groups into one strike per element (in the
     // order each element was first cleared). AoE (5+, or 4+ with sd_aoe4) hits all three; otherwise
     // the strike hits 1 enemy plus sd_allaoe's extra targets for that element.
@@ -1708,13 +1706,14 @@
         if (A.hold >= SAND.hold) finalizeSandRound(A.spinTotal);
     }
     function bigSpinFloat(total) { G.floats.push({ x: W / 2, y: BOARD_TOP - 22, text: String(total), color: '#ffe08a', size: 46, t: 0, life: 1.6 }); }
-    // Pick up to n targets for an element: prefer enemies it has a bonus against, then lowest HP,
-    // then leftmost. Dead enemies stay on the field (per round) but are skipped while any live.
+    // Pick up to n targets for an element: living enemies first (then prefer a bonus matchup, then
+    // lowest HP, then leftmost), corpses last — so a multi-target hit can still spill onto the dead.
     function sandPickTargets(el, n) {
-        const alive = G.enemies.filter((e) => e.hp > 0);
-        const pool = (alive.length ? alive : G.enemies.slice());
+        const pool = G.enemies.slice();
         const idx = (e) => G.enemies.indexOf(e);
         pool.sort((a, b) => {
+            const da = a.hp > 0 ? 0 : 1, db = b.hp > 0 ? 0 : 1;
+            if (da !== db) return da - db;
             const ba = restraint(el, a.el) > 1 ? 0 : 1, bb = restraint(el, b.el) > 1 ? 0 : 1;
             if (ba !== bb) return ba - bb;
             if (a.hp !== b.hp) return a.hp - b.hp;
@@ -1793,6 +1792,8 @@
         G.sandDraft = { cards };
         G.sandPowers = false;
         G.phase = 'sanddraft';
+        AC.audio.tone(540, 0.09, { type: 'triangle', volume: 0.14 });                 // a little "draft!" chime
+        setTimeout(() => AC.audio.tone(810, 0.11, { type: 'triangle', volume: 0.12 }), 80);
         updateHud(); markDirty();
     }
     function chooseSandCard(i) {
@@ -2328,10 +2329,8 @@
             renderSandbox();
             ctx.restore();
             if (G.phase === 'sanddraft') drawSandDraft();
-            else {
-                if (G.phase === 'attack' || G.phase === 'sandatk') drawPowersButton();
-                if (G.sandPowers) drawPowersPanel();
-            }
+            if (G.phase === 'sanddraft' || G.phase === 'attack' || G.phase === 'sandatk') drawPowersButton();
+            if (G.sandPowers) drawPowersPanel();
             if (G.palette) drawPalette();
             if (G.phase !== 'sanddraft' && !G.sandPowers) drawSpinTimer();
             if (G.countdown > 0) drawCountdown();
