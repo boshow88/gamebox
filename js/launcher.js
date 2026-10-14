@@ -89,6 +89,11 @@
             href: './games/queens.html',
             tags: ['puzzle', 'single'],
         },
+        {
+            id: 'beam', theme: 'puzzle', icon: 'zap', color: '#0891b2', wip: true,
+            href: './games/beam.html',
+            tags: ['puzzle', 'single'],
+        },
     ];
 
     // Default display order: a soft rainbow sorted by each game's theme-colour hue.
@@ -102,6 +107,7 @@
             subtitle: 'A collection of small games. Filter by tag.',
             all: 'All',
             playable: 'Playable',
+            wip: 'WIP',
             noResults: 'No games match this tag yet.',
             footer: 'A static site — works offline. ' + GAMES.length + ' games and counting.',
 
@@ -146,11 +152,15 @@
             'queens_name': 'Queens',
             'queens_tagline': 'Royal regions, one queen each.',
             'queens_body': 'Place N queens so that every row, column, colour region and 8-neighbourhood contains exactly one.',
+            'beam_name': 'Beam',
+            'beam_tagline': 'Lasers & mirrors.',
+            'beam_body': 'Put one mirror in each room so every laser reflects from its letter to the matching letter with the right number of bounces.',
         },
         zh: {
             subtitle: '一個小遊戲合輯，依標籤篩選。',
             all: '全部',
             playable: '可玩',
+            wip: '開發中',
             noResults: '目前沒有符合這個標籤的遊戲。',
             footer: '純靜態網站，可離線使用。目前收錄 ' + GAMES.length + ' 款，持續增加中。',
 
@@ -195,6 +205,9 @@
             'queens_name': 'Queens',
             'queens_tagline': '皇家領地，每區一后。',
             'queens_body': '在每個列、行、色塊區域與 8 鄰域中各放一個皇后。',
+            'beam_name': 'Beam',
+            'beam_tagline': '雷射與鏡子。',
+            'beam_body': '每個房間放一面鏡子，讓每道雷射從字母反射到相同字母、且折射次數正確。',
         },
     };
 
@@ -213,6 +226,7 @@
         user: '<path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
         image: '<rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>',
         crown: '<path d="M11.562 3.266a.5.5 0 0 1 .876 0L15.39 8.87a1 1 0 0 0 1.516.294L21.183 5.5a.5.5 0 0 1 .798.519l-2.834 10.246a1 1 0 0 1-.956.734H5.81a1 1 0 0 1-.957-.734L2.02 6.02a.5.5 0 0 1 .798-.519l4.276 3.664a1 1 0 0 0 1.516-.294z"/><path d="M5 21h14"/>',
+        zap: '<path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/>',
     };
 
     // Hue (0–360) of a #rrggbb colour — used to order the launcher as a soft rainbow.
@@ -362,7 +376,7 @@
                 + '<p class="game-card-body">' + t(g.id + '_body') + '</p>'
                 + '<div class="game-card-tags">' + tagsHtml + '</div>'
                 + '<div class="game-card-footer">'
-                + '<span class="badge badge-playable">' + t('playable') + '</span>'
+                + (g.wip ? '<span class="badge badge-wip">' + t('wip') + '</span>' : '<span class="badge badge-playable">' + t('playable') + '</span>')
                 + '</div>';
 
             grid.appendChild(card);
