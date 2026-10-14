@@ -244,7 +244,8 @@ two makes it hit all three) or **one-time** build-definers (every colour AoEs at
 that clears at **2**; or a **shorter spin you can keep rearranging** until time runs
 out). Rarer cards appear less often, and one-time cards are flagged in the draft;
 card **frames are colour-coded** by how rare they are. Some cards target a
-**specific** element, others let you **choose** one. All values live in `DRAFT` /
+**specific** element, others let you **choose** one. A **Powers** button (top-left)
+opens a list of everything you currently own. All values live in `DRAFT` /
 `DRAFT_CARDS` at the top of `js/games/rune-stones.js`.
 
 The remaining sections describe **Versus**.

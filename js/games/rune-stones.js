@@ -82,6 +82,7 @@
         rdSandHelp3Html: 'Beat an enemy and a <strong>fresh</strong> one takes its place. Over <strong>30 spins</strong>, chase your best <strong>total</strong> and <strong>single-spin</strong> damage. <kbd>P</kbd> pause · <kbd>R</kbd> restart · <kbd>M</kbd> mute.',
         // --- Sandbag draft (pick 1 of 3 every few rounds) ---
         rdDraftTitle: 'Choose a power', rdDraftAny: 'Any', rdDraftOnce: 'One-time', rdSandPick: 'Choose an element',
+        rdPowers: 'Powers', rdPowersTitle: 'Your powers', rdPowersNone: 'No powers yet.',
         sdAtk_name: 'Attack up', sdAtk_desc: 'All your damage rises.',
         sdDmg_name: 'Element power', sdDmg_desc: 'That element\u2019s damage climbs sharply.',
         sdAoe4_name: 'AoE at 4', sdAoe4_desc: 'Every colour hits all three at 4 \u2014 but no enhanced runes drop.',
@@ -151,6 +152,7 @@
         rdSandHelp3Html: '打倒一隻，就有<strong>新敵人</strong>遞補。在 <strong>30 次轉珠</strong>內，拚最高<strong>總傷害</strong>與<strong>單次轉珠傷害</strong>。<kbd>P</kbd> 暫停 · <kbd>R</kbd> 重新開始 · <kbd>M</kbd> 靜音。',
         // --- 沙包強化抽卡（每幾回合三選一） ---
         rdDraftTitle: '選一項強化', rdDraftAny: '任選', rdDraftOnce: '限一次', rdSandPick: '選一個屬性',
+        rdPowers: '能力', rdPowersTitle: '目前能力', rdPowersNone: '尚無能力。',
         sdAtk_name: '攻擊力增強', sdAtk_desc: '所有傷害提升。',
         sdDmg_name: '屬性強攻', sdDmg_desc: '該屬性傷害大幅提升。',
         sdAoe4_name: '4 顆即 AoE', sdAoe4_desc: '所有屬性消 4 顆就攻擊全體，但不再掉落強化符石。',
@@ -413,6 +415,7 @@
         sandDraft: null,        // sandbox: the current {cards:[{id,element}]} draft offer (phase 'sanddraft'), or null
         sandAbil: null,         // sandbox: accumulated draft powers (see freshSandAbil for the shape)
         sandOpenLeft: 0,        // sandbox: opening drafts still to offer before round 1
+        sandPowers: false,      // sandbox: is the "your powers" panel open?
         aiBoard: null,          // vs-AI: the rival's own board (cells {el,enhanced})
         aiHand: [],             // vs-AI: the rival's own card hand (mixed, like yours — hidden from you)
         aiEnergy: 0,            // vs-AI: the rival's energy this phase
@@ -768,6 +771,11 @@
             }
             if (e.cancelable) e.preventDefault();
             return;
+        }
+        // Sandbag "your powers": the top-left button toggles it; any other tap closes it
+        if (G.mode === 'sandbox' && (G.phase === 'attack' || G.phase === 'sandatk')) {
+            if (inRect(p, powersBtnRect())) { G.sandPowers = !G.sandPowers; markDirty(); if (e.cancelable) e.preventDefault(); return; }
+            if (G.sandPowers) { G.sandPowers = false; markDirty(); if (e.cancelable) e.preventDefault(); return; }
         }
         // tap a shield / played-card chip to read its full effect
         for (const ch of (G._rivalChips || []).concat(G._rivalUsed || [], G._youChips || [])) {
@@ -1631,6 +1639,7 @@
     function resetSandbox() {
         G.sandTotal = 0; G.sandSpinRun = 0; G.sandAtk = null; G.sandInspect = null;
         G.sandDraft = null;
+        G.sandPowers = false;
         G.sandAbil = freshSandAbil();
         G.hand = []; G.energy = 0;
         G._rivalChips = []; G._rivalUsed = []; G._youChips = [];   // no duel chips in sandbox
@@ -1774,6 +1783,7 @@
         const cards = buildSandOffer();
         if (!cards.length) { advanceSandRound(); return; }   // nothing left to offer → just continue
         G.sandDraft = { cards };
+        G.sandPowers = false;
         G.phase = 'sanddraft';
         updateHud(); markDirty();
     }
@@ -2330,8 +2340,12 @@
             renderSandbox();
             ctx.restore();
             if (G.phase === 'sanddraft') drawSandDraft();
+            else {
+                if (G.phase === 'attack' || G.phase === 'sandatk') drawPowersButton();
+                if (G.sandPowers) drawPowersPanel();
+            }
             if (G.palette) drawPalette();
-            if (G.phase !== 'sanddraft') drawSpinTimer();
+            if (G.phase !== 'sanddraft' && !G.sandPowers) drawSpinTimer();
             if (G.countdown > 0) drawCountdown();
             if (DEBUG) drawDebug();
             return;
@@ -2840,6 +2854,62 @@
                 ctx.fillStyle = '#f5c56b'; ctx.font = `700 12px ${f}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
                 ctx.fillText(t('rdDraftOnce'), bx + bw / 2, by + bh / 2 + 0.5);
             }
+        }
+        ctx.restore();
+    }
+    // --- "Your powers" view (what the player currently owns) ---
+    // One entry per active ability; stackables carry n = how many times taken (not the raw multiplier).
+    function sandOwned() {
+        const ab = G.sandAbil; if (!ab) return [];
+        const out = [];
+        const cnt = (v, per) => Math.max(1, Math.round(v / (per || 1)));
+        if (ab.atkMult > 1) out.push({ id: 'sd_atk', n: cnt(ab.atkMult - 1, DRAFT.atkPerStack) });
+        for (const el of Object.keys(ab.dmgMult)) if (ab.dmgMult[el]) out.push({ id: 'sd_dmg', el, n: cnt(ab.dmgMult[el], DRAFT.dmgPerStack) });
+        for (const el of Object.keys(ab.extraTargets)) if (ab.extraTargets[el]) out.push({ id: 'sd_allaoe', el, n: ab.extraTargets[el] });
+        if (ab.comboStepBonus) out.push({ id: 'sd_combo', n: cnt(ab.comboStepBonus, DRAFT.comboStepPerStack) });
+        if (ab.spinBonusSec) out.push({ id: 'sd_time', n: cnt(ab.spinBonusSec, DRAFT.spinBonusSec) });
+        if (ab.firstWaveMult > 1) out.push({ id: 'sd_first', n: cnt(ab.firstWaveMult - 1, DRAFT.firstWavePerStack) });
+        if (ab.laterWaveMult > 1) out.push({ id: 'sd_later', n: cnt(ab.laterWaveMult - 1, DRAFT.laterWavePerStack) });
+        if (ab.aoe4All) out.push({ id: 'sd_aoe4' });
+        if (ab.dropWeightEl) out.push({ id: 'sd_focus', el: ab.dropWeightEl });
+        if (ab.quickMatchEl) out.push({ id: 'sd_quick', el: ab.quickMatchEl });
+        if (ab.freeArrange) out.push({ id: 'sd_free' });
+        return out;
+    }
+    function powersBtnRect() { return { x: 10, y: 6, w: 60, h: 26 }; }
+    function drawPowersButton() {
+        const r = powersBtnRect(), f = getFont(), n = sandOwned().length;
+        ctx.save();
+        ctx.fillStyle = G.sandPowers ? 'rgba(127,212,255,0.28)' : 'rgba(22,19,32,0.9)';
+        roundRect(r.x, r.y, r.w, r.h, 8); ctx.fill();
+        ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(159,226,255,0.55)'; roundRect(r.x, r.y, r.w, r.h, 8); ctx.stroke();
+        ctx.fillStyle = '#cfe8ff'; ctx.font = `700 12px ${f}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(t('rdPowers') + ' ' + n, r.x + r.w / 2, r.y + r.h / 2 + 0.5);
+        ctx.restore();
+    }
+    function drawPowersPanel() {
+        const owned = sandOwned(), f = getFont();
+        ctx.save();
+        ctx.fillStyle = 'rgba(8,6,16,0.93)'; ctx.fillRect(0, BOARD_TOP - 4, W, H - (BOARD_TOP - 4));
+        ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic'; ctx.font = `800 20px ${f}`;
+        ctx.fillText(t('rdPowersTitle'), W / 2, BOARD_TOP + 32);
+        if (!owned.length) {
+            ctx.fillStyle = 'rgba(255,255,255,0.6)'; ctx.font = `500 14px ${f}`;
+            ctx.fillText(t('rdPowersNone'), W / 2, BOARD_TOP + 72);
+            ctx.restore(); return;
+        }
+        const x = 22, w = W - 44, top = BOARD_TOP + 48, gap = 7;
+        const rowH = Math.min(42, (H - top - 18 - gap * (owned.length - 1)) / owned.length);
+        for (let i = 0; i < owned.length; i++) {
+            const o = owned[i], def = DRAFT_CARDS[o.id], col = DRAFT_TIER[def.tier] || accent();
+            const y = top + i * (rowH + gap), cy = y + rowH / 2;
+            ctx.fillStyle = 'rgba(22,19,32,0.96)'; roundRect(x, y, w, rowH, 10); ctx.fill();
+            ctx.lineWidth = 1.5; ctx.strokeStyle = col; roundRect(x, y, w, rowH, 10); ctx.stroke();
+            drawUiIcon(def.icon, x + 26, cy, 24, col, 2.2);
+            ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#fff'; ctx.font = `700 15px ${f}`;
+            ctx.fillText((o.el ? t('el_' + o.el) + ' \u00b7 ' : '') + t(def.key + '_name'), x + 50, cy);
+            if (o.el) drawRuneIcon(o.el, x + w - 24, cy, 22, ELEMENT_COLORS[o.el] || '#fff', 2.2);
+            if (o.n && o.n > 1) { ctx.textAlign = 'right'; ctx.fillStyle = col; ctx.font = `800 15px ${f}`; ctx.textBaseline = 'middle'; ctx.fillText('\u00d7' + o.n, x + w - (o.el ? 46 : 14), cy); }
         }
         ctx.restore();
     }
