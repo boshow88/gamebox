@@ -214,9 +214,9 @@ matches are honor-system and record nothing.
 ### Sandbag (solo)
 
 A no-frills damage run: **no cards, no defence, no HP bar of your own** — just
-spin and hit. The board is **6×6** with a fixed **7-second** spin window (neither
+spin and hit. The board is **6×6** with a fixed **6-second** spin window (neither
 scales with difficulty). You get **30 spins**; chase the highest **total** and
-**single-spin** damage.
+**single-spin** damage. Between rounds you **draft** power-ups (see below).
 
 - **Three enemies** stand as targets, each a single element. Every colour you
   clear strikes the matching enemy through an **elemental multiplier** — **×1.5**
@@ -235,15 +235,17 @@ scales with difficulty). You get **30 spins**; chase the highest **total** and
 
 ### Sandbag draft
 
-**At the start and every 5 rounds** (round 0, then after rounds 5 / 10 / 15 / 20 /
-25 — six drafts in all) you **pick 1 of 3** random power-ups. Most **stack** (more
-element damage, longer spins, bigger combos, harder first-wave / cascade hits);
-others are limited — **once per element** (clear that colour at **4** for an AoE, or
-make it **always hit all three** at the cost of a shorter spin) — or **one-time**
-build-definers (an element that clears at **2**, or one that **floods** the board and
-empowers its enhanced runes). Strong cards are rarer, and one-time cards are flagged
-in the draft. Some cards target a **specific** element; others let you **choose** one.
-All values live in `DRAFT` / `DRAFT_CARDS` at the top of `js/games/rune-stones.js`.
+**Three picks at the start, then 1 of 3 every 5 rounds** (after rounds 5 / 10 / 15 /
+20 / 25). Most cards **stack** (more attack / element damage, longer spins, bigger
+combos, harder first-wave / cascade hits, an extra attack target). A few are
+limited: **per element** (an element's attacks reach one more enemy, up to twice —
+two makes it hit all three) or **one-time** build-definers (every colour AoEs at
+**4** but no enhanced runes drop; **flood** the board with one element; an element
+that clears at **2**; or a **shorter spin you can keep rearranging** until time runs
+out). Rarer cards appear less often, and one-time cards are flagged in the draft;
+card **frames are colour-coded** by how rare they are. Some cards target a
+**specific** element, others let you **choose** one. All values live in `DRAFT` /
+`DRAFT_CARDS` at the top of `js/games/rune-stones.js`.
 
 The remaining sections describe **Versus**.
 
