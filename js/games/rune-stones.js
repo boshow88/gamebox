@@ -249,6 +249,7 @@
 
     const CONFIG = {
         orbRadius: 40, iconScale: 0.8, iconStroke: 0.12, iconTint: -0.15,
+        enhTint: 0.55,   // enhanced runes: brightened element colour for the rim + icon (vs the old near-white)
         popTime: 0.12, popGap: 0.12, fallAnim: 0.2, fallGap: 0.06,   // short anims + deliberate gaps between steps
         bigThreshold: 5, scoreCap: 999999,
     };
@@ -2434,15 +2435,16 @@
         ctx.strokeStyle = 'rgba(0,0,0,0.33)';
         ctx.stroke(gfx.path);
         if (enhanced) {
-            ctx.lineWidth = R * 0.1;
-            ctx.strokeStyle = 'rgba(255,255,255,0.95)';
-            ctx.shadowColor = 'rgba(255,255,255,0.85)'; ctx.shadowBlur = 12;
+            const eCol = shade(col, CONFIG.enhTint);   // brightened element colour, not stark white
+            ctx.lineWidth = R * 0.09;
+            ctx.strokeStyle = eCol;
+            ctx.shadowColor = eCol; ctx.shadowBlur = 7;
             ctx.stroke(gfx.path);
             ctx.shadowBlur = 0;
         }
         if (highlight) { ctx.scale(1.08, 1.08); ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(255,255,255,0.9)'; ctx.stroke(gfx.path); }
         ctx.restore();
-        const iconColor = enhanced ? 'rgba(255,255,255,0.97)' : shade(col, CONFIG.iconTint);
+        const iconColor = enhanced ? shade(col, CONFIG.enhTint) : shade(col, CONFIG.iconTint);
         drawRuneIcon(el, 0, 0, r * CONFIG.iconScale, iconColor, Math.max(2.4, r * CONFIG.iconStroke));
         ctx.restore();
     }
