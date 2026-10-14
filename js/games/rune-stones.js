@@ -18,9 +18,6 @@
     const PI2 = Math.PI * 2;
     const t = (k, ...a) => AC.i18n.t(k, ...a);
 
-    const PARAMS = new URLSearchParams(location.search);
-    const DEBUG = PARAMS.has('debug');
-
     // =================================================================
     // i18n
     // =================================================================
@@ -1833,26 +1830,6 @@
         if (def.limit === 'once') ab.once[id] = true;
         else if (def.limit === 'perElement') (ab.takenEl[id] = ab.takenEl[id] || []).push(el);
     }
-    // Reverse one application of a card (debug panel's "Remove"): peel off a stack / clear a toggle.
-    function unapplySandAbility(id, el) {
-        const ab = G.sandAbil; if (!ab) return;
-        const def = DRAFT_CARDS[id];
-        switch (id) {
-            case 'sd_atk': ab.atkMult = Math.max(1, ab.atkMult - DRAFT.atkPerStack); break;
-            case 'sd_dmg': if (ab.dmgMult[el]) { ab.dmgMult[el] = Math.max(0, ab.dmgMult[el] - DRAFT.dmgPerStack); if (!ab.dmgMult[el]) delete ab.dmgMult[el]; } break;
-            case 'sd_aoe4': ab.aoe4All = false; break;
-            case 'sd_focus': if (ab.dropWeightEl === el) ab.dropWeightEl = null; break;
-            case 'sd_time': ab.spinBonusSec = Math.max(0, ab.spinBonusSec - DRAFT.spinBonusSec); break;
-            case 'sd_quick': if (ab.quickMatchEl === el) ab.quickMatchEl = null; break;
-            case 'sd_combo': ab.comboStepBonus = Math.max(0, ab.comboStepBonus - DRAFT.comboStepPerStack); break;
-            case 'sd_first': ab.firstWaveMult = Math.max(1, ab.firstWaveMult - DRAFT.firstWavePerStack); break;
-            case 'sd_later': ab.laterWaveMult = Math.max(1, ab.laterWaveMult - DRAFT.laterWavePerStack); break;
-            case 'sd_allaoe': if (ab.extraTargets[el]) { ab.extraTargets[el] = Math.max(0, ab.extraTargets[el] - 1); if (!ab.extraTargets[el]) delete ab.extraTargets[el]; } break;
-            case 'sd_free': ab.freeArrange = false; break;
-        }
-        if (def.limit === 'once') ab.once[id] = false;   // keep draft eligibility in sync
-        else if (def.limit === 'perElement' && ab.takenEl[id]) { const i = ab.takenEl[id].indexOf(el); if (i >= 0) ab.takenEl[id].splice(i, 1); }
-    }
     function sandboxOver() {
         recordSandTotal(G.sandTotal);
         G.phase = 'over';
@@ -2357,7 +2334,6 @@
             if (G.palette) drawPalette();
             if (G.phase !== 'sanddraft' && !G.sandPowers) drawSpinTimer();
             if (G.countdown > 0) drawCountdown();
-            if (DEBUG) drawDebug();
             return;
         }
         drawRivalPanel();
@@ -2377,7 +2353,6 @@
         if (G.countdown > 0) drawCountdown();
         if (G.palette) drawPalette();
         if (G.shieldPick) drawShieldPick();
-        if (DEBUG) drawDebug();
     }
 
     // Rival board preview — shown over the (non-interactive) board during the online
@@ -3399,125 +3374,8 @@
                 else net.updateRoom(room.code, { 'game.status': 'over', 'game.winner': G.online.oppUid });        // guest leaves → host wins
             } catch (e) { /* ignore */ }
         });
-        if (DEBUG) setupDebug();
         resetRun();
         render();
-    }
-
-    // =================================================================
-    // [DEBUG-HOOK] window.RD (?debug=1 only)
-    // =================================================================
-
-    function drawDebug() {
-        const lines = [
-            'DEBUG  round ' + G.round + '/' + DUEL.maxRounds + '  ' + G.phase,
-            'you ' + Math.ceil(G.youHp) + '/' + G.youMaxHp + '  energy ' + G.energy,
-            'rival ' + Math.max(0, Math.ceil(G.aiHp)) + '/' + G.aiMaxHp,
-            'shields ' + (G.aiShields.map((s) => s.type).join(',') || 'none'),
-            'hand ' + G.hand.join(',') + '  dealt ' + G.score,
-        ];
-        ctx.save();
-        ctx.font = `600 12px ${getFont()}`;
-        ctx.textAlign = 'left'; ctx.textBaseline = 'top';
-        let w = 0; for (const l of lines) w = Math.max(w, ctx.measureText(l).width);
-        const bx = W - w - 20, by = BOARD_TOP + 10;
-        ctx.fillStyle = 'rgba(10,8,20,0.72)';
-        roundRect(bx - 6, by - 4, w + 12, lines.length * 16 + 8, 8); ctx.fill();
-        ctx.fillStyle = '#8fe36b';
-        let y = by; for (const l of lines) { ctx.fillText(l, bx, y); y += 16; }
-        ctx.restore();
-    }
-    function setupDebug() {
-        window.RD = {
-            kill() { G.aiHp = 0; return 'rival marked dead (resolve a spin)'; },
-            hp(n) { G.youHp = AC.math.clamp(n, 0, G.youMaxHp); updateHud(); return G.youHp; },
-            energy(n) { G.energy = n | 0; return G.energy; },
-            hand() { return G.hand; },
-            shields(k) { const kk = k | 0; G.aiShields = []; for (let i = 0; i < kk; i++) G.aiShields.push(oneShield(G.round)); return G.aiShields; },
-            play(i) { playCard(i | 0); return G.hand; },
-            info() { return { round: G.round, phase: G.phase, you: G.youHp, rival: G.aiHp, energy: G.energy, hand: G.hand, youShields: G.youShields, spinMultSelf: G.spinMultSelf, spinMultOpp: G.spinMultOpp, shields: G.aiShields, dealt: G.score }; },
-        };
-        console.log('%c[Rune Stones] debug on', 'color:#86cfc6;font-weight:700');
-        console.log('RD.kill() hp(n) energy(n) hand() shields(k) play(i) info()');
-        buildSandDebugPanel();
-    }
-    // A plain-DOM tuning panel for the Sandbag draft (?debug only): edit every DRAFT value /
-    // weight live, and grant / reset abilities to feel any build without waiting for drafts.
-    function sandAbilSummary() {
-        const ab = G.sandAbil; if (!ab) return '(sandbox not started)';
-        const p = [];
-        if (ab.atkMult !== 1) p.push('atk ×' + ab.atkMult.toFixed(2));
-        const dm = Object.keys(ab.dmgMult).filter((e) => ab.dmgMult[e]);
-        if (dm.length) p.push('strong: ' + dm.map((e) => t('el_' + e) + '×' + (1 + ab.dmgMult[e])).join(' '));
-        if (ab.comboStepBonus) p.push('comboStep ' + (BALANCE.comboStep + ab.comboStepBonus).toFixed(2));
-        if (ab.firstWaveMult !== 1) p.push('first ×' + ab.firstWaveMult.toFixed(2));
-        if (ab.laterWaveMult !== 1) p.push('cascade ×' + ab.laterWaveMult.toFixed(2));
-        if (ab.spinBonusSec) p.push('spin +' + ab.spinBonusSec + 's');
-        if (ab.aoe4All) p.push('AoE@' + DRAFT.aoeThreshold + ' all (no enhanced)');
-        const et = Object.keys(ab.extraTargets).filter((e) => ab.extraTargets[e]); if (et.length) p.push('targets: ' + et.map((e) => t('el_' + e) + '+' + ab.extraTargets[e]).join(' '));
-        if (ab.quickMatchEl) p.push('match2: ' + t('el_' + ab.quickMatchEl));
-        if (ab.dropWeightEl) p.push('flood: ' + t('el_' + ab.dropWeightEl));
-        if (ab.freeArrange) p.push('free-arrange on');
-        p.push('— spin now: ' + effectiveSpinTime().toFixed(2) + 's');
-        return p.join('\n');
-    }
-    function buildSandDebugPanel() {
-        if (document.getElementById('rd-dbg')) return;
-        const box = document.createElement('div');
-        box.id = 'rd-dbg';
-        box.style.cssText = 'position:fixed;top:6px;right:6px;z-index:99999;width:258px;max-height:96vh;overflow:auto;background:rgba(14,12,22,0.96);color:#bfe;font:11px/1.35 system-ui,sans-serif;padding:8px;border:1px solid #456;border-radius:8px;';
-        const head = (txt) => { const d = document.createElement('div'); d.textContent = txt; d.style.cssText = 'font-weight:700;color:#9fe;margin:8px 0 3px;border-top:1px solid #345;padding-top:5px;'; box.appendChild(d); };
-        const num = (label, get, set, step) => {
-            const row = document.createElement('label'); row.style.cssText = 'display:flex;justify-content:space-between;gap:6px;margin:2px 0;align-items:center;';
-            const s = document.createElement('span'); s.textContent = label; s.style.flex = '1';
-            const inp = document.createElement('input'); inp.type = 'number'; inp.step = step || 'any'; inp.value = get();
-            inp.style.cssText = 'width:62px;background:#1a1726;color:#cfe;border:1px solid #556;border-radius:4px;padding:1px 3px;';
-            inp.addEventListener('input', () => { const v = parseFloat(inp.value); if (!isNaN(v)) { set(v); markDirty(); refresh(); } });
-            row.appendChild(s); row.appendChild(inp); box.appendChild(row);
-        };
-        const mkSel = (opts, labelOf) => { const sel = document.createElement('select'); sel.style.cssText = 'width:100%;margin:2px 0;background:#1a1726;color:#cfe;border:1px solid #556;border-radius:4px;'; for (const o of opts) { const op = document.createElement('option'); op.value = o; op.textContent = labelOf(o); sel.appendChild(op); } return sel; };
-
-        const title = document.createElement('div'); title.textContent = 'Sandbag DEBUG'; title.style.cssText = 'font-weight:800;color:#fff;font-size:13px;'; box.appendChild(title);
-
-        head('Values (DRAFT)');
-        num('every', () => DRAFT.every, (v) => { DRAFT.every = v; }, '1');
-        num('offer', () => DRAFT.offer, (v) => { DRAFT.offer = v; }, '1');
-        num('openPicks', () => DRAFT.openPicks, (v) => { DRAFT.openPicks = v; }, '1');
-        num('atk +x/stack', () => DRAFT.atkPerStack, (v) => { DRAFT.atkPerStack = v; });
-        num('dmg +x/stack', () => DRAFT.dmgPerStack, (v) => { DRAFT.dmgPerStack = v; });
-        num('AoE threshold', () => DRAFT.aoeThreshold, (v) => { DRAFT.aoeThreshold = v; }, '1');
-        num('flood drop x', () => DRAFT.focusDropMult, (v) => { DRAFT.focusDropMult = v; });
-        num('spin +s/stack', () => DRAFT.spinBonusSec, (v) => { DRAFT.spinBonusSec = v; });
-        num('match len', () => DRAFT.quickMatchLen, (v) => { DRAFT.quickMatchLen = v; }, '1');
-        num('comboStep +', () => DRAFT.comboStepPerStack, (v) => { DRAFT.comboStepPerStack = v; });
-        num('first +x/stack', () => DRAFT.firstWavePerStack, (v) => { DRAFT.firstWavePerStack = v; });
-        num('cascade +x/stack', () => DRAFT.laterWavePerStack, (v) => { DRAFT.laterWavePerStack = v; });
-        num('extra target max', () => DRAFT.extraTargetMax, (v) => { DRAFT.extraTargetMax = v; }, '1');
-        num('free spin x', () => DRAFT.freeSpinMult, (v) => { DRAFT.freeSpinMult = v; });
-
-        head('Draw weights');
-        for (const id of DRAFT_ORDER) (function (cid) { num(t(DRAFT_CARDS[cid].key + '_name'), () => DRAFT_CARDS[cid].weight, (v) => { DRAFT_CARDS[cid].weight = v; }, '1'); })(id);
-
-        head('Grant ability');
-        const cardSel = mkSel(DRAFT_ORDER, (id) => t(DRAFT_CARDS[id].key + '_name')); box.appendChild(cardSel);
-        const elSel = mkSel(['fire', 'water', 'wood', 'light', 'dark', 'yao', 'steel'], (el) => t('el_' + el)); box.appendChild(elSel);
-        const btns = document.createElement('div'); btns.style.cssText = 'display:flex;gap:6px;margin:4px 0;';
-        const give = document.createElement('button'); give.textContent = '+ Grant';
-        const take = document.createElement('button'); take.textContent = '\u2212 Remove';
-        const reset = document.createElement('button'); reset.textContent = 'Reset';
-        for (const b of [give, take, reset]) b.style.cssText = 'flex:1;background:#2a3550;color:#cfe;border:1px solid #567;border-radius:5px;padding:4px;cursor:pointer;';
-        give.addEventListener('click', () => { if (!G.sandAbil) G.sandAbil = freshSandAbil(); applySandAbility(cardSel.value, elSel.value); updateHud(); markDirty(); refresh(); });
-        take.addEventListener('click', () => { unapplySandAbility(cardSel.value, elSel.value); updateHud(); markDirty(); refresh(); });
-        reset.addEventListener('click', () => { G.sandAbil = freshSandAbil(); updateHud(); markDirty(); refresh(); });
-        btns.appendChild(give); btns.appendChild(take); btns.appendChild(reset); box.appendChild(btns);
-
-        head('Current abilities');
-        const out = document.createElement('pre'); out.style.cssText = 'white-space:pre-wrap;margin:2px 0;color:#9fe;'; box.appendChild(out);
-        function refresh() { out.textContent = sandAbilSummary(); }
-
-        document.body.appendChild(box);
-        refresh();
-        setInterval(refresh, 500);   // reflect draft picks / spin changes made in-game
     }
 
     if (document.readyState === 'loading') {
