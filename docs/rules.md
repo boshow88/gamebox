@@ -233,6 +233,18 @@ scales with difficulty). You get **30 spins**; chase the highest **total** and
 - **Best** = your highest total damage and best single spin, kept **per
   difficulty**.
 
+### Sandbag draft
+
+**At the start and every 5 rounds** (round 0, then after rounds 5 / 10 / 15 / 20 /
+25 — six drafts in all) you **pick 1 of 3** random power-ups. Most **stack** (more
+element damage, longer spins, bigger combos, harder first-wave / cascade hits);
+others are limited — **once per element** (clear that colour at **4** for an AoE, or
+make it **always hit all three** at the cost of a shorter spin) — or **one-time**
+build-definers (an element that clears at **2**, or one that **floods** the board and
+empowers its enhanced runes). Strong cards are rarer, and one-time cards are flagged
+in the draft. Some cards target a **specific** element; others let you **choose** one.
+All values live in `DRAFT` / `DRAFT_CARDS` at the top of `js/games/rune-stones.js`.
+
 The remaining sections describe **Versus**.
 
 ### A round — two phases

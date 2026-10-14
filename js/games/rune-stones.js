@@ -80,6 +80,17 @@
         rdSandHelp1Html: '<strong>Drag a rune</strong> to line up <strong>3+ of a colour</strong> and chain <strong>combos</strong> \u2014 the colours you clear are your <strong>damage</strong>.',
         rdSandHelp2Html: 'Three elemental <strong>enemies</strong> stand as targets. Each colour you clear hits one, scaled by its <strong>elemental multiplier</strong> (<strong>×1.5</strong> strong / <strong>×0.5</strong> weak); clear <strong>5+</strong> to hit <strong>all three</strong>.',
         rdSandHelp3Html: 'Beat an enemy and a <strong>fresh</strong> one takes its place. Over <strong>30 spins</strong>, chase your best <strong>total</strong> and <strong>single-spin</strong> damage. <kbd>P</kbd> pause · <kbd>R</kbd> restart · <kbd>M</kbd> mute.',
+        // --- Sandbag draft (pick 1 of 3 every few rounds) ---
+        rdDraftTitle: 'Choose a power', rdDraftAny: 'Any', rdDraftOnce: 'One-time', rdSandPick: 'Choose an element',
+        sdDmg_name: 'Element power', sdDmg_desc: 'That element\u2019s damage climbs sharply \u2014 stacks.',
+        sdAoe4_name: 'AoE at 4', sdAoe4_desc: 'That element: 4 in a group hits all three & forges an enhanced rune.',
+        sdFocus_name: 'Flood & empower', sdFocus_desc: 'Chosen element drops far more often; its enhanced runes hit harder.',
+        sdTime_name: 'Spin +1s', sdTime_desc: 'More time on every spin \u2014 stacks.',
+        sdQuick_name: 'Match 2', sdQuick_desc: 'Chosen element clears with just 2 in a row.',
+        sdCombo_name: 'Combo boost', sdCombo_desc: 'Each combo adds more damage \u2014 stacks.',
+        sdFirst_name: 'First-wave boost', sdFirst_desc: 'First-wave clears hit harder \u2014 stacks.',
+        sdLater_name: 'Cascade boost', sdLater_desc: 'Cascade (non-first-wave) clears hit harder \u2014 stacks.',
+        sdAllAoe_name: 'Always AoE', sdAllAoe_desc: 'That element always hits all three \u2014 but your spin time is cut.',
     });
     Object.assign(AC.i18n.STRINGS.zh, {
         rdRound: '回合', rdHp: '生命', rdReady: '準備開始', rdRival: '對手',
@@ -136,6 +147,17 @@
         rdSandHelp1Html: '<strong>拖動符石</strong>連成<strong>同色 3 顆以上</strong>消除、串接<strong>連擊</strong>——你消掉的顏色就是<strong>傷害</strong>。',
         rdSandHelp2Html: '場上有三隻屬性<strong>敵人</strong>。你消的每種顏色會攻擊其中一隻，並依<strong>屬性倍率</strong>計算（剋 <strong>×1.5</strong>／被剋 <strong>×0.5</strong>）；單色消 <strong>5 顆以上</strong>則<strong>三隻全打</strong>。',
         rdSandHelp3Html: '打倒一隻，就有<strong>新敵人</strong>遞補。在 <strong>30 次轉珠</strong>內，拚最高<strong>總傷害</strong>與<strong>單次轉珠傷害</strong>。<kbd>P</kbd> 暫停 · <kbd>R</kbd> 重新開始 · <kbd>M</kbd> 靜音。',
+        // --- 沙包強化抽卡（每幾回合三選一） ---
+        rdDraftTitle: '選一項強化', rdDraftAny: '任選', rdDraftOnce: '限一次', rdSandPick: '選一個屬性',
+        sdDmg_name: '屬性強攻', sdDmg_desc: '該屬性傷害大幅提升，可疊加。',
+        sdAoe4_name: '4 顆即 AoE', sdAoe4_desc: '該屬性單組消 4 顆就打三隻，並生成強化符石。',
+        sdFocus_name: '大量掉落＋強化', sdFocus_desc: '指定屬性掉落機率大增，且其強化符石傷害提升。',
+        sdTime_name: '轉珠 +1 秒', sdTime_desc: '每次轉珠時間 +1 秒，可疊加。',
+        sdQuick_name: '2 顆即消', sdQuick_desc: '指定屬性只要相連 2 顆就能消除。',
+        sdCombo_name: 'Combo 加成', sdCombo_desc: '每個 combo 的傷害加成提升，可疊加。',
+        sdFirst_name: '首消強化', sdFirst_desc: '首批消除的傷害提升，可疊加。',
+        sdLater_name: '連鎖強化', sdLater_desc: '非首批（連鎖）消除的傷害提升，可疊加。',
+        sdAllAoe_name: '永久 AoE', sdAllAoe_desc: '該屬性攻擊永遠打三隻，但轉珠時間縮短。',
     });
 
     // =================================================================
@@ -252,6 +274,38 @@
         strikeGap: 0.26,                // delay between each element's strike in the attack anim
         hold: 0.9,                      // beat after all strikes before the next spin
     };
+    // Sandbag draft (roguelite picks): every DRAFT.every rounds, pick 1 of DRAFT.offer cards.
+    // ALL ability tunables live here so balance is one-stop. See DRAFT_CARDS for the catalogue.
+    const DRAFT = {
+        every: 5, offer: 3,            // offer a draft after rounds 5/10/15/20/25 (round 30 ends the run)
+        dmgPerStack: 1.0,              // sd_dmg:   +100% damage to one element (stacks)
+        aoeThreshold: 4,              // sd_aoe4:  that element AoEs / forges enhanced at 4 (vs the default 5)
+        focusDropMult: 5,             // sd_focus: chosen element drops this many× as often as each other
+        focusEnhBonus: 0.5,           // sd_focus: chosen element's enhanced rune ×1.5 -> ×2.0
+        spinBonusSec: 1,              // sd_time:  +1s spin window per stack
+        quickMatchLen: 2,             // sd_quick: chosen element matches at 2 in a row
+        comboStepPerStack: 0.05,      // sd_combo: comboStep 0.25 -> 0.30 -> 0.35 ... per stack
+        firstWavePerStack: 0.2,       // sd_first: +0.2× first-wave damage per stack
+        laterWavePerStack: 0.3,       // sd_later: +0.3× cascade (non-first-wave) damage per stack
+        spinPenaltyMult: 0.7,         // sd_allaoe: spin time ×0.7 per stack (compounds)
+    };
+    // key   = i18n prefix (key_name / key_desc).
+    // mode  = how the element is chosen: 'global' (none) | 'elem' (a rolled element) |
+    //         'elemAny' (a rolled element, with a chance of "Any" = player picks) | 'anyElem' (always Any).
+    // limit = 'stack' (unlimited) | 'perElement' (once per element) | 'once' (once per run).
+    // weight = draft rarity (strong cards are rarer).
+    const DRAFT_CARDS = {
+        sd_dmg:    { key: 'sdDmg',    mode: 'elemAny', limit: 'stack',      weight: 3 },
+        sd_aoe4:   { key: 'sdAoe4',   mode: 'elem',    limit: 'perElement', weight: 2 },
+        sd_focus:  { key: 'sdFocus',  mode: 'anyElem', limit: 'once',       weight: 2 },
+        sd_time:   { key: 'sdTime',   mode: 'global',  limit: 'stack',      weight: 2 },
+        sd_quick:  { key: 'sdQuick',  mode: 'anyElem', limit: 'once',       weight: 1 },
+        sd_combo:  { key: 'sdCombo',  mode: 'global',  limit: 'stack',      weight: 4 },
+        sd_first:  { key: 'sdFirst',  mode: 'global',  limit: 'stack',      weight: 3 },
+        sd_later:  { key: 'sdLater',  mode: 'global',  limit: 'stack',      weight: 4 },
+        sd_allaoe: { key: 'sdAllAoe', mode: 'elem',    limit: 'perElement', weight: 1 },
+    };
+    const DRAFT_ORDER = ['sd_dmg', 'sd_aoe4', 'sd_focus', 'sd_time', 'sd_quick', 'sd_combo', 'sd_first', 'sd_later', 'sd_allaoe'];
     // The active Sandbag element pool for the committed difficulty (G.aiLevel).
     function sandElements() { return SAND.elements[G.aiLevel] || SAND.elements.normal; }
     // Elemental multiplier grid: RESTRAINT[attacker][defender]. Not a simple triangle, so a
@@ -338,6 +392,8 @@
         sandSpinRun: 0,         // sandbox: best single-spin this run
         sandAtk: null,          // sandbox: the post-spin strike animation state
         sandInspect: null,      // sandbox: index of the enemy whose restraint tooltip is showing (hover / long-press)
+        sandDraft: null,        // sandbox: the current {cards:[{id,element}]} draft offer (phase 'sanddraft'), or null
+        sandAbil: null,         // sandbox: accumulated draft powers (see resetSandbox for the shape)
         aiBoard: null,          // vs-AI: the rival's own board (cells {el,enhanced})
         aiHand: [],             // vs-AI: the rival's own card hand (mixed, like yours — hidden from you)
         aiEnergy: 0,            // vs-AI: the rival's energy this phase
@@ -502,7 +558,17 @@
         return r * COLS + c;
     }
     function randomEl() {
-        if (G.mode === 'sandbox') { const els = sandElements(); return els[AC.rng.int(G.rng, 0, els.length)]; }   // difficulty-scaled pool, equal weight
+        if (G.mode === 'sandbox') {
+            const els = sandElements();
+            const fav = G.sandAbil && G.sandAbil.dropWeightEl;   // sd_focus: one element drops ×focusDropMult
+            if (fav && els.indexOf(fav) !== -1) {
+                const total = DRAFT.focusDropMult + (els.length - 1);
+                let x = AC.rng.float(G.rng, 0, total);
+                for (const el of els) { x -= (el === fav ? DRAFT.focusDropMult : 1); if (x <= 0) return el; }
+                return els[0];
+            }
+            return els[AC.rng.int(G.rng, 0, els.length)];   // difficulty-scaled pool, equal weight
+        }
         let x = AC.rng.float(G.rng, 0, WEIGHT_TOTAL);
         for (const el of ELEMENTS) { x -= WEIGHTS[el]; if (x <= 0) return el; }
         return 'fire';
@@ -526,6 +592,12 @@
             groups = findMatches();
         }
     }
+    // Minimum run length to clear a colour. Default 3; the Sandbag draft's sd_quick drops one
+    // chosen element to 2 (sandbox only — never affects the duel / AI match logic).
+    function matchMinLen(el) {
+        if (G.mode === 'sandbox' && G.sandAbil && G.sandAbil.quickMatchEl === el) return DRAFT.quickMatchLen;
+        return 3;
+    }
     function findMatches() {
         const n = COLS * ROWS;
         const matched = new Array(n).fill(false);
@@ -534,7 +606,7 @@
             while (c < COLS) {
                 const el = elAt(r, c);
                 let c2 = c; while (c2 < COLS && elAt(r, c2) === el && el != null) c2++;
-                if (el != null && c2 - c >= 3) for (let k = c; k < c2; k++) matched[r * COLS + k] = true;
+                if (el != null && c2 - c >= matchMinLen(el)) for (let k = c; k < c2; k++) matched[r * COLS + k] = true;
                 c = Math.max(c2, c + 1);
             }
         }
@@ -543,7 +615,7 @@
             while (r < ROWS) {
                 const el = elAt(r, c);
                 let r2 = r; while (r2 < ROWS && elAt(r2, c) === el && el != null) r2++;
-                if (el != null && r2 - r >= 3) for (let k = r; k < r2; k++) matched[k * COLS + c] = true;
+                if (el != null && r2 - r >= matchMinLen(el)) for (let k = r; k < r2; k++) matched[k * COLS + c] = true;
                 r = Math.max(r2, r + 1);
             }
         }
@@ -670,6 +742,14 @@
             if (e.cancelable) e.preventDefault();
             return;
         }
+        // Sandbag draft: tap one of the three offered cards (board is locked until you choose)
+        if (G.mode === 'sandbox' && G.phase === 'sanddraft' && G.sandDraft) {
+            for (const r of sandDraftRects()) {
+                if (inRect(p, r)) { AC.audio.unlock(); chooseSandCard(r.i); if (e.cancelable) e.preventDefault(); return; }
+            }
+            if (e.cancelable) e.preventDefault();
+            return;
+        }
         // tap a shield / played-card chip to read its full effect
         for (const ch of (G._rivalChips || []).concat(G._rivalUsed || [], G._youChips || [])) {
             if (inRect(p, ch)) { addFloat(ch.x + ch.w / 2, ch.y + 34, ch.label, '#cfe8ff', 15); AC.audio.unlock(); if (e.cancelable) e.preventDefault(); return; }
@@ -727,8 +807,12 @@
     // =================================================================
 
     function effectiveSpinTime() {
-        const base = (G.mode === 'sandbox') ? SAND.spinTime : BALANCE.spinTime;   // Sandbag spins run 7.5s
-        return Math.max(0.5, base * (G.spinMultSelf || 1) * (G.spinMultOpp || 1));
+        if (G.mode === 'sandbox') {
+            const ab = G.sandAbil || {};
+            const base = SAND.spinTime + (ab.spinBonusSec || 0);                      // sd_time: +1s per stack
+            return Math.max(0.5, base * Math.pow(DRAFT.spinPenaltyMult, ab.spinPenaltyStacks || 0));   // sd_allaoe: ×0.7 per stack
+        }
+        return Math.max(0.5, BALANCE.spinTime * (G.spinMultSelf || 1) * (G.spinMultOpp || 1));
     }
     // One persistent hand: deal once at the start, then draw a single new card each
     // round. Unplayed cards carry over (they no longer re-roll every phase).
@@ -895,7 +979,8 @@
         let enh = 0;
         for (const idx of g.cells) { const o = board[idx]; if (o.enhanced) enh++; o.scale = 1; G.clearing.push(o); board[idx] = null; }
         g.enhanced = enh;
-        const big = g.cells.length >= CONFIG.bigThreshold;
+        const thr = (G.mode === 'sandbox') ? sandEnhThreshold(g.el) : CONFIG.bigThreshold;   // sd_aoe4 lowers it to 4 for one element
+        const big = g.cells.length >= thr;
         if (big) G.resolve.enhNext.push(g.el);   // forge an enhanced of this colour in the next drop
         G.resolve.combos.push(g);
         G.resolve.stage = 'pop'; G.resolve.t = 0;
@@ -1517,28 +1602,46 @@
     function spawnEnemies() { G.enemies = [sandNewEnemy(), sandNewEnemy(), sandNewEnemy()]; }
     function resetSandbox() {
         G.sandTotal = 0; G.sandSpinRun = 0; G.sandAtk = null; G.sandInspect = null;
+        G.sandDraft = null;
+        G.sandAbil = {
+            dmgMult: {}, comboStepBonus: 0, firstWaveMult: 1, laterWaveMult: 1,
+            spinBonusSec: 0, spinPenaltyStacks: 0,
+            aoeThresholdEl: {}, alwaysAoeEl: {}, quickMatchEl: null, dropWeightEl: null, enhBonusEl: {},
+            once: {}, takenEl: {},
+        };
         G.hand = []; G.energy = 0;
         G._rivalChips = []; G._rivalUsed = []; G._youChips = [];   // no duel chips in sandbox
         spawnEnemies();
         fillBoardNoMatches();
-        G.phase = 'attack';
+        G.round = 0;                        // the opening draft is "round 0"; advanceSandRound starts round 1
         G.phaseTimer = G.phaseMax = 9999;   // no decision clock — take your time to plan the spin
-        G.countdown = 3;
+        G.countdown = 0;                    // the 3-2-1 preview plays after the opening draft (see advanceSandRound)
         updateHud();
+        openSandDraft();                    // offer a draft before the first round, too
     }
+    // Sandbag draft helpers: per-element thresholds the draft can lower / waive.
+    // sd_aoe4 lowers an element's enhanced-forge + AoE threshold to DRAFT.aoeThreshold (4);
+    // sd_allaoe makes an element AoE at any size.
+    function sandEnhThreshold(el) { const ab = G.sandAbil; return (ab && ab.aoeThresholdEl[el]) || CONFIG.bigThreshold; }
+    function sandIsAoe(el, cells) { const ab = G.sandAbil; if (ab && ab.alwaysAoeEl[el]) return true; return cells >= sandEnhThreshold(el); }
     // After a sandbox spin resolves: turn the cleared groups into one strike per element (in the
     // order each element was first cleared), each dealing that element's whole-spin weighted
-    // damage; a 5+ group makes that element's strike hit all three enemies.
+    // damage; a 5+ group (or a draft-lowered threshold) makes that element's strike hit all three.
     function finishResolveSandbox() {
         const combos = G.resolve ? G.resolve.combos : [];
         const n = combos.length;
-        const comboMult = n > 0 ? 1 + BALANCE.comboStep * (n - 1) : 0;
+        const ab = G.sandAbil || {};
+        const comboStep = BALANCE.comboStep + (ab.comboStepBonus || 0);                  // sd_combo
+        const comboMult = n > 0 ? 1 + comboStep * (n - 1) : 0;
         const raw = {}, aoe = {}, order = [];
         for (const g of combos) {
-            const count = g.cells.length + (g.enhanced || 0) * (BALANCE.enhancedMult - 1);
+            const enhMult = BALANCE.enhancedMult + ((ab.enhBonusEl && ab.enhBonusEl[g.el]) || 0);   // sd_focus
+            let d = (g.cells.length + (g.enhanced || 0) * (enhMult - 1)) * BALANCE.baseDamage;
+            d *= (g.wave === 0) ? (ab.firstWaveMult || 1) : (ab.laterWaveMult || 1);     // sd_first / sd_later
+            d *= 1 + ((ab.dmgMult && ab.dmgMult[g.el]) || 0);                            // sd_dmg
             if (!(g.el in raw)) { raw[g.el] = 0; order.push(g.el); }
-            raw[g.el] += count * BALANCE.baseDamage;
-            if (g.cells.length >= CONFIG.bigThreshold) aoe[g.el] = true;
+            raw[g.el] += d;
+            if (sandIsAoe(g.el, g.cells.length)) aoe[g.el] = true;                       // sd_aoe4 / sd_allaoe
         }
         const strikes = order.map((el) => ({ el, dmg: Math.round(raw[el] * comboMult), aoe: !!aoe[el] }));
         G.resolving = false; G.resolve = null; G.clearing.length = 0;
@@ -1597,10 +1700,90 @@
         recordSandSpin(spinTotal);
         for (let i = 0; i < G.enemies.length; i++) if (G.enemies[i].hp <= 0) G.enemies[i] = sandNewEnemy();   // refill to 3
         if (G.round >= SAND.rounds) { sandboxOver(); return; }
+        if (G.round % DRAFT.every === 0) { openSandDraft(); return; }   // draft phase handles the round bump when it closes
+        advanceSandRound();
+    }
+    function advanceSandRound() {
+        const opening = G.round === 0;      // leaving the opening draft → start round 1 with the 3-2-1 preview
         G.round++;
         G.phase = 'attack';
         G.spinOpen = false;
+        if (opening) G.countdown = 3;
         updateHud(); markDirty();
+    }
+
+    // --- Sandbag draft (pick 1 of 3) ---
+    function draftFreeEls(id) {   // elements still available for a perElement card
+        const taken = G.sandAbil.takenEl[id] || [];
+        return sandElements().filter((el) => taken.indexOf(el) === -1);
+    }
+    function draftEligible(id) {
+        const def = DRAFT_CARDS[id];
+        if (def.limit === 'once') return !G.sandAbil.once[id];
+        if (def.limit === 'perElement') return draftFreeEls(id).length > 0;
+        return true;   // stack
+    }
+    function rollDraftElement(id) {
+        const def = DRAFT_CARDS[id], pool = sandElements();
+        if (def.mode === 'global') return null;
+        if (def.mode === 'anyElem') return 'any';
+        if (def.mode === 'elemAny') {   // element pool + one "Any" slot, equal odds
+            const i = AC.rng.int(G.rng, 0, pool.length + 1);
+            return i >= pool.length ? 'any' : pool[i];
+        }
+        const set = def.limit === 'perElement' ? draftFreeEls(id) : pool;   // 'elem': a concrete random element
+        return set[AC.rng.int(G.rng, 0, set.length)];
+    }
+    function buildSandOffer() {
+        const pool = DRAFT_ORDER.filter(draftEligible), out = [];
+        for (let k = 0; k < DRAFT.offer && pool.length; k++) {
+            let total = 0; for (const id of pool) total += DRAFT_CARDS[id].weight || 1;
+            let x = AC.rng.float(G.rng, 0, total), pick = pool[pool.length - 1];
+            for (const id of pool) { x -= DRAFT_CARDS[id].weight || 1; if (x <= 0) { pick = id; break; } }
+            pool.splice(pool.indexOf(pick), 1);
+            out.push({ id: pick, element: rollDraftElement(pick) });
+        }
+        return out;
+    }
+    function openSandDraft() {
+        const cards = buildSandOffer();
+        if (!cards.length) { advanceSandRound(); return; }   // nothing left to offer → just continue
+        G.sandDraft = { cards };
+        G.phase = 'sanddraft';
+        updateHud(); markDirty();
+    }
+    function chooseSandCard(i) {
+        const c = G.sandDraft && G.sandDraft.cards[i]; if (!c) return;
+        if (c.element === 'any') {   // let the player pick the element (sd_focus / sd_quick / an "Any" roll)
+            const els = DRAFT_CARDS[c.id].limit === 'perElement' ? draftFreeEls(c.id) : sandElements();
+            openPalette({ title: 'rdSandPick', els, onPick: (el) => { G.palette = null; commitSandCard(c.id, el); } });
+            return;
+        }
+        commitSandCard(c.id, c.element);
+    }
+    function commitSandCard(id, el) {
+        applySandAbility(id, el);
+        G.sandDraft = null;
+        AC.audio.play('coin');
+        const label = t(DRAFT_CARDS[id].key + '_name') + (el ? ' \u00b7 ' + t('el_' + el) : '');
+        addFloat(W / 2, BOARD_TOP + 70, label, accent(), 20);
+        advanceSandRound();
+    }
+    function applySandAbility(id, el) {
+        const ab = G.sandAbil, def = DRAFT_CARDS[id];
+        switch (id) {
+            case 'sd_dmg': ab.dmgMult[el] = (ab.dmgMult[el] || 0) + DRAFT.dmgPerStack; break;
+            case 'sd_aoe4': ab.aoeThresholdEl[el] = DRAFT.aoeThreshold; break;
+            case 'sd_focus': ab.dropWeightEl = el; ab.enhBonusEl[el] = (ab.enhBonusEl[el] || 0) + DRAFT.focusEnhBonus; break;
+            case 'sd_time': ab.spinBonusSec += DRAFT.spinBonusSec; break;
+            case 'sd_quick': ab.quickMatchEl = el; break;
+            case 'sd_combo': ab.comboStepBonus += DRAFT.comboStepPerStack; break;
+            case 'sd_first': ab.firstWaveMult += DRAFT.firstWavePerStack; break;
+            case 'sd_later': ab.laterWaveMult += DRAFT.laterWavePerStack; break;
+            case 'sd_allaoe': ab.alwaysAoeEl[el] = true; ab.spinPenaltyStacks += 1; break;
+        }
+        if (def.limit === 'once') ab.once[id] = true;
+        else if (def.limit === 'perElement') (ab.takenEl[id] = ab.takenEl[id] || []).push(el);
     }
     function sandboxOver() {
         recordSandTotal(G.sandTotal);
@@ -2098,7 +2281,9 @@
         if (G.mode === 'sandbox') {
             renderSandbox();
             ctx.restore();
-            drawSpinTimer();
+            if (G.phase === 'sanddraft') drawSandDraft();
+            if (G.palette) drawPalette();
+            if (G.phase !== 'sanddraft') drawSpinTimer();
             if (G.countdown > 0) drawCountdown();
             if (DEBUG) drawDebug();
             return;
@@ -2565,6 +2750,58 @@
         ctx.restore();
     }
     // Colour picker — used by Transmute (source/target) and Taboo Shield (choose a colour).
+    // --- Sandbag draft UI (3 full-width cards stacked over the board area) ---
+    function sandDraftRects() {
+        const cards = (G.sandDraft && G.sandDraft.cards) || [];
+        const n = cards.length || 1;
+        const x = 22, w = W - 44, gap = 14, top = BOARD_TOP + 50;
+        const h = Math.min(132, (H - top - 22 - gap * (n - 1)) / n);
+        return cards.map((c, i) => ({ i, card: c, x, y: top + i * (h + gap), w, h }));
+    }
+    function drawSandDraft() {
+        const f = getFont();
+        ctx.save();
+        ctx.fillStyle = 'rgba(8,6,16,0.9)';
+        ctx.fillRect(0, BOARD_TOP - 4, W, H - (BOARD_TOP - 4));
+        ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic'; ctx.font = `800 20px ${f}`;
+        ctx.fillText(t('rdDraftTitle'), W / 2, BOARD_TOP + 32);
+        for (const r of sandDraftRects()) {
+            const def = DRAFT_CARDS[r.card.id];
+            const el = r.card.element;
+            const col = (el && el !== 'any') ? (ELEMENT_COLORS[el] || accent()) : accent();
+            ctx.fillStyle = 'rgba(22,19,32,0.98)'; roundRect(r.x, r.y, r.w, r.h, 14); ctx.fill();
+            ctx.lineWidth = 2; ctx.strokeStyle = col; roundRect(r.x, r.y, r.w, r.h, 14); ctx.stroke();
+            // badge (left): element stone / "Any" / a generic boost mark for global cards
+            const bcx = r.x + 48, bcy = r.y + r.h / 2;
+            if (el === 'any') {
+                ctx.fillStyle = 'rgba(255,255,255,0.1)'; ctx.beginPath(); ctx.arc(bcx, bcy, 30, 0, PI2); ctx.fill();
+                ctx.fillStyle = '#fff'; ctx.font = `800 16px ${f}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                ctx.fillText(t('rdDraftAny'), bcx, bcy + 1);
+            } else if (el) {
+                drawStone(el, bcx, bcy, 30, defShape(), false, false);
+            } else {
+                ctx.fillStyle = 'rgba(127,212,255,0.14)'; ctx.beginPath(); ctx.arc(bcx, bcy, 30, 0, PI2); ctx.fill();
+                ctx.fillStyle = accent(); ctx.font = `800 30px ${f}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                ctx.fillText('\u2191', bcx, bcy + 1);
+            }
+            // name + description
+            const tx = r.x + 92;
+            ctx.textAlign = 'left';
+            ctx.fillStyle = '#fff'; ctx.font = `800 18px ${f}`; ctx.textBaseline = 'alphabetic';
+            ctx.fillText(t(def.key + '_name'), tx, r.y + 42);
+            ctx.fillStyle = 'rgba(255,255,255,0.72)'; ctx.font = `500 13px ${f}`;
+            ctx.fillText(t(def.key + '_desc'), tx, r.y + 66);
+            // "One-time" badge for once-per-run cards
+            if (def.limit === 'once') {
+                const bw = 70, bh = 22, bx = r.x + r.w - bw - 12, by = r.y + 12;
+                ctx.fillStyle = 'rgba(245,166,35,0.22)'; roundRect(bx, by, bw, bh, 11); ctx.fill();
+                ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(245,166,35,0.85)'; roundRect(bx, by, bw, bh, 11); ctx.stroke();
+                ctx.fillStyle = '#f5c56b'; ctx.font = `700 12px ${f}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                ctx.fillText(t('rdDraftOnce'), bx + bw / 2, by + bh / 2 + 0.5);
+            }
+        }
+        ctx.restore();
+    }
     function paletteRects() {
         const els = (G.palette && G.palette.els) || ELEMENTS;
         const sw = 74, gap = 12, n = els.length;
