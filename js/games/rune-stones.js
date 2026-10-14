@@ -77,9 +77,9 @@
         rdSandVs: 'Your damage ×',
         rdSandResultHtml: (total, spin) => `Dealt <strong>${total}</strong> over ${SAND.rounds} rounds · best hit <strong>${spin}</strong>.`,
         rdSandHint: 'Press R or the button to go again.',
-        rdSandHelp1Html: '<strong>Drag a rune</strong>, line up <strong>3+ of a colour</strong> and chain <strong>combos</strong> over <strong>50 spins</strong>.',
-        rdSandHelp2Html: 'Three <strong>enemies</strong> stand in; each colour you clear strikes a target with an <strong>elemental multiplier</strong> (×1.5 strong / ×0.5 weak). A <strong>5+</strong> group hits <strong>all three</strong>.',
-        rdSandHelp3Html: 'Beat one and a fresh enemy takes its place. Chase the highest <strong>total</strong> and <strong>single-spin</strong> damage. <kbd>P</kbd> pause · <kbd>R</kbd> restart · <kbd>M</kbd> mute.',
+        rdSandHelp1Html: '<strong>Drag a rune</strong> to line up <strong>3+ of a colour</strong> and chain <strong>combos</strong> \u2014 the colours you clear are your <strong>damage</strong>.',
+        rdSandHelp2Html: 'Three elemental <strong>enemies</strong> stand as targets. Each colour you clear hits one, scaled by its <strong>elemental multiplier</strong> (<strong>×1.5</strong> strong / <strong>×0.5</strong> weak); clear <strong>5+</strong> to hit <strong>all three</strong>.',
+        rdSandHelp3Html: 'Beat an enemy and a <strong>fresh</strong> one takes its place. Over <strong>50 spins</strong>, chase your best <strong>total</strong> and <strong>single-spin</strong> damage. <kbd>P</kbd> pause · <kbd>R</kbd> restart · <kbd>M</kbd> mute.',
     });
     Object.assign(AC.i18n.STRINGS.zh, {
         rdRound: '回合', rdHp: '生命', rdReady: '準備開始', rdRival: '對手',
@@ -133,9 +133,9 @@
         rdSandVs: '你的攻擊倍率',
         rdSandResultHtml: (total, spin) => `${SAND.rounds} 回合共造成 <strong>${total}</strong> 傷害 · 最高單波 <strong>${spin}</strong>。`,
         rdSandHint: '按 R 或按鈕再打一輪。',
-        rdSandHelp1Html: '<strong>拖動符石</strong>連成<strong>同色 3 顆以上</strong>消除、串 <strong>連擊</strong>，共 <strong>50 次轉珠</strong>。',
-        rdSandHelp2Html: '場上有三隻<strong>敵人</strong>；你消的每種顏色會依<strong>屬性倍率</strong>（剋 ×1.5／被剋 ×0.5）攻擊目標。單組消 <strong>5 顆以上</strong>該屬性改為<strong>打三隻</strong>。',
-        rdSandHelp3Html: '打倒一隻就補上新敵人。拼<strong>總傷害</strong>與<strong>單次轉珠</strong>的最高紀錄。<kbd>P</kbd> 暫停 · <kbd>R</kbd> 重新開始 · <kbd>M</kbd> 靜音。',
+        rdSandHelp1Html: '<strong>拖動符石</strong>連成<strong>同色 3 顆以上</strong>消除、串接<strong>連擊</strong>——你消掉的顏色就是<strong>傷害</strong>。',
+        rdSandHelp2Html: '場上有三隻屬性<strong>敵人</strong>。你消的每種顏色會攻擊其中一隻，並依<strong>屬性倍率</strong>計算（剋 <strong>×1.5</strong>／被剋 <strong>×0.5</strong>）；單色消 <strong>5 顆以上</strong>則<strong>三隻全打</strong>。',
+        rdSandHelp3Html: '打倒一隻，就有<strong>新敵人</strong>遞補。在 <strong>50 次轉珠</strong>內，拚最高<strong>總傷害</strong>與<strong>單次轉珠傷害</strong>。<kbd>P</kbd> 暫停 · <kbd>R</kbd> 重新開始 · <kbd>M</kbd> 靜音。',
     });
 
     // =================================================================

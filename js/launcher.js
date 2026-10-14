@@ -99,7 +99,7 @@
     // ---------------------------------------------------------------
     var STRINGS = {
         en: {
-            subtitle: 'One box, many little games. Filter by what you feel like playing.',
+            subtitle: 'A collection of small games. Filter by tag.',
             all: 'All',
             playable: 'Playable',
             noResults: 'No games match this tag yet.',
@@ -114,8 +114,8 @@
             tag_multi: 'Multiplayer',
 
             'rune-stones_name': 'Rune Stones',
-            'rune-stones_tagline': 'Raise shields, play cards, then spin to break through.',
-            'rune-stones_body': "Raise shields, play cards, then spin to break the rival\u2019s shields. Versus the computer or online.",
+            'rune-stones_tagline': 'Match runes to score, or duel to win.',
+            'rune-stones_body': 'Line up 3+ of a colour and chain combos. Pile on damage solo in Sandbag, or duel the computer or an online rival.',
             'colour-ladder_name': 'Colour Ladder',
             'colour-ladder_tagline': 'Move the rungs, route the balls.',
             'colour-ladder_body': 'Balls rain down a ladder of lanes. Move the coloured rungs to steer each one into its matching-colour basket.',
@@ -148,7 +148,7 @@
             'queens_body': 'Place N queens so that every row, column, colour region and 8-neighbourhood contains exactly one.',
         },
         zh: {
-            subtitle: '一個盒子，裝滿小遊戲。用標籤挑你現在想玩的。',
+            subtitle: '一個小遊戲合輯，依標籤篩選。',
             all: '全部',
             playable: '可玩',
             noResults: '目前沒有符合這個標籤的遊戲。',
@@ -163,8 +163,8 @@
             tag_multi: '多人',
 
             'rune-stones_name': '盧恩符石',
-            'rune-stones_tagline': '佈盾、出牌，再轉珠破盾。',
-            'rune-stones_body': '佈盾、出牌，再轉珠破解對手的盾。可對戰電腦或線上對戰。',
+            'rune-stones_tagline': '轉珠連消，衝傷害或對戰。',
+            'rune-stones_body': '連成同色 3 顆以上、串接連擊。單人沙包衝高傷害，或對戰電腦與線上玩家。',
             'colour-ladder_name': '彩球梯',
             'colour-ladder_tagline': '移動橫線，把球導到對的籃子。',
             'colour-ladder_body': '球沿著一排排直線往下掉。移動彩色的橋，把每顆球導進同色的籃子。',

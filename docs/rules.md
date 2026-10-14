@@ -188,19 +188,21 @@ All balance values live in `CONFIG` + `DIFFICULTIES` at the top of
 
 ---
 
-## Rune Clash
+## Rune Stones
 
-A two-phase orb-spinning **versus match** — a bounded clash, not an endless climb.
-You and the rival each hold an HP pool; it's a race to zero. Play **vs a
-real-spinning computer opponent** (Easy / Normal / Hard) or **online** against
-another person by room code. **Best** = the fewest rounds you've taken to beat the
-computer (per difficulty); online matches are honor-system and record nothing.
+An orb-spinning game with two modes that share one core — **drag a rune, line up
+3+ of a colour, chain combos**. **Sandbag** is a solo damage run: no cards, no
+defence, just score. **Versus** is a two-phase, HP-to-zero clash against a
+**real-spinning computer** (Easy / Normal / Hard) or **online** against another
+person by room code. Each mode keeps its own **bests, per difficulty**; online
+matches are honor-system and record nothing.
 
 ### Board & spinning
 
-- A **6×5** board, 6 elements (**fire · water · wood · light · dark · heart**).
-  Drag one rune; it swaps along its path (diagonals allowed). The **spin timer
-  starts on the first swap** and resolves on release or timeout.
+- A **6×5** board in Versus (**6×6** in Sandbag), 6 elements (**fire · water ·
+  wood · light · dark · heart**). Drag one rune; it swaps along its path
+  (diagonals allowed). The **spin timer starts on the first swap** and resolves
+  on release or timeout.
 - On resolve, every horizontal/vertical run of **3+** of a colour clears; groups
   cascade as runes fall and new ones drop in. The pre-fall groups are the **first
   wave**.
@@ -208,6 +210,29 @@ computer (per difficulty); online matches are honor-system and record nothing.
   dropped runes** includes one **enhanced** rune of that colour (bright rim).
   Cleared later it counts **×1.5** and satisfies "enhanced" shields.
 - **Heart** groups **heal** you instead of dealing damage.
+
+### Sandbag (solo)
+
+A no-frills damage run: **no cards, no defence, no HP bar of your own** — just
+spin and hit. The board is **6×6** with a fixed **7-second** spin window (neither
+scales with difficulty). You get **50 spins**; chase the highest **total** and
+**single-spin** damage.
+
+- **Three enemies** stand as targets, each a single element. Every colour you
+  clear strikes the matching enemy through an **elemental multiplier** — **×1.5**
+  where strong, **×0.5** where weak, ×1 otherwise. Clearing **5+** of a colour in
+  a wave makes that element **hit all three** at once.
+- **妖 (Spirit)** replaces **Heart** as a plain attack rune — there is no healing
+  here.
+- Enemies come in **HP tiers (100 / 200 / 400 / 800)**; tougher ones look a little
+  bigger. Drop one to **0** and a fresh enemy takes its place.
+- **Difficulty only widens the element pool**: Easy uses 5 elements, Normal adds
+  **妖**, Hard adds **妖 + 鋼** — more attributes on the board, more restraints in
+  play. **Hover / long-press** an enemy to read your multipliers against it.
+- **Best** = your highest total damage and best single spin, kept **per
+  difficulty**.
+
+The remaining sections describe **Versus**.
 
 ### A round — two phases
 

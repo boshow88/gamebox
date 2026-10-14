@@ -11,7 +11,7 @@ service cloud.firestore {
       allow delete: if false;
     }
 
-    // ---- Rune Clash rooms (room-code PvP; collection name kept as duel_rooms) ----
+    // ---- Rune Stones rooms (room-code PvP; collection name kept as duel_rooms) ----
     // Honor-system MVP: any signed-in (anonymous) player may read/write rooms.
     // This is enough for playing with friends via a shared room code. It does
     // NOT stop a determined cheater from reading an opponent's unrevealed data

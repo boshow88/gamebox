@@ -302,7 +302,7 @@
             + '<circle cx="9" cy="7" r="4"/>'
             + '<path d="M22 21v-2a4 4 0 0 0-3-3.87"/>'
             + '<path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
-        // a carved rune-stone (gem outline + a Fehu-like rune) for Rune Clash
+        // a carved rune-stone (gem outline + a Fehu-like rune) for Rune Stones
         runestone:
             '<path d="M6 3h12l4 6-10 13L2 9Z"/>'
             + '<path d="M10 6.5v9"/>'
@@ -417,11 +417,8 @@
             dotDodgeCardBody:
                 'Bullets pour in from every side. Fly your dot, weave through the gaps, and last as long as you can.',
 
-            // Rune Stones card (orb-spinning: solo Sandbag run or versus match)
+            // Rune Stones — in-game title only (the launcher owns the card copy)
             runeClashName: 'Rune Stones',
-            runeClashTagline: 'Raise shields, play cards, then spin to break through.',
-            runeClashCardBody:
-                'Raise shields, play cards, then spin to break the rival\u2019s shields. Versus the computer or online.',
 
         },
         zh: {
@@ -475,9 +472,6 @@
                 '子彈從四面八方湧入。在縫隙間穿梭閃避，盡量撐久一點。',
 
             runeClashName: '盧恩符石',
-            runeClashTagline: '佈盾、出牌，再轉珠破盾。',
-            runeClashCardBody:
-                '佈盾、出牌，再轉珠破解對手的盾。可對戰電腦或線上對戰。',
         },
     };
 

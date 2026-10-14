@@ -1,5 +1,5 @@
 /*
- * Firebase web config for online PvP (Rune Clash room matchmaking).
+ * Firebase web config for online PvP (Rune Stones room matchmaking).
  *
  * These values are PUBLIC by design — they ship to every browser. Security is
  * enforced by Firestore Security Rules + anonymous auth, NOT by hiding this key.
