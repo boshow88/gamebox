@@ -224,8 +224,10 @@ scales with difficulty). You get **30 spins**; chase the highest **total** and
   a wave makes that element **hit all three** at once.
 - **Spirit** replaces **Heart** as a plain attack rune — there is no healing
   here.
-- Enemies come in **HP tiers (100 / 200 / 400 / 800)**; tougher ones look a little
-  bigger. Drop one to **0** and a fresh enemy takes its place.
+- Enemy HP scales in **three 10-round stages** — **200–1600** (rounds 1-10),
+  **400–3200** (11-20), **800–6400** (21-30). Each spawn rolls a random tier within
+  the current stage, and tougher tiers look a little bigger. Drop one to **0** and a
+  fresh enemy takes its place.
 - **Difficulty only widens the element pool**: Easy uses 5 elements, Normal adds
   **Spirit**, Hard adds **Spirit + Steel** — more attributes on the board, more
   restraints in play. **Hover / long-press** an enemy to read your multipliers

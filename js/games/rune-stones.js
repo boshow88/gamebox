@@ -286,8 +286,13 @@
             normal: ['fire', 'water', 'wood', 'light', 'dark', 'yao'],
             hard:   ['fire', 'water', 'wood', 'light', 'dark', 'yao', 'steel'],
         },
-        hpTiers: [100, 200, 400, 800],
-        sizeByTier: [0.74, 0.81, 0.88, 0.94],   // tougher enemies (more HP) look a little bigger; all kept clear of the score row
+        stageRounds: 10,                // rounds per HP stage
+        hpTiersByStage: [               // enemy HP by 10-round stage; each spawn rolls a random tier within its stage
+            [200, 400, 800, 1600],      // rounds 1-10
+            [400, 800, 1600, 3200],     // rounds 11-20
+            [800, 1600, 3200, 6400],    // rounds 21-30
+        ],
+        sizeByTier: [0.74, 0.81, 0.88, 0.94],   // size per tier index 0-3 (tougher tiers read a touch bigger); all kept clear of the score row
         strikeGap: 0.26,                // delay between each element's strike in the attack anim
         hold: 0.9,                      // beat after all strikes before the next spin
     };
@@ -1622,13 +1627,18 @@
     // Sandbox ("Sandbag") mode — a no-brainer damage run: no cards, no defence, no HP bar.
     // Pure spinning against 3 elemental enemies for SAND.rounds spins; chase total + best hit.
     // =================================================================
-    function sandNewEnemy() {
+    function sandStage(round) {
+        const n = SAND.hpTiersByStage.length;
+        return Math.max(0, Math.min(n - 1, Math.floor(((round || 1) - 1) / SAND.stageRounds)));
+    }
+    function sandNewEnemy(round) {
         const els = sandElements();
         const el = els[AC.rng.int(G.rng, 0, els.length)];
-        const hp = SAND.hpTiers[AC.rng.int(G.rng, 0, SAND.hpTiers.length)];   // random tier
-        return { el, hp, maxHp: hp, flash: 0 };
+        const tiers = SAND.hpTiersByStage[sandStage(round || G.round)];
+        const ti = AC.rng.int(G.rng, 0, tiers.length);   // random tier within the current stage
+        return { el, hp: tiers[ti], maxHp: tiers[ti], tier: ti, flash: 0 };
     }
-    function spawnEnemies() { G.enemies = [sandNewEnemy(), sandNewEnemy(), sandNewEnemy()]; }
+    function spawnEnemies() { G.enemies = [sandNewEnemy(1), sandNewEnemy(1), sandNewEnemy(1)]; }
     function freshSandAbil() {
         return {
             atkMult: 1, dmgMult: {}, comboStepBonus: 0, firstWaveMult: 1, laterWaveMult: 1,
@@ -1738,7 +1748,7 @@
     function finalizeSandRound(spinTotal) {
         G.sandAtk = null;
         recordSandSpin(spinTotal);
-        for (let i = 0; i < G.enemies.length; i++) if (G.enemies[i].hp <= 0) G.enemies[i] = sandNewEnemy();   // refill to 3
+        for (let i = 0; i < G.enemies.length; i++) if (G.enemies[i].hp <= 0) G.enemies[i] = sandNewEnemy(G.round + 1);   // refill to 3 (next round's stage)
         if (G.round >= SAND.rounds) { sandboxOver(); return; }
         if (G.round % DRAFT.every === 0) { openSandDraft(); return; }   // draft phase handles the round bump when it closes
         advanceSandRound();
@@ -1874,8 +1884,8 @@
         const f = getFont();
         for (let i = 0; i < G.enemies.length; i++) {
             const e = G.enemies[i], slot = enemyRect(i), col = ELEMENT_COLORS[e.el] || '#888', dead = e.hp <= 0;
-            const ti = SAND.hpTiers.indexOf(e.maxHp);
-            const sc = (ti >= 0 && SAND.sizeByTier[ti] != null) ? SAND.sizeByTier[ti] : 1;
+            const ti = e.tier != null ? e.tier : 0;
+            const sc = (SAND.sizeByTier[ti] != null) ? SAND.sizeByTier[ti] : 1;
             const w = slot.w * sc, h = slot.h * sc;
             const R = { x: slot.x + (slot.w - w) / 2, y: slot.y + (slot.h - h), w, h };   // bottom-anchored so HP bars line up
             const cut = Math.min(14, Math.min(R.w, R.h) * 0.2);   // chamfered "carved stone" corners
