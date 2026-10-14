@@ -550,10 +550,10 @@
     //   • Easy / Medium are both PURE-PROPAGATION boards (no lookahead). They
     //     differ by PROPAGATION DEPTH — the number of "draw → update remaining →
     //     re-deduce" rounds the fixpoint needs. Depth 2 ≈ forced straight from the
-    //     opening (first-order "初階"); deeper boards need the iterated "中階"
+    //     opening (first-order, "beginner" tier); deeper boards need the iterated "intermediate"
     //     chain. Depth grows with board size, so the two are picked RELATIVELY
     //     (shallowest vs deepest in the same batch) to separate at every size.
-    //   • Hard genuinely needs "assume → contradiction" lookahead ("大師"); it is
+    //   • Hard genuinely needs "assume → contradiction" lookahead ("master" tier); it is
     //     capped so it never needs a brutal amount. Fewer cycle bridges ⇒ more
     //     lookahead boards (but lower uniqueness), so Hard runs a low cycleBias.
     const DIFFS = {

@@ -222,13 +222,14 @@ scales with difficulty). You get **50 spins**; chase the highest **total** and
   clear strikes the matching enemy through an **elemental multiplier** — **×1.5**
   where strong, **×0.5** where weak, ×1 otherwise. Clearing **5+** of a colour in
   a wave makes that element **hit all three** at once.
-- **妖 (Spirit)** replaces **Heart** as a plain attack rune — there is no healing
+- **Spirit** replaces **Heart** as a plain attack rune — there is no healing
   here.
 - Enemies come in **HP tiers (100 / 200 / 400 / 800)**; tougher ones look a little
   bigger. Drop one to **0** and a fresh enemy takes its place.
 - **Difficulty only widens the element pool**: Easy uses 5 elements, Normal adds
-  **妖**, Hard adds **妖 + 鋼** — more attributes on the board, more restraints in
-  play. **Hover / long-press** an enemy to read your multipliers against it.
+  **Spirit**, Hard adds **Spirit + Steel** — more attributes on the board, more
+  restraints in play. **Hover / long-press** an enemy to read your multipliers
+  against it.
 - **Best** = your highest total damage and best single spin, kept **per
   difficulty**.
 

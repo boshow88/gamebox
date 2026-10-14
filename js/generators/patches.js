@@ -1,7 +1,7 @@
 /**
  * Patches — puzzle generator + logic solver.
  *
- * Patches is a Shikaku (矩形分割) variant: partition an N×N grid into
+ * Patches is a Shikaku (rectangle-partition) variant: partition an N×N grid into
  * axis-aligned rectangles that tile it perfectly (no gaps, no overlaps).
  * Every rectangle contains exactly ONE clue cell, so most cells are blank.
  * A clue constrains the rectangle that owns its cell:

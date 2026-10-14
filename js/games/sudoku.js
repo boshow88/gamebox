@@ -1001,8 +1001,8 @@
         for (const [r, c] of s.cells) lit.add(r * N + c);
         for (const e of s.eliminations) lit.add(e.r * N + e.c);
         if (target) lit.add(targetKey);
-        // Naked single: light the row/col/box peers — they're the "根據其所屬
-        // 行、列、區域" that forces the single.
+        // Naked single: light the row/col/box peers — they're the
+        // "row/column/box it belongs to" that forces the single.
         if (target && s.technique === 'nakedSingle') {
             for (const [r, c] of peerCells(target.r, target.c)) lit.add(r * N + c);
         }

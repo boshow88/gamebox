@@ -162,7 +162,7 @@
     const ELEMENT_COLORS = {
         fire: '#c35540', water: '#4f7ba4', wood: '#5f8a52',
         light: '#c3a24a', dark: '#7b6a99', heart: '#c1738a',
-        yao: '#c1738a', steel: '#8b8f97',   // sandbox attack runes (妖 shares heart's colour, flower icon)
+        yao: '#c1738a', steel: '#8b8f97',   // sandbox attack runes (Spirit shares Heart's colour, flower icon)
     };
     const ICON_OPS = {
         water: [{ p: 'M7.001 15.085A1.5 1.5 0 0 1 9 16.5' }, { c: [18.5, 8.5, 3.5] }, { c: [7.5, 16.5, 5.5] }, { c: [7.5, 4.5, 2.5] }],
@@ -172,7 +172,7 @@
         dark:  [{ c: [12, 12, 10] }, { p: 'M12 2a7 7 0 1 0 10 10' }],
         heart: [{ p: 'M2 9.5a5.5 5.5 0 0 1 9.591-3.676.56.56 0 0 0 .818 0A5.49 5.49 0 0 1 22 9.5c0 2.29-1.5 4-3 5.5l-5.492 5.313a2 2 0 0 1-3 .019L5 15c-1.5-1.5-3-3.2-3-5.5' }],
         yao: [{ p: 'M12 7.5a4.5 4.5 0 1 1 4.5 4.5M12 7.5A4.5 4.5 0 1 0 7.5 12M12 7.5V9m-4.5 3a4.5 4.5 0 1 0 4.5 4.5M7.5 12H9m7.5 0a4.5 4.5 0 1 1-4.5 4.5m4.5-4.5H15m-3 4.5V15' }, { c: [12, 12, 3] }],   // lucide flower
-        steel: [{ p: 'M12 2 4 7v10l8 5 8-5V7z' }, { p: 'M12 7v10M8 9.5v5M16 9.5v5' }],   // faceted ingot (placeholder for 鋼)
+        steel: [{ p: 'M12 2 4 7v10l8 5 8-5V7z' }, { p: 'M12 7v10M8 9.5v5M16 9.5v5' }],   // faceted ingot (placeholder for Steel)
     };
     const ICON_PATHS = {};
     for (const _el in ICON_OPS) {
@@ -235,13 +235,13 @@
         takeoverSec: 6,                 // online: both attacked but host didn't tally → take over
     };
     // Sandbox ("Sandbag") mode: a no-brainer damage run — no cards, no defence, 3 elemental
-    // enemies you pound for a fixed number of spins. 妖 replaces 心 (attack, flower icon).
+    // enemies you pound for a fixed number of spins. Spirit replaces Heart (attack, flower icon).
     const SAND = {
         rounds: 50,
         rows: 6,                        // Sandbag board is always 6×6, regardless of difficulty
         spinTime: 7,                    // Sandbag spin window (seconds), regardless of difficulty
         // Attack-rune / enemy element pool, scaled by difficulty — the only thing difficulty
-        // changes here: Easy drops 妖 and 鋼, Normal drops 鋼, Hard has every attribute.
+        // changes here: Easy drops Spirit and Steel, Normal drops Steel, Hard has every attribute.
         elements: {
             easy:   ['fire', 'water', 'wood', 'light', 'dark'],
             normal: ['fire', 'water', 'wood', 'light', 'dark', 'yao'],
@@ -255,7 +255,7 @@
     // The active Sandbag element pool for the committed difficulty (G.aiLevel).
     function sandElements() { return SAND.elements[G.aiLevel] || SAND.elements.normal; }
     // Elemental multiplier grid: RESTRAINT[attacker][defender]. Not a simple triangle, so a
-    // grid is clearer to tune. (水>火>木>水, 光↔暗, 妖↔鋼; 妖/鋼 resist light/dark.)
+    // grid is clearer to tune. (Water>Fire>Wood>Water, Light<->Dark, Spirit/Steel; Spirit/Steel resist light/dark.)
     const RESTRAINT = {
         water: { water: 1.0, fire: 1.5, wood: 0.5, light: 1.0, dark: 1.0, yao: 1.0, steel: 1.0 },
         fire:  { water: 0.5, fire: 1.0, wood: 1.5, light: 1.0, dark: 1.0, yao: 1.0, steel: 1.0 },
@@ -1942,7 +1942,7 @@
             G.aiShields = (g.def[opp] || []).slice();
             const slows = (g.hasten && g.hasten[opp]) || 0;   // opponent's Shorten shrinks YOUR spin time (×0.7 each)
             startAttackPhase();
-            G.spinMultOpp = Math.pow(0.7, slows);   // shown as the rival's 時間↓ pill, no extra toast needed
+            G.spinMultOpp = Math.pow(0.7, slows);   // shown as the rival's time-down pill, no extra toast needed
             return;
         }
         // resolve: both attacks in — play it in two beats (heal, then the incoming hit) so the
@@ -2447,7 +2447,7 @@
     }
     function tileRect(b) { return b; }   // selection no longer pops the tile (it glows instead)
     function drawMoreRect() { return { x: 16, y: LAY.actY, w: 92, h: LAY.actH }; }
-    function doneButtonRect() { return { x: W - 16 - 128, y: LAY.actY, w: 128, h: LAY.actH }; }   // 進入攻擊 hugs the right edge
+    function doneButtonRect() { return { x: W - 16 - 128, y: LAY.actY, w: 128, h: LAY.actH }; }   // the "To attack" button hugs the right edge
     function playBtnRect() { return { x: W - 16 - 98 - 8 - 98, y: LAY.actY, w: 98, h: LAY.actH }; }
     function discardBtnRect() { return { x: W - 16 - 98, y: LAY.actY, w: 98, h: LAY.actH }; }
     function drawDrawButton() {

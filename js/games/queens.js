@@ -646,8 +646,8 @@
             return findWrongPlacements().length === 0;
         }
         // T2 completion is "place ♛ at target" — even though we also
-        // paint the group's other cells as stripes for the visual
-        // "其他所有格子都被排除了", the semantically-meaningful action
+            // paint the group's other cells as stripes for the visual
+            // "all other cells are eliminated", the semantically-meaningful action
         // is still the queen placement, so we don't clear the hint
         // just because the player rubber-stamped the strikes.
         if (h.tier === 'T2') {
@@ -928,7 +928,7 @@
         if (step.tier === 'T2') {
             // Only the placement cell stays bright — every other cell
             // in the row / column / region gets the stripe treatment
-            // so the banner's "其他所有格子都被排除了" reads visually.
+            // so the banner's "all other cells are eliminated" reads visually.
             const [tr, tc] = step.placedAt;
             const others = (step.groupCells || []).filter(
                 ([r, c]) => !(r === tr && c === tc),
@@ -1017,8 +1017,8 @@
                 textArgRaw: wrong.length,   // literal arg for i18n(count)
                 // Error highlighting is dim-based: the wrong cells stay
                 // bright while the rest of the board fades. No stripes
-                // — the banner explicitly says these cells are "醒目
-                // 標示 (highlighted)", so the spotlight IS the signal.
+                // — the banner explicitly says these cells are
+                // "highlighted", so the spotlight IS the signal.
                 targetCells: [],
                 contextCells: wrong,
                 violationCells: [],
@@ -1039,7 +1039,7 @@
                 textKey: 'queensHintT1',
                 // Highlight the dominating ♛ as the target so it gets the
                 // amber-fill + orange-outline treatment — the sentence
-                // "此♛把..." then visually points at exactly which queen
+                // "this ♛ covers…" then visually points at exactly which queen
                 // it means, even if the player has several on the board.
                 targetCells: [kills.queen],
                 contextCells: [],
