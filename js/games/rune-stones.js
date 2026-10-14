@@ -249,7 +249,7 @@
 
     const CONFIG = {
         orbRadius: 40, iconScale: 0.8, iconStroke: 0.12, iconTint: -0.15,
-        enhTint: 0.55,   // enhanced runes: brightened element colour for the rim + icon (vs the old near-white)
+        enhTint: 0.70,   // enhanced runes: brightened element colour for the rim + icon (vs the old near-white)
         popTime: 0.12, popGap: 0.12, fallAnim: 0.2, fallGap: 0.06,   // short anims + deliberate gaps between steps
         bigThreshold: 5, scoreCap: 999999,
     };
@@ -2378,7 +2378,7 @@
             const x = ox + cellCol(i) * cell, y = oy + cellRow(i) * cell;
             ctx.fillStyle = ELEMENT_COLORS[c.e] || '#666';
             roundRect(x + 1, y + 1, cell - 2, cell - 2, 3); ctx.fill();
-            if (c.h) { ctx.lineWidth = 1.5; ctx.strokeStyle = '#fff'; roundRect(x + 1, y + 1, cell - 2, cell - 2, 3); ctx.stroke(); }
+            if (c.h) { ctx.lineWidth = 1.5; ctx.strokeStyle = shade(ELEMENT_COLORS[c.e] || '#666', CONFIG.enhTint); roundRect(x + 1, y + 1, cell - 2, cell - 2, 3); ctx.stroke(); }   // enhanced edge = brightened element colour
         }
         ctx.restore();
     }
