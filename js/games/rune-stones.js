@@ -71,7 +71,7 @@
         rdModeDuel: 'Versus', rdModeSandbox: 'Sandbag',
         rdColBestRounds: 'Fewest', rdColBestSpin: 'Best hit', rdColDamage: 'Damage', rdColBestTotal: 'Best total',
         rdSandDone: 'Time!',
-        rdSandIntro: 'Spin for 50 rounds against 3 elemental enemies and chase the highest total (and single-spin) damage.',
+        rdSandIntro: 'Spin for 30 rounds against 3 elemental enemies and chase the highest total (and single-spin) damage.',
         rdSandStartHint: 'Drag a rune to spin · P pause',
         rdSandRunBest: 'Run best',
         rdSandVs: 'Your damage ×',
@@ -79,7 +79,7 @@
         rdSandHint: 'Press R or the button to go again.',
         rdSandHelp1Html: '<strong>Drag a rune</strong> to line up <strong>3+ of a colour</strong> and chain <strong>combos</strong> \u2014 the colours you clear are your <strong>damage</strong>.',
         rdSandHelp2Html: 'Three elemental <strong>enemies</strong> stand as targets. Each colour you clear hits one, scaled by its <strong>elemental multiplier</strong> (<strong>×1.5</strong> strong / <strong>×0.5</strong> weak); clear <strong>5+</strong> to hit <strong>all three</strong>.',
-        rdSandHelp3Html: 'Beat an enemy and a <strong>fresh</strong> one takes its place. Over <strong>50 spins</strong>, chase your best <strong>total</strong> and <strong>single-spin</strong> damage. <kbd>P</kbd> pause · <kbd>R</kbd> restart · <kbd>M</kbd> mute.',
+        rdSandHelp3Html: 'Beat an enemy and a <strong>fresh</strong> one takes its place. Over <strong>30 spins</strong>, chase your best <strong>total</strong> and <strong>single-spin</strong> damage. <kbd>P</kbd> pause · <kbd>R</kbd> restart · <kbd>M</kbd> mute.',
     });
     Object.assign(AC.i18n.STRINGS.zh, {
         rdRound: '回合', rdHp: '生命', rdReady: '準備開始', rdRival: '對手',
@@ -127,7 +127,7 @@
         rdModeDuel: '對戰', rdModeSandbox: '沙包',
         rdColBestRounds: '最短回合', rdColBestSpin: '最高單波', rdColDamage: '傷害', rdColBestTotal: '最高傷害',
         rdSandDone: '時間到！',
-        rdSandIntro: '對三隻屬性敵人連轉 50 回合，拚最高總傷害與單次轉珠傷害。',
+        rdSandIntro: '對三隻屬性敵人連轉 30 回合，拚最高總傷害與單次轉珠傷害。',
         rdSandStartHint: '拖動符石轉珠 · P 暫停',
         rdSandRunBest: '本場最高',
         rdSandVs: '你的攻擊倍率',
@@ -135,7 +135,7 @@
         rdSandHint: '按 R 或按鈕再打一輪。',
         rdSandHelp1Html: '<strong>拖動符石</strong>連成<strong>同色 3 顆以上</strong>消除、串接<strong>連擊</strong>——你消掉的顏色就是<strong>傷害</strong>。',
         rdSandHelp2Html: '場上有三隻屬性<strong>敵人</strong>。你消的每種顏色會攻擊其中一隻，並依<strong>屬性倍率</strong>計算（剋 <strong>×1.5</strong>／被剋 <strong>×0.5</strong>）；單色消 <strong>5 顆以上</strong>則<strong>三隻全打</strong>。',
-        rdSandHelp3Html: '打倒一隻，就有<strong>新敵人</strong>遞補。在 <strong>50 次轉珠</strong>內，拚最高<strong>總傷害</strong>與<strong>單次轉珠傷害</strong>。<kbd>P</kbd> 暫停 · <kbd>R</kbd> 重新開始 · <kbd>M</kbd> 靜音。',
+        rdSandHelp3Html: '打倒一隻，就有<strong>新敵人</strong>遞補。在 <strong>30 次轉珠</strong>內，拚最高<strong>總傷害</strong>與<strong>單次轉珠傷害</strong>。<kbd>P</kbd> 暫停 · <kbd>R</kbd> 重新開始 · <kbd>M</kbd> 靜音。',
     });
 
     // =================================================================
@@ -237,7 +237,7 @@
     // Sandbox ("Sandbag") mode: a no-brainer damage run — no cards, no defence, 3 elemental
     // enemies you pound for a fixed number of spins. Spirit replaces Heart (attack, flower icon).
     const SAND = {
-        rounds: 50,
+        rounds: 30,
         rows: 6,                        // Sandbag board is always 6×6, regardless of difficulty
         spinTime: 7,                    // Sandbag spin window (seconds), regardless of difficulty
         // Attack-rune / enemy element pool, scaled by difficulty — the only thing difficulty

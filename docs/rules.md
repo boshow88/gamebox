@@ -215,7 +215,7 @@ matches are honor-system and record nothing.
 
 A no-frills damage run: **no cards, no defence, no HP bar of your own** — just
 spin and hit. The board is **6×6** with a fixed **7-second** spin window (neither
-scales with difficulty). You get **50 spins**; chase the highest **total** and
+scales with difficulty). You get **30 spins**; chase the highest **total** and
 **single-spin** damage.
 
 - **Three enemies** stand as targets, each a single element. Every colour you
