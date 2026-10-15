@@ -420,6 +420,7 @@
         sandAbil: null,         // sandbox: accumulated draft powers (see freshSandAbil for the shape)
         sandOpenLeft: 0,        // sandbox: opening drafts still to offer before round 1
         sandPowers: false,      // sandbox: is the "your powers" panel open?
+        sandPowerSel: null,     // sandbox: index of the expanded Powers row (shows its description), or null
         aiBoard: null,          // vs-AI: the rival's own board (cells {el,enhanced})
         aiHand: [],             // vs-AI: the rival's own card hand (mixed, like yours — hidden from you)
         aiEnergy: 0,            // vs-AI: the rival's energy this phase
@@ -771,8 +772,13 @@
         }
         // Sandbag "your powers": the top-left button toggles it (works during the draft too)
         if (G.mode === 'sandbox' && (G.phase === 'sanddraft' || G.phase === 'attack' || G.phase === 'sandatk')) {
-            if (inRect(p, powersBtnRect())) { G.sandPowers = !G.sandPowers; markDirty(); if (e.cancelable) e.preventDefault(); return; }
-            if (G.sandPowers) { G.sandPowers = false; markDirty(); if (e.cancelable) e.preventDefault(); return; }   // any other tap closes it
+            if (inRect(p, powersBtnRect())) { G.sandPowers = !G.sandPowers; G.sandPowerSel = null; markDirty(); if (e.cancelable) e.preventDefault(); return; }
+            if (G.sandPowers) {
+                for (const r of sandPowerRows()) {   // tap a row to expand / collapse its description
+                    if (inRect(p, r)) { G.sandPowerSel = (G.sandPowerSel === r.i ? null : r.i); markDirty(); if (e.cancelable) e.preventDefault(); return; }
+                }
+                G.sandPowers = false; G.sandPowerSel = null; markDirty(); if (e.cancelable) e.preventDefault(); return;   // tap outside a row closes the panel
+            }
         }
         // Sandbag draft: tap one of the three offered cards (board is locked until you choose)
         if (G.mode === 'sandbox' && G.phase === 'sanddraft' && G.sandDraft) {
@@ -1692,6 +1698,7 @@
         G.sandTotal = 0; G.sandSpinRun = 0; G.sandAtk = null; G.sandInspect = null;
         G.sandDraft = null;
         G.sandPowers = false;
+        G.sandPowerSel = null;
         G.sandAbil = freshSandAbil();
         G.hand = []; G.energy = 0;
         G._rivalChips = []; G._rivalUsed = []; G._youChips = [];   // no duel chips in sandbox
@@ -2869,20 +2876,20 @@
             ctx.lineWidth = 2; ctx.strokeStyle = col; roundRect(r.x, r.y, r.w, r.h, 14); ctx.stroke();
             const known = !!(el && el !== 'any');   // this card already shows a concrete element
             // left badge: the card's own Lucide glyph, tinted by rarity
-            const bcx = r.x + 52, bcy = r.y + r.h / 2;
+            const bcx = r.x + 58, bcy = r.y + r.h / 2;
             ctx.fillStyle = 'rgba(255,255,255,0.07)'; ctx.beginPath(); ctx.arc(bcx, bcy, 30, 0, PI2); ctx.fill();
             drawUiIcon(def.icon, bcx, bcy, 34, col, 2.4);
             // name (with the element named for element-specific cards) + description
-            const tx = r.x + 96;
+            const tx = r.x + 102;
             ctx.textAlign = 'left'; ctx.fillStyle = '#fff'; ctx.font = `800 18px ${f}`; ctx.textBaseline = 'alphabetic';
             ctx.fillText((known ? t('el_' + el) + ' \u00b7 ' : '') + t(def.key + '_name'), tx, r.y + 42);
             ctx.fillStyle = 'rgba(255,255,255,0.72)'; ctx.font = `500 13px ${f}`;
             ctx.fillText(t(def.key + '_desc'), tx, r.y + 66);
             // right: the element's own rune icon (not the whole stone) for element-specific cards
-            if (known) drawRuneIcon(el, r.x + r.w - 42, bcy, 30, ELEMENT_COLORS[el] || '#fff', 2.4);
+            if (known) drawRuneIcon(el, r.x + r.w - 48, bcy, 30, ELEMENT_COLORS[el] || '#fff', 2.4);
             // "One-time" badge for once-per-run cards
             if (def.limit === 'once') {
-                const bw = 70, bh = 22, bx = r.x + r.w - bw - 16, by = r.y + 12;
+                const bw = 70, bh = 22, bx = r.x + r.w - bw - 20, by = r.y + 12;
                 ctx.fillStyle = 'rgba(245,166,35,0.22)'; roundRect(bx, by, bw, bh, 11); ctx.fill();
                 ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(245,166,35,0.85)'; roundRect(bx, by, bw, bh, 11); ctx.stroke();
                 ctx.fillStyle = '#f5c56b'; ctx.font = `700 12px ${f}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
@@ -2906,28 +2913,45 @@
         ctx.fillText(t('rdPowers') + ' ' + n, r.x + r.w / 2, r.y + r.h / 2 + 0.5);
         ctx.restore();
     }
+    // Powers panel layout: one row per pick (earliest -> latest); the selected row grows to show its desc.
+    function sandPowerRows() {
+        const owned = sandOwned(), n = owned.length;
+        if (!n) return [];
+        const x = 22, w = W - 44, top = BOARD_TOP + 48, gap = 7, expandExtra = 24;
+        const sel = (G.sandPowerSel != null && G.sandPowerSel < n) ? G.sandPowerSel : -1;
+        const baseH = Math.max(26, Math.min(42, (H - top - 16 - (sel >= 0 ? expandExtra : 0) - gap * (n - 1)) / n));
+        const rows = []; let y = top;
+        for (let i = 0; i < n; i++) {
+            const h = baseH + (i === sel ? expandExtra : 0);
+            rows.push({ i, pick: owned[i], x, y, w, h, expanded: i === sel });
+            y += h + gap;
+        }
+        return rows;
+    }
     function drawPowersPanel() {
-        const owned = sandOwned(), f = getFont();
+        const f = getFont(), rows = sandPowerRows();
         ctx.save();
         ctx.fillStyle = 'rgba(8,6,16,0.93)'; ctx.fillRect(0, BOARD_TOP - 4, W, H - (BOARD_TOP - 4));
         ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic'; ctx.font = `800 20px ${f}`;
         ctx.fillText(t('rdPowersTitle'), W / 2, BOARD_TOP + 32);
-        if (!owned.length) {
+        if (!rows.length) {
             ctx.fillStyle = 'rgba(255,255,255,0.6)'; ctx.font = `500 14px ${f}`;
             ctx.fillText(t('rdPowersNone'), W / 2, BOARD_TOP + 72);
             ctx.restore(); return;
         }
-        const x = 22, w = W - 44, top = BOARD_TOP + 48, gap = 7;
-        const rowH = Math.min(42, (H - top - 18 - gap * (owned.length - 1)) / owned.length);
-        for (let i = 0; i < owned.length; i++) {
-            const o = owned[i], def = DRAFT_CARDS[o.id], col = DRAFT_TIER[def.tier] || accent();
-            const y = top + i * (rowH + gap), cy = y + rowH / 2;
-            ctx.fillStyle = 'rgba(22,19,32,0.96)'; roundRect(x, y, w, rowH, 10); ctx.fill();
-            ctx.lineWidth = 1.5; ctx.strokeStyle = col; roundRect(x, y, w, rowH, 10); ctx.stroke();
-            drawUiIcon(def.icon, x + 26, cy, 24, col, 2.2);
+        for (const r of rows) {
+            const o = r.pick, def = DRAFT_CARDS[o.id], col = DRAFT_TIER[def.tier] || accent();
+            const ny = r.expanded ? r.y + 20 : r.y + r.h / 2;   // name hugs the top when the row is expanded
+            ctx.fillStyle = 'rgba(22,19,32,0.96)'; roundRect(r.x, r.y, r.w, r.h, 10); ctx.fill();
+            ctx.lineWidth = 1.5; ctx.strokeStyle = col; roundRect(r.x, r.y, r.w, r.h, 10); ctx.stroke();
+            drawUiIcon(def.icon, r.x + 26, ny, 24, col, 2.2);
             ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#fff'; ctx.font = `700 15px ${f}`;
-            ctx.fillText((o.el ? t('el_' + o.el) + ' \u00b7 ' : '') + t(def.key + '_name'), x + 50, cy);
-            if (o.el) drawRuneIcon(o.el, x + w - 24, cy, 22, ELEMENT_COLORS[o.el] || '#fff', 2.2);
+            ctx.fillText((o.el ? t('el_' + o.el) + ' \u00b7 ' : '') + t(def.key + '_name'), r.x + 50, ny);
+            if (o.el) drawRuneIcon(o.el, r.x + r.w - 24, ny, 22, ELEMENT_COLORS[o.el] || '#fff', 2.2);
+            if (r.expanded) {
+                ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic'; ctx.fillStyle = 'rgba(255,255,255,0.72)'; ctx.font = `500 13px ${f}`;
+                ctx.fillText(t(def.key + '_desc'), r.x + 50, r.y + r.h - 12);
+            }
         }
         ctx.restore();
     }
