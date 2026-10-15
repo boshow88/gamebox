@@ -824,6 +824,16 @@
             else if (p === BACK) dom[c] = BB;
             else if (p === MARK) dom[c] &= EB;
         }
+        // Virtual ✗: a room that already holds a mirror (given OR placed) has all
+        // its OTHER cells empty — treat them as ruled out so hints never nag you to
+        // ✗ what's auto-excluded, and so given-mirror rooms (whose cells are locked)
+        // can't stall the hint. Mirrors with still-unknown slant (SB|BB) don't count.
+        for (let rid = 0; rid < puzzle.roomCount; rid++) {
+            let mcell = -1;
+            for (const c of puzzle.cellsOf[rid]) if (popc(dom[c]) === 1 && dom[c] !== EB) { mcell = c; break; }
+            if (mcell < 0) continue;
+            for (const c of puzzle.cellsOf[rid]) if (c !== mcell) dom[c] &= EB;
+        }
         return { dom, wrong };
     }
 

@@ -331,6 +331,14 @@
         for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) {
             if (satCnt[P.room[r * N + c]] === 1) s += '<rect class="beam-room-sat" x="' + gx(c) + '" y="' + gy(r) + '" width="' + cs + '" height="' + cs + '"/>';
         }
+        // "taken" shade: a room with a mirror (given/player) rules out its OTHER
+        // cells — shade them a touch more so it reads as occupied (and they're
+        // auto-excluded by the hint, so you never need to ✗ them yourself).
+        for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) {
+            const i = r * N + c;
+            if (satCnt[P.room[i]] >= 1 && !(S.givenAt.has(i) || S.player[i] === SLASH || S.player[i] === BACK))
+                s += '<rect class="beam-taken" x="' + gx(c) + '" y="' + gy(r) + '" width="' + cs + '" height="' + cs + '"/>';
+        }
         // conflict tint: a room holding >1 mirror (revealed after a short delay)
         if (S.viol.shown.size) for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) {
             const i = r * N + c;
