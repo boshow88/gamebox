@@ -456,6 +456,7 @@
         resolve: null,
         floats: [],
         projectiles: [],        // attack dots in flight (both modes): { x,y,x0,y0,x1,y1,el,color,t,dur,onHit }
+        particles: [],          // clear-burst sparks (both modes): cosmetic, uses Math.random not G.rng
         shake: 0,
     };
 
@@ -1008,10 +1009,10 @@
         if (G.resolve.popIndex >= G.resolve.pending.length) { applyGravity(G.resolve.enhNext); G.resolve.enhNext = []; G.resolve.stage = 'fall'; G.resolve.t = 0; return; }
         const g = G.resolve.pending[G.resolve.popIndex++];
         g.wave = G.resolve.wave;
+        const big = g.cells.length >= CONFIG.bigThreshold;   // 5+ clear: forge an enhanced rune + fiercer sound/animation (both modes)
         let enh = 0;
-        for (const idx of g.cells) { const o = board[idx]; if (o.enhanced) enh++; o.scale = 1; G.clearing.push(o); board[idx] = null; }
+        for (const idx of g.cells) { const o = board[idx]; if (o.enhanced) enh++; o.scale = 1; G.clearing.push(o); spawnClearBurst(o.x, o.y, g.el, big); board[idx] = null; }
         g.enhanced = enh;
-        const big = g.cells.length >= CONFIG.bigThreshold;   // 5+ clear: forge an enhanced rune + fiercer sound (both modes)
         if (big) G.resolve.enhNext.push(g.el);   // forge an enhanced of this colour in the next drop
         G.resolve.combos.push(g);
         G.resolve.stage = 'pop'; G.resolve.t = 0;
@@ -1600,6 +1601,49 @@
         }
         if (G.projectiles.length) markDirty();
     }
+    // --- clear burst: a small "magic pop" of sparks at each cleared rune (both modes) ---
+    // Cosmetic only (uses Math.random, never G.rng), so it can't shift gameplay determinism, and
+    // it lives outside the resolve state machine, so it never changes the clear rhythm. A 5+ clear
+    // adds a quick expanding ring so the special clear reads differently from a plain one.
+    function spawnClearBurst(x, y, el, big) {
+        const col = shade(ELEMENT_COLORS[el] || '#ccc', 0.4);
+        const n = big ? 11 : 6;
+        for (let i = 0; i < n; i++) {
+            const ang = Math.random() * PI2, sp = (big ? 80 : 55) * (0.5 + Math.random());
+            G.particles.push({
+                x, y, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp, t: 0,
+                life: (big ? 0.42 : 0.32) * (0.8 + Math.random() * 0.4),
+                r: (big ? 3 : 2.2) * (0.7 + Math.random() * 0.6), color: col, glow: big ? 10 : 6,
+            });
+        }
+        if (big) G.particles.push({ ring: true, x, y, t: 0, life: 0.34, r0: CONFIG.orbRadius * 0.3, r1: CONFIG.orbRadius * 1.15, color: shade(ELEMENT_COLORS[el] || '#ccc', 0.55), glow: 12 });
+    }
+    function tickParticles(dt) {
+        for (let i = G.particles.length - 1; i >= 0; i--) {
+            const p = G.particles[i];
+            p.t += dt;
+            if (!p.ring) { p.x += p.vx * dt; p.y += p.vy * dt; const f = Math.max(0, 1 - 2.6 * dt); p.vx *= f; p.vy *= f; }
+            if (p.t >= p.life) G.particles.splice(i, 1);
+        }
+        if (G.particles.length) markDirty();
+    }
+    function drawParticles() {
+        if (!G.particles.length) return;
+        ctx.save();
+        for (const p of G.particles) {
+            const k = p.t / p.life, a = Math.max(0, 1 - k);
+            if (p.ring) {
+                ctx.globalAlpha = a * 0.6; ctx.strokeStyle = p.color; ctx.lineWidth = 2;
+                ctx.shadowColor = p.color; ctx.shadowBlur = p.glow;
+                ctx.beginPath(); ctx.arc(p.x, p.y, p.r0 + (p.r1 - p.r0) * k, 0, PI2); ctx.stroke();
+            } else {
+                const tw = 0.7 + 0.3 * Math.sin(p.t * 40 + p.x);   // subtle magic twinkle
+                ctx.globalAlpha = a * tw; ctx.fillStyle = p.color; ctx.shadowColor = p.color; ctx.shadowBlur = p.glow;
+                ctx.beginPath(); ctx.arc(p.x, p.y, Math.max(0.5, p.r * (1 - k * 0.5)), 0, PI2); ctx.fill();
+            }
+        }
+        ctx.restore();
+    }
     function drawProjectiles() {
         for (const p of G.projectiles) {
             ctx.save();
@@ -1641,6 +1685,7 @@
             atkMult: 1, dmgMult: {}, comboStepBonus: 0, firstWaveMult: 1, laterWaveMult: 1,
             spinBonusSec: 0, extraTargets: {}, aoe4All: false, quickMatchEl: null, dropWeightEl: null,
             freeArrange: false, once: {}, takenEl: {},
+            picks: [],   // every pick in acquisition order ({id, el}); the Powers panel lists these as-is (no merging)
         };
     }
     function resetSandbox() {
@@ -1831,6 +1876,7 @@
         }
         if (def.limit === 'once') ab.once[id] = true;
         else if (def.limit === 'perElement') (ab.takenEl[id] = ab.takenEl[id] || []).push(el);
+        ab.picks.push({ id, el: el || null });   // record acquisition order for the Powers panel
     }
     function sandboxOver() {
         recordSandTotal(G.sandTotal);
@@ -2257,6 +2303,7 @@
         }
         if (G.online && G.online.strike) tickStrike(dt);   // online: the delayed "incoming hit" beat
         tickProjectiles(dt);                               // attack dots in flight (both modes)
+        tickParticles(dt);                                 // clear-burst sparks (both modes)
         if (G.mode === 'sandbox') {
             if (G.phase === 'attack') {
                 if ((G.held && G.held.moved) || G.spinOpen) { G.spinTimer -= dt; if (G.spinTimer <= 0) startResolve(); }   // sd_free keeps the clock running while spinOpen
@@ -2304,7 +2351,7 @@
     // =================================================================
 
     function animating() {
-        if (G.held || G.resolving || G.spinOpen || G.shake > 0 || G.floats.length || G.projectiles.length) return true;
+        if (G.held || G.resolving || G.spinOpen || G.shake > 0 || G.floats.length || G.projectiles.length || G.particles.length) return true;
         for (let i = 0; i < COLS * ROWS; i++) {
             const o = board[i];
             if (!o) continue;
@@ -2494,6 +2541,7 @@
             drawStone(o.el, o.x, o.y, CONFIG.orbRadius * (o.scale == null ? 1 : o.scale), o.shape, false, o.enhanced);
         }
         for (const o of G.clearing) drawStone(o.el, o.x, o.y, CONFIG.orbRadius * o.scale, o.shape, false, o.enhanced);
+        drawParticles();   // magic clear-burst sparks over the board (both modes)
     }
     function drawBar(x, y, w, h, ratio, color, label) {
         ctx.save();
@@ -2845,23 +2893,8 @@
     }
     // --- "Your powers" view (what the player currently owns) ---
     // One entry per active ability; stackables carry n = how many times taken (not the raw multiplier).
-    function sandOwned() {
-        const ab = G.sandAbil; if (!ab) return [];
-        const out = [];
-        const cnt = (v, per) => Math.max(1, Math.round(v / (per || 1)));
-        if (ab.atkMult > 1) out.push({ id: 'sd_atk', n: cnt(ab.atkMult - 1, DRAFT.atkPerStack) });
-        for (const el of Object.keys(ab.dmgMult)) if (ab.dmgMult[el]) out.push({ id: 'sd_dmg', el, n: cnt(ab.dmgMult[el], DRAFT.dmgPerStack) });
-        for (const el of Object.keys(ab.extraTargets)) if (ab.extraTargets[el]) out.push({ id: 'sd_allaoe', el, n: ab.extraTargets[el] });
-        if (ab.comboStepBonus) out.push({ id: 'sd_combo', n: cnt(ab.comboStepBonus, DRAFT.comboStepPerStack) });
-        if (ab.spinBonusSec) out.push({ id: 'sd_time', n: cnt(ab.spinBonusSec, DRAFT.spinBonusSec) });
-        if (ab.firstWaveMult > 1) out.push({ id: 'sd_first', n: cnt(ab.firstWaveMult - 1, DRAFT.firstWavePerStack) });
-        if (ab.laterWaveMult > 1) out.push({ id: 'sd_later', n: cnt(ab.laterWaveMult - 1, DRAFT.laterWavePerStack) });
-        if (ab.aoe4All) out.push({ id: 'sd_aoe4' });
-        if (ab.dropWeightEl) out.push({ id: 'sd_focus', el: ab.dropWeightEl });
-        if (ab.quickMatchEl) out.push({ id: 'sd_quick', el: ab.quickMatchEl });
-        if (ab.freeArrange) out.push({ id: 'sd_free' });
-        return out;
-    }
+    // Every pick in acquisition order, one entry each (stacks are NOT merged).
+    function sandOwned() { const ab = G.sandAbil; return (ab && ab.picks) ? ab.picks : []; }
     function powersBtnRect() { return { x: 10, y: 6, w: 60, h: 26 }; }
     function drawPowersButton() {
         const r = powersBtnRect(), f = getFont(), n = sandOwned().length;
@@ -2895,7 +2928,6 @@
             ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#fff'; ctx.font = `700 15px ${f}`;
             ctx.fillText((o.el ? t('el_' + o.el) + ' \u00b7 ' : '') + t(def.key + '_name'), x + 50, cy);
             if (o.el) drawRuneIcon(o.el, x + w - 24, cy, 22, ELEMENT_COLORS[o.el] || '#fff', 2.2);
-            if (o.n && o.n > 1) { ctx.textAlign = 'right'; ctx.fillStyle = col; ctx.font = `800 15px ${f}`; ctx.textBaseline = 'middle'; ctx.fillText('\u00d7' + o.n, x + w - (o.el ? 46 : 14), cy); }
         }
         ctx.restore();
     }
@@ -3101,6 +3133,7 @@
         G.clearing = [];
         G.floats = [];
         G.projectiles = [];
+        G.particles = [];
         G.shake = 0;
         G.youShields = [];
         G.spinMultSelf = 1;
