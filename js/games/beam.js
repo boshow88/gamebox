@@ -296,13 +296,18 @@
     function clickCell(c) {
         const P = S.puzzle; if (!P) return;
         clearHint();
-        if (S.givenRoom.has(P.room[c])) { if (PC.toast) PC.toast.show(t('beamRoomGiven')); return; }
+        if (S.givenAt.has(c)) { if (PC.toast) PC.toast.show(t('beamRoomGiven')); return; }  // the given mirror itself is fixed
         S.history.push();
         const cur = S.player[c];
-        // cycle (✗ first): empty → ✗ → / → \ → empty. We do NOT auto-clear the
-        // room's other mirror — a brief second mirror is allowed and only gets
-        // flagged as a conflict if it lingers (see refreshViolOnEdit).
-        S.player[c] = cur === EMPTY ? XMARK : cur === XMARK ? SLASH : cur === SLASH ? BACK : EMPTY;
+        if (S.givenRoom.has(P.room[c])) {
+            // this room's mirror is already given → no mirror here, only empty ⇄ ✗
+            S.player[c] = cur === XMARK ? EMPTY : XMARK;
+        } else {
+            // full cycle (✗ first): empty → ✗ → / → \ → empty. We do NOT auto-clear
+            // the room's other mirror — a brief second mirror is allowed and only
+            // gets flagged as a conflict if it lingers (see refreshViolOnEdit).
+            S.player[c] = cur === EMPTY ? XMARK : cur === XMARK ? SLASH : cur === SLASH ? BACK : EMPTY;
+        }
         refreshViolOnEdit();
         render();
     }
@@ -439,7 +444,7 @@
         }
         // transparent hit cells on top
         for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) {
-            const locked = S.givenRoom.has(P.room[r * N + c]);
+            const locked = S.givenAt.has(r * N + c);   // only the given mirror itself is fixed; its roommates can still be ✗'d
             s += '<rect class="beam-cell' + (locked ? ' locked' : '') + '" data-cell="' + (r * N + c) + '" x="' + gx(c) + '" y="' + gy(r) + '" width="' + cs + '" height="' + cs + '"/>';
         }
         board().innerHTML = s;
