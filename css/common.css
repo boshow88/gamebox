@@ -165,6 +165,9 @@ button { font-family: inherit; cursor: pointer; }
             color-mix(in srgb, var(--accent-primary) 12%, transparent), transparent 55%),
         var(--bg-primary);
     background-attachment: fixed;
+    /* Kill iOS Safari double-tap-to-zoom while keeping pinch-zoom (drag stages
+       override with touch-action: none). Mirrors the puzzle-theme body rule. */
+    touch-action: manipulation;
 }
 
 [data-theme="arcade"] .toast {
