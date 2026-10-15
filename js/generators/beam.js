@@ -34,6 +34,7 @@
     // cheap rules + bounded assume→contradiction only — so every shipped board,
     // and every hint, is justifiable by steps the player can verify. See setUseR7.
     let useR7 = false;   // default OFF: explainable-only (cheap rules + bounded assume→contradiction)
+    const CHAIN_CAP = 5; // an assume→contradiction may force at most this many steps, so every hint chain stays short enough to write out and follow.
 
     // '/' reflects R<->U, L<->D ; '\' reflects R<->D, L<->U ; empty = straight.
     function reflect(dir, m) {
@@ -660,6 +661,69 @@
         return true;
     }
 
+    // Traced closure for the assume→contradiction WALKTHROUGH: the SAME cheap rules
+    // as propagate(), but it records each newly-forced cell in order
+    // ({cell, kind:'empty'|'slash'|'back'|'mir'}) and, on contradiction, the broken
+    // rule. Mutates dom. Returns { ok, trace, bad }.
+    function propagateTraced(puzzle, dom) {
+        const { N, cellsOf, opens } = puzzle;
+        const trace = [], seen = new Map();
+        let bad = null;
+        const rec = (c) => {
+            const m = dom[c], pc = popc(m);
+            const kind = pc === 1 ? (m === EB ? 'empty' : m === SB ? 'slash' : 'back') : (!(m & EB) ? 'mir' : null);
+            if (kind && seen.get(c) !== kind) { seen.set(c, kind); trace.push({ cell: c, kind }); }
+        };
+        const shrink = (c, mask) => {
+            const nm = dom[c] & mask;
+            if (nm === dom[c]) return false;
+            dom[c] = nm;
+            if (nm === 0) { if (!bad) bad = { kind: 'cellEmpty', cells: [c] }; return true; }
+            rec(c); return true;
+        };
+        let changed = true, rounds = 0;
+        while (changed && rounds++ < N * N * 8 && !bad) {
+            changed = false;
+            for (const cells of cellsOf) {                       // R2 (roommates empty) + R3 (last cell = mirror)
+                let mcell = -1;
+                for (const c of cells) if ((dom[c] & EB) === 0) { mcell = c; break; }
+                if (mcell >= 0) for (const c of cells) if (c !== mcell && (dom[c] & (SB | BB))) { if (shrink(c, EB)) changed = true; if (bad) return { ok: false, trace, bad }; }
+                let det = false; const cand = [];
+                for (const c of cells) { if ((dom[c] & EB) === 0) det = true; if (dom[c] & (SB | BB)) cand.push(c); }
+                if (cand.length === 0) { bad = { kind: 'roomEmpty', cells: cells.slice() }; return { ok: false, trace, bad }; }
+                if (!det && cand.length === 1) { if (shrink(cand[0], SB | BB)) changed = true; if (bad) return { ok: false, trace, bad }; }
+            }
+            for (let li = 0; li < puzzle.lasers.length; li++) {   // corner / straight / coupling / forced-reflection (via laserForce) + R5/R6a
+                const L = puzzle.lasers[li], snap = dom.slice();
+                const lf = laserForce(puzzle, dom, L);
+                if (lf === 'contra') { bad = diagnoseContradiction(puzzle, dom); return { ok: false, trace, bad }; }
+                if (lf === 'changed') { changed = true; for (let c = 0; c < dom.length; c++) if (dom[c] !== snap[c]) { if (dom[c] === 0) { bad = { kind: 'cellEmpty', cells: [c] }; return { ok: false, trace, bad }; } rec(c); } }
+                for (const pr of [[L.a, L.b], [L.b, L.a]]) {
+                    const t = traceStops(puzzle, dom, opens[pr[0]]), endOpen = opens[pr[1]];
+                    if (t.kind === 'loop') { bad = { kind: 'laserLoop', laser: li }; return { ok: false, trace, bad }; }
+                    if (t.kind === 'exit') {
+                        if (!sameOpening(t.exit, endOpen)) { bad = { kind: 'laserExit', laser: li }; return { ok: false, trace, bad }; }
+                        if (L.count != null && t.refl !== L.count) { bad = { kind: 'laserCount', laser: li }; return { ok: false, trace, bad }; }
+                    } else if (L.count != null) {
+                        if (t.refl > L.count) { bad = { kind: 'laserCount', laser: li }; return { ok: false, trace, bad }; }
+                        if (t.refl === L.count) { if (shrink(t.r * N + t.c, EB)) changed = true; if (bad) return { ok: false, trace, bad }; }
+                    }
+                }
+            }
+        }
+        return { ok: !bad, trace, bad };
+    }
+
+    // Assume cell=bit, run the traced closure; if it contradicts within `cap` forced
+    // steps return { bad, chain } (the walkthrough), else null. Shared by the
+    // generator (ship only short-chain hard boards) and the hint.
+    function refuteChain(puzzle, dom, cell, bit, cap) {
+        const d = dom.slice(); d[cell] = bit;
+        const res = propagateTraced(puzzle, d);
+        if (!res.ok && res.trace.length <= cap) return { bad: res.bad || { kind: 'generic' }, chain: res.trace };
+        return null;
+    }
+
     function contentsOf(mask) { const a = []; if (mask & EB) a.push(EMPTY); if (mask & SB) a.push(SLASH); if (mask & BB) a.push(BACK); return a; }
 
     // R7 — per-laser path enumeration. Enumerate ALL completions of this laser's
@@ -757,16 +821,20 @@
         let tier = 0, budget = puzzle.N * puzzle.N * 60;
         while (!allDet(dom)) {
             let progress = false;
-            for (let depth = 1; depth <= maxDepth && !progress; depth++) {
+            // Only HARD (maxDepth >= 1) may use a SINGLE assume→contradiction, and
+            // only if the contradiction is reached within CHAIN_CAP forced steps — so
+            // every shipped board has a short, writable walkthrough. Easy/medium
+            // (maxDepth 0) must solve by pure forced moves (no assumption).
+            if (maxDepth >= 1) {
                 for (let c = 0; c < dom.length && !progress; c++) {
                     if (popc(dom[c]) <= 1) continue;
                     const viable = [];
-                    for (const v of bitsOf(dom[c])) { const d2 = dom.slice(); d2[c] = v; if (!refute(puzzle, d2, depth - 1)) viable.push(v); }
+                    for (const v of bitsOf(dom[c])) { if (!refuteChain(puzzle, dom, c, v, CHAIN_CAP)) viable.push(v); }
                     if (viable.length === 0) return { solved: false, dom };
                     if (viable.length < popc(dom[c])) {
                         dom[c] = viable.reduce((a, b) => a | b, 0);
                         if (!propagateFull(puzzle, dom)) return { solved: false, dom };
-                        tier = Math.max(tier, depth); progress = true;
+                        tier = 1; progress = true;
                     }
                 }
             }
@@ -1046,14 +1114,12 @@
             const step = firstActionable(puzzle, seed, dom, player);
             if (step) return step;
             let narrowed = false;
-            for (let depth = 1; depth <= maxDepth && !narrowed; depth++) {
-                for (let c = 0; c < dom.length && !narrowed; c++) {
-                    if (popc(dom[c]) <= 1) continue;
-                    const viable = [];
-                    for (const v of bitsOf(dom[c])) { const d2 = dom.slice(); d2[c] = v; if (!refute(puzzle, d2, depth - 1)) viable.push(v); }
-                    if (viable.length === 0) return null;                         // contradiction (shouldn't happen on a correct board)
-                    if (viable.length < popc(dom[c])) { dom[c] = viable.reduce((a, b) => a | b, 0); if (!propagateFull(puzzle, dom)) return null; narrowed = true; }
-                }
+            if (maxDepth >= 1) for (let c = 0; c < dom.length && !narrowed; c++) {   // single capped assume (hard only)
+                if (popc(dom[c]) <= 1) continue;
+                const viable = [];
+                for (const v of bitsOf(dom[c])) { if (!refuteChain(puzzle, dom, c, v, CHAIN_CAP)) viable.push(v); }
+                if (viable.length === 0) return null;                             // contradiction (shouldn't happen on a correct board)
+                if (viable.length < popc(dom[c])) { dom[c] = viable.reduce((a, b) => a | b, 0); if (!propagateFull(puzzle, dom)) return null; narrowed = true; }
             }
             if (!narrowed) return null;   // genuinely stuck beyond this difficulty's search depth
         }
@@ -1117,34 +1183,33 @@
         return { kind: 'generic' };
     }
 
-    // A single assume→contradiction step (depth-bounded): a cell whose one value
-    // collapses under the cheap rules, leaving exactly one legal value. For a
-    // 1-level assume we also diagnose WHICH rule broke, for the walkthrough text.
+    // A single assume→contradiction step (HARD only): a cell whose one value
+    // collapses under the cheap rules within CHAIN_CAP forced steps, leaving exactly
+    // one legal value. Returns the ORDERED chain + the broken rule for the
+    // walkthrough. Picks the SHORTEST chain so it's easiest to follow.
     function scanAssumeStep(puzzle, seed, player, maxDepth) {
+        if (maxDepth < 1) return null;                       // easy/medium: no assumptions
         const w = seed.slice(); if (!propagate(puzzle, w)) return null;
-        for (let depth = 1; depth <= maxDepth; depth++) {
-            for (let c = 0; c < w.length; c++) {
-                if (popc(w[c]) <= 1) continue;
-                const viable = []; let refuted = -1;
-                for (const v of bitsOf(w[c])) {
-                    const d = w.slice(); d[c] = v;
-                    if (refute(puzzle, d, depth - 1)) { if (refuted < 0) refuted = v; }
-                    else viable.push(v);
-                }
-                if (refuted < 0 || viable.length !== 1) continue;
-                const content = bitContent(viable[0]);
-                if (content !== EMPTY && player[c] !== EMPTY) continue;
-                if (content === EMPTY && !(canMirror(w, c) && player[c] === EMPTY)) continue;
-                let bad = null;
-                if (depth === 1) { const d = w.slice(); d[c] = refuted; propagate(puzzle, d); bad = diagnoseContradiction(puzzle, d); }
-                return { kind: 'assume', cell: c, hypo: refuted, content, bad, depth };
+        let best = null;
+        for (let c = 0; c < w.length; c++) {
+            if (popc(w[c]) <= 1) continue;
+            const viable = []; let refuted = -1, info = null;
+            for (const v of bitsOf(w[c])) {
+                const r = refuteChain(puzzle, w, c, v, CHAIN_CAP);
+                if (r) { if (refuted < 0) { refuted = v; info = r; } } else viable.push(v);
             }
+            if (refuted < 0 || viable.length !== 1) continue;
+            const content = bitContent(viable[0]);
+            if (content !== EMPTY && player[c] !== EMPTY) continue;
+            if (content === EMPTY && !(canMirror(w, c) && player[c] === EMPTY)) continue;
+            if (!best || info.chain.length < best.chain.length)
+                best = { kind: 'assume', cell: c, hypo: refuted, content, bad: info.bad, chain: info.chain };
         }
-        return null;
+        return best;
     }
 
     function hint(puzzle, player, maxDepth) {
-        maxDepth = maxDepth || 1;
+        maxDepth = (maxDepth == null) ? 1 : maxDepth;   // keep 0 (easy/medium = no assumption)
         const { dom, wrong } = seedPlayer(puzzle, player);
         if (wrong.length) return { kind: 'wrong', cells: wrong };
         const givenRooms = new Set((puzzle.givens || []).map((g) => puzzle.room[g.cell]));

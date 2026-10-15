@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Beam (WIP) · Puzzle Games</title>
+    <title>Beam · Puzzle Games</title>
     <link rel="icon" type="image/svg+xml" href="../favicon.svg">
     <link rel="stylesheet" href="../css/common.css">
     <link rel="stylesheet" href="../css/puzzle.css">
@@ -28,6 +28,11 @@
         .beam-x { stroke-linecap: round; pointer-events: none; }
         .beam-x.player { stroke: #aab4c2; stroke-width: 2.25; }   /* subtle: lighter + thinner */
         .beam-x.hint   { stroke: #ca8a04; stroke-width: 3.5; opacity: 0.85; }
+        .beam-mirror.hint.bad { stroke: #dc2626; }   /* the refuted trial in an assume walkthrough */
+        .beam-x.hint.bad { stroke: #dc2626; }
+        .beam-mir-mark { fill: none; stroke: #ca8a04; stroke-width: 2.5; opacity: 0.85; pointer-events: none; }  /* a mirror whose slant is still TBD */
+        .beam-mir-mark.bad { stroke: #dc2626; }
+        .beam-step-num { fill: #b45309; font-weight: 800; font-family: var(--font-body); paint-order: stroke; stroke: #fff; stroke-width: 2.5px; }
         .beam-violation { fill: rgba(220,38,38,0.14); pointer-events: none; }
         .beam-hint-target { fill: #ffd54f; opacity: 0.45; pointer-events: none; }
         .beam-hint-bad { fill: #ffcdd2; opacity: 0.75; pointer-events: none; }

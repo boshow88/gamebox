@@ -124,7 +124,9 @@
             },
             assume: (h) => {
                 const hypo = h.hypo === EB ? 'empty (' + ICO_X + ')' : h.hypo === SB ? 'a ' + ICO_SLASH : 'a ' + ICO_BACK;
-                return 'Suppose this cell were ' + hypo + ': following the forced moves, ' + badWhyEN(h.bad) + ' — so it must be ' + glyph(h.content) + '.';
+                const n = (h.chain && h.chain.length) || 0;
+                const mid = n ? 'follow the ' + n + ' numbered step' + (n > 1 ? 's' : '') + ' and ' + badWhyEN(h.bad) : badWhyEN(h.bad) + ' right away';
+                return 'Suppose the dashed cell were ' + hypo + ': ' + mid + ' — so it must be ' + glyph(h.content) + '.';
             },
         },
         zh: {
@@ -152,7 +154,9 @@
             },
             assume: (h) => {
                 const hypo = h.hypo === EB ? '空的（' + ICO_X + '）' : h.hypo === SB ? ICO_SLASH : ICO_BACK;
-                return '假設這一格是 ' + hypo + '：順著被強制的後續推下去，' + badWhyZH(h.bad) + '，所以它必須是 ' + glyph(h.content) + '。';
+                const n = (h.chain && h.chain.length) || 0;
+                const mid = n ? ('順著盤面上 ' + n + ' 個編號步驟推下去，' + badWhyZH(h.bad)) : ('就會立刻' + badWhyZH(h.bad));
+                return '假設虛線這格是 ' + hypo + '：' + mid + '，所以它必須是 ' + glyph(h.content) + '。';
             },
         },
     };
@@ -169,9 +173,9 @@
     // more deduction; strip = fewer reflection numbers; depth = assume→contra.
     const SIZES = [6, 7, 8, 9];
     const DIFF = {
-        easy:   { room: (N) => Math.round(N * 1.2), strip: false, depth: 1 },  // ≤1 assume, all numbers (fewer givens than pure-forced)
-        medium: { room: (N) => Math.round(N * 1.2), strip: true,  depth: 1 },  // ≤1 assume, numbers stripped
-        hard:   { room: (N) => Math.round(N * 1.2), strip: true,  depth: 2 },  // ≤2 assume, numbers stripped
+        easy:   { room: (N) => Math.round(N * 1.2), strip: false, depth: 0 },  // pure forced, all numbers
+        medium: { room: (N) => Math.round(N * 1.2), strip: true,  depth: 0 },  // pure forced, numbers stripped
+        hard:   { room: (N) => Math.round(N * 1.2), strip: true,  depth: 1 },  // + ONE assume→contradiction (chain ≤ 5 steps)
     };
     const VALID_DIFF = { easy: 1, medium: 1, hard: 1 };
 
@@ -354,7 +358,7 @@
         const H = S.hint;
         const hintCells = !H ? []
             : (H.kind === 'wrong' || H.kind === 'exclude') ? (H.cells || [])
-            : (H.kind === 'place' || H.kind === 'assume') ? [H.cell] : [];
+            : (H.kind === 'place') ? [H.cell] : [];   // assume uses a dashed outline + red trial ghost instead of a tint
         for (const hc of hintCells) {
             const hr = (hc / N) | 0, hcc = hc % N;
             s += '<rect class="' + (H.kind === 'wrong' ? 'beam-hint-bad' : 'beam-hint-target') + '" x="' + gx(hcc) + '" y="' + gy(hr) + '" width="' + cs + '" height="' + cs + '"/>';
@@ -395,11 +399,20 @@
             if (S.player[i] === SLASH || S.player[i] === BACK) s += drawMirror('player' + (S.viol.shown.has(P.room[i]) ? ' bad' : ''), i, S.player[i]);
             else if (S.player[i] === XMARK) s += drawX('player', i);
         }
-        // hint ghost: the forced mirror / ✗ the hint suggests
+        // hint ghost: the forced mirror / ✗ the hint suggests (+ assume walkthrough)
         if (H) {
+            const kindGhost = (cell, kind, cls) => kind === 'empty' ? drawX(cls, cell)
+                : kind === 'slash' ? drawMirror(cls, cell, SLASH)
+                : kind === 'back' ? drawMirror(cls, cell, BACK)
+                : '<circle class="beam-mir-mark ' + cls + '" cx="' + cx(cell % N) + '" cy="' + cy((cell / N) | 0) + '" r="' + (cs * 0.16) + '"/>';
+            const numBadge = (cell, n) => '<text class="beam-step-num" x="' + (gx(cell % N) + cs * 0.24) + '" y="' + (gy((cell / N) | 0) + cs * 0.26) + '" text-anchor="middle" dominant-baseline="middle" font-size="' + Math.max(9, Math.round(cs * 0.3)) + '">' + n + '</text>';
             if (H.kind === 'place') s += drawMirror('hint', H.cell, H.content);
-            else if (H.kind === 'assume') s += (H.content === EMPTY ? drawX('hint', H.cell) : drawMirror('hint', H.cell, H.content));
             else if (H.kind === 'exclude') for (const hc of H.cells) s += drawX('hint', hc);
+            else if (H.kind === 'assume') {
+                const hypoKind = H.hypo === EB ? 'empty' : H.hypo === SB ? 'slash' : 'back';
+                s += kindGhost(H.cell, hypoKind, 'hint bad');                       // the refuted trial (dashed cell)
+                (H.chain || []).forEach((st, k) => { s += kindGhost(st.cell, st.kind, 'hint'); s += numBadge(st.cell, k + 1); });
+            }
         }
         // opening labels
         P.opens.forEach((o) => {
@@ -420,6 +433,10 @@
             };
             if (H.kind === 'exclude' && H.reason === 'roomSat' && H.anchor != null) {
                 const ar = (H.anchor / N) | 0, ac = H.anchor % N;
+                s += '<rect class="beam-hint-anchor" x="' + (gx(ac) + 2) + '" y="' + (gy(ar) + 2) + '" width="' + (cs - 4) + '" height="' + (cs - 4) + '"/>';
+            }
+            if (H.kind === 'assume') {   // dashed outline around the cell being tried (the refuted assumption)
+                const ar = (H.cell / N) | 0, ac = H.cell % N;
                 s += '<rect class="beam-hint-anchor" x="' + (gx(ac) + 2) + '" y="' + (gy(ar) + 2) + '" width="' + (cs - 4) + '" height="' + (cs - 4) + '"/>';
             }
             const li = (H.laser != null && H.laser >= 0) ? H.laser : -1;
