@@ -73,6 +73,31 @@
         return h.reason === 'single' ? '這個房間只有一格，鏡子就在這一格。'
             : h.reason === 'lastCell' ? '這個房間其他格都已標 ' + ICO_X + '，鏡子只能放在這一格。' : '';
     }
+    // WHY an assumption fails, in words (for the assume→contradiction walkthrough).
+    function badWhyEN(b) {
+        b = b || { kind: 'generic' };
+        switch (b.kind) {
+            case 'roomEmpty': return 'a room would be left with no mirror';
+            case 'roomTwo': return 'a room would end up with two mirrors';
+            case 'cellEmpty': return 'a cell would have no options left';
+            case 'laserExit': return 'laser ' + bq(letterOf(b.laser)) + ' would leave at the wrong opening';
+            case 'laserCount': return 'laser ' + bq(letterOf(b.laser)) + ' would reflect the wrong number of times';
+            case 'laserLoop': return 'laser ' + bq(letterOf(b.laser)) + ' would loop and never exit';
+            default: return 'the forced moves run into a dead end';
+        }
+    }
+    function badWhyZH(b) {
+        b = b || { kind: 'generic' };
+        switch (b.kind) {
+            case 'roomEmpty': return '某個房間會變成沒有鏡子';
+            case 'roomTwo': return '某個房間會變成有兩面鏡子';
+            case 'cellEmpty': return '某一格會變成沒有任何可能';
+            case 'laserExit': return '雷射 ' + bq(letterOf(b.laser)) + ' 會從錯誤的開口射出';
+            case 'laserCount': return '雷射 ' + bq(letterOf(b.laser)) + ' 的折射次數會不對';
+            case 'laserLoop': return '雷射 ' + bq(letterOf(b.laser)) + ' 會陷入迴圈出不來';
+            default: return '後續的強制推理會走進死路';
+        }
+    }
     const HINT = {
         en: {
             wrong: () => 'Highlighted cell(s) clash with the unique solution — remove a wrong mirror, or clear an ' + ICO_X + ' where a mirror belongs.',
@@ -99,7 +124,7 @@
             },
             assume: (h) => {
                 const hypo = h.hypo === EB ? 'empty (' + ICO_X + ')' : h.hypo === SB ? 'a ' + ICO_SLASH : 'a ' + ICO_BACK;
-                return 'Suppose this cell were ' + hypo + ': following the forced moves hits a dead end (a laser can’t reach its pair). So it must be ' + glyph(h.content) + '.';
+                return 'Suppose this cell were ' + hypo + ': following the forced moves, ' + badWhyEN(h.bad) + ' — so it must be ' + glyph(h.content) + '.';
             },
         },
         zh: {
@@ -127,7 +152,7 @@
             },
             assume: (h) => {
                 const hypo = h.hypo === EB ? '空的（' + ICO_X + '）' : h.hypo === SB ? ICO_SLASH : ICO_BACK;
-                return '假設這一格是 ' + hypo + '：順著被強制的後續推下去會走進死路（某道雷射無法抵達配對）。所以它必須是 ' + glyph(h.content) + '。';
+                return '假設這一格是 ' + hypo + '：順著被強制的後續推下去，' + badWhyZH(h.bad) + '，所以它必須是 ' + glyph(h.content) + '。';
             },
         },
     };
@@ -321,6 +346,11 @@
             const hr = (hc / N) | 0, hcc = hc % N;
             s += '<rect class="' + (H.kind === 'wrong' ? 'beam-hint-bad' : 'beam-hint-target') + '" x="' + gx(hcc) + '" y="' + gy(hr) + '" width="' + cs + '" height="' + cs + '"/>';
         }
+        // assume→contradiction: mark WHERE the rule would break (red)
+        if (H && H.kind === 'assume' && H.bad && H.bad.cells) for (const bc of H.bad.cells) {
+            const br = (bc / N) | 0, bcc = bc % N;
+            s += '<rect class="beam-hint-bad" x="' + gx(bcc) + '" y="' + gy(br) + '" width="' + cs + '" height="' + cs + '"/>';
+        }
         // bold room borders + outer frame
         const bl = (x1, y1, x2, y2) => '<line class="beam-room" x1="' + x1 + '" y1="' + y1 + '" x2="' + x2 + '" y2="' + y2 + '"/>';
         s += bl(0, 0, size, 0) + bl(0, size, size, size) + bl(0, 0, 0, size) + bl(size, 0, size, size);
@@ -370,17 +400,17 @@
         });
         // hint anchors: outline the room's existing mirror and/or ring the laser's openings
         if (H) {
+            const openHi = (oidx, filled) => {
+                const o = P.opens[oidx]; let lx = cx(o.c), ly = cy(o.r);
+                if (o.side === U) ly = -28; else if (o.side === D) ly = size + 28; else if (o.side === L) lx = -28; else lx = size + 28;
+                return '<circle class="beam-hint-open' + (filled ? ' start' : '') + '" cx="' + lx + '" cy="' + ly + '" r="' + Math.min(cs * 0.44, 24) + '"/>';
+            };
             if (H.kind === 'exclude' && H.reason === 'roomSat' && H.anchor != null) {
                 const ar = (H.anchor / N) | 0, ac = H.anchor % N;
                 s += '<rect class="beam-hint-anchor" x="' + (gx(ac) + 2) + '" y="' + (gy(ar) + 2) + '" width="' + (cs - 4) + '" height="' + (cs - 4) + '"/>';
             }
             const li = (H.laser != null && H.laser >= 0) ? H.laser : -1;
             if (li >= 0) {
-                const openHi = (oidx, filled) => {
-                    const o = P.opens[oidx]; let lx = cx(o.c), ly = cy(o.r);
-                    if (o.side === U) ly = -28; else if (o.side === D) ly = size + 28; else if (o.side === L) lx = -28; else lx = size + 28;
-                    return '<circle class="beam-hint-open' + (filled ? ' start' : '') + '" cx="' + lx + '" cy="' + ly + '" r="' + Math.min(cs * 0.44, 24) + '"/>';
-                };
                 const from = (H.from != null && H.from >= 0) ? H.from : -1;
                 // beam path we traced (from the SOLID-ring end) through to the hinted cell
                 if (H.path && H.path.length && from >= 0) {
@@ -393,6 +423,10 @@
                     s += '<polyline class="beam-hint-ray" points="' + pts.join(' ') + '" fill="none"/>';
                 }
                 s += openHi(P.lasers[li].a, from === P.lasers[li].a) + openHi(P.lasers[li].b, from === P.lasers[li].b);
+            }
+            // assume→contradiction: ring the laser that would break
+            if (H.kind === 'assume' && H.bad && H.bad.laser != null && H.bad.laser >= 0) {
+                s += openHi(P.lasers[H.bad.laser].a, false) + openHi(P.lasers[H.bad.laser].b, false);
             }
         }
         // transparent hit cells on top

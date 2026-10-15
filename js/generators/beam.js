@@ -1050,21 +1050,113 @@
         return null;
     }
 
+    // First PLACEMENT the cheap rules fix (w = propagate closure) that the player
+    // hasn't placed. Prefers a fully board-verifiable slant (rigorous) unless
+    // `anyRigor`. `makePlace` carries the technique explanation (corner / laser).
+    function firstPlacement(puzzle, w, seed, player, anyRigor) {
+        let fallback = null;
+        for (let c = 0; c < w.length; c++) {
+            if (popc(w[c]) !== 1 || popc(seed[c]) <= 1) continue;
+            const content = bitContent(w[c]);
+            if (content === EMPTY || player[c] !== EMPTY) continue;
+            const cells = puzzle.cellsOf[puzzle.room[c]];
+            let reason = 'forced';
+            if (cells.length === 1) reason = 'single';
+            else { let cand = 0; for (const j of cells) if (canMirror(seed, j)) cand++; if (cand === 1) reason = 'lastCell'; }
+            const place = makePlace(puzzle, c, content, reason, player);
+            if (place.rigorous) return place;
+            if (anyRigor && !fallback) fallback = place;
+        }
+        return fallback;
+    }
+    // First EXCLUSION the cheap rules fix that the player hasn't ruled out yet
+    // (generic fallback after the attributed room/laser exclusions).
+    function firstExclusion(puzzle, w, seed, player) {
+        for (let c = 0; c < w.length; c++) {
+            if (popc(w[c]) !== 1 || popc(seed[c]) <= 1) continue;
+            if (bitContent(w[c]) !== EMPTY) continue;
+            if (canMirror(seed, c) && player[c] === EMPTY) return { kind: 'exclude', reason: 'chain', cells: [c] };
+        }
+        return null;
+    }
+
+    // What rule a contradicted board breaks, so an assume→contradiction hint can
+    // say WHY (checkable, no solution needed). Scans the broken domain `d`.
+    function diagnoseContradiction(puzzle, d) {
+        const N = puzzle.N;
+        for (let c = 0; c < d.length; c++) if (d[c] === 0) return { kind: 'cellEmpty', cells: [c] };
+        for (let rid = 0; rid < puzzle.roomCount; rid++) {
+            const cs = puzzle.cellsOf[rid];
+            let cand = 0, mir = 0; const mcells = [];
+            for (const c of cs) { if (d[c] & (SB | BB)) cand++; if (isKnownMirror(d, c)) { mir++; mcells.push(c); } }
+            if (cand === 0) return { kind: 'roomEmpty', cells: cs.slice() };
+            if (mir >= 2) return { kind: 'roomTwo', cells: mcells };
+        }
+        for (let li = 0; li < puzzle.lasers.length; li++) {
+            const L = puzzle.lasers[li];
+            for (const end of [L.a, L.b]) {
+                const t = traceStops(puzzle, d, puzzle.opens[end]);
+                const other = puzzle.opens[end === L.a ? L.b : L.a];
+                if (t.kind === 'loop') return { kind: 'laserLoop', laser: li };
+                if (t.kind === 'exit') {
+                    if (!(t.exit.r === other.r && t.exit.c === other.c && t.exit.side === other.side)) return { kind: 'laserExit', laser: li };
+                    if (L.count != null && t.refl !== L.count) return { kind: 'laserCount', laser: li };
+                } else if (L.count != null && t.refl > L.count) return { kind: 'laserCount', laser: li };
+            }
+        }
+        return { kind: 'generic' };
+    }
+
+    // A single assume→contradiction step (depth-bounded): a cell whose one value
+    // collapses under the cheap rules, leaving exactly one legal value. For a
+    // 1-level assume we also diagnose WHICH rule broke, for the walkthrough text.
+    function scanAssumeStep(puzzle, seed, player, maxDepth) {
+        const w = seed.slice(); if (!propagate(puzzle, w)) return null;
+        for (let depth = 1; depth <= maxDepth; depth++) {
+            for (let c = 0; c < w.length; c++) {
+                if (popc(w[c]) <= 1) continue;
+                const viable = []; let refuted = -1;
+                for (const v of bitsOf(w[c])) {
+                    const d = w.slice(); d[c] = v;
+                    if (refute(puzzle, d, depth - 1)) { if (refuted < 0) refuted = v; }
+                    else viable.push(v);
+                }
+                if (refuted < 0 || viable.length !== 1) continue;
+                const content = bitContent(viable[0]);
+                if (content !== EMPTY && player[c] !== EMPTY) continue;
+                if (content === EMPTY && !(canMirror(w, c) && player[c] === EMPTY)) continue;
+                let bad = null;
+                if (depth === 1) { const d = w.slice(); d[c] = refuted; propagate(puzzle, d); bad = diagnoseContradiction(puzzle, d); }
+                return { kind: 'assume', cell: c, hypo: refuted, content, bad, depth };
+            }
+        }
+        return null;
+    }
+
     function hint(puzzle, player, maxDepth) {
         maxDepth = maxDepth || 1;
         const { dom, wrong } = seedPlayer(puzzle, player);
         if (wrong.length) return { kind: 'wrong', cells: wrong };
         const givenRooms = new Set((puzzle.givens || []).map((g) => puzzle.room[g.cell]));
-        // Tiers 1-4 read the player's own marks verbatim (fully re-derivable).
-        const simple = scanRoomSat(puzzle, dom, player, givenRooms)
-            || scanZeroLine(puzzle, dom, player)
-            || scanCountFull(puzzle, dom, player)
-            || scanLastCell(puzzle, dom, player);
-        if (simple) return simple;
-        // Look-ahead tiers mirror deduceSolve: fold in the 0-count straight lines
-        // first, then trace a laser / propagate / assume→contradiction.
+        // Cheap-rule closure (corner / count-coupling / room / forced-reflection —
+        // all eye-checkable). Priority: PLACEMENTS you can verify now, then
+        // attributed EXCLUSIONS, then placements that still need a look-ahead.
+        const w = dom.slice();
+        if (propagate(puzzle, w)) {
+            const p1 = firstPlacement(puzzle, w, dom, player, false);           // rigorous placements first
+            if (p1) return p1;
+            const excl = scanRoomSat(puzzle, dom, player, givenRooms)
+                || scanZeroLine(puzzle, dom, player)
+                || scanCountFull(puzzle, dom, player)
+                || firstExclusion(puzzle, w, dom, player);
+            if (excl) return excl;
+            const p2 = firstPlacement(puzzle, w, dom, player, true);            // then look-ahead placements
+            if (p2) return p2;
+        }
+        // Deepest tier: depth-bounded assume→contradiction (walkthrough), then the
+        // generic cascade as a guaranteed-progress fallback.
         const look = dom.slice(); applyZeroLines(puzzle, look);
-        return scanLaser(puzzle, look, player)
+        return scanAssumeStep(puzzle, look, player, maxDepth)
             || scanDeep(puzzle, look, player, maxDepth)
             || { kind: 'none' };
     }
