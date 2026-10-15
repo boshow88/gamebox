@@ -15,7 +15,7 @@
     const U = BM.U, D = BM.D, L = BM.L, R = BM.R;
     const EB = 1, SB = 2, BB = 4;          // domain bits (used only to narrate 'assume' hints)
     const OPP = [BM.D, BM.U, BM.R, BM.L];  // inward dir per opening side (U,D,L,R)
-    const t = (k) => (PC.i18n ? PC.i18n.t(k) : k);
+    const t = (k, ...a) => (PC.i18n ? PC.i18n.t(k, ...a) : k);
 
     // Register this game's strings at load time (before the DOM-ready translate),
     // so the whole page localises like the other games. All keys are 'beam…',
@@ -27,9 +27,9 @@
             beamLasers: 'Lasers', beamRooms: 'rooms',
             beamGenFail: 'Could not generate — try again.',
             beamRoomGiven: 'This room\u2019s mirror is given.',
-            beamHelp1Html: 'Bold lines split the grid into <strong>rooms</strong>; each holds <strong>exactly one</strong> mirror (/ or \\).',
+            beamHelp1Html: 'Bold lines split the grid into <strong>rooms</strong>; each holds <strong>exactly one</strong> mirror (<span class="inline-icon beam-ico-slash" data-icon="slash"></span> or <span class="inline-icon beam-ico-back" data-icon="slash"></span>).',
             beamHelp2Html: 'A laser enters at a letter, reflects 90° off mirrors, and must leave at the <strong>same letter</strong>. A number is how many times that beam reflects.',
-            beamHelp3Html: 'Click a cell to cycle <strong>empty → / → \\ → ✗ → empty</strong>. Use <strong>✗</strong> to mark a cell you\u2019ve ruled out. Placing a mirror clears your other mirror in that room; blue mirrors are given.',
+            beamHelp3Html: 'Click a cell to cycle <strong>empty → <span class="inline-icon beam-ico-x" data-icon="x"></span> → <span class="inline-icon beam-ico-slash" data-icon="slash"></span> → <span class="inline-icon beam-ico-back" data-icon="slash"></span> → empty</strong>. The <span class="inline-icon beam-ico-x" data-icon="x"></span> marks a cell you\u2019ve ruled out. A room must hold exactly one mirror — a second is allowed briefly, but is flagged as a conflict if it lingers. Blue mirrors are given.',
             beamHelp4Html: 'Beams may cross on empty cells. Solve when every laser reaches its pair with the right reflection count.',
         });
         Object.assign(PC.i18n.STRINGS.zh, {
@@ -37,9 +37,9 @@
             beamLasers: '雷射', beamRooms: '房間',
             beamGenFail: '產生失敗，請再試一次。',
             beamRoomGiven: '這個房間的鏡子是題目給定的。',
-            beamHelp1Html: '粗線把盤面分成數個<strong>房間</strong>，每個房間<strong>恰好一面</strong>鏡子（/ 或 \\）。',
+            beamHelp1Html: '粗線把盤面分成數個<strong>房間</strong>，每個房間<strong>恰好一面</strong>鏡子（<span class="inline-icon beam-ico-slash" data-icon="slash"></span> 或 <span class="inline-icon beam-ico-back" data-icon="slash"></span>）。',
             beamHelp2Html: '雷射從字母射入、碰鏡子轉 90°，必須從<strong>相同字母</strong>射出；字母旁的數字＝該道光的折射次數。',
-            beamHelp3Html: '點格子循環 <strong>空 → / → \\ → ✗ → 空</strong>。用 <strong>✗</strong> 標記你已排除的格子；放新鏡子會清掉你在同房放的舊鏡子，藍色是題目給定的鏡子。',
+            beamHelp3Html: '點格子循環 <strong>空 → <span class="inline-icon beam-ico-x" data-icon="x"></span> → <span class="inline-icon beam-ico-slash" data-icon="slash"></span> → <span class="inline-icon beam-ico-back" data-icon="slash"></span> → 空</strong>。<span class="inline-icon beam-ico-x" data-icon="x"></span> 用來標記你已排除的格子。每個房間只能有一面鏡子——同房放第二面會暫時允許，但若持續一段時間會被標示為衝突。藍色是題目給定的鏡子。',
             beamHelp4Html: '光可在空格交叉。當每道雷射都連到它的配對、且折射次數正確時即過關。',
         });
     })();
@@ -48,8 +48,13 @@
     // lives here as a locale pack rather than in the flat STRINGS table. Each
     // entry returns an HTML string; the UI picks the pack by PC.i18n.locale.
     const AR = { [U]: '\u2191', [D]: '\u2193', [L]: '\u2190', [R]: '\u2192' };  // ↑ ↓ ← →
-    const glyph = (content) => content === SLASH ? '/' : content === BACK ? '\\' : '\u2717';
-    const other = (content) => content === SLASH ? '\\' : '/';
+    // Mirrors / ✗ as Lucide icons (slash + a horizontally-flipped slash + x) so
+    // the wording matches the board. renderIcons() fills these after innerHTML.
+    const ICO_SLASH = '<span class="inline-icon beam-ico-slash" data-icon="slash"></span>';
+    const ICO_BACK = '<span class="inline-icon beam-ico-back" data-icon="slash"></span>';
+    const ICO_X = '<span class="inline-icon beam-ico-x" data-icon="x"></span>';
+    const glyph = (content) => content === SLASH ? ICO_SLASH : content === BACK ? ICO_BACK : ICO_X;
+    const other = (content) => content === SLASH ? ICO_BACK : ICO_SLASH;
     const letterOf = (li) => String.fromCharCode(65 + (li % 26));
     const bq = (s) => '<strong>' + s + '</strong>';
     const SIDEW = { en: { [U]: 'top', [D]: 'bottom', [L]: 'left', [R]: 'right' }, zh: { [U]: '上', [D]: '下', [L]: '左', [R]: '右' } };
@@ -62,61 +67,67 @@
     }
     function cellPartEN(h) {
         return h.reason === 'single' ? 'This room is a single cell, so its mirror sits here. '
-            : h.reason === 'lastCell' ? 'Every other cell in this room is ✗, so the mirror belongs here. ' : '';
+            : h.reason === 'lastCell' ? 'Every other cell in this room is ' + ICO_X + ', so the mirror belongs here. ' : '';
     }
     function cellPartZH(h) {
         return h.reason === 'single' ? '這個房間只有一格，鏡子就在這一格。'
-            : h.reason === 'lastCell' ? '這個房間其他格都已標 ✗，鏡子只能放在這一格。' : '';
+            : h.reason === 'lastCell' ? '這個房間其他格都已標 ' + ICO_X + '，鏡子只能放在這一格。' : '';
     }
     const HINT = {
         en: {
-            wrong: () => 'Highlighted cell(s) clash with the unique solution — remove a wrong mirror, or clear an ✗ where a mirror belongs.',
+            wrong: () => 'Highlighted cell(s) clash with the unique solution — remove a wrong mirror, or clear an ' + ICO_X + ' where a mirror belongs.',
             none: () => 'No further forced step from here right now.',
-            roomSat: (h) => 'This room already holds its one mirror, so its other ' + (h.cells.length > 1 ? h.cells.length + ' cells' : 'cell') + ' must be empty — mark ✗.',
-            zeroLine: (h) => 'Laser ' + fromDesc('en', h) + ' reflects 0 times, so it runs dead straight along the highlighted line — every cell on it is empty (✗).',
-            countFull: (h) => 'Laser ' + fromDesc('en', h) + ' must reflect exactly ' + h.count + (h.count === 1 ? ' time' : ' times') + '; following the highlighted path it already has by this cell, so it can’t turn here — mark ✗.',
-            laserEmpty: (h) => 'Tracing laser ' + bq(letterOf(h.laser)) + ', no mirror here lets it reach its pair — this cell is empty (✗).',
-            chainX: () => 'Combining the rules so far, this cell can’t hold a mirror — mark ✗.',
+            roomSat: (h) => 'This room already holds its one mirror, so its other ' + (h.cells.length > 1 ? h.cells.length + ' cells' : 'cell') + ' must be empty — mark ' + ICO_X + '.',
+            zeroLine: (h) => 'Laser ' + fromDesc('en', h) + ' reflects 0 times, so it runs dead straight along the highlighted line — every cell on it is empty (' + ICO_X + ').',
+            countFull: (h) => 'Laser ' + fromDesc('en', h) + ' must reflect exactly ' + h.count + (h.count === 1 ? ' time' : ' times') + '; following the highlighted path it already has by this cell, so it can’t turn here — mark ' + ICO_X + '.',
+            laserEmpty: (h) => 'Tracing laser ' + bq(letterOf(h.laser)) + ', no mirror here lets it reach its pair — this cell is empty (' + ICO_X + ').',
+            chainX: () => 'Combining the rules so far, this cell can’t hold a mirror — mark ' + ICO_X + '.',
             place: (h) => {
-                const g = bq(glyph(h.content)), w = bq(other(h.content)), part = cellPartEN(h), L = fromDesc('en', h), a = h.alt || { kind: 'lookahead' };
+                const g = glyph(h.content), w = other(h.content), part = cellPartEN(h), L = fromDesc('en', h), letter = bq(letterOf(h.laser)), a = h.alt || { kind: 'lookahead' };
                 if (h.inDir >= 0 && a.kind === 'corner')
-                    return part + 'Laser ' + L + ' reflects just once, so it goes straight in, turns here, then straight out to its pair. It comes in ' + AR[h.inDir]
-                        + ' and the pair lies ' + AR[h.outDir] + '; a ' + w + ' would instead shoot it ' + AR[a.exitSide] + ' off the ' + SIDEW.en[a.exitSide] + ' edge (no pair there), so place ' + g + '.';
+                    return part + 'Laser ' + L + ' reflects just once: straight in, one turn here, straight out to its ' + letter + '. It arrives going ' + AR[h.inDir]
+                        + ' and the pair lies ' + AR[h.outDir] + ' — a ' + w + ' would turn it ' + AR[a.leave] + ' off the ' + SIDEW.en[a.exitSide] + ' edge (no ' + letter + ' there), so place ' + g + '.';
                 if (h.inDir >= 0 && a.kind === 'wrongExit')
-                    return part + 'Laser ' + L + ' comes in ' + AR[h.inDir] + '. Following the mirrors already placed, a ' + w + ' would send it ' + AR[a.exitSide] + ' straight off the ' + SIDEW.en[a.exitSide] + ' edge — not back to its pair. So place ' + g + '.';
+                    return part + 'Follow laser ' + L + ' to this cell — it arrives going ' + AR[h.inDir] + '. A ' + g + ' turns it ' + AR[h.outDir] + ' on toward its ' + letter
+                        + '; a ' + w + ' turns it ' + AR[a.leave] + ' and it runs out off the ' + SIDEW.en[a.exitSide] + ' edge, never reaching the other ' + letter + '. So place ' + g + '.';
                 if (h.inDir >= 0 && a.kind === 'overCount')
-                    return part + 'Laser ' + L + ' comes in ' + AR[h.inDir] + '. A ' + w + ' here would make it reflect more than its ' + h.count + ' times. So place ' + g + '.';
-                const cnt = (h.count != null) ? (' exactly ' + h.count + (h.count === 1 ? ' time' : ' times')) : '', inc = h.inDir >= 0 ? ('It comes in ' + AR[h.inDir] + '. ') : '';
-                return part + inc + 'This needs a look-ahead: follow laser ' + L + ' along the highlighted path — it must reflect' + cnt + ' and return to its pair, and only ' + g + ' here allows that (try ' + w + ' and the beam can’t get back).';
+                    return part + 'Follow laser ' + L + ' to this cell — it arrives going ' + AR[h.inDir] + '. A ' + w + ' makes it reflect ' + (a.total != null ? a.total + ' times' : 'too many times')
+                        + ' instead of ' + h.count + '; a ' + g + ' turns it ' + AR[h.outDir] + ' toward its ' + letter + ', so place ' + g + '.';
+                if (h.inDir >= 0 && a.kind === 'loop')
+                    return part + 'Follow laser ' + L + ' to this cell — it arrives going ' + AR[h.inDir] + '. A ' + w + ' traps it in a loop that never reaches the other ' + letter + ', so place ' + g + '.';
+                return part + 'Laser ' + letter + ' can only reach its pair if this cell is ' + g + '.';
             },
             assume: (h) => {
-                const hypo = h.hypo === EB ? 'empty (✗)' : h.hypo === SB ? 'a /' : 'a \\';
-                return 'Suppose this cell were ' + hypo + ': following the forced moves hits a dead end (a laser can’t reach its pair). So it must be ' + bq(glyph(h.content)) + '.';
+                const hypo = h.hypo === EB ? 'empty (' + ICO_X + ')' : h.hypo === SB ? 'a ' + ICO_SLASH : 'a ' + ICO_BACK;
+                return 'Suppose this cell were ' + hypo + ': following the forced moves hits a dead end (a laser can’t reach its pair). So it must be ' + glyph(h.content) + '.';
             },
         },
         zh: {
-            wrong: () => '醒目的格子與唯一解不符——請移除放錯的鏡子，或清掉標在該放鏡子處的 ✗。',
+            wrong: () => '醒目的格子與唯一解不符——請移除放錯的鏡子，或清掉標在該放鏡子處的 ' + ICO_X + '。',
             none: () => '目前從這個盤面推不出下一個強制步驟了。',
-            roomSat: (h) => '這個房間已經有一面鏡子了，同一房間只能有一面，所以其餘 ' + h.cells.length + ' 格都必須是空的——標上 ✗。',
-            zeroLine: (h) => '雷射 ' + fromDesc('zh', h) + ' 折射 0 次，沿著高亮直線一路直穿不轉彎，所以線上每一格都是空的（✗）。',
-            countFull: (h) => '雷射 ' + fromDesc('zh', h) + ' 必須剛好折射 ' + h.count + ' 次；沿著高亮光路追過來，到這格時已折滿，不能再轉彎，所以這格標 ✗。',
-            laserEmpty: (h) => '追蹤雷射 ' + bq(letterOf(h.laser)) + '，這一格放任何鏡子都無法讓它抵達配對——所以這格是空的（✗）。',
-            chainX: () => '綜合目前的線索，這一格不可能放鏡子——標上 ✗。',
+            roomSat: (h) => '這個房間已經有一面鏡子了，同一房間只能有一面，所以其餘 ' + h.cells.length + ' 格都必須是空的——標上 ' + ICO_X + '。',
+            zeroLine: (h) => '雷射 ' + fromDesc('zh', h) + ' 折射 0 次，沿著高亮直線一路直穿不轉彎，所以線上每一格都是空的（' + ICO_X + '）。',
+            countFull: (h) => '雷射 ' + fromDesc('zh', h) + ' 必須剛好折射 ' + h.count + ' 次；沿著高亮光路追過來，到這格時已折滿，不能再轉彎，所以這格標 ' + ICO_X + '。',
+            laserEmpty: (h) => '追蹤雷射 ' + bq(letterOf(h.laser)) + '，這一格放任何鏡子都無法讓它抵達配對——所以這格是空的（' + ICO_X + '）。',
+            chainX: () => '綜合目前的線索，這一格不可能放鏡子——標上 ' + ICO_X + '。',
             place: (h) => {
-                const g = bq(glyph(h.content)), w = bq(other(h.content)), part = cellPartZH(h), L = fromDesc('zh', h), a = h.alt || { kind: 'lookahead' }, letter = bq(letterOf(h.laser));
+                const g = glyph(h.content), w = other(h.content), part = cellPartZH(h), L = fromDesc('zh', h), letter = bq(letterOf(h.laser)), a = h.alt || { kind: 'lookahead' };
                 if (h.inDir >= 0 && a.kind === 'corner')
-                    return part + '雷射 ' + L + ' 只折射一次，所以是個轉角：直線進來、在這格轉一次、再直線射到另一個 ' + letter + '。它從 ' + AR[h.inDir] + ' 進來、配對在 ' + AR[h.outDir]
-                        + ' 方；放 ' + w + ' 會改往 ' + AR[a.exitSide] + ' 射出' + SIDEW.zh[a.exitSide] + '側邊界（那裡沒有配對），所以這格放 ' + g + '。';
+                    return part + '雷射 ' + L + ' 只折射一次：直線進來、在這格轉一次、再直線射到另一個 ' + letter + '。它從 ' + AR[h.inDir] + ' 進來、配對在 ' + AR[h.outDir]
+                        + ' 方——放 ' + w + ' 會改往 ' + AR[a.leave] + ' 射出' + SIDEW.zh[a.exitSide] + '側邊界（那裡沒有 ' + letter + '），所以放 ' + g + '。';
                 if (h.inDir >= 0 && a.kind === 'wrongExit')
-                    return part + '雷射 ' + L + ' 從 ' + AR[h.inDir] + ' 進來。沿著已放的鏡子推，放 ' + w + ' 會讓它往 ' + AR[a.exitSide] + ' 一路射出' + SIDEW.zh[a.exitSide] + '側邊界，回不到配對；所以放 ' + g + '。';
+                    return part + '沿著雷射 ' + L + ' 追到這一格——它從 ' + AR[h.inDir] + ' 進來。放 ' + g + ' 會把它轉向 ' + AR[h.outDir] + ' 繼續前往另一個 ' + letter
+                        + '；放 ' + w + ' 則會轉向 ' + AR[a.leave] + '，最後從' + SIDEW.zh[a.exitSide] + '側邊界射出去，到不了另一個 ' + letter + '。所以放 ' + g + '。';
                 if (h.inDir >= 0 && a.kind === 'overCount')
-                    return part + '雷射 ' + L + ' 從 ' + AR[h.inDir] + ' 進來。這格放 ' + w + ' 會讓它折射超過 ' + h.count + ' 次；所以放 ' + g + '。';
-                const cnt = (h.count != null) ? ('剛好折射 ' + h.count + ' 次並') : '', inc = h.inDir >= 0 ? ('它從 ' + AR[h.inDir] + ' 進來。') : '';
-                return part + inc + '這一步要追光：沿著高亮光路追雷射 ' + L + '——它必須' + cnt + '回到另一個 ' + letter + '，只有這格放 ' + g + ' 才存在這種走法（試放 ' + w + '，光就回不去）。';
+                    return part + '沿著雷射 ' + L + ' 追到這一格——它從 ' + AR[h.inDir] + ' 進來。放 ' + w + ' 會讓它折射 ' + (a.total != null ? a.total + ' 次' : '太多次') + '，不是 ' + h.count
+                        + ' 次；放 ' + g + ' 會把它轉向 ' + AR[h.outDir] + ' 前往另一個 ' + letter + '，所以放 ' + g + '。';
+                if (h.inDir >= 0 && a.kind === 'loop')
+                    return part + '沿著雷射 ' + L + ' 追到這一格——它從 ' + AR[h.inDir] + ' 進來。放 ' + w + ' 會讓它卡進一個回不到另一個 ' + letter + ' 的迴圈，所以放 ' + g + '。';
+                return part + '只有這一格放 ' + g + '，雷射 ' + letter + ' 才能抵達它的配對。';
             },
             assume: (h) => {
-                const hypo = h.hypo === EB ? '空的（✗）' : h.hypo === SB ? '/' : '\\';
-                return '假設這一格是 ' + hypo + '：順著被強制的後續推下去會走進死路（某道雷射無法抵達配對）。所以它必須是 ' + bq(glyph(h.content)) + '。';
+                const hypo = h.hypo === EB ? '空的（' + ICO_X + '）' : h.hypo === SB ? ICO_SLASH : ICO_BACK;
+                return '假設這一格是 ' + hypo + '：順著被強制的後續推下去會走進死路（某道雷射無法抵達配對）。所以它必須是 ' + glyph(h.content) + '。';
             },
         },
     };
@@ -133,22 +144,25 @@
     // more deduction; strip = fewer reflection numbers; depth = assume→contra.
     const SIZES = [6, 7, 8, 9];
     const DIFF = {
-        easy:   { room: (N) => Math.round(N * 1.2), strip: false, depth: 1 },
-        medium: { room: (N) => Math.round(N * 0.9), strip: true,  depth: 1 },
-        hard:   { room: (N) => Math.round(N * 0.7), strip: true,  depth: 2 },
+        easy:   { room: (N) => Math.round(N * 1.2), strip: false, depth: 1 },  // ≤1 assume, all numbers (fewer givens than pure-forced)
+        medium: { room: (N) => Math.round(N * 1.2), strip: true,  depth: 1 },  // ≤1 assume, numbers stripped
+        hard:   { room: (N) => Math.round(N * 1.2), strip: true,  depth: 2 },  // ≤2 assume, numbers stripped
     };
     const VALID_DIFF = { easy: 1, medium: 1, hard: 1 };
 
+    const VIOLATION_DELAY_MS = 800;    // defer the conflict highlight while editing (Guards-style)
     const S = {
-        N: 7, diff: 'medium',
+        N: 7, diff: 'medium',          // APPLIED — what the board on screen is running
+        pendN: 7, pendDiff: 'medium',  // PENDING — the staged toolbar selection (applied on New Game)
         puzzle: null,
-        player: null,          // Int8Array player-placed mirrors (EMPTY/SLASH/BACK)
+        player: null,          // Int8Array player cells: EMPTY/SLASH/BACK/XMARK
         givenRoom: null,       // Set of room ids that carry a given mirror
         givenAt: null,         // Map cell -> orient (given)
         revealed: false,
         hint: null,
         history: null,
         pxSeed: null,          // last used seed (for share)
+        viol: { shown: new Set(), timer: null },  // rooms whose >1-mirror conflict is being displayed
     };
 
     const $ = (id) => document.getElementById(id);
@@ -169,6 +183,7 @@
     }
 
     async function newGame(seed) {
+        S.N = S.pendN; S.diff = S.pendDiff;      // commit the staged toolbar selection
         const cfg = DIFF[S.diff] || DIFF.medium;
         if (PC.progress) { PC.progress.start(t('generatingPuzzle')); await PC.progress.waitNextPaint(); }
         let puzzle = null;
@@ -186,7 +201,38 @@
         S.history = PC.history.create({ snapshot: () => S.player.slice(), restore: (snap) => { S.player = snap.slice(); } });
         if (PC.share) { try { PC.share.replaceUrl({ size: S.N, difficulty: S.diff, seed: S.pxSeed }); } catch (e) {} }
         clearHint();
+        clearViol();
+        syncControls();
         render();
+    }
+
+    // ---- conflict display (deferred, Guards-style) ----
+    // The only live conflict is "a room holds more than one mirror". While you
+    // edit we only PRUNE resolved conflicts; a newly-made one surfaces after
+    // VIOLATION_DELAY_MS of no edits, so a quick fix never flashes red.
+    function computeViolRooms() {
+        const P = S.puzzle, out = new Set();
+        if (!P) return out;
+        const cnt = new Int32Array(P.roomCount);
+        for (let i = 0; i < S.player.length; i++) if (S.player[i] === SLASH || S.player[i] === BACK) cnt[P.room[i]]++;
+        for (let r = 0; r < P.roomCount; r++) if (cnt[r] > 1) out.add(r);
+        return out;
+    }
+    function cancelViolTimer() { if (S.viol.timer) { clearTimeout(S.viol.timer); S.viol.timer = null; } }
+    function commitViol() { S.viol.timer = null; S.viol.shown = computeViolRooms(); render(); }
+    function refreshViolOnEdit() {
+        const now = computeViolRooms();
+        for (const r of Array.from(S.viol.shown)) if (!now.has(r)) S.viol.shown.delete(r);  // prune resolved only
+        cancelViolTimer();
+        if (now.size) S.viol.timer = setTimeout(commitViol, VIOLATION_DELAY_MS);
+    }
+    function showAllViolNow() { cancelViolTimer(); S.viol.shown = computeViolRooms(); }
+    function clearViol() { cancelViolTimer(); S.viol.shown = new Set(); }
+    function updateViolPill() {
+        const pill = $('violations'), txt = $('violations-text'); if (!pill || !txt) return;
+        const n = S.viol.shown.size;
+        if (n > 0) { pill.hidden = false; pill.classList.add('active'); txt.textContent = t('conflict', n); }
+        else { pill.hidden = true; pill.classList.remove('active'); }
     }
 
     // ---- model helpers ----
@@ -228,12 +274,11 @@
         if (S.givenRoom.has(P.room[c])) { if (PC.toast) PC.toast.show(t('beamRoomGiven')); return; }
         S.history.push();
         const cur = S.player[c];
-        // cycle: empty → / → \ → ✗ → empty
-        const next = cur === EMPTY ? SLASH : cur === SLASH ? BACK : cur === BACK ? XMARK : EMPTY;
-        if (next === SLASH || next === BACK) {   // one mirror per room: clear this room's other mirrors (keep ✗ marks)
-            for (const i of P.cellsOf[P.room[c]]) if (i !== c && (S.player[i] === SLASH || S.player[i] === BACK)) S.player[i] = EMPTY;
-        }
-        S.player[c] = next;
+        // cycle (✗ first): empty → ✗ → / → \ → empty. We do NOT auto-clear the
+        // room's other mirror — a brief second mirror is allowed and only gets
+        // flagged as a conflict if it lingers (see refreshViolOnEdit).
+        S.player[c] = cur === EMPTY ? XMARK : cur === XMARK ? SLASH : cur === SLASH ? BACK : EMPTY;
+        refreshViolOnEdit();
         render();
     }
 
@@ -261,6 +306,12 @@
         for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) {
             if (satCnt[P.room[r * N + c]] === 1) s += '<rect class="beam-room-sat" x="' + gx(c) + '" y="' + gy(r) + '" width="' + cs + '" height="' + cs + '"/>';
         }
+        // conflict tint: a room holding >1 mirror (revealed after a short delay)
+        if (S.viol.shown.size) for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) {
+            const i = r * N + c;
+            if (S.viol.shown.has(P.room[i]) && (S.player[i] === SLASH || S.player[i] === BACK))
+                s += '<rect class="beam-violation" x="' + gx(c) + '" y="' + gy(r) + '" width="' + cs + '" height="' + cs + '"/>';
+        }
         // hint highlight (tint, under the mirrors)
         const H = S.hint;
         const hintCells = !H ? []
@@ -286,7 +337,7 @@
             return '<line class="beam-mirror ' + cls + '" x1="' + a[0] + '" y1="' + a[1] + '" x2="' + a[2] + '" y2="' + a[3] + '"/>';
         };
         const drawX = (cls, cell) => {
-            const r = (cell / N) | 0, c = cell % N, m = cs * 0.28;
+            const r = (cell / N) | 0, c = cell % N, m = cs * 0.34;   // smaller / more subtle ✗
             return '<line class="beam-x ' + cls + '" x1="' + (gx(c) + m) + '" y1="' + (gy(r) + m) + '" x2="' + (gx(c + 1) - m) + '" y2="' + (gy(r + 1) - m) + '"/>'
                  + '<line class="beam-x ' + cls + '" x1="' + (gx(c + 1) - m) + '" y1="' + (gy(r) + m) + '" x2="' + (gx(c) + m) + '" y2="' + (gy(r + 1) - m) + '"/>';
         };
@@ -296,9 +347,9 @@
         }
         // given mirrors (locked)
         for (const [cell, orient] of S.givenAt) s += drawMirror('given', cell, orient);
-        // player mirrors + ✗ marks
+        // player mirrors + ✗ marks (mirrors in a conflicting room turn red)
         for (let i = 0; i < N * N; i++) {
-            if (S.player[i] === SLASH || S.player[i] === BACK) s += drawMirror('player', i, S.player[i]);
+            if (S.player[i] === SLASH || S.player[i] === BACK) s += drawMirror('player' + (S.viol.shown.has(P.room[i]) ? ' bad' : ''), i, S.player[i]);
             else if (S.player[i] === XMARK) s += drawX('player', i);
         }
         // hint ghost: the forced mirror / ✗ the hint suggests
@@ -355,13 +406,28 @@
         $('beam-status').textContent = t('beamLasers') + ' ' + ev.lasersOk + '/' + ev.lasersTotal + ' \u00b7 ' + t('beamRooms') + ' ' + ev.roomsExactly + '/' + P.roomCount;
         $('win-message').hidden = !ev.win;
         $('undo-btn').disabled = !(S.history && S.history.canUndo());
+        updateViolPill();
         if (PC.icons) PC.icons.render(document);
     }
 
     // ---- buttons ----
-    function setDifficulty(d) { if (!VALID_DIFF[d] || d === S.diff) return; S.diff = d; syncSeg('difficulty-seg', d); newGame(); }
-    function setSize(n) { n = +n; if (SIZES.indexOf(n) === -1 || n === S.N) return; S.N = n; syncSeg('size-seg', String(n)); newGame(); }
-    function syncSeg(id, val) { const seg = $(id); if (!seg) return; seg.querySelectorAll('button').forEach((b) => b.classList.toggle('active', b.dataset.value === val)); }
+    // Difficulty / size only STAGE a selection; the board regenerates when the
+    // player presses New Game (matches the other puzzles). `.active` = the staged
+    // value, `.committed` = what the board on screen is currently running.
+    function setDifficulty(d) { if (!VALID_DIFF[d]) return; S.pendDiff = d; syncControls(); }
+    function setSize(n) { n = +n; if (SIZES.indexOf(n) === -1) return; S.pendN = n; syncControls(); }
+    function syncControls() {
+        const ds = $('difficulty-seg');
+        if (ds) ds.querySelectorAll('button').forEach((b) => {
+            b.classList.toggle('active', b.dataset.value === S.pendDiff);
+            b.classList.toggle('committed', b.dataset.value === S.diff);
+        });
+        const ss = $('size-seg');
+        if (ss) ss.querySelectorAll('button').forEach((b) => {
+            b.classList.toggle('active', b.dataset.value === String(S.pendN));
+            b.classList.toggle('committed', b.dataset.value === String(S.N));
+        });
+    }
 
     function toggleReveal() {
         S.revealed = !S.revealed;
@@ -369,8 +435,8 @@
         $('reveal-btn').setAttribute('aria-pressed', S.revealed ? 'true' : 'false');
         render();
     }
-    function undo() { if (S.history && S.history.undo()) render(); }
-    function reset() { if (!S.puzzle) return; S.player.fill(EMPTY); S.history.clear(); clearHint(); render(); }
+    function undo() { if (S.history && S.history.undo()) { showAllViolNow(); render(); } }
+    function reset() { if (!S.puzzle) return; S.player.fill(EMPTY); S.history.clear(); clearHint(); clearViol(); render(); }
     function applyHintBanner(h) {
         const b = $('hint-banner'); if (!b || !h) return;
         const { html, error } = composeHint(h);
@@ -413,7 +479,8 @@
             if (p && SIZES.indexOf(p.size) !== -1 && VALID_DIFF[p.difficulty] && Number.isInteger(p.seed)) init = p;
         }
         if (init) { S.N = init.size; S.diff = init.difficulty; }
-        syncSeg('size-seg', String(S.N)); syncSeg('difficulty-seg', S.diff);
+        S.pendN = S.N; S.pendDiff = S.diff;
+        syncControls();
         newGame(init ? init.seed : undefined);
     }
 

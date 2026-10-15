@@ -14,6 +14,7 @@
         .beam-mirror { stroke-linecap: round; pointer-events: none; }
         .beam-mirror.given  { stroke: #334155; stroke-width: 5; }
         .beam-mirror.player { stroke: var(--game-color); stroke-width: 5; }
+        .beam-mirror.player.bad { stroke: #dc2626; }
         .beam-mirror.reveal { stroke: var(--game-color); stroke-width: 4; opacity: 0.32; }
         .beam-mirror.hint   { stroke: #ca8a04; stroke-width: 5; opacity: 0.8; }
         .beam-open-label { font-family: var(--font-body); font-weight: 700; }
@@ -24,10 +25,16 @@
         .beam-cell:hover { fill: rgba(8,145,178,0.08); }
         .beam-room-sat { fill: rgba(8,145,178,0.06); pointer-events: none; }
         .beam-x { stroke-linecap: round; pointer-events: none; }
-        .beam-x.player { stroke: #64748b; stroke-width: 3.5; }
-        .beam-x.hint   { stroke: #ca8a04; stroke-width: 4; opacity: 0.85; }
+        .beam-x.player { stroke: #aab4c2; stroke-width: 2.25; }   /* subtle: lighter + thinner */
+        .beam-x.hint   { stroke: #ca8a04; stroke-width: 3.5; opacity: 0.85; }
+        .beam-violation { fill: rgba(220,38,38,0.14); pointer-events: none; }
         .beam-hint-target { fill: #ffd54f; opacity: 0.45; pointer-events: none; }
         .beam-hint-bad { fill: #ffcdd2; opacity: 0.75; pointer-events: none; }
+        /* inline help/hint icons: two mirrors = slash + a flipped slash; ✗ subtle */
+        .inline-icon.beam-ico-slash { color: #475569; }
+        .inline-icon.beam-ico-back  { color: #475569; }
+        .inline-icon.beam-ico-back .icon { transform: scaleX(-1); transform-origin: center; }
+        .inline-icon.beam-ico-x     { color: #94a3b8; }
         .beam-hint-open { fill: none; stroke: #ca8a04; stroke-width: 3; opacity: 0.9; pointer-events: none; }
         .beam-hint-open.start { fill: #ca8a04; fill-opacity: 0.85; }
         .beam-hint-ray { stroke: #ca8a04; stroke-width: 3; opacity: 0.6; stroke-linejoin: round; stroke-linecap: round; pointer-events: none; }
@@ -100,6 +107,9 @@
 
         <div class="status-row" aria-live="polite">
             <span class="status-item"><span id="beam-status">—</span></span>
+            <span class="status-item violations" id="violations" hidden>
+                <span data-icon="triangle-alert" aria-hidden="true"></span><span id="violations-text"></span>
+            </span>
             <span class="status-item win-message" id="win-message" hidden>
                 <span data-icon="sparkles" aria-hidden="true"></span><span data-i18n="winMessage">You Win!</span>
             </span>
@@ -115,9 +125,9 @@
         <section class="game-footer">
             <h4 data-i18n="howToPlay">How to play</h4>
             <ul>
-                <li data-i18n="beamHelp1Html">Bold lines split the grid into <strong>rooms</strong>; each holds <strong>exactly one</strong> mirror (/ or \).</li>
+                <li data-i18n="beamHelp1Html">Bold lines split the grid into <strong>rooms</strong>; each holds <strong>exactly one</strong> mirror (<span class="inline-icon beam-ico-slash" data-icon="slash"></span> or <span class="inline-icon beam-ico-back" data-icon="slash"></span>).</li>
                 <li data-i18n="beamHelp2Html">A laser enters at a letter, reflects 90° off mirrors, and must leave at the <strong>same letter</strong>. A number is how many times that beam reflects.</li>
-                <li data-i18n="beamHelp3Html">Click a cell to cycle <strong>empty → / → \ → ✗ → empty</strong>. Use <strong>✗</strong> to mark a cell you've ruled out. Placing a mirror clears your other mirror in that room; blue mirrors are given.</li>
+                <li data-i18n="beamHelp3Html">Click a cell to cycle <strong>empty → <span class="inline-icon beam-ico-x" data-icon="x"></span> → <span class="inline-icon beam-ico-slash" data-icon="slash"></span> → <span class="inline-icon beam-ico-back" data-icon="slash"></span> → empty</strong>. The <span class="inline-icon beam-ico-x" data-icon="x"></span> marks a cell you've ruled out. A room must hold exactly one mirror — a second is allowed briefly, but is flagged as a conflict if it lingers. Blue mirrors are given.</li>
                 <li data-i18n="beamHelp4Html">Beams may cross on empty cells. Solve when every laser reaches its pair with the right reflection count.</li>
             </ul>
         </section>

@@ -29,6 +29,12 @@
     const DR = [-1, 1, 0, 0], DC = [0, 0, -1, 1], OPP = [D, U, R, L];
     const SIDE_CH = ['U', 'D', 'L', 'R'];
 
+    // R7 = per-laser path ENUMERATION (machine-ish; hard to narrate as a short,
+    // player-checkable chain). Toggle OFF to run a fully "explainable" solver —
+    // cheap rules + bounded assume→contradiction only — so every shipped board,
+    // and every hint, is justifiable by steps the player can verify. See setUseR7.
+    let useR7 = false;   // default OFF: explainable-only (cheap rules + bounded assume→contradiction)
+
     // '/' reflects R<->U, L<->D ; '\' reflects R<->D, L<->U ; empty = straight.
     function reflect(dir, m) {
         if (m === EMPTY) return dir;
@@ -393,7 +399,7 @@
     // Returns { N, room, roomCount, cellsOf, opens, lasers, solution, difficulty,
     //           clueCounts } or null if even the full-clue board isn't unique.
     function makePuzzle(sol, seed, maxDepth, strip) {
-        maxDepth = maxDepth || 1;
+        maxDepth = (maxDepth == null) ? 1 : maxDepth;   // allow 0 = pure-forced (no assumption)
         const rng = PC.rng.make((seed || sol.seed || 1) ^ 0x9e3779b9);
         const cellsOf = roomsCells(sol.room, sol.roomCount);
         const lasers = sol.beams.map((b) => ({ a: b.a, b: b.b, count: b.reflections }));
@@ -407,13 +413,18 @@
         let res = deduceSolve(puzzle, maxDepth, givens);
         let guard = 0;
         while (!res.solved) {
-            let picked = -1;
+            // Collect every still-unpinned true mirror, then reveal a RANDOM one
+            // (seeded, so shares reproduce). A top-down scan clustered givens at
+            // the top-left; random keeps them spread across the board.
+            const cand = [];
             for (let i = 0; i < sol.mirror.length; i++) {
                 if (sol.mirror[i] === EMPTY) continue;
                 if (givens.some((g) => g.cell === i)) continue;
-                if (res.dom[i] !== contentBit(sol.mirror[i])) { picked = i; break; }  // not yet pinned to its true state
+                if (res.dom[i] !== contentBit(sol.mirror[i])) cand.push(i);  // not yet pinned to its true state
             }
-            if (picked < 0) break;
+            if (!cand.length) break;
+            PC.rng.shuffle(cand, rng);
+            const picked = cand[0];
             givens.push({ cell: picked, orient: sol.mirror[picked] });
             res = deduceSolve(puzzle, maxDepth, givens);
             if (++guard > sol.roomCount + 5) break;
@@ -518,6 +529,86 @@
         return true;
     }
 
+    // A beam with NO reflections left must shoot straight out at `other`: from
+    // (r,c) going dir every cell is empty and it must exit exactly there. Sound.
+    function straightForce(puzzle, dom, r, c, dir, other) {
+        const N = puzzle.N; let guard = 0, changed = false;
+        while (true) {
+            const idx = r * N + c;
+            if (dom[idx] & (SB | BB)) { dom[idx] &= EB; if (dom[idx] === 0) return 'contra'; changed = true; }
+            const nr = r + DR[dir], nc = c + DC[dir];
+            if (nr < 0 || nc < 0 || nr >= N || nc >= N)
+                return (r === other.r && c === other.c && dir === other.side) ? (changed ? 'changed' : 'nochange') : 'contra';
+            r = nr; c = nc; if (++guard > 4 * N * N) return 'contra';
+        }
+    }
+    // A beam with EXACTLY ONE reflection left makes an L: from (xr,xc) going dir
+    // it turns once at the crossing with `other`'s inward ray, then straight out
+    // at `other`. Mirror + orientation + both sub-arms forced. Sound.
+    function cornerForceAt(puzzle, dom, xr, xc, dir, other) {
+        const N = puzzle.N, db = OPP[other.side];
+        const dVert = (dir === U || dir === D), bVert = (db === U || db === D);
+        if (dVert === bVert) return 'contra';                   // one 90° turn can't join parallel arms
+        const cr = dVert ? other.r : xr, cc = dVert ? xc : other.c, corner = cr * N + cc;
+        const orient = mirrorForDirs(dir, OPP[db]);             // in = dir, out = toward `other`
+        if (orient == null) return 'contra';
+        let changed = false;
+        const emptyRun = (r, c, d) => {                         // empty (r,c)→corner (exclusive) along d
+            let g = 0;
+            while (!(r === cr && c === cc)) {
+                const i = r * N + c;
+                if (dom[i] & (SB | BB)) { dom[i] &= EB; if (dom[i] === 0) return false; changed = true; }
+                r += DR[d]; c += DC[d];
+                if (r < 0 || c < 0 || r >= N || c >= N || ++g > 4 * N) return false;
+            }
+            return true;
+        };
+        if (!emptyRun(xr, xc, dir) || !emptyRun(other.r, other.c, db)) return 'contra';
+        const bit = contentBit(orient);
+        if (!(dom[corner] & bit)) return 'contra';
+        if (dom[corner] !== bit) { dom[corner] = bit; changed = true; }
+        return changed ? 'changed' : 'nochange';
+    }
+    // FORCED REFLECTION (pure-forced): the beam enters X still owing ≥1 bounce,
+    // but going straight from X every cell to the border is already KNOWN-EMPTY —
+    // so an empty X would exit with reflections unspent. Hence X must be a mirror
+    // (orientation left to the room / corner rules). Sound.
+    function forcedMirror(puzzle, dom, xr, xc, dir) {
+        const N = puzzle.N; let r = xr + DR[dir], c = xc + DC[dir], g = 0;
+        while (r >= 0 && c >= 0 && r < N && c < N) {
+            if (dom[r * N + c] !== EB) return 'nochange';      // an unknown / mirror ahead → can't conclude
+            r += DR[dir]; c += DC[dir]; if (++g > 4 * N * N) return 'nochange';
+        }
+        const idx = xr * N + xc;
+        if (!(dom[idx] & (SB | BB))) return 'contra';          // must be a mirror but can't be → contradiction
+        if (dom[idx] & EB) { dom[idx] &= (SB | BB); return 'changed'; }
+        return 'nochange';
+    }
+
+    // COUNT-COUPLED corner/straight (pure-forced, eye-checkable). Trace from each
+    // end over already-placed mirrors; the stop point is a "virtual opening" with
+    // the REMAINING count (= clue − reflections used). Remaining 0 ⇒ straight;
+    // remaining 1 ⇒ corner; remaining ≥2 ⇒ forced-reflection when the straight
+    // run is sealed. As mirrors get placed, count-2+ beams shed bounces and
+    // collapse to corners — the coupling that makes pure deduction strong.
+    function laserForce(puzzle, dom, L) {
+        if (L.count == null) return 'nochange';
+        let changed = false;
+        for (const pr of [[L.a, L.b], [L.b, L.a]]) {
+            const t = traceStops(puzzle, dom, puzzle.opens[pr[0]]);
+            if (t.kind !== 'stop') continue;                   // 'exit' → R5 checks it; 'loop' → caller
+            const remaining = L.count - t.refl, other = puzzle.opens[pr[1]];
+            if (remaining < 0) return 'contra';
+            let r = 'nochange';
+            if (remaining === 0) r = straightForce(puzzle, dom, t.r, t.c, t.dir, other);
+            else if (remaining === 1) r = cornerForceAt(puzzle, dom, t.r, t.c, t.dir, other);
+            else r = forcedMirror(puzzle, dom, t.r, t.c, t.dir);
+            if (r === 'contra') return 'contra';
+            if (r === 'changed') changed = true;
+        }
+        return changed ? 'changed' : 'nochange';
+    }
+
     // Propagate the sound rules to a fixpoint. Returns false on contradiction.
     function propagate(puzzle, dom) {
         const { N, cellsOf, opens } = puzzle;
@@ -537,6 +628,11 @@
             }
             // R5 + R6: laser pairing/count + TWO-SIDED REACH deductions.
             for (const L of puzzle.lasers) {
+                {                                             // count-coupled corner/straight (pure-forced)
+                    const lf = laserForce(puzzle, dom, L);
+                    if (lf === 'contra') return false;
+                    if (lf === 'changed') changed = true;
+                }
                 const oa = opens[L.a], ob = opens[L.b];
                 const fwd = traceStops(puzzle, dom, oa);
                 const bwd = traceStops(puzzle, dom, ob);
@@ -629,6 +725,7 @@
         let rounds = 0;
         while (rounds++ < puzzle.N * puzzle.N) {
             if (!propagate(puzzle, dom)) return false;
+            if (!useR7) break;                 // explainable-only mode: cheap rules reached their fixpoint
             let changed = false;
             for (const L of puzzle.lasers) {
                 const r = laserEnumForce(puzzle, dom, L);
@@ -730,74 +827,109 @@
         return { dom, wrong };
     }
 
-    // The laser whose DETERMINED beam reaches `cell`: from which end it starts,
-    // which way it travels into the cell, and its determined prefix + reflections.
-    // { laser, from, inDir, path, refl } or { laser:-1 } if none reaches it yet.
-    function beamIntoFull(puzzle, dom, cell) {
-        for (let li = 0; li < puzzle.lasers.length; li++) {
-            const L = puzzle.lasers[li];
-            for (const end of [L.a, L.b]) {
-                const t = traceStops(puzzle, dom, puzzle.opens[end]);
-                if (t.kind === 'stop' && t.r * puzzle.N + t.c === cell)
-                    return { laser: li, from: end, inDir: t.dir, path: t.cells, refl: t.refl };
-            }
-        }
-        return { laser: -1, from: -1, inDir: -1, path: [], refl: 0 };
-    }
-    // The laser whose path enumeration alone pins `cell` to `bit` (fallback when
-    // no determined beam reaches it yet). -1 if none does so on its own.
-    function laserForcing(puzzle, dom, cell, bit) {
-        for (let li = 0; li < puzzle.lasers.length; li++) {
-            const w = dom.slice(), before = w[cell];
-            const r = laserEnumForce(puzzle, w, puzzle.lasers[li]);
-            if (r === 'changed' && before !== bit && w[cell] === bit) return li;
-        }
-        return -1;
+    // Mirror board from the player's PLACED mirrors + givens (✗ and blanks = empty).
+    function placedMirrors(puzzle, player) {
+        const m = new Int8Array(puzzle.N * puzzle.N).fill(EMPTY);
+        for (let i = 0; i < player.length; i++) if (player[i] === SLASH || player[i] === BACK) m[i] = player[i];
+        for (const g of puzzle.givens) m[g.cell] = g.orient;
+        return m;
     }
 
-    // WHY the opposite slant at `cell` fails — as rigorously as the determined
-    // board allows. Returns { kind, exitSide? }:
-    //   'corner'    a count-1 laser: after its single turn it must shoot straight
-    //               to the pair, so the wrong slant necessarily leaves at a
-    //               non-pair edge (rigorous regardless of what's still unknown).
-    //   'wrongExit' the wrong slant runs out of the grid (over determined cells)
-    //               at an edge that isn't the pair.
-    //   'overCount' the wrong slant exceeds the reflection count (determined cells).
-    //   'lookahead' can't be settled locally (undetermined cells ahead) — honest.
-    function altFail(puzzle, dom, cell, inDir, correct, L, from, reflSoFar) {
-        const N = puzzle.N, wrong = correct === SLASH ? BACK : SLASH, count = L.count;
-        if (count === 1) return { kind: 'corner', exitSide: reflect(inDir, wrong) };
-        const pair = puzzle.opens[from === L.a ? L.b : L.a];
-        let r = (cell / N) | 0, c = cell % N, dir = reflect(inDir, wrong), refl = reflSoFar + 1, guard = 0;
+    // How a laser reaches `cell` in the SOLUTION — PREFERRING an approach the
+    // player can actually trace (every mirror before the cell is already placed,
+    // so `grounded` is true). A mirror is never redundant, so some laser always
+    // passes through it. Returns { laser, from, inDir, path, refl, grounded }.
+    function approachInto(puzzle, pm, cell) {
+        const N = puzzle.N, m = puzzle.solution; let fallback = null;
+        for (let li = 0; li < puzzle.lasers.length; li++) {
+            const L = puzzle.lasers[li];
+            for (const from of [L.a, L.b]) {
+                const o = puzzle.opens[from];
+                let r = o.r, c = o.c, dir = OPP[o.side], refl = 0, guard = 0, grounded = true, reached = false; const path = [];
+                while (true) {
+                    const idx = r * N + c;
+                    if (idx === cell) { reached = true; break; }
+                    path.push(idx);
+                    const mm = m[idx]; if (mm !== EMPTY) { refl++; if (pm[idx] === EMPTY) grounded = false; }
+                    const nd = reflect(dir, mm), nr = r + DR[nd], nc = c + DC[nd];
+                    if (nr < 0 || nc < 0 || nr >= N || nc >= N) break;
+                    r = nr; c = nc; dir = nd; if (++guard > 4 * N * N) break;
+                }
+                if (reached) {
+                    const s = { laser: li, from, inDir: dir, path, refl, grounded };
+                    if (grounded) return s;
+                    if (!fallback) fallback = s;
+                }
+            }
+        }
+        return fallback || { laser: -1, from: -1, inDir: -1, path: [], refl: 0, grounded: false };
+    }
+
+    // The wrong slant traced over what the PLAYER can see: placed mirrors turn it,
+    // ✗ cells confirmed-empty pass it straight; it STOPS (inconclusive) at the
+    // first unknown blank. Rigorous — verifiable on the board right now.
+    function altFailDetermined(puzzle, pm, player, cell, dir0, count, pair, reflSoFar) {
+        const N = puzzle.N; let r = (cell / N) | 0, c = cell % N, dir = dir0, refl = reflSoFar + 1, guard = 0;
         while (true) {
             const nr = r + DR[dir], nc = c + DC[dir];
             if (nr < 0 || nc < 0 || nr >= N || nc >= N) {
                 const atPair = (r === pair.r && c === pair.c && dir === pair.side);
-                if (atPair && (count == null || refl === count)) return { kind: 'lookahead' };
-                return { kind: 'wrongExit', exitSide: dir };
+                if (atPair && (count == null || refl === count)) return null;      // wrong also "works" here → inconclusive
+                return { kind: 'wrongExit', exitSide: dir, rigorous: true };
             }
-            const mask = dom[nr * N + nc];
-            if (popc(mask) !== 1) return { kind: 'lookahead' };
-            const m = bitContent(mask);
-            if (m !== EMPTY) { refl++; if (count != null && refl > count) return { kind: 'overCount' }; }
-            dir = reflect(dir, m); r = nr; c = nc;
-            if (++guard > 4 * N * N) return { kind: 'lookahead' };
+            const ni = nr * N + nc;
+            if (pm[ni] !== EMPTY) { refl++; if (count != null && refl > count) return { kind: 'overCount', total: null, rigorous: true }; dir = reflect(dir, pm[ni]); }
+            else if (player[ni] !== MARK) return null;                              // unknown blank ahead → inconclusive
+            r = nr; c = nc;
+            if (++guard > 4 * N * N) return null;
         }
     }
+    // The wrong slant, traced over the full SOLUTION (every other cell fixed to
+    // its true value). Always conclusive: flipping one mirror on the laser's path
+    // must break it. "Trace the beam and watch it miss."
+    function altFailSolution(puzzle, cell, from, wrong, L) {
+        const N = puzzle.N, m = puzzle.solution.slice(); m[cell] = wrong;
+        const o = puzzle.opens[from], pair = puzzle.opens[from === L.a ? L.b : L.a];
+        const res = trace(m, N, { r: o.r, c: o.c, dir: OPP[o.side] });
+        if (res.looped || !res.exit) return { kind: 'loop', rigorous: false };
+        const atPair = (res.exit.r === pair.r && res.exit.c === pair.c && res.exit.side === pair.side);
+        if (atPair) return (L.count != null && res.reflections !== L.count) ? { kind: 'overCount', total: res.reflections, rigorous: false } : { kind: 'lookahead', rigorous: false };
+        return { kind: 'wrongExit', exitSide: res.exit.side, rigorous: false };
+    }
+    // WHY the opposite slant fails. `leave` = the direction the wrong slant sends
+    // the beam out of THIS cell; `exitSide` = the grid edge it eventually leaves.
+    function altFail(puzzle, pm, player, cell, inDir, correct, L, from, reflSoFar) {
+        const wrong = correct === SLASH ? BACK : SLASH, leave = reflect(inDir, wrong), count = L.count;
+        let a;
+        if (count === 1) a = { kind: 'corner', exitSide: leave, rigorous: true };
+        else {
+            const pair = puzzle.opens[from === L.a ? L.b : L.a];
+            a = altFailDetermined(puzzle, pm, player, cell, leave, count, pair, reflSoFar) || altFailSolution(puzzle, cell, from, wrong, L);
+        }
+        a.leave = leave;
+        return a;
+    }
 
-    // Package a mirror placement with everything the UI needs to EXPLAIN it:
-    // which laser (and end) reaches it, the in/out directions, the beam path to
-    // draw, and WHY the other slant fails.
-    function makePlace(puzzle, dom, cell, orient, reason) {
-        if (puzzle.cellsOf[puzzle.room[cell]].length === 1) reason = 'single';  // single-cell room, whatever tier found it
-        const bi = beamIntoFull(puzzle, dom, cell);
-        const laser = bi.laser >= 0 ? bi.laser : laserForcing(puzzle, dom, cell, contentBit(orient));
-        const L = laser >= 0 ? puzzle.lasers[laser] : null;
-        const alt = (bi.inDir >= 0 && L) ? altFail(puzzle, dom, cell, bi.inDir, orient, L, bi.from, bi.refl) : { kind: 'lookahead' };
+    // Package a mirror placement with everything the UI needs to EXPLAIN it. The
+    // APPROACH is kept GROUNDED (traceable over the player's own mirrors): if the
+    // beam can't reach `cell` over placed mirrors, RE-TARGET to the first not-yet-
+    // placed mirror on its path — the natural next step on that laser — so the
+    // "comes in going …" never relies on turns the player can't see.
+    function makePlace(puzzle, cell, orient, reason, player) {
+        const pm = placedMirrors(puzzle, player);
+        let a = approachInto(puzzle, pm, cell);
+        if (a.laser >= 0 && !a.grounded) {
+            const frontier = a.path.find((ci) => puzzle.solution[ci] !== EMPTY && pm[ci] === EMPTY);
+            if (frontier != null) { cell = frontier; orient = puzzle.solution[frontier]; a = approachInto(puzzle, pm, cell); }
+        }
+        if (puzzle.cellsOf[puzzle.room[cell]].length === 1) reason = 'single';
+        const L = a.laser >= 0 ? puzzle.lasers[a.laser] : null;
+        const alt = (a.inDir >= 0 && L) ? altFail(puzzle, pm, player, cell, a.inDir, orient, L, a.from, a.refl) : { kind: 'lookahead', rigorous: false };
+        const rigorousStep = a.grounded && (alt.kind === 'corner' || alt.rigorous === true);
         return {
             kind: 'place', reason, cell, content: orient,
-            laser, from: bi.from, inDir: bi.inDir, outDir: bi.inDir >= 0 ? reflect(bi.inDir, orient) : -1,
-            path: bi.path, count: L ? L.count : null, alt,
+            laser: a.laser, from: a.from, inDir: a.inDir, outDir: a.inDir >= 0 ? reflect(a.inDir, orient) : -1,
+            path: a.path, count: L ? L.count : null, alt, rigorous: rigorousStep,
         };
     }
 
@@ -853,14 +985,15 @@
             for (const c of cs) { if (isKnownMirror(dom, c)) known = true; if (canMirror(dom, c)) cand.push(c); }
             if (known || cand.length !== 1) continue;
             const c = cand[0]; if (player[c] !== EMPTY) continue;
-            const place = makePlace(puzzle, dom, c, puzzle.solution[c], cs.length === 1 ? 'single' : 'lastCell');
-            if (place.alt.kind !== 'lookahead') return place;
+            const place = makePlace(puzzle, c, puzzle.solution[c], cs.length === 1 ? 'single' : 'lastCell', player);
+            if (place.rigorous) return place;   // only surface fully board-verifiable slants at the simple tier
         }
         return null;
     }
     // ---- Tiers 5-7: look-ahead (named laser trace, then propagation chain,
     //      then a depth-bounded assume→contradiction). ----
     function scanLaser(puzzle, seed, player) {
+        if (!useR7) return null;               // explainable-only mode uses the assume→contradiction tier instead
         const w = seed.slice(); if (!propagate(puzzle, w)) return null;
         for (let li = 0; li < puzzle.lasers.length; li++) {
             const w2 = w.slice(); if (laserEnumForce(puzzle, w2, puzzle.lasers[li]) !== 'changed') continue;
@@ -869,7 +1002,7 @@
                 const content = bitContent(w2[c]);
                 if (content !== EMPTY) {
                     if (player[c] !== EMPTY) continue;
-                    return makePlace(puzzle, w, c, content, 'laser');
+                    return makePlace(puzzle, c, content, 'laser', player);
                 } else if (canMirror(seed, c) && player[c] === EMPTY) {
                     return { kind: 'exclude', reason: 'laserEmpty', cells: [c], laser: li };
                 }
@@ -877,34 +1010,42 @@
         }
         return null;
     }
-    function scanChain(puzzle, seed, player) {
-        const w = seed.slice(); if (!propagateFull(puzzle, w)) return null;
-        for (let c = 0; c < w.length; c++) {
-            if (popc(w[c]) !== 1 || popc(seed[c]) <= 1) continue;
-            const content = bitContent(w[c]);
-            if (content !== EMPTY) {
-                if (player[c] !== EMPTY) continue;
-                return makePlace(puzzle, w, c, content, 'chain');
-            } else if (canMirror(seed, c) && player[c] === EMPTY) {
-                return { kind: 'exclude', reason: 'chain', cells: [c] };
+    // First cell the solver has fully determined (vs the ORIGINAL seed) that the
+    // player hasn't acted on yet — preferring a mirror placement over a ✗.
+    function firstActionable(puzzle, seed, dom, player) {
+        for (let pass = 0; pass < 2; pass++) {
+            for (let c = 0; c < dom.length; c++) {
+                if (popc(dom[c]) !== 1 || popc(seed[c]) <= 1) continue;
+                const content = bitContent(dom[c]);
+                if (pass === 0 && content !== EMPTY && player[c] === EMPTY) return makePlace(puzzle, c, content, 'chain', player);
+                if (pass === 1 && content === EMPTY && canMirror(seed, c) && player[c] === EMPTY) return { kind: 'exclude', reason: 'chain', cells: [c] };
             }
         }
         return null;
     }
-    function scanAssume(puzzle, seed, player, maxDepth) {
-        const w = seed.slice(); if (!propagateFull(puzzle, w)) return null;
-        for (let depth = 1; depth <= maxDepth; depth++) {
-            for (let c = 0; c < w.length; c++) {
-                if (popc(w[c]) <= 1) continue;
-                const viable = []; let refuted = -1;
-                for (const v of bitsOf(w[c])) { const d2 = w.slice(); d2[c] = v; if (refute(puzzle, d2, depth - 1)) { if (refuted < 0) refuted = v; } else viable.push(v); }
-                if (refuted >= 0 && viable.length === 1) {
-                    const content = bitContent(viable[0]);
-                    if (content !== EMPTY && player[c] !== EMPTY) continue;
-                    if (content === EMPTY && !(canMirror(seed, c) && player[c] === EMPTY)) continue;
-                    return { kind: 'assume', cell: c, hypo: refuted, content };
+    // The deep tier: replicate deduceSolve's engine (propagateFull + refute-based
+    // domain NARROWING, re-propagating after each) and surface the first newly
+    // determined, still-actionable cell. Crucially it narrows cells 3→2 (not only
+    // →1) and re-propagates, so cascades that a single pass misses still progress
+    // — guaranteeing a next step whenever the board is solvable from here.
+    function scanDeep(puzzle, seed, player, maxDepth) {
+        const dom = seed.slice();
+        if (!applyZeroLines(puzzle, dom) || !propagateFull(puzzle, dom)) return null;
+        let budget = puzzle.N * puzzle.N * 60;
+        while (budget-- > 0) {
+            const step = firstActionable(puzzle, seed, dom, player);
+            if (step) return step;
+            let narrowed = false;
+            for (let depth = 1; depth <= maxDepth && !narrowed; depth++) {
+                for (let c = 0; c < dom.length && !narrowed; c++) {
+                    if (popc(dom[c]) <= 1) continue;
+                    const viable = [];
+                    for (const v of bitsOf(dom[c])) { const d2 = dom.slice(); d2[c] = v; if (!refute(puzzle, d2, depth - 1)) viable.push(v); }
+                    if (viable.length === 0) return null;                         // contradiction (shouldn't happen on a correct board)
+                    if (viable.length < popc(dom[c])) { dom[c] = viable.reduce((a, b) => a | b, 0); if (!propagateFull(puzzle, dom)) return null; narrowed = true; }
                 }
             }
+            if (!narrowed) return null;   // genuinely stuck beyond this difficulty's search depth
         }
         return null;
     }
@@ -924,8 +1065,7 @@
         // first, then trace a laser / propagate / assume→contradiction.
         const look = dom.slice(); applyZeroLines(puzzle, look);
         return scanLaser(puzzle, look, player)
-            || scanChain(puzzle, look, player)
-            || scanAssume(puzzle, look, player, maxDepth)
+            || scanDeep(puzzle, look, player, maxDepth)
             || { kind: 'none' };
     }
 
@@ -934,5 +1074,6 @@
         partition, roomsCells, openings,
         generateSolution, verifySolution, renderSVG,
         solve, analyze, makePuzzle, deduceSolve, hint,
+        setUseR7: (b) => { useR7 = !!b; }, getUseR7: () => useR7,
     };
 })(window);
