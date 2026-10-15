@@ -89,11 +89,6 @@
             href: './games/queens.html',
             tags: ['puzzle', 'single'],
         },
-        {
-            id: 'beam', theme: 'puzzle', icon: 'zap', color: '#0891b2', wip: true,
-            href: './games/beam.html',
-            tags: ['puzzle', 'single'],
-        },
     ];
 
     // Default display order: a soft rainbow sorted by each game's theme-colour hue.
@@ -152,9 +147,6 @@
             'queens_name': 'Queens',
             'queens_tagline': 'Royal regions, one queen each.',
             'queens_body': 'Place N queens so that every row, column, colour region and 8-neighbourhood contains exactly one.',
-            'beam_name': 'Beam',
-            'beam_tagline': 'Lasers & mirrors.',
-            'beam_body': 'Put one mirror in each room so every laser reflects from its letter to the matching letter with the right number of bounces.',
         },
         zh: {
             subtitle: '一個小遊戲合輯，依標籤篩選。',
@@ -205,9 +197,6 @@
             'queens_name': 'Queens',
             'queens_tagline': '皇家領地，每區一后。',
             'queens_body': '在每個列、行、色塊區域與 8 鄰域中各放一個皇后。',
-            'beam_name': 'Beam',
-            'beam_tagline': '雷射與鏡子。',
-            'beam_body': '每個房間放一面鏡子，讓每道雷射從字母反射到相同字母、且折射次數正確。',
         },
     };
 
