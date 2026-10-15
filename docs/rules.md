@@ -214,9 +214,9 @@ matches are honor-system and record nothing.
 ### Sandbag (solo)
 
 A no-frills damage run: **no cards, no defence, no HP bar of your own** — just
-spin and hit. The board is **6×6** with a fixed **7-second** spin window (neither
-scales with difficulty). You get **50 spins**; chase the highest **total** and
-**single-spin** damage.
+spin and hit. The board is **6×6** with a fixed **6-second** spin window (neither
+scales with difficulty). You get **30 spins**; chase the highest **total** and
+**single-spin** damage. Between rounds you **draft** power-ups (see below).
 
 - **Three enemies** stand as targets, each a single element. Every colour you
   clear strikes the matching enemy through an **elemental multiplier** — **×1.5**
@@ -224,14 +224,30 @@ scales with difficulty). You get **50 spins**; chase the highest **total** and
   a wave makes that element **hit all three** at once.
 - **Spirit** replaces **Heart** as a plain attack rune — there is no healing
   here.
-- Enemies come in **HP tiers (100 / 200 / 400 / 800)**; tougher ones look a little
-  bigger. Drop one to **0** and a fresh enemy takes its place.
+- Enemy HP scales in **three 10-round stages** — **200–1600** (rounds 1-10),
+  **400–3200** (11-20), **800–6400** (21-30). Each spawn rolls a random tier within
+  the current stage, and tougher tiers look a little bigger. Drop one to **0** and a
+  fresh enemy takes its place.
 - **Difficulty only widens the element pool**: Easy uses 5 elements, Normal adds
   **Spirit**, Hard adds **Spirit + Steel** — more attributes on the board, more
   restraints in play. **Hover / long-press** an enemy to read your multipliers
   against it.
 - **Best** = your highest total damage and best single spin, kept **per
   difficulty**.
+
+### Sandbag draft
+
+**Three picks at the start, then 1 of 3 every 5 rounds** (after rounds 5 / 10 / 15 /
+20 / 25). Most cards **stack** (more attack / element damage, longer spins, bigger
+combos, harder first-wave / cascade hits, an extra attack target). A few are
+limited: **per element** (an element's attacks reach one more enemy, up to twice —
+two makes it hit all three) or **one-time** build-definers (every colour AoEs at
+**4**; **flood** the board with one element; an element that clears at **2**; or
+**keep rearranging** runes until the timer runs out). Rarer cards appear less often, and one-time cards are flagged in the draft;
+card **frames are colour-coded** by how rare they are. Some cards target a
+**specific** element, others let you **choose** one. A **Powers** button (top-left)
+opens a list of everything you currently own. All values live in `DRAFT` /
+`DRAFT_CARDS` at the top of `js/games/rune-stones.js`.
 
 The remaining sections describe **Versus**.
 
