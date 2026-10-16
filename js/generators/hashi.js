@@ -330,12 +330,17 @@
         return out;
     }
 
-    /** Traced propagation (connectivity on): like propagate, but records every
-     *  edge it forces (in order) and, on contradiction, where the rule breaks.
+    /** Traced propagation: like propagate, but records every edge it forces (in
+     *  order) and, on contradiction, where the rule breaks.
      *  Returns { ok:true, chain:[{edge,value}] } or { ok:false, chain, bad },
      *  bad one of: { kind:'degree', island }, { kind:'cross', edges:[e,f] },
-     *  { kind:'disconnect', islands }, { kind:'disconnect', edge }. */
-    function propagateTraced(G, needs, lo, hi) {
+     *  { kind:'disconnect', islands }, { kind:'disconnect', edge }.
+     *  `cutForce` (default true) toggles the pricey cut-edge FORCING rule — the one
+     *  that silently cascades long chains. With it off, the trace still DETECTS a
+     *  disconnect as a contradiction, but no longer forces cut edges, so refutation
+     *  chains stay short and human-followable (used by the hint engine). */
+    function propagateTraced(G, needs, lo, hi, cutForce) {
+        const doCut = cutForce !== false;
         const E = G.edges.length;
         const wasDecided = new Uint8Array(E), recorded = new Uint8Array(E), chain = [];
         for (let e = 0; e < E; e++) wasDecided[e] = lo[e] === hi[e] ? 1 : 0;
@@ -365,10 +370,12 @@
             }
             const stranded = strandedIslands(G, hi);
             if (stranded.length) return { ok: false, chain, bad: { kind: 'disconnect', islands: stranded } };
-            const isCut = cutEdges(G, hi);
-            for (let e = 0; e < E; e++) if (isCut[e] && lo[e] < 1) {
-                if (hi[e] < 1) return { ok: false, chain, bad: { kind: 'disconnect', edge: e } };
-                lo[e] = 1; changed = true; note(e);
+            if (doCut) {
+                const isCut = cutEdges(G, hi);
+                for (let e = 0; e < E; e++) if (isCut[e] && lo[e] < 1) {
+                    if (hi[e] < 1) return { ok: false, chain, bad: { kind: 'disconnect', edge: e } };
+                    lo[e] = 1; changed = true; note(e);
+                }
             }
         }
         return { ok: true, chain };
@@ -388,7 +395,9 @@
         if (!propagate(G, needs, lo, hi, true)) return null;
         // Rank by how self-evident the reason is: a single island's own number +
         // the bridges already drawn comes first.
-        const RANK = { sole: 0, saturate: 1, onlyLeft: 1, saturateRest: 2, eachOne: 3, cut: 3, atleast: 4, share: 5, degree: 6 };
+        // Grounded single-island moves first; `cut` (connectivity) is the LAST resort
+        // — it's the one that needs an assume→contradiction walk-through to explain.
+        const RANK = { sole: 0, saturate: 1, onlyLeft: 1, saturateRest: 2, eachOne: 3, atleast: 4, share: 5, degree: 6, cut: 7 };
         let best = null, bestScore = Infinity;
         for (let e = 0; e < E; e++) {
             if (lo[e] <= drawn[e]) continue; // this edge already has all the bridges it's forced to
@@ -477,35 +486,68 @@
         return { edge: e, value: pLo[e], atLeast: pLo[e] < pHi[e], reason: 'degree', anchor: { islands: [a, b] } };
     }
 
-    /** Depth-1 refutation hint (for boards that need lookahead), SHORTEST chain:
-     *  find an edge whose current forced minimum is infeasible to hold — i.e.
-     *  assuming it stays as-is leads to a contradiction — so it must grow. Works on
-     *  the player's `drawn` counts as lower bounds. Returns
-     *  { edge, value, assume:{edge,value}, chain:[{edge,value}], bad } or null. */
+    // Keep a refutation step if it's genuinely new to the player: a corridor just
+    // forbidden (value 0 — an "×"), or a bridge count pushed above what's drawn.
+    // Re-confirming a half-drawn pair reads as noise, so it's dropped.
+    const keepStep = (st, drawn) => st.value === 0 || st.value > drawn[st.edge];
+
+    /** Add human-facing detail to a refutation's break point. For a degree overflow,
+     *  attach the overloaded island's number and the bridges forced onto it (its
+     *  incident edges' forced lower bounds) so the hint can SHOW why the count can't
+     *  be met — not just circle the island. */
+    function enrichBad(G, needs, drawn, lo, bad) {
+        if (!bad) return bad;
+        if (bad.kind === 'degree' && typeof bad.island === 'number') {
+            const v = bad.island; let forcedMin = 0; const pile = [];
+            for (const k of G.incident[v]) { forcedMin += lo[k]; if (lo[k] >= 1) pile.push({ edge: k, value: lo[k], drawn: drawn[k] }); }
+            return Object.assign({}, bad, { need: needs[v], forcedMin, pile });
+        }
+        return bad;
+    }
+
+    /** Single-hypothesis refutation hint: find an edge whose current low is
+     *  infeasible — assuming it stays there breaks a rule — so it must grow. The
+     *  consequences are traced CUT-FORCE-FREE (short, followable) and we prefer the
+     *  cleanest, shortest break (an island left isolated reads best). Works on the
+     *  player's `drawn` counts as lower bounds. Returns
+     *  { edge, value, atLeast, assume:{edge,value}, chain:[{edge,value}], bad } or null. */
     function nextStepDeep(G, needs, drawn) {
         const E = G.edges.length;
         const baseLo = new Int8Array(E), baseHi = new Int8Array(E).fill(2);
         for (let e = 0; e < E; e++) baseLo[e] = drawn[e];
         if (!propagate(G, needs, baseLo, baseHi, true)) return null;
-        let best = null;
-        for (let e = 0; e < E; e++) {
-            if (baseLo[e] === baseHi[e]) continue;
-            const feas = [];
-            for (let v = baseLo[e]; v <= baseHi[e]; v++) {
-                const l = baseLo.slice(), h = baseHi.slice(); l[e] = v; h[e] = v;
-                if (propagate(G, needs, l, h, true)) feas.push(v);
+        // One sweep over every forced-to-grow edge, tracing the refutation with the
+        // given cut-force setting, keeping the cleanest/shortest break.
+        const sweep = (cutForce) => {
+            let best = null;
+            for (let e = 0; e < E; e++) {
+                if (baseLo[e] === baseHi[e]) continue;
+                const feas = [];
+                for (let v = baseLo[e]; v <= baseHi[e]; v++) {
+                    const l = baseLo.slice(), h = baseHi.slice(); l[e] = v; h[e] = v;
+                    if (propagate(G, needs, l, h, true)) feas.push(v);
+                }
+                // smallest feasible value exceeds the current low ⇒ e is forced to grow,
+                // and "e stays at its low" is the refuted assumption.
+                if (feas.length && feas[0] > baseLo[e]) {
+                    const assumeVal = baseLo[e];
+                    const l = baseLo.slice(), h = baseHi.slice(); l[e] = assumeVal; h[e] = assumeVal;
+                    const tr = propagateTraced(G, needs, l, h, cutForce);
+                    if (tr.ok) continue; // this setting couldn't surface the break on this edge
+                    const chain = (tr.chain || []).filter((st) => keepStep(st, drawn));
+                    const addLen = chain.reduce((s, st) => s + (st.value >= 1 ? 1 : 0), 0);
+                    const bad = enrichBad(G, needs, drawn, l, tr.bad || null);
+                    const disc = bad && bad.kind === 'disconnect' ? 0 : 1; // prefer a clean "island isolated" break
+                    const rank = disc * 1000 + addLen;
+                    if (!best || rank < best.rank) best = { edge: e, value: feas[0], atLeast: feas[0] < feas[feas.length - 1], assume: { edge: e, value: assumeVal }, chain, bad, rank };
+                }
             }
-            // smallest feasible value exceeds the current low ⇒ e is forced to grow,
-            // and "e stays at its low" is the refuted assumption.
-            if (feas.length && feas[0] > baseLo[e]) {
-                const assumeVal = baseLo[e];
-                const l = baseLo.slice(), h = baseHi.slice(); l[e] = assumeVal; h[e] = assumeVal;
-                const tr = propagateTraced(G, needs, l, h);
-                const len = tr.chain ? tr.chain.length : 0;
-                if (!best || len < best.len) best = { edge: e, value: feas[0], assume: { edge: e, value: assumeVal }, chain: tr.chain || [], bad: tr.bad || null, len };
-            }
-        }
-        return best ? { edge: best.edge, value: best.value, assume: best.assume, chain: best.chain, bad: best.bad } : null;
+            return best;
+        };
+        // Prefer cut-force-free (short, followable); fall back to full connectivity so
+        // we always surface a move when one exists.
+        const best = sweep(false) || sweep(true);
+        return best ? { edge: best.edge, value: best.value, atLeast: best.atLeast, assume: best.assume, chain: best.chain, bad: best.bad } : null;
     }
 
     /** Walk-through for an edge forced by connectivity: assume it stays empty and
@@ -515,15 +557,24 @@
      *  or null if assuming it empty is actually fine. */
     function refuteEmpty(G, needs, drawn, e) {
         const E = G.edges.length;
-        const lo = new Int8Array(E), hi = new Int8Array(E).fill(2);
-        for (let k = 0; k < E; k++) lo[k] = drawn[k];
-        lo[e] = 0; hi[e] = 0; // assume this corridor stays empty
-        const tr = propagateTraced(G, needs, lo, hi);
+        const run = (cutForce) => {
+            const lo = new Int8Array(E), hi = new Int8Array(E).fill(2);
+            for (let k = 0; k < E; k++) lo[k] = drawn[k];
+            lo[e] = 0; hi[e] = 0; // assume this corridor stays empty
+            const tr = propagateTraced(G, needs, lo, hi, cutForce);
+            return { tr, lo, hi };
+        };
+        // Prefer the cut-force-free trace (short, followable); only if that can't
+        // reach the contradiction do we fall back to full connectivity so the move is
+        // still explained (longer, but correct) rather than shown without reasoning.
+        let { tr, lo, hi } = run(false);
+        if (tr.ok) ({ tr, lo, hi } = run(true));
         if (tr.ok) return null;
-        // Only surface steps that ADD bridges beyond what the player already drew —
-        // re-confirming bridges in regions they've finished just reads as noise.
-        const chain = (tr.chain || []).filter((st) => st.value > drawn[st.edge]);
-        return { chain, bad: tr.bad || null };
+        // Keep every step that's new to the player — bridges added AND corridors just
+        // forbidden (×) — so the final break is actually motivated.
+        const chain = (tr.chain || []).filter((st) => keepStep(st, drawn));
+        const bad = enrichBad(G, needs, drawn, lo, tr.bad || null);
+        return { chain, bad, rawChain: tr.chain || [], lo: Array.from(lo), hi: Array.from(hi) };
     }
 
     /** Verify a player's full edge-value array solves the puzzle. */
@@ -546,21 +597,21 @@
     // Generator — grow a connected, non-crossing network, derive numbers
     // -----------------------------------------------------------------
 
-    // Difficulty, measured empirically (see tools/hashi-tierprobe):
-    //   • Easy / Medium are both PURE-PROPAGATION boards (no lookahead). They
-    //     differ by PROPAGATION DEPTH — the number of "draw → update remaining →
-    //     re-deduce" rounds the fixpoint needs. Depth 2 ≈ forced straight from the
-    //     opening (first-order, "beginner" tier); deeper boards need the iterated "intermediate"
-    //     chain. Depth grows with board size, so the two are picked RELATIVELY
-    //     (shallowest vs deepest in the same batch) to separate at every size.
-    //   • Hard genuinely needs "assume → contradiction" lookahead ("master" tier); it is
-    //     capped so it never needs a brutal amount. Fewer cycle bridges ⇒ more
-    //     lookahead boards (but lower uniqueness), so Hard runs a low cycleBias.
+    // Difficulty by the reasoning a board needs — always a SINGLE hypothesis layer:
+    //   • Easy   — pure forced propagation (no hypothesis). Among these, the shallowest.
+    //   • Medium — deeper forced propagation, OR a short, easy hypothesis whose refuted
+    //              branch collapses within MEDIUM_DIST forced steps.
+    //   • Hard   — a longer single hypothesis: a refuted branch running 3..HARD_DIST forced
+    //              steps. Capped at HARD_DIST so the hint's numbered walk-through stays
+    //              readable; longer-than-that (or nested) boards are rejected as unfair.
+    // A board's "distance" = how far one assumption propagates before it breaks (requiredDist).
     const DIFFS = {
         easy:   { density: 0.24, cycleBias: 1.6, doubleFrac: 0.35, mode: 'shallow' },
         medium: { density: 0.24, cycleBias: 1.0, doubleFrac: 0.30, mode: 'deep' },
-        hard:   { density: 0.24, cycleBias: 0.35, doubleFrac: 0.45, mode: 'lookahead', elimCapMul: 0.8 },
+        hard:   { density: 0.24, cycleBias: 0.35, doubleFrac: 0.45, mode: 'lookahead' },
     };
+    const MEDIUM_DIST = 2;   // Medium: a hypothesis whose refutation takes ≤ this many forced steps
+    const HARD_DIST = 6;     // Hard: up to this many; beyond is too long to trace / to show in a hint
 
     /** Fraction of islands whose number already maxes out every direction
      *  (need == 2 × degree) — the "just fill every connection with a double"
@@ -600,6 +651,56 @@
             if (!propagate(G, needs, lo, hi, true)) return { elims, solved: false };
         }
         return { elims, solved: true };
+    }
+
+    // --- Difficulty by single-hypothesis cascade distance (MEDIUM_DIST / HARD_DIST) ---
+    // A trial assumes one edge value and propagates (connectivity on); if that hits a
+    // contradiction, the "distance" is how many bridges were forced before it broke. The
+    // solver may only USE an elimination whose distance ≤ maxDist, modelling "a human can
+    // trace this far ahead". Always exactly one hypothesis layer (no nested guessing).
+    function trialPassBounded(G, needs, lo, hi, maxDist) {
+        const E = G.edges.length;
+        let gained = 0;
+        for (let e = 0; e < E; e++) {
+            if (lo[e] === hi[e]) continue;
+            let flo = 3, fhi = -1;
+            for (let v = lo[e]; v <= hi[e]; v++) {
+                const l = lo.slice(), h = hi.slice(); l[e] = v; h[e] = v;
+                const tr = propagateTraced(G, needs, l, h);
+                // Keep v as "possible" if it's feasible, OR if its refutation is farther than
+                // the player may look (we're not allowed to use that elimination).
+                const refuted = !tr.ok && (tr.chain ? tr.chain.length : 0) <= maxDist;
+                if (!refuted) { if (v < flo) flo = v; if (v > fhi) fhi = v; }
+            }
+            if (fhi < flo) return -1;
+            if (flo > lo[e]) { lo[e] = flo; gained++; }
+            if (fhi < hi[e]) { hi[e] = fhi; gained++; }
+        }
+        return gained;
+    }
+    /** Solve from empty using forced propagation + single hypotheses whose refutation runs
+     *  ≤ maxDist forced steps. maxDist 0 ⇒ pure propagation only. True iff fully decided. */
+    function solveWithinDist(G, needs, maxDist) {
+        const E = G.edges.length;
+        const lo = new Int8Array(E), hi = new Int8Array(E).fill(2);
+        if (!propagate(G, needs, lo, hi, true)) return false;
+        let guard = 0;
+        for (;;) {
+            let done = true;
+            for (let e = 0; e < E; e++) if (lo[e] !== hi[e]) { done = false; break; }
+            if (done) return true;
+            if (maxDist < 1) return false;          // pure propagation stalled; no trials allowed
+            if (++guard > E * 4) return false;
+            const g = trialPassBounded(G, needs, lo, hi, maxDist);
+            if (g <= 0) return false;
+            if (!propagate(G, needs, lo, hi, true)) return false;
+        }
+    }
+    /** Smallest cascade budget (0..cap) that fully solves the board, or Infinity if it needs
+     *  a longer single hypothesis (or more than one). */
+    function requiredDist(G, needs, cap) {
+        for (let d = 0; d <= cap; d++) if (solveWithinDist(G, needs, d)) return d;
+        return Infinity;
     }
 
     /** Grow a random solution network on an N×N grid. Returns
@@ -731,20 +832,15 @@
             // uniqueness
             const { count } = countSolutions(G, needs, 2, true);
             if (count !== 1) continue;
-            // reasoning effort → difficulty band
-            const ef = effort(G, needs);
-            if (!ef.solved) continue; // needs more than depth-1 lookahead: unfair
+            // reasoning distance → difficulty band (one hypothesis layer; cascade ≤ dist)
+            const rc = requiredDist(G, needs, HARD_DIST);
+            if (rc === Infinity) continue;   // needs a longer cascade (or nested guesses) than Hard allows — unfair
+            if (cfg.mode === 'shallow') { if (rc !== 0) continue; }            // Easy: pure forced only
+            else if (cfg.mode === 'deep') { if (rc > MEDIUM_DIST) continue; }  // Medium: deeper forced OR a short hypothesis
+            else if (rc <= MEDIUM_DIST) continue;                             // Hard: a genuine longer (≥ MEDIUM_DIST+1) hypothesis
             const needSum = needs.reduce((s, n) => s + n, 0);
             const satFrac = saturatedFraction(G, needs);
-            if (cfg.mode === 'lookahead') {
-                // Hard must need lookahead, but not a brutal amount.
-                const cap = Math.max(4, Math.round(islands.length * cfg.elimCapMul));
-                if (ef.elims < 1 || ef.elims > cap) continue;
-                pool.push({ islands, needs, solVal, G, elims: ef.elims, depth: -1, m: islands.length, needSum, satFrac, bridges: net.bridges.length });
-            } else {
-                if (ef.elims !== 0) continue; // Easy/Medium: pure-propagation only
-                pool.push({ islands, needs, solVal, G, elims: 0, depth: propDepth(G, needs), m: islands.length, needSum, satFrac, bridges: net.bridges.length });
-            }
+            pool.push({ islands, needs, solVal, G, rc, depth: rc === 0 ? propDepth(G, needs) : 99, m: islands.length, needSum, satFrac, bridges: net.bridges.length });
             if (onProgress && (t & 7) === 0) await onProgress(0.03 + 0.9 * Math.min(1, (t + 1) / attempts));
             // Easy/Medium need a spread of depths to pick the shallow/deep extreme.
             if (pool.length >= (cfg.mode === 'lookahead' ? 6 : 18)) break;
@@ -771,12 +867,12 @@
             // Medium: still the deep iterated chain (so it's deeper than Easy), but
             // among the deepest prefer the one that leans on MIXED reasoning rather
             // than double-fill (fewest saturated islands) so it feels distinct.
-            const maxD = pool.reduce((m, p) => Math.max(m, p.depth), 0);
-            const deep = pool.filter((p) => p.depth >= maxD - 1);
-            deep.sort((a, b) => a.satFrac - b.satFrac || b.depth - a.depth || b.needSum - a.needSum);
-            chosen = deep[0];
+            // Medium: prefer a genuine short hypothesis (rc 1–2) so it's distinct from Easy;
+            // if none turned up, fall back to the deepest pure-forced board.
+            pool.sort((a, b) => b.rc - a.rc || a.satFrac - b.satFrac || b.depth - a.depth || b.needSum - a.needSum);
+            chosen = pool[0];
         } else {
-            pool.sort((a, b) => a.elims - b.elims);
+            pool.sort((a, b) => a.rc - b.rc);
             chosen = pool[Math.min(pool.length - 1, Math.floor(pool.length * 0.6))];
         }
 
@@ -806,7 +902,7 @@
             game: 'hashi', size: N, difficulty,
             islands: outIslands.map((p) => ({ r: p.r, c: p.c, need: p.need })),
             solution,
-            stats: { islands: chosen.m, bridges: chosen.bridges, elims: chosen.elims, depth: chosen.depth, poolSize: pool.length },
+            stats: { islands: chosen.m, bridges: chosen.bridges, dist: chosen.rc, depth: chosen.depth, poolSize: pool.length },
         };
     }
 
@@ -833,6 +929,6 @@
     global.PuzzleSolvers.hashi = { buildGraph, propagate, countSolutions, verify, nextStep, nextStepDeep, refuteEmpty, solvesBy, UNKNOWN };
     global.PuzzleGenerators.hashiInternals = {
         buildGraph, propagate, countSolutions, solveProp, solvesBy, trialPass, effort, propDepth, verify,
-        nextStep, nextStepDeep, annotateStep, propagateTraced, growNetwork, attemptsFor, possibleConnected, cutEdges, DIFFS, UNKNOWN,
+        requiredDist, solveWithinDist, nextStep, nextStepDeep, annotateStep, propagateTraced, growNetwork, attemptsFor, possibleConnected, cutEdges, DIFFS, UNKNOWN,
     };
 })(typeof window !== 'undefined' ? window : this);

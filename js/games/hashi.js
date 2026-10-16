@@ -606,11 +606,13 @@
                 return `Without a bridge here, ${n > 1 ? `those ${n} circled islands have` : 'the circled island has'} no other way to reach the rest of the network, so this connection must take at least one bridge.`;
             },
             deep: (h) => {
-                const brk = h.bad && h.bad.kind === 'cross' ? 'two bridges would be forced to cross'
-                    : h.bad && h.bad.kind === 'disconnect' ? 'an island could no longer connect'
-                        : 'an island couldn’t reach its number';
-                const lead = h.chain && h.chain.length ? 'the numbered steps are forced and ' : '';
-                return `Assume the dashed connection takes ${asmEn(h.assume.value)}: ${lead}${brk} (circled). So it must ${actEn(h.value)}.`;
+                const b = h.bad;
+                const brk = b && b.kind === 'cross' ? 'two bridges would be forced to cross'
+                    : b && b.kind === 'disconnect' ? 'an island could no longer connect'
+                        : b && b.need != null ? `the circled island would be forced up to ${b.forcedMin} bridges, past its ${b.need}`
+                            : 'an island couldn’t reach its number';
+                const lead = h.chain && h.chain.length ? 'follow the marks and ' : '';
+                return `Assume the dashed connection takes ${asmEn(h.assume.value)}: ${lead}${brk} (circled). So it must ${actEn(h.value, h.atLeast)}.`;
             },
             none: 'Nothing more to deduce right now.',
         },
@@ -637,11 +639,13 @@
                 return `若這條不架橋，圈起來的${n > 1 ? `這 ${n} 座島` : '島'}就沒有別的路能連到其餘的島，所以這條至少要架一座橋。`;
             },
             deep: (h) => {
-                const brk = h.bad && h.bad.kind === 'cross' ? '會逼出兩橋交叉'
-                    : h.bad && h.bad.kind === 'disconnect' ? '會有島連不起來'
-                        : '會有島的橋數湊不出來';
-                const lead = h.chain && h.chain.length ? '順著編號的幾步，' : '';
-                return `假設虛線這條${asmZh(h.assume.value)}：${lead}${brk}（圈起來處）。所以它必須${actZh(h.value)}。`;
+                const b = h.bad;
+                const brk = b && b.kind === 'cross' ? '會逼出兩橋交叉'
+                    : b && b.kind === 'disconnect' ? '會有島連不起來'
+                        : b && b.need != null ? `圈起來那座島會被逼到 ${b.forcedMin} 座橋，超過它的 ${b.need}`
+                            : '會有島的橋數湊不出來';
+                const lead = h.chain && h.chain.length ? '順著標記推下去，' : '';
+                return `假設虛線這條${asmZh(h.assume.value)}：${lead}${brk}（圈起來處）。所以它必須${actZh(h.value, h.atLeast)}。`;
             },
             none: '目前沒有可推的下一步。',
         },
@@ -672,13 +676,17 @@
         // hint instead, so ANY cut here is worth showing as an assume→contradiction
         // walk-through: assume the corridor stays empty, trace the forced steps, and
         // mark where it breaks.
+        // A grounded degree move is always the clearest, so `nextStep` is ranked to
+        // return `cut` only as a last resort. The walk-through (chain + break) is kept
+        // SHORT at the source (cut-force-free tracing), so it's shown in full — no
+        // truncation, which was what turned it into an unreadable fragment before.
         if (step && step.reason === 'cut' && HS.refuteEmpty) {
             const ref = HS.refuteEmpty(state.G, state.needs, drawn, step.edge);
-            if (ref) return { kind: 'deep', edge: step.edge, value: step.value, assume: { edge: step.edge, value: 0 }, chain: ref.chain, bad: ref.bad };
+            if (ref) return { kind: 'deep', edge: step.edge, value: step.value, atLeast: step.atLeast, assume: { edge: step.edge, value: 0 }, chain: ref.chain, bad: ref.bad };
         }
         if (step) return { kind: 'deduce', edge: step.edge, value: step.value, atLeast: step.atLeast, reason: step.reason, anchor: step.anchor, src: step.src };
         const deep = HS.nextStepDeep(state.G, state.needs, drawn);
-        if (deep) return { kind: 'deep', edge: deep.edge, value: deep.value, assume: deep.assume, chain: deep.chain, bad: deep.bad };
+        if (deep) return { kind: 'deep', edge: deep.edge, value: deep.value, atLeast: deep.atLeast, assume: deep.assume, chain: deep.chain, bad: deep.bad };
         return null;
     }
 
@@ -691,8 +699,26 @@
         if (h.src) L.push('src: ' + JSON.stringify(Object.assign({}, h.src, { island: h.src.island != null ? isl(h.src.island) : undefined, isles: (h.src.isles || []).map(isl), stranded: (h.src.stranded || []).map(isl) })));
         if (h.anchor) L.push('anchor: ' + JSON.stringify({ islands: (h.anchor.islands || []).map(isl), edges: (h.anchor.edges || []).map(edg) }));
         if (h.assume) L.push('assume: ' + edg(h.assume.edge) + ' = ' + h.assume.value);
-        if (h.chain) L.push('chain: [' + h.chain.map((s) => edg(s.edge) + '=' + s.value).join(', ') + ']');
+        if (h.chain) L.push('chain (shown): [' + h.chain.map((s) => edg(s.edge) + '=' + s.value).join(', ') + ']');
         if (h.bad) { const b = h.bad; L.push('breaks: ' + b.kind + (b.island != null ? ' @' + isl(b.island) : '') + (b.islands ? ' @' + b.islands.map(isl).join(',') : '') + (b.edges ? ' @' + b.edges.map(edg).join(',') : '') + (b.edge != null ? ' @' + edg(b.edge) : '')); }
+        // For an assume→contradiction hint, re-run the refutation WITHOUT the display
+        // filter so the hidden "forbidden to 0" steps show, and dump the break island's
+        // per-edge state — this is what explains why its number can't be met.
+        if (h.assume && h.assume.value === 0 && HS.refuteEmpty) {
+            const ref = HS.refuteEmpty(state.G, state.needs, state.edgeVal, h.assume.edge);
+            if (ref && ref.rawChain) {
+                L.push('FULL chain (incl. ×0 forbids): [' + ref.rawChain.map((s) => edg(s.edge) + '=' + s.value).join(', ') + ']');
+                const b = ref.bad;
+                if (b && b.kind === 'degree' && b.island != null) {
+                    const v = b.island; let sumLo = 0, sumHi = 0; const rows = [];
+                    for (const k of state.G.incident[v]) {
+                        sumLo += ref.lo[k]; sumHi += ref.hi[k];
+                        rows.push('    ' + edg(k) + '  drawn=' + state.edgeVal[k] + ' lo=' + ref.lo[k] + ' hi=' + ref.hi[k]);
+                    }
+                    L.push('break island ' + isl(v) + ' need=' + state.needs[v] + ' → can supply ' + sumLo + '..' + sumHi + ' (need outside this range):\n' + rows.join('\n'));
+                }
+            }
+        }
         const drawn = [];
         for (let e = 0; e < state.G.edges.length; e++) if (state.edgeVal[e] >= 1) drawn.push([state.G.edges[e].a, state.G.edges[e].b, state.edgeVal[e]]);
         L.push('board: ' + JSON.stringify({ size: state.N, islands: state.islands.map((i) => [i.r, i.c, i.need]), drawn }));
@@ -758,19 +784,45 @@
             drawBridge(g, e, value || 1, cls || 'hashi-bridge hashi-hint-ghost', sw, offUnit);
             layer.appendChild(g);
         };
-        const stepNum = (e, n) => {
+        const glyph = (e, text, cls) => {
             const { a, b } = state.G.edges[e], A = state.islands[a], B = state.islands[b];
             const t = PC.svgEl('text', {
-                class: 'hashi-hint-step hashi-hint-mark', x: (cx(A.c) + cx(B.c)) / 2, y: (cy(A.r) + cy(B.r)) / 2,
+                class: cls + ' hashi-hint-mark', x: (cx(A.c) + cx(B.c)) / 2, y: (cy(A.r) + cy(B.r)) / 2,
                 'text-anchor': 'middle', 'dominant-baseline': 'middle', 'font-size': Math.max(9, Math.round(cs * 0.3)),
                 'stroke-width': Math.max(2, cs * 0.06),
             });
-            t.textContent = String(n); layer.appendChild(t);
+            t.textContent = text; layer.appendChild(t);
+        };
+        const stepNum = (e, n) => glyph(e, String(n), 'hashi-hint-step');
+        // A corridor the walk-through forbids: faint red line + an × so the player
+        // sees the route is blocked (these steps used to be dropped, which is what
+        // made the final break look like it came from nowhere).
+        const forbidEdge = (e) => {
+            const { a, b } = state.G.edges[e], A = state.islands[a], B = state.islands[b];
+            const x1 = cx(A.c), y1 = cy(A.r), x2 = cx(B.c), y2 = cy(B.r);
+            layer.appendChild(PC.svgEl('line', {
+                class: 'hashi-hint-forbid hashi-hint-mark', 'stroke-width': Math.max(1.5, cs * 0.05),
+                'stroke-dasharray': dash(0.07, 0.07), x1, y1, x2, y2,
+            }));
+            // Nudge the × to the side of the corridor so it doesn't land on a step
+            // number sitting at the crossing point.
+            const L = Math.hypot(x2 - x1, y2 - y1) || 1, off = cs * 0.3;
+            const ox = -(y2 - y1) / L * off, oy = (x2 - x1) / L * off;
+            const t = PC.svgEl('text', {
+                class: 'hashi-hint-forbid-x hashi-hint-mark', x: (x1 + x2) / 2 + ox, y: (y1 + y2) / 2 + oy,
+                'text-anchor': 'middle', 'dominant-baseline': 'middle', 'font-size': Math.max(9, Math.round(cs * 0.28)),
+                'stroke-width': Math.max(2, cs * 0.06),
+            });
+            t.textContent = '\u00d7'; layer.appendChild(t);
         };
         const badMark = (bad) => {
             if (!bad) return;
-            if (bad.kind === 'degree' && typeof bad.island === 'number') ringIsland(bad.island, 'hashi-hint-ring wrong');
-            else if (bad.kind === 'cross' && bad.edges) for (const e of bad.edges) bandEdge(e, 'hashi-hint-band wrong');
+            if (bad.kind === 'degree' && typeof bad.island === 'number') {
+                ringIsland(bad.island, 'hashi-hint-ring wrong');
+                // Show the bridges forced onto the overloaded island (its number can't
+                // hold them) so the "can't make its count" break is actually visible.
+                if (bad.pile) for (const p of bad.pile) ghostEdge(p.edge, p.value, 'hashi-bridge bad hashi-hint-ghost');
+            } else if (bad.kind === 'cross' && bad.edges) for (const e of bad.edges) bandEdge(e, 'hashi-hint-band wrong');
             else if (bad.kind === 'disconnect') {
                 if (bad.islands) for (const v of bad.islands) ringIsland(v, 'hashi-hint-ring wrong');
                 if (typeof bad.edge === 'number') bandEdge(bad.edge, 'hashi-hint-band wrong');
@@ -793,9 +845,15 @@
                 x1: cx(AA.c), y1: cy(AA.r), x2: cx(AB.c), y2: cy(AB.r),
             }));
             if (h.assume.value >= 1) ghostEdge(h.edge, h.assume.value, 'hashi-bridge bad hashi-hint-ghost');
-            let n = 0;
-            if (h.chain) for (const st of h.chain) if (st.value >= 1) { ghostEdge(st.edge, st.value); stepNum(st.edge, ++n); }
+            // Draw in layers so the numbered steps stay legible on TOP:
+            // (1) forbidden corridors (grey ×), (2) forced-bridge ghosts, (3) the break
+            // (ring + overloaded pile), (4) a "?" on the assumed corridor, (5) numbers.
+            if (h.chain) for (const st of h.chain) if (st.value === 0) forbidEdge(st.edge);
+            if (h.chain) for (const st of h.chain) if (st.value >= 1) ghostEdge(st.edge, st.value);
             badMark(h.bad);
+            glyph(h.edge, '?', 'hashi-hint-assume-badge'); // mark the assumed corridor clearly
+            let n = 0;
+            if (h.chain) for (const st of h.chain) if (st.value >= 1) stepNum(st.edge, ++n);
             return;
         }
         // deduce. Saturate decides the whole fan at once: band + ghost every open

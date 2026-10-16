@@ -1481,6 +1481,14 @@
    each forced step carries a white-haloed number, and the break is ringed red. */
 .hashi-hint-assume { stroke: var(--accent-danger, #dc3545); opacity: 0.7; stroke-dasharray: 5 7; stroke-linecap: butt; }
 .hashi-hint-step { fill: #3a2a18; font-family: var(--font-body); font-weight: 700; paint-order: stroke; stroke: #fff; stroke-width: 3px; stroke-linejoin: round; pointer-events: none; }
+/* A "?" on the assumed corridor so it's unmistakably the hypothesis (red, to match
+   the dashed assume line), distinct from the grey "blocked route" marks. */
+.hashi-hint-assume-badge { fill: var(--accent-danger, #dc3545); font-family: var(--font-body); font-weight: 800; paint-order: stroke; stroke: #fff; stroke-width: 3px; stroke-linejoin: round; pointer-events: none; }
+/* A corridor the walk-through forbids (a crossing rules it out): a neutral GREY
+   line + × so "this route is now blocked" reads as consequence, not hypothesis —
+   and never competes with the red assume line or the red break ring. */
+.hashi-hint-forbid { stroke: #8a8f98; opacity: 0.6; stroke-linecap: butt; }
+.hashi-hint-forbid-x { fill: #6b7076; font-family: var(--font-body); font-weight: 700; paint-order: stroke; stroke: #fff; stroke-width: 3px; stroke-linejoin: round; pointer-events: none; }
 
 /* Reveal overlay. */
 .hashi-reveal-line { stroke: var(--game-color, #8a5a2c); opacity: 0.35; stroke-linecap: round; }
