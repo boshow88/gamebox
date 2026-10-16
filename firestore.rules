@@ -22,5 +22,15 @@ service cloud.firestore {
       allow update: if request.auth != null;
       allow delete: if request.auth != null;
     }
+
+    // ---- Beam rooms (2–4 player room-code matches) ----
+    // Same honor-system MVP as duel_rooms: any signed-in (anonymous) player may
+    // read/write a room they know the code of.
+    match /beam_rooms/{roomId} {
+      allow read:   if request.auth != null;
+      allow create: if request.auth != null;
+      allow update: if request.auth != null;
+      allow delete: if request.auth != null;
+    }
   }
 }

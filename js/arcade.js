@@ -1107,6 +1107,7 @@
         shell.resume = resume;
         shell.togglePause = togglePause;
         shell.gameOver = gameOver;
+        shell.goIdle = goIdle;             // return to the ready screen (stops the loop, re-shows idle overlay)
         shell.refreshBest = refreshBest;
         shell.syncButtons = syncButtons;   // let games refresh pause/restart enablement (e.g. online start/end)
         // Re-paint the overlay for the CURRENT state. A game calls this after

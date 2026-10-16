@@ -1025,7 +1025,7 @@
             else if (k === '[') window.LC.addTime(-30);
             else if (k === 'l' || k === 'L') window.LC.addLife(1);
         });
-        console.log('%c[Colour Ladder] debug on', 'color:#5ad0e0;font-weight:700');
+        console.log('%c[Colour Ladder] debug on', 'color:#f472b6;font-weight:700');
         console.log('LC.setTime(s) addTime(s) addLife(n) diff("easy"|"normal"|"hard") info()');
         console.log('keys:  ] +30s   [ -30s   L +life');
     }

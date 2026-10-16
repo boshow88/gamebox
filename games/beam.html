@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="arcade">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Beam · Arcade Games</title>
+    <link rel="icon" type="image/svg+xml" href="../favicon.svg">
+    <link rel="stylesheet" href="../css/common.css">
+    <link rel="stylesheet" href="../css/arcade.css">
+    <style>
+        body { --game-color: #22d3ee; }
+        /* Square board, capped + centred. */
+        .stage-wrap { max-width: 520px; margin: 0 auto; }
+        .stage-canvas { touch-action: manipulation; }
+        /* Lobby (modeled on Rune Stones) */
+        .lobby-row { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; align-items: center; margin: 9px 0; }
+        .lobby-row input { width: 120px; padding: 9px 10px; border-radius: 9px; border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.07); color: #fff; font: inherit; text-align: center; text-transform: uppercase; letter-spacing: 3px; }
+        .lobby-status { min-height: 1.3em; margin: 8px 2px 2px; color: rgba(255,255,255,0.85); font-size: 14px; }
+        .lobby-code { font-size: 30px; font-weight: 700; letter-spacing: 8px; color: rgba(230,236,255,0.95); margin: 6px 0 2px; text-align: center; }
+        #lobby .overlay-card { gap: 5px; max-width: 460px; }
+        .lobby-plist { list-style: none; margin: 4px 0; padding: 0; width: 100%; display: flex; flex-direction: column; gap: 5px; }
+        .lobby-plist li { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 7px 12px; border-radius: 9px; background: rgba(255,255,255,0.06); font-size: 14px; }
+        .lobby-plist .tag { font-size: 11px; font-weight: 700; padding: 1px 7px; border-radius: 999px; background: rgba(34,211,238,0.22); color: #a9f0fb; }
+        .lobby-plist .ok { color: #34d399; }
+        .lobby-plist .rank { font-weight: 700; color: var(--game-color); }
+        /* In-match player strip */
+        .beam-players { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin: 0 0 10px; }
+        .beam-players .pchip { display: flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 999px; background: var(--bg-secondary); border: 1px solid var(--border-color); font-size: 13px; font-weight: 600; }
+        .beam-players .pchip.me { border-color: var(--game-color); }
+        .beam-players .pchip.dead { opacity: 0.5; }
+        .beam-players .pchip .hp { color: #f87171; letter-spacing: 1px; }
+        .beam-players .pchip .res.ok { color: #34d399; font-weight: 800; }
+        .beam-players .pchip .res.no { color: #f87171; font-weight: 800; }
+        .beam-players .pchip .rank { color: var(--game-color); font-weight: 800; }
+    </style>
+</head>
+<body>
+    <div class="game-shell">
+        <header class="game-topbar">
+            <a class="back-link" href="../index.html">
+                <span data-icon="arrow-left" aria-hidden="true"></span>
+                <span data-i18n="menu">Menu</span>
+            </a>
+            <div class="game-title">
+                <span class="game-icon" data-icon="zap" aria-hidden="true"></span>
+                <span data-i18n="beamArcName">Beam</span>
+            </div>
+            <div class="lang-toggle" id="lang-toggle" role="radiogroup" data-i18n-aria-label="language">
+                <button type="button" data-lang="en" role="radio" aria-checked="true">EN</button>
+                <button type="button" data-lang="zh" role="radio" aria-checked="false">中</button>
+            </div>
+        </header>
+
+        <div class="hud">
+            <div class="hud-stat accent" id="stat-score">
+                <span class="hud-label"><span data-icon="coins" aria-hidden="true"></span><span data-i18n="score">Score</span></span>
+                <span class="hud-value" id="score">0</span>
+            </div>
+            <div class="hud-stat" id="stat-round">
+                <span class="hud-label"><span data-icon="zap" aria-hidden="true"></span><span data-i18n="beamRound">Round</span></span>
+                <span class="hud-value" id="round">1</span>
+            </div>
+            <div class="hud-stat" id="stat-lives">
+                <span class="hud-label"><span data-icon="heart" aria-hidden="true"></span><span data-i18n="lives">Lives</span></span>
+                <span class="hud-value" id="lives">3</span>
+            </div>
+            <div class="hud-stat" id="stat-best">
+                <span class="hud-label"><span data-icon="trophy" aria-hidden="true"></span><span data-i18n="best">Best</span></span>
+                <span class="hud-value" id="best">0</span>
+            </div>
+        </div>
+
+        <div class="control-row">
+            <div class="seg" id="mode-seg" role="radiogroup" aria-label="Mode">
+                <button type="button" class="btn toggle" data-mode="solo">
+                    <span data-icon="zap" aria-hidden="true"></span>
+                    <span data-i18n="beamModeSolo">Solo</span>
+                </button>
+                <button type="button" class="btn toggle" data-mode="online">
+                    <span data-icon="users" aria-hidden="true"></span>
+                    <span data-i18n="beamModeOnline">Online</span>
+                </button>
+            </div>
+            <button class="btn" id="online-btn" type="button" hidden>
+                <span data-icon="users" aria-hidden="true"></span>
+                <span data-i18n="beamOnlineBtn">Online</span>
+            </button>
+            <span class="spacer"></span>
+            <div class="control-actions">
+                <button class="btn" id="pause-btn" type="button" disabled>
+                    <span data-icon="pause" aria-hidden="true"></span>
+                    <span data-role="pause-label" data-i18n="pause">Pause</span>
+                </button>
+                <button class="btn" id="restart-btn" type="button" disabled>
+                    <span data-icon="rotate-ccw" aria-hidden="true"></span>
+                    <span data-i18n="restart">Restart</span>
+                </button>
+                <button class="btn btn-icon toggle" id="sound-btn" type="button" aria-pressed="true" data-i18n-title="sound" title="Sound">
+                    <span data-role="sound-icon" aria-hidden="true"></span>
+                </button>
+            </div>
+        </div>
+
+        <div class="beam-players" id="players" hidden></div>
+
+        <div class="stage-wrap">
+            <canvas class="stage-canvas" id="stage" width="600" height="700"
+                    role="img" aria-label="Beam play field"></canvas>
+            <div class="overlay" id="overlay" hidden>
+                <div class="overlay-card">
+                    <span class="overlay-badge" id="overlay-badge" aria-hidden="true"></span>
+                    <h2 class="overlay-title" id="overlay-title"></h2>
+                    <p class="overlay-message" id="overlay-message"></p>
+                    <button class="btn btn-primary overlay-btn" id="overlay-btn" type="button"></button>
+                    <p class="overlay-hint" id="overlay-hint"></p>
+                </div>
+            </div>
+        </div>
+
+        <section class="game-footer">
+            <h4 data-i18n="howToPlay">How to play</h4>
+            <ul>
+                <li data-i18n="beamArcHelp1Html">A grid of mirrors (<strong>/</strong> and <strong>\</strong>) flashes for a moment — <strong>memorise</strong> where they are.</li>
+                <li data-i18n="beamArcHelp2Html">The mirrors hide and a <strong>laser fires</strong> from one edge. Before the timer runs out, <strong>tap the border</strong> where you think the beam comes out.</li>
+                <li data-i18n="beamArcHelp3Html">The beam <strong>replays</strong> to reveal the truth: a hit scores (faster &amp; combos = more), a miss or timeout <strong>costs a life</strong>. Grids grow and mirrors multiply. <kbd>P</kbd> pause · <kbd>R</kbd> restart · <kbd>M</kbd> mute.</li>
+                <li data-i18n="beamArcHelp4Html"><strong>Online:</strong> 2–4 players, same puzzle. Answers stay hidden until the replay reveals who hit — if some hit and some miss, the ones who missed lose a life. Last one standing wins.</li>
+            </ul>
+        </section>
+    </div>
+
+    <script src="../js/arcade.js"></script>
+    <script src="../js/firebase-config.js"></script>
+    <script type="module" src="../js/net/net.js"></script>
+    <script src="../js/games/beam.js"></script>
+</body>
+</html>

@@ -158,6 +158,71 @@ function fail(err) {
             } catch (e) { console.warn('[ArcadeNet] cleanup query failed:', e && (e.message || e)); return 0; }
         }
 
+        // --- generic N-player rooms (additive; the 1v1 helpers above are untouched) ---
+        // A `group` is just a Firestore collection name, so different games keep
+        // separate room spaces (e.g. Beam uses 'beam_rooms'). Up to `maxPlayers`
+        // can join a 'lobby' room; `order` preserves join order (host migration,
+        // tie-breaks). Rejoin by code works at any status (reconnect-friendly).
+        function groupRef(group, code) { return doc(db, group, code); }
+        async function mpCreate(group, opts) {
+            if (!user) throw new Error('not signed in');
+            opts = opts || {};
+            const max = Math.max(2, Math.min(8, opts.maxPlayers || 4));
+            for (let attempt = 0; attempt < 6; attempt++) {
+                const code = genCode(4), ref = groupRef(group, code);
+                const ok = await runTransaction(db, async (tx) => {
+                    if ((await tx.get(ref)).exists()) return false;
+                    tx.set(ref, {
+                        code, status: 'lobby', hostUid: user.uid, maxPlayers: max,
+                        players: { [user.uid]: { uid: user.uid, name: user.name, photo: user.photo, anon: user.anon, order: 0 } },
+                        order: [user.uid], ready: {}, round: 0, game: {},
+                        createdAt: serverTimestamp(), lastActionAt: serverTimestamp(),
+                        expireAt: new Date(Date.now() + 6 * 3600 * 1000),
+                    });
+                    return true;
+                });
+                if (ok) return code;
+            }
+            throw new Error('could not allocate a room code');
+        }
+        async function mpJoin(group, code) {
+            if (!user) throw new Error('not signed in');
+            code = String(code || '').trim().toUpperCase();
+            const ref = groupRef(group, code);
+            return runTransaction(db, async (tx) => {
+                const snap = await tx.get(ref);
+                if (!snap.exists()) throw new Error('room not found');
+                const d = snap.data();
+                if (d.players && d.players[user.uid]) return code;         // rejoin / reconnect at any status
+                if (d.status !== 'lobby') throw new Error('already started');
+                const order = Array.isArray(d.order) ? d.order.slice() : Object.keys(d.players || {});
+                if (order.length >= (d.maxPlayers || 4)) throw new Error('room full');
+                order.push(user.uid);
+                tx.update(ref, {
+                    [`players.${user.uid}`]: { uid: user.uid, name: user.name, photo: user.photo, anon: user.anon, order: order.length - 1 },
+                    order, lastActionAt: serverTimestamp(),
+                });
+                return code;
+            });
+        }
+        async function mpLeave(group, code) {
+            if (!user) return;
+            const ref = groupRef(group, code);
+            try {
+                await runTransaction(db, async (tx) => {
+                    const s = await tx.get(ref); if (!s.exists()) return;
+                    const d = s.data();
+                    const players = Object.assign({}, d.players || {});
+                    delete players[user.uid];
+                    const order = (Array.isArray(d.order) ? d.order : Object.keys(d.players || {})).filter((u) => u !== user.uid);
+                    if (order.length === 0) { tx.delete(ref); return; }    // nobody left → remove the room
+                    let hostUid = d.hostUid;
+                    if (hostUid === user.uid) hostUid = order[0];           // host left → promote next in join order
+                    tx.update(ref, { players, order, hostUid, lastActionAt: serverTimestamp() });
+                });
+            } catch (e) { /* ignore */ }
+        }
+
         window.ArcadeNet = {
             ok: true,
             sdk: SDK,
@@ -167,12 +232,29 @@ function fail(err) {
             signInGoogle() { return signInWithPopup(auth, new GoogleAuthProvider()); },
             signInGuest() { return signInAnonymously(auth); },
             signOut() { return signOut(auth); },
-            // rooms
+            // rooms (1v1 — used by Rune Stones)
             createRoom, joinRoom, leaveRoom, deleteRoom, cleanupStaleRooms,
             watchRoom(code, cb) { return onSnapshot(roomRef(code), (s) => cb(s.exists() ? s.data() : null), (err) => cb(null, err)); },
             updateRoom(code, data) { return updateDoc(roomRef(code), Object.assign({ lastActionAt: serverTimestamp() }, data)); },
             getRoom(code) { return getDoc(roomRef(code)).then((s) => (s.exists() ? s.data() : null)); },
             field: { delete: deleteField, now: serverTimestamp },
+            // generic N-player rooms (used by Beam): all scoped to a `group` collection
+            mp: {
+                create: mpCreate, join: mpJoin, leave: mpLeave,
+                watch(group, code, cb) { return onSnapshot(groupRef(group, code), (s) => cb(s.exists() ? s.data() : null), (err) => cb(null, err)); },
+                update(group, code, data) { return updateDoc(groupRef(group, code), Object.assign({ lastActionAt: serverTimestamp() }, data)); },
+                get(group, code) { return getDoc(groupRef(group, code)).then((s) => (s.exists() ? s.data() : null)); },
+                del(group, code) { return deleteDoc(groupRef(group, code)); },
+                async cleanup(group, maxAgeMs) {
+                    try {
+                        const cutoff = new Date(Date.now() - (maxAgeMs || 5 * 60 * 1000));
+                        const snap = await getDocs(query(collection(db, group), where('lastActionAt', '<', cutoff)));
+                        if (snap.size === 0) return 0;
+                        const results = await Promise.allSettled(snap.docs.map((d) => deleteDoc(d.ref)));
+                        return results.filter((r) => r.status === 'fulfilled').length;
+                    } catch (e) { return 0; }
+                },
+            },
         };
         window.dispatchEvent(new CustomEvent('arcade-net-ready'));
     } catch (err) {
