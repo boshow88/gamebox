@@ -1391,17 +1391,6 @@
         updateKeypadMode();
     }
 
-    // [DEBUG-HOOK] Temporary debug affordance: `?sudoku_demo=<technique>` (e.g.
-    // ?sudoku_demo=xyWing) makes New Game hunt for a hard puzzle that
-    // actually uses that technique, fill in every step up to it, and pop
-    // the corresponding hint — so you can eyeball an advanced hint in the
-    // real game without playing the whole puzzle by hand.
-    const DEMO_TECH = (function () {
-        try {
-            return new URL(location.href).searchParams.get('sudoku_demo') || '';
-        } catch (e) { return ''; }
-    })();
-
     // Shareable-URL state: a link carries (size, diff, seed); because the
     // generator is deterministic, the friend who opens it gets the same
     // puzzle. The seed is used once for the first board, then New Game rolls
@@ -1427,74 +1416,12 @@
         if (PC.toast) PC.toast.show(PC.i18n.t(ok ? 'shareCopied' : 'shareFailed'));
     }
 
-    async function findDemoPuzzle(N, tech) {
-        const gen = window.PuzzleGenerators.sudoku;
-        for (let i = 0; i < 200; i++) {
-            const seed = (Math.random() * 0xffffffff) >>> 0;
-            // No onProgress → the generator runs without yielding, so this
-            // 200-try loop stays fast.
-            const pz = await gen(N, 'hard', seed);
-            if ((pz.stats.techniqueCounts || {})[tech] > 0) return pz;
-        }
-        return null;
-    }
-
-    // Advance the board (mirroring the solver's placements) until the
-    // solver's next step is `tech`, then present that step as a hint.
-    function demoShow(tech) {
-        if (!state.puzzle) return;
-        const S = window.PuzzleSolvers && window.PuzzleSolvers.sudoku;
-        if (!S) return;
-        const N = state.puzzle.size;
-        const st = S.makeState(state.puzzle.prefilled, N,
-            state.puzzle.boxRows, state.puzzle.boxCols);
-        const hard = S.TECHNIQUES_BY_DIFFICULTY.hard;
-        let target = null;
-        let guard = N * N * N + 50;
-        while (guard-- > 0) {
-            const step = S.nextStep(st, hard);
-            if (!step) break;
-            if (step.technique === tech) {
-                target = { step, cands: st.cands.map((row) => row.slice()) };
-                break;
-            }
-            for (const p of step.placements) {
-                if (!isPrefilled(p.r, p.c)) state.placements[p.r][p.c] = p.value;
-            }
-            S.applyStep(st, step);
-        }
-        if (!target) {
-            // Never reached (e.g. technique doesn't occur at this size).
-            // Reset the fast-forwarded board so we don't leave it solved.
-            ensurePlacementsForCurrent();
-            recomputeViolations();
-            repaintSymbols();
-            console.warn(`[sudoku demo] "${tech}" not reached — try 9×9.`);
-            return;
-        }
-        recomputeViolations();
-        // Pencil in candidates for just the cells the demo step touches, then
-        // commit its eliminations — same as a normal elimination hint, so
-        // pressing Hint again continues from here.
-        const basic = st.cands.map((row) => row.slice());
-        fillStepNotes(target.step, basic);
-        for (const e of target.step.eliminations) {
-            state.notes[e.r][e.c].delete(e.d);
-        }
-        setHint({ kind: 'step', step: target.step });
-    }
-
     async function startNewGame() {
-        const seed = (!DEMO_TECH && pendingSeed != null)
+        const seed = (pendingSeed != null)
             ? pendingSeed
             : ((Date.now() ^ Math.floor(Math.random() * 0xffffffff)) >>> 0);
         pendingSeed = null;
-        if (DEMO_TECH) {
-            state.puzzle = (await findDemoPuzzle(shell.size, DEMO_TECH))
-                || (await generatePuzzle(shell.size, 'hard', seed));
-        } else {
-            state.puzzle = await generatePuzzle(shell.size, shell.difficulty, seed);
-        }
+        state.puzzle = await generatePuzzle(shell.size, shell.difficulty, seed);
         ensurePlacementsForCurrent();
         if (undoHistory) undoHistory.clear();
         updateUndoButton();
@@ -1502,7 +1429,6 @@
         buildKeypad();
         clearHint();
         updateStatusRow();
-        if (DEMO_TECH) { demoShow(DEMO_TECH); return; }
         if (PC.share) {
             PC.share.replaceUrl({
                 size: shell.size,

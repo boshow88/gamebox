@@ -203,48 +203,12 @@ on its page) and scale the backing store by `devicePixelRatio` in a
   fall `CONFIG.healSpeedMul×` the normal speed and draw with a trail + white `+`.
 - **Lives HUD** renders as pips via `renderLives` (easier to read at a glance).
 
-## Debug / dev affordances
+## Ungated logging
 
-All gated behind `?debug=1` on the game page and tagged in code with a
-`[DEBUG-HOOK]` comment (find them with `rg "\[DEBUG-HOOK\]"`).
-
-### URL flags (`games/colour-ladder.html`)
-
-| Flag | Effect |
-| --- | --- |
-| `?debug=1` | Enables the debug overlay, keyboard shortcuts and the `window.LC` console API. |
-| `?t=<seconds>` | Starts every run at that elapsed time — jumps the difficulty (wave rate) to that moment. Works with or without `?debug`. |
-
-Example: `games/colour-ladder.html?debug=1&t=120`.
-
-### Console API — `window.LC` (debug only)
-
-| Call | What |
-| --- | --- |
-| `LC.setTime(sec)` / `LC.addTime(sec=30)` | Jump the difficulty clock. |
-| `LC.addLife(n=1)` | Add lives. |
-| `LC.diff("easy"\|"normal"\|"hard")` | Switch difficulty (restarts). |
-| `LC.info()` | Snapshot of the live state. |
-
-### Debug keys (debug only)
-
-`]` +30s difficulty · `[` −30s difficulty · `L` +1 life. A readout in
-the top-right shows difficulty, elapsed, layout, wave rate (waves/10s), the
-two-ball chance, and ball count.
-
-### Stripping the debug code later
-
-Everything above is gated behind `?debug=1` and tagged `[DEBUG-HOOK]`.
-To remove: `rg "\[DEBUG-HOOK\]"`, delete those lines (`PARAMS` /
-`DEBUG` / `START_T`, the two `if (DEBUG) …` calls), set the run's start
-time back from `START_T` to `0` in `resetRun`, and delete the
-`setupDebug` / `drawDebugOverlay` functions. Nothing else references
-them.
-
-### Ungated logging
-
-Defensive `console.warn` in `js/common.js` (storage read/write + i18n
-subscriber failures). Find with `rg "console\.(log|warn)"`.
+The per-game debug overlay / cheat console (`?debug=1`, `?t=`, `window.LC`)
+has been removed. The only logging left is defensive `console.warn` in
+`js/common.js` (storage read/write + i18n subscriber failures). Find with
+`rg "console\.(log|warn)"`.
 
 ## Run locally & deploy
 

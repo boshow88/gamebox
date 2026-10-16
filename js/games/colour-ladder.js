@@ -36,11 +36,6 @@
     const AC = window.ArcadeCommon;
     const PI2 = Math.PI * 2;
 
-    // [DEBUG-HOOK] Dev affordances, enabled with ?debug=1 (see docs/DEV.md).
-    const PARAMS = new URLSearchParams(location.search);
-    const DEBUG = PARAMS.has('debug');
-    const START_T = Math.max(0, parseFloat(PARAMS.get('t')) || 0);
-
     // =================================================================
     // i18n
     // =================================================================
@@ -568,7 +563,6 @@
         drawFloaters();
         ctx.restore();
         if (G.countdown > 0) drawCountdown();
-        if (DEBUG) drawDebugOverlay(); // [DEBUG-HOOK]
     }
 
     function drawBackground() {
@@ -917,13 +911,13 @@
         G.balls = [];
         G.floaters.length = 0;
         G.score = 0;
-        G.elapsed = START_T;   // [DEBUG-HOOK] ?t=<sec> jumps the difficulty clock
+        G.elapsed = 0;
         G.shake = 0;
         G.ended = false;
         drag = null;
         G.spawnAcc = 0;
         G.healAcc = 0;
-        G.lastWaveT = START_T;
+        G.lastWaveT = 0;
         // Opening ball(s) at the top of the ladder, frozen on the ready screen.
         seedOpeningBalls();
         updateHud();
@@ -968,66 +962,9 @@
 
         AC.i18n.subscribe(() => { updateHud(); });
 
-        if (DEBUG) setupDebug(); // [DEBUG-HOOK]
-
         syncDiffButtons();
         resetRun();
         render();
-    }
-
-    // =================================================================
-    // [DEBUG-HOOK] window.LC console API + overlay + keys (?debug=1 only)
-    // =================================================================
-
-    function drawDebugOverlay() {
-        const lines = [
-            'DEBUG  [' + G.difficulty + ']',
-            't = ' + G.elapsed.toFixed(0) + 's',
-            'layout = ' + G.lanes + 'x' + G.colors,
-            'rate = ' + (waveRate() * 10).toFixed(1) + ' waves/10s',
-            'speed = ' + ballSpeed().toFixed(1) + ' px/s',
-            'twoBall = ' + (G.diffCfg.twoBall || 0),
-            'balls = ' + G.balls.length,
-        ];
-        ctx.save();
-        ctx.font = `600 13px ${getFont()}`;
-        ctx.textAlign = 'left';
-        ctx.textBaseline = 'top';
-        let w = 0;
-        for (const l of lines) w = Math.max(w, ctx.measureText(l).width);
-        const bw = w + 14, bh = lines.length * 17 + 10;
-        const bx = W - bw - 12, by = 12;
-        ctx.fillStyle = 'rgba(10,8,20,0.72)';
-        roundRect(bx, by, bw, bh, 8); ctx.fill();
-        ctx.fillStyle = '#8fe36b';
-        let y = by + 6;
-        for (const l of lines) { ctx.fillText(l, bx + 7, y); y += 17; }
-        ctx.restore();
-    }
-
-    function setupDebug() {
-        window.LC = {
-            setTime(sec) { G.elapsed = Math.max(0, sec || 0); return G.elapsed; },
-            addTime(sec) { G.elapsed = Math.max(0, G.elapsed + (sec == null ? 30 : sec)); return G.elapsed; },
-            addLife(n) { G.lives += (n == null ? 1 : n); updateHud(); return G.lives; },
-            diff(d) { setDifficulty(d); return G.difficulty; },
-            info() {
-                return {
-                    difficulty: G.difficulty, layout: G.lanes + 'x' + G.colors,
-                    t: +G.elapsed.toFixed(1), score: G.score, lives: G.lives,
-                    balls: G.balls.length, wavesPer10s: +(waveRate() * 10).toFixed(2),
-                    speed: +ballSpeed().toFixed(1), twoBall: G.diffCfg.twoBall || 0,
-                };
-            },
-        };
-        shell.keyboard.onPress((k) => {
-            if (k === ']') window.LC.addTime(30);
-            else if (k === '[') window.LC.addTime(-30);
-            else if (k === 'l' || k === 'L') window.LC.addLife(1);
-        });
-        console.log('%c[Colour Ladder] debug on', 'color:#f472b6;font-weight:700');
-        console.log('LC.setTime(s) addTime(s) addLife(n) diff("easy"|"normal"|"hard") info()');
-        console.log('keys:  ] +30s   [ -30s   L +life');
     }
 
     if (document.readyState === 'loading') {

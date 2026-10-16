@@ -63,27 +63,12 @@
  * trivially holds. As expansion proceeds more cells become candidates
  * and uniqueness can break, at which point the solver will fail to
  * place all N queens and the DFS will revert that assignment.
- *
- * Debug logging
- * -------------
- * Pass `?queens_debug=1` in the URL to get per-attempt console output
- * (DFS steps, retries, timing, why a seed bailed).
  */
 
 (function (global) {
     'use strict';
 
     const PC = global.PuzzleCommon;
-
-    // [DEBUG-HOOK] `?queens_debug=1` turns on per-attempt generator logging.
-    const DEBUG = (function () {
-        try {
-            return new URL(location.href).searchParams.get('queens_debug') === '1';
-        } catch (e) {
-            return false;
-        }
-    })();
-    const dbg = DEBUG ? console.log.bind(console, '[queens-gen]') : () => {};
 
     // -----------------------------------------------------------------
     // Tactic tiers
@@ -397,7 +382,6 @@
             }
             if (count === 1 && !placed[r][lastC]) {
                 const killed = placeAt(state, r, lastC);
-                dbg('T2 row', r, '→', lastC, 'killed', killed.length);
                 return {
                     tier: 'T2',
                     groupKind: 'row',
@@ -416,7 +400,6 @@
             }
             if (count === 1 && !placed[lastR][c]) {
                 const killed = placeAt(state, lastR, c);
-                dbg('T2 col', c, '→', lastR, 'killed', killed.length);
                 return {
                     tier: 'T2',
                     groupKind: 'col',
@@ -436,7 +419,6 @@
             }
             if (count === 1 && !placed[lastR][lastC]) {
                 const killed = placeAt(state, lastR, lastC);
-                dbg('T2 region', k, '→', lastR, lastC, 'killed', killed.length);
                 return {
                     tier: 'T2',
                     groupKind: 'region',
@@ -531,7 +513,6 @@
                         if ((mask & (1 << reg)) === 0) {
                             excludeAt(state, r, c);
                             excluded.push([r, c]);
-                            dbg('T3-row exclude', r, c, 'mask', mask.toString(2));
                         }
                     }
                 }
@@ -556,7 +537,6 @@
                         if ((mask & (1 << reg)) === 0) {
                             excludeAt(state, r, c);
                             excluded.push([r, c]);
-                            dbg('T3-col exclude', r, c, 'mask', mask.toString(2));
                         }
                     }
                 }
@@ -657,10 +637,6 @@
             if (excluded.length === 0) return null;
 
             for (const [r, c] of excluded) excludeAt(state, r, c);
-            dbg(tierLabel, 'batch exclude', excluded.length,
-                'by', groupKind, groupIndex,
-                'cands=', cands.length,
-                'regionKillers=', rkList.length);
 
             return {
                 tier: tierLabel,
@@ -1207,10 +1183,6 @@
         // and we don't want the deadline to cut us off before the
         // extra layouts get a chance.
         const timeout = attemptTimeoutMs(N) * Math.max(1, innerDepth);
-        dbg('generate', {
-            N, difficulty, seed: seed.toString(16),
-            timeout, quality, targetCandidates, maxRetries, innerDepth,
-        });
 
         let lastFailReason = 'no-attempt';
         // Collected candidate puzzles across seed retries. Each one
@@ -1251,23 +1223,8 @@
             const dt = Date.now() - tAttempt;
             if (!expand.layouts.length) {
                 lastFailReason = expand.timedOut ? 'timeout' : 'exhausted';
-                dbg('attempt', retry + 1, {
-                    queens: queens.join(','),
-                    steps: expand.steps,
-                    ms: dt,
-                    ok: false,
-                    timedOut: expand.timedOut,
-                });
                 continue;
             }
-
-            dbg('attempt', retry + 1, {
-                queens: queens.join(','),
-                layouts: expand.layouts.length,
-                ms: dt,
-                ok: true,
-                timedOut: expand.timedOut,
-            });
 
             // Every layout out of this seed is scored independently
             // and added as its own candidate. This is what makes B
