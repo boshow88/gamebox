@@ -117,12 +117,18 @@
     // results (all-right → harder, all-wrong → easier, mixed → hold), plus per-round jitter.
     var LEVEL_MIN = 1, LEVEL_MAX = 38, START_LEVEL = 5;    // level 1 → 2×2 (floor), level 37 → 20×20 (ceiling)
     var STEP_UP = 0.7, STEP_DOWN = 0.9, JITTER = 2.0;      // wider per-round spread → harder to read
-    var SOLO_JITTER = 1.3;                                 // solo also varies round-to-round (still trends up)
+    var SOLO_RAMP = 0.6;                                   // solo difficulty climbs ~0.6 level per round (gentler)
+    var SOLO_JITTER = 1.0;                                 // solo also varies round-to-round (still trends up)
     var ZERO_MAX = 0.2;                                    // max chance of a straight-through (0-bounce) laser
     // per-player colours (distinct from the cyan laser / green "correct" ring)
     var PCOLORS = ['#f59e0b', '#ec4899', '#a855f7', '#3b82f6', '#f97316', '#eab308', '#8b5cf6', '#ef4444'];
     function colorForOrder(i) { i = i || 0; return PCOLORS[((i % PCOLORS.length) + PCOLORS.length) % PCOLORS.length]; }
     function countSec(round) { return round <= 1 ? 3 : 2; }
+    // Long online matches gradually speed up so they always resolve: after ACCEL_START
+    // rounds, memorize + answer times shrink a little each round — smooth, never a sudden
+    // drop, but relentless (a soft floor keeps it skill, not a coin-flip).
+    var ACCEL_START = 6, ACCEL_DECAY = 0.93, ACCEL_FLOOR = 0.12;
+    function accelFactor(round) { return round <= ACCEL_START ? 1 : Math.max(ACCEL_FLOOR, Math.pow(ACCEL_DECAY, round - ACCEL_START)); }
 
     // ---- state ----
     var S = { mode: 'solo', round: 1, score: 0, lives: 3, combo: 0, phase: 'memorize', t: 0, memo: 1.2, replay: 0.7, puzzle: null, choice: null, answerLeft: 0, lastKind: '' };
@@ -235,7 +241,7 @@
     // SOLO
     // ===============================================================
     function soloNewPuzzle() {
-        var level = Math.max(1, S.round + (Math.random() * 2 - 1) * SOLO_JITTER);   // trend up with the round, but vary
+        var level = Math.max(1, 1 + (S.round - 1) * SOLO_RAMP + (Math.random() * 2 - 1) * SOLO_JITTER);   // gentler climb, still varies
         S.puzzle = genPuzzleLevel(level, Math.random);
         S.choice = null; S.lastKind = '';
         S.memo = memoSec(S.puzzle.bounces + countMirrors(S.puzzle));
@@ -271,8 +277,8 @@
         var tt = e - c;
         if (tt < om.memo) return { phase: 'memorize', ts: tt };
         tt -= om.memo;
-        if (tt < ANSWER_SEC) return { phase: 'answer', ts: tt };
-        tt -= ANSWER_SEC;
+        if (tt < om.answerSec) return { phase: 'answer', ts: tt };
+        tt -= om.answerSec;
         if (tt < om.replay) return { phase: 'reveal', ts: tt };
         tt -= om.replay;
         if (tt < RESULT_SEC) return { phase: 'result', ts: tt };
@@ -284,7 +290,9 @@
         om.localStart = performance.now();
         om.level = (g.level != null) ? g.level : START_LEVEL;          // shared difficulty for this round
         om.puzzle = puzzleForLevel(om.seed, round, om.level);
-        om.memo = memoSec(om.puzzle.bounces + countMirrors(om.puzzle));
+        var sp = accelFactor(round);                                   // long matches squeeze the clock
+        om.memo = memoSec(om.puzzle.bounces + countMirrors(om.puzzle)) * sp;
+        om.answerSec = ANSWER_SEC * sp;
         om.replay = replaySec(om.puzzle.bounces);
         om.choice = null; om.submitted = false; om.lastPhase = '';
         om.alive = !(g.alive && g.alive[om.myUid] === false);
@@ -347,9 +355,10 @@
         }
     }
 
-    // submit my answer (hidden to others until the host reveals)
+    // submit (or CHANGE) my answer — you can re-pick freely until the answer window ends
+    // (hidden to others until the host reveals). The latest pick is what counts.
     function submitAnswer(port) {
-        if (!om || !om.alive || om.submitted) return;
+        if (!om || !om.alive) return;
         om.choice = port; om.submitted = true;
         AC.audio.play('click');
         net.mp.update(GROUP, room.code, { ['game.answers.' + om.myUid]: { r: port.r, c: port.c, side: port.side, at: Date.now() } }).catch(function () { });
@@ -394,15 +403,13 @@
     }
     function hostDrive(d, g) {
         if (g.round !== om.round || om.host.over) return;      // stale echo, or match already decided
-        var r = g.round, nowp = performance.now(), full = countSec(r) + om.memo + ANSWER_SEC;
+        var r = g.round, nowp = performance.now(), full = countSec(r) + om.memo + om.answerSec;
         var answerEnd = om.localStart + full * 1000;
         var roundEnd = om.localStart + (full + om.replay + RESULT_SEC) * 1000;
         if (!om.host.tallied) {
-            var players = d.players || {}, order = d.order || Object.keys(players);
-            var aliveNow = order.filter(function (u) { return players[u] && !(g.alive && g.alive[u] === false); });
-            var answers = g.answers || {};
-            var allIn = aliveNow.length > 0 && aliveNow.every(function (u) { return answers[u]; });
-            if (allIn || nowp >= answerEnd + SETTLE_MS) { hostTally(d, g); om.host.tallied = true; }   // write the outcome before the reveal
+            // tally only once the window is truly over (+ a short settle for in-flight taps) so
+            // players can keep CHANGING their answer right up to the end
+            if (nowp >= answerEnd + SETTLE_MS) { hostTally(d, g); om.host.tallied = true; }
         } else if (g.status === 'playing' && nowp >= roundEnd + HOST_BUFFER_MS) {
             hostNextRound(d, g);                                // advance only after the whole round (incl. reveal) has played
         }
@@ -474,9 +481,10 @@
         var rect = canvas.getBoundingClientRect();
         var cx = (ev.clientX - rect.left) / rect.width * CW, cy = (ev.clientY - rect.top) / rect.height * CH;
         if (S.mode === 'online') {
-            if (!om || !om.alive || om.submitted || !om.puzzle) return;
+            if (!om || !om.alive || !om.puzzle) return;             // may re-pick until the window ends
             if (phaseAt(performance.now()).phase !== 'answer') return;
             var p1 = hitPort(cx, cy, om.puzzle.N); if (!p1 || samePort(p1, om.puzzle.entry)) return;
+            if (om.choice && samePort(p1, om.choice)) return;        // tapped the same tile → no change
             ev.preventDefault(); submitAnswer(p1); return;
         }
         if (!shell.isPlaying() || S.phase !== 'answer' || !S.puzzle) return;
@@ -513,6 +521,8 @@
     function cellPath(R) { roundRect(R.x, R.y, R.w, R.h, Math.max(3, Math.min(8, Math.min(R.w, R.h) * 0.22))); }
     function fillCell(R, color, alpha, glow) { ctx.save(); if (glow) { ctx.shadowColor = color; ctx.shadowBlur = 12; } ctx.globalAlpha = alpha == null ? 1 : alpha; cellPath(R); ctx.fillStyle = color; ctx.fill(); ctx.restore(); }
     function strokeCell(R, color, lw) { ctx.save(); cellPath(R); ctx.strokeStyle = color; ctx.lineWidth = lw || 2; ctx.stroke(); ctx.restore(); }
+    // your current pick — bold so it's unmistakable (filled colour + bright glowing border)
+    function highlightCell(R, color) { fillCell(R, color, 0.6, true); strokeCell(R, '#ffffff', 3.5); }
     // the laser SOURCE: light up the entry tile + a small inward arrow (no line into the centre)
     function drawEntry(p) {
         var e = p.entry, R = portRect(e.r, e.c, e.side, p.N), cen = portCenter(e.r, e.c, e.side, p.N);
@@ -588,8 +598,8 @@
         if (ph === 'memorize') { drawMirrors(p, 1); drawTimerBar(1 - info.ts / om.memo, false); caption(t('beamWatch'), BEAM); return; }
         if (ph === 'answer') {
             if (om.alive) drawPorts(p); drawEntry(p);
-            var left = 1 - info.ts / ANSWER_SEC; drawTimerBar(left, left < 0.25);
-            if (om.choice) strokeCell(portRect(om.choice.r, om.choice.c, om.choice.side, p.N), '#e2e8f0', 2);
+            var left = 1 - info.ts / om.answerSec; drawTimerBar(left, left < 0.25);
+            if (om.choice) { var mc = colorForOrder((room.data && room.data.players && room.data.players[om.myUid]) ? room.data.players[om.myUid].order : 0); highlightCell(portRect(om.choice.r, om.choice.c, om.choice.side, p.N), mc); }
             caption(om.alive ? t('beamRecall') : t('beamSpectating'), om.alive ? null : '#94a3b8'); return;
         }
         if (ph === 'reveal') { drawMirrors(p, AC.math.clamp(info.ts / 0.25, 0, 1)); drawEntry(p); drawPicks(p); drawBeamUpTo(p, info.ts / om.replay); caption(t('beamReplay')); return; }
