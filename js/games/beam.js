@@ -35,6 +35,7 @@
         beamReadyMsg: 'Mirrors flash, then hide. Trace the laser in your head and tap where it <strong>exits</strong>.',
         beamOverTitle: 'Game Over',
         beamGetReady: 'Get ready!',
+        beamSuddenDeath: 'SUDDEN DEATH — a tie now costs a life!',
         beamSpectating: 'You\u2019re out — watching',
         beamWaitNext: 'Waiting for next round…',
         // lobby
@@ -64,6 +65,7 @@
         beamReadyMsg: '鏡子會先閃現再隱藏。在腦中追蹤雷射，點出它<strong>射出</strong>的邊界位置。',
         beamOverTitle: '遊戲結束',
         beamGetReady: '準備好！',
+        beamSuddenDeath: '驟死！這回合起平手也會扣血',
         beamSpectating: '你已出局，觀戰中',
         beamWaitNext: '等待下一回合…',
         beamLobbyTitle: '連線房間',
@@ -105,7 +107,7 @@
 
     // ---- tunables ----
     var ANSWER_SEC = 6.0, RESULT_SEC = 1.25;
-    function memoSec(m) { return AC.math.clamp(0.9 + 0.11 * m, 0.9, 2.8); }
+    function memoSec(m) { return AC.math.clamp(1.2 + 0.12 * m, 1.2, 3.2); }
     function replaySec(b) { return 0.5 + 0.09 * b; }
     // online
     var GROUP = 'beam_rooms', MAX_PLAYERS = 4, HP_START = 3;
@@ -125,10 +127,12 @@
     function colorForOrder(i) { i = i || 0; return PCOLORS[((i % PCOLORS.length) + PCOLORS.length) % PCOLORS.length]; }
     function countSec(round) { return round <= 1 ? 3 : 2; }
     // Long online matches gradually speed up so they always resolve: after ACCEL_START
-    // rounds, memorize + answer times shrink a little each round — smooth, never a sudden
-    // drop, but relentless (a soft floor keeps it skill, not a coin-flip).
-    var ACCEL_START = 6, ACCEL_DECAY = 0.93, ACCEL_FLOOR = 0.12;
-    function accelFactor(round) { return round <= ACCEL_START ? 1 : Math.max(ACCEL_FLOOR, Math.pow(ACCEL_DECAY, round - ACCEL_START)); }
+    // rounds, memorize + answer times shrink each round (memorize faster than answer),
+    // with NO floor. If a match somehow drags to SUDDEN_DEATH_ROUND, even a tie starts
+    // costing a life — a guaranteed end.
+    var ACCEL_START = 10, MEMO_DECAY = 0.93, ANSWER_DECAY = 0.96, SUDDEN_DEATH_ROUND = 80;
+    function memoAccel(round) { return round <= ACCEL_START ? 1 : Math.pow(MEMO_DECAY, round - ACCEL_START); }
+    function answerAccel(round) { return round <= ACCEL_START ? 1 : Math.pow(ANSWER_DECAY, round - ACCEL_START); }
 
     // ---- state ----
     var S = { mode: 'solo', round: 1, score: 0, lives: 3, combo: 0, phase: 'memorize', t: 0, memo: 1.2, replay: 0.7, puzzle: null, choice: null, answerLeft: 0, lastKind: '' };
@@ -290,9 +294,8 @@
         om.localStart = performance.now();
         om.level = (g.level != null) ? g.level : START_LEVEL;          // shared difficulty for this round
         om.puzzle = puzzleForLevel(om.seed, round, om.level);
-        var sp = accelFactor(round);                                   // long matches squeeze the clock
-        om.memo = memoSec(om.puzzle.bounces + countMirrors(om.puzzle)) * sp;
-        om.answerSec = ANSWER_SEC * sp;
+        om.memo = memoSec(om.puzzle.bounces + countMirrors(om.puzzle)) * memoAccel(round);   // memorize shrinks faster
+        om.answerSec = ANSWER_SEC * answerAccel(round);                                       // answer shrinks slower
         om.replay = replaySec(om.puzzle.bounces);
         om.choice = null; om.submitted = false; om.lastPhase = '';
         om.alive = !(g.alive && g.alive[om.myUid] === false);
@@ -430,9 +433,12 @@
             (ok ? correct : wrong).push(u);
         });
         var deaths = [];
-        // only deal damage when it's MIXED (some hit, some miss); all-hit or all-miss is harmless
+        // normally only MIXED rounds deal damage (all-hit or all-miss is harmless) — but in
+        // sudden death (a very long match) even a tie drains every survivor, to force an end.
         if (correct.length > 0 && wrong.length > 0) {
             wrong.forEach(function (u) { hp[u] = (hp[u] || 0) - 1; if (hp[u] <= 0) deaths.push(u); });
+        } else if (r >= SUDDEN_DEATH_ROUND) {
+            present.forEach(function (u) { hp[u] = (hp[u] || 0) - 1; if (hp[u] <= 0 && deaths.indexOf(u) === -1) deaths.push(u); });
         }
         gone.forEach(function (u) { if (deaths.indexOf(u) === -1) deaths.push(u); });   // left → out
         // assign the worst remaining places to those eliminated this round (join order tiebreak)
@@ -582,10 +588,12 @@
         else if (S.phase === 'replay') { drawMirrors(p, AC.math.clamp(S.t / 0.25, 0, 1)); drawEntry(p); if (S.choice) strokeCell(portRect(S.choice.r, S.choice.c, S.choice.side, p.N), '#e2e8f0', 2); drawBeamUpTo(p, S.t / S.replay); caption(t('beamReplay')); }
         else { drawMirrors(p, 1); drawEntry(p); drawBeamUpTo(p, 1); lightExit(p); if (S.choice && !samePort(S.choice, p.exit)) fillCell(portRect(S.choice.r, S.choice.c, S.choice.side, p.N), '#f87171', 0.85); caption(S.lastKind === 'hit' ? t('beamHit') : (S.lastKind === 'timeup' ? t('beamTimeUp') : t('beamMiss')), S.lastKind === 'hit' ? '#34d399' : '#f87171'); }
     }
+    function sdBanner() { ctx.save(); ctx.fillStyle = '#f87171'; ctx.font = '700 14px ' + (getComputedStyle(document.body).getPropertyValue('--font-display') || 'sans-serif'); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(t('beamSuddenDeath'), CW / 2, 77); ctx.restore(); }
     function renderOnline() {
         var p = om && om.puzzle; if (!p) return;
         var info = phaseAt(performance.now()), ph = info.phase;
         drawGrid(p.N);
+        if (om.round >= SUDDEN_DEATH_ROUND) sdBanner();        // persistent red notice so no one wonders why they're losing HP
         if (ph === 'countdown') { caption(t('beamGetReady'), BEAM); bigCountdown(Math.ceil(info.remain)); return; }
         if (ph === 'memorize') { drawMirrors(p, 1); drawTimerBar(1 - info.ts / om.memo, false); caption(t('beamWatch'), BEAM); return; }
         if (ph === 'answer') {
