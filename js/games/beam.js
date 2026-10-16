@@ -553,14 +553,6 @@
         }
         ctx.stroke(); ctx.restore();
     }
-    // one player's guess as a filled dot inside its tile (used by solo)
-    function drawDotInCell(port, N, color, idx, count) {
-        var R = portRect(port.r, port.c, port.side, N), horiz = (port.side === U || port.side === D), f = (idx + 1) / (count + 1);
-        var cx = horiz ? (R.x + R.w * f) : (R.x + R.w / 2), cy = horiz ? (R.y + R.h / 2) : (R.y + R.h * f);
-        var rad = AC.math.clamp((horiz ? R.w / (count + 1) : R.h / (count + 1)) * 0.42, 3, 12);
-        ctx.save(); ctx.fillStyle = color; ctx.beginPath(); ctx.arc(cx, cy, rad, 0, Math.PI * 2); ctx.fill();
-        ctx.lineWidth = 1.5; ctx.strokeStyle = 'rgba(2,14,20,0.55)'; ctx.stroke(); ctx.restore();
-    }
     var TIMER_Y = 62, TIMER_H = 9;
     function drawTimerBar(frac, danger) {
         ctx.strokeStyle = 'rgba(148,163,184,0.25)'; ctx.lineWidth = 1; roundRect(GX, TIMER_Y, GRID, TIMER_H, TIMER_H / 2); ctx.stroke();
@@ -604,13 +596,13 @@
         }
         if (ph === 'reveal') { drawMirrors(p, AC.math.clamp(info.ts / 0.25, 0, 1)); drawEntry(p); drawPicks(p); drawBeamUpTo(p, info.ts / om.replay); caption(t('beamReplay')); return; }
         if (ph === 'result') {
-            drawMirrors(p, 1); drawEntry(p); drawBeamUpTo(p, 1); lightExit(p); drawPicks(p);
+            drawMirrors(p, 1); drawEntry(p); drawBeamUpTo(p, 1); lightExit(p); drawPicks(p); outlineExit(p);
             if (!om.alive) caption(t('beamSpectating'), '#94a3b8');
             else caption(myCorrect() ? t('beamHit') : (om.choice ? t('beamMiss') : t('beamTimeUp')), myCorrect() ? '#34d399' : '#f87171');
             return;
         }
         // await next round
-        drawMirrors(p, 1); drawEntry(p); drawBeamUpTo(p, 1); lightExit(p); drawPicks(p); caption(t('beamWaitNext'), '#94a3b8');
+        drawMirrors(p, 1); drawEntry(p); drawBeamUpTo(p, 1); lightExit(p); drawPicks(p); outlineExit(p); caption(t('beamWaitNext'), '#94a3b8');
     }
     // Everyone's chosen exit, colour-coded per player. Picks on the same tile are laid
     // out across it (horizontally on top/bottom tiles, vertically on left/right ones),
@@ -625,10 +617,18 @@
             var key = a.r + '|' + a.c + '|' + a.side; (groups[key] = groups[key] || []).push(uid);
         });
         for (var key in groups) {
-            var list = groups[key], a0 = answers[list[0]], port = { r: a0.r, c: a0.c, side: a0.side };
-            for (var i = 0; i < list.length; i++) drawDotInCell(port, p.N, colorForOrder(players[list[i]] ? players[list[i]].order : 0), i, list.length);
+            var list = groups[key], a0 = answers[list[0]], R = portRect(a0.r, a0.c, a0.side, p.N), n = list.length;
+            var horiz = R.w >= R.h;                             // wide tile → vertical stripes; tall tile → horizontal
+            ctx.save(); cellPath(R); ctx.clip(); ctx.globalAlpha = 0.92;   // colour BANDS fit any tile size / 2-4 players
+            for (var i = 0; i < n; i++) {
+                ctx.fillStyle = colorForOrder(players[list[i]] ? players[list[i]].order : 0);
+                if (horiz) ctx.fillRect(R.x + R.w * i / n + 0.4, R.y, R.w / n - 0.8, R.h);
+                else ctx.fillRect(R.x, R.y + R.h * i / n + 0.4, R.w, R.h / n - 0.8);
+            }
+            ctx.restore();
         }
     }
+    function outlineExit(p) { ctx.save(); ctx.shadowColor = '#34d399'; ctx.shadowBlur = 10; strokeCell(portRect(p.exit.r, p.exit.c, p.exit.side, p.N), '#34d399', 3); ctx.restore(); }
 
     // ===============================================================
     // HUD + players strip
