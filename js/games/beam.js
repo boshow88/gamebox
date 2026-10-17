@@ -139,8 +139,8 @@
     // right, B always wrong" split): a clear split needs a strength gap > ~2*1.73/BOT_K.
     var BOT_K = 0.7;
     var TIERS = {
-        easy: { mean: 4, std: 1.0, start: 3 }, normal: { mean: 8, std: 1.2, start: 6 },
-        hard: { mean: 13, std: 1.3, start: 11 }, insane: { mean: 18, std: 1.5, start: 16 },
+        easy: { mean: 3.5, std: 1.0, start: 2.5 }, normal: { mean: 7, std: 2.0, start: 5.5 },
+        hard: { mean: 11, std: 2.5, start: 9 }, insane: { mean: 18, std: 5, start: 15 },
     };
     function gauss(mean, std) { var u = 1 - Math.random(), v = 1 - Math.random(); return mean + std * Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); }
     function pCorrect(strength, level) { return 1 / (1 + Math.exp(-BOT_K * (strength - level))); }
