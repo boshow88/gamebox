@@ -189,15 +189,21 @@
         light: '#c3a24a', dark: '#7b6a99', heart: '#c1738a',
         yao: '#c1738a', steel: '#8b8f97',   // sandbox attack runes (Spirit shares Heart's colour, flower icon)
     };
+    // Board rune glyphs. An op is a Lucide 24×24 path string fed to Path2D, or
+    // { c:[cx,cy,r] } for a stroked circle (Lucide <circle> has no path `d`). Each
+    // entry records its SOURCE so it never gets lost: `lucide: <kebab-name>` is that
+    // Lucide icon verbatim (re-fetch/verify at lucide.dev/icons/<name>), `lucide:
+    // <name> (modified)` is that icon hand-edited, and `custom:` has no Lucide
+    // equivalent. Keep this annotation in sync whenever an icon changes.
     const ICON_OPS = {
-        water: [{ p: 'M7.001 15.085A1.5 1.5 0 0 1 9 16.5' }, { c: [18.5, 8.5, 3.5] }, { c: [7.5, 16.5, 5.5] }, { c: [7.5, 4.5, 2.5] }],
-        fire:  [{ p: 'M12 3q1 4 4 6.5t3 5.5a1 1 0 0 1-14 0 5 5 0 0 1 1-3 1 1 0 0 0 5 0c0-2-1.5-3-1.5-5q0-2 2.5-4' }],
-        wood:  [{ p: 'M11 20a10 10 0 0010-10 25.9 25.9 0 00-1.04-7.281 1 1 0 00-1.755-.325C15.833 5.5 13 5.5 9.8 6.1A7 7 0 0011 20' }, { p: 'M2 21a5 5 0 012.911-4.544C7.613 15.212 8.351 15.24 11 13' }],
-        light: [{ p: 'M12.983 21.186a1 1 0 0 1-1.966 0 10 10 0 0 0-8.203-8.203 1 1 0 0 1 0-1.966 10 10 0 0 0 8.203-8.203 1 1 0 0 1 1.966 0 10 10 0 0 0 8.203 8.203 1 1 0 0 1 0 1.966 10 10 0 0 0-8.203 8.203' }],
-        dark:  [{ c: [12, 12, 10] }, { p: 'M12 2a7 7 0 1 0 10 10' }],
-        heart: [{ p: 'M2 9.5a5.5 5.5 0 0 1 9.591-3.676.56.56 0 0 0 .818 0A5.49 5.49 0 0 1 22 9.5c0 2.29-1.5 4-3 5.5l-5.492 5.313a2 2 0 0 1-3 .019L5 15c-1.5-1.5-3-3.2-3-5.5' }],
-        yao: [{ p: 'M12 7.5a4.5 4.5 0 1 1 4.5 4.5M12 7.5A4.5 4.5 0 1 0 7.5 12M12 7.5V9m-4.5 3a4.5 4.5 0 1 0 4.5 4.5M7.5 12H9m7.5 0a4.5 4.5 0 1 1-4.5 4.5m4.5-4.5H15m-3 4.5V15' }, { c: [12, 12, 3] }],   // lucide flower
-        steel: [{ p: 'M12 2 4 7v10l8 5 8-5V7z' }, { p: 'M12 7v10M8 9.5v5M16 9.5v5' }],   // faceted ingot (placeholder for Steel)
+        water: [{ p: 'M7.001 15.085A1.5 1.5 0 0 1 9 16.5' }, { c: [18.5, 8.5, 3.5] }, { c: [7.5, 16.5, 5.5] }, { c: [7.5, 4.5, 2.5] }],   // lucide: bubbles
+        fire:  [{ p: 'M12 3q1 4 4 6.5t3 5.5a1 1 0 0 1-14 0 5 5 0 0 1 1-3 1 1 0 0 0 5 0c0-2-1.5-3-1.5-5q0-2 2.5-4' }],   // lucide: flame
+        wood:  [{ p: 'M11 20a10 10 0 0010-10 25.9 25.9 0 00-1.04-7.281 1 1 0 00-1.755-.325C15.833 5.5 13 5.5 9.8 6.1A7 7 0 0011 20' }, { p: 'M2 21a5 5 0 012.911-4.544C7.613 15.212 8.351 15.24 11 13' }],   // lucide: leaf
+        light: [{ p: 'M12.983 21.186a1 1 0 0 1-1.966 0 10 10 0 0 0-8.203-8.203 1 1 0 0 1 0-1.966 10 10 0 0 0 8.203-8.203 1 1 0 0 1 1.966 0 10 10 0 0 0 8.203 8.203 1 1 0 0 1 0 1.966 10 10 0 0 0-8.203 8.203' }],   // lucide: astroid
+        dark:  [{ c: [12, 12, 10] }, { p: 'M12 2a7 7 0 1 0 10 10' }],   // lucide: eclipse
+        heart: [{ p: 'M2 9.5a5.5 5.5 0 0 1 9.591-3.676.56.56 0 0 0 .818 0A5.49 5.49 0 0 1 22 9.5c0 2.29-1.5 4-3 5.5l-5.492 5.313a2 2 0 0 1-3 .019L5 15c-1.5-1.5-3-3.2-3-5.5' }],   // lucide: heart
+        yao: [{ p: 'M12 7.5a4.5 4.5 0 1 1 4.5 4.5M12 7.5A4.5 4.5 0 1 0 7.5 12M12 7.5V9m-4.5 3a4.5 4.5 0 1 0 4.5 4.5M7.5 12H9m7.5 0a4.5 4.5 0 1 1-4.5 4.5m4.5-4.5H15m-3 4.5V15' }, { c: [12, 12, 3] }],   // lucide: flower (modified — petals + centre only, 8 accent strokes removed)
+        steel: [{ p: 'M12 2 4 7v10l8 5 8-5V7z' }, { p: 'M12 7v10M8 9.5v5M16 9.5v5' }],   // custom: faceted ingot (hand-drawn, no Lucide match)
     };
     const ICON_PATHS = {};
     for (const _el in ICON_OPS) {
@@ -206,35 +212,36 @@
             const pp = new Path2D(); pp.arc(op.c[0], op.c[1], op.c[2], 0, PI2); return pp;
         });
     }
-    // Lucide-style glyphs (24×24 viewBox) for HUD pills and card tiles. An op is either
-    // a path string or { c:[cx,cy,r] } for a stroked circle. Element glyphs reuse the
-    // board rune icons (ICON_PATHS), so cards match the orbs.
+    // HUD pills and card tiles. Same op format and `lucide:` / `custom:` source
+    // convention as ICON_OPS above. Element glyphs reuse the board rune icons
+    // (ICON_PATHS), so cards match the orbs. Many are the Lucide icon scaled/trimmed
+    // to fit a pill — still the same glyph, re-fetchable by name.
     const UI_ICON_OPS = {
-        up: ['M12 19V5', 'M5 12l7-7 7 7'],                                  // time pill ↑
-        down: ['M12 5v14', 'M19 12l-7 7-7-7'],                              // time pill ↓
-        clockUp: [{ c: [9, 9, 7] }, 'M9 5.5V9l2.3 1.3', 'M18 20.5v-7', 'm15 16.5 3-3 3 3'],   // extend own time
-        clockDown: [{ c: [9, 9, 7] }, 'M9 5.5V9l2.3 1.3', 'M18 13.5v7', 'm15 17.5 3 3 3-3'],  // shorten rival time
-        ban: [{ c: [12, 12, 9] }, 'm5.6 5.6 12.8 12.8'],                    // forbid a colour
-        check: [{ c: [12, 12, 9] }, 'm8.3 12 2.5 2.5 4.8-4.8'],            // require a colour (circle-check)
-        qmark: [{ c: [12, 12, 9] }, 'M9.3 9a2.7 2.7 0 0 1 5.2 1c0 1.8-2.7 2.5-2.7 2.7', 'M12 16.1v.01'],   // random (circle-question)
-        crosshair: [{ c: [12, 12, 7] }, 'M12 2v3', 'M12 19v3', 'M2 12h3', 'M19 12h3'],   // chosen / any (crosshair)
-        diamond: ['M2.7 10.3a2.41 2.41 0 0 0 0 3.41l7.59 7.59a2.41 2.41 0 0 0 3.41 0l7.59-7.59a2.41 2.41 0 0 0 0-3.41L13.7 2.71a2.41 2.41 0 0 0-3.41 0z'],   // enhanced rune
-        ellipsis: [{ c: [12, 12, 9] }, 'M7 12h.01', 'M12 12h.01', 'M17 12h.01'],   // combo count (circle-ellipsis)
-        arrowRight: ['M5 12h14', 'm12 5 7 7-7 7'],                          // transmute connector
-        shieldBan: ['M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z', 'm5.5 5.5 13 13'],   // break a shield
-        // Sandbag draft card glyphs (Lucide 24×24; rects expanded to path data).
-        handFist: ['M12.035 17.012a3 3 0 0 0-3-3l-.311-.002a.72.72 0 0 1-.505-1.229l1.195-1.195A2 2 0 0 1 10.828 11H12a2 2 0 0 0 0-4H9.243a3 3 0 0 0-2.122.879l-2.707 2.707A4.83 4.83 0 0 0 3 14a8 8 0 0 0 8 8h2a8 8 0 0 0 8-8V7a2 2 0 1 0-4 0v2a2 2 0 1 0 4 0', 'M13.888 9.662A2 2 0 0 0 17 8V5A2 2 0 1 0 13 5', 'M9 5A2 2 0 1 0 5 5V10', 'M9 7V4A2 2 0 1 1 13 4V7.268'],
-        split: ['M16 3h5v5', 'M8 3H3v5', 'M12 22v-8.3a4 4 0 0 0-1.172-2.872L3 3', 'm15 9 6-6'],
-        squareStack: ['M4 10c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h4c1.1 0 2 .9 2 2', 'M10 16c-1.1 0-2-.9-2-2v-4c0-1.1.9-2 2-2h4c1.1 0 2 .9 2 2', 'M16 14h4a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2z'],
-        clockArrowUp: ['M12 6v6l1.56.78', 'M13.227 21.925a10 10 0 1 1 8.767-9.588', 'm14 18 4-4 4 4', 'M18 22v-8'],
-        circlePlus: [{ c: [12, 12, 10] }, 'M8 12h8', 'M12 8v8'],
-        box: ['M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z', 'm3.3 7 8.7 5 8.7-5', 'M12 22V12'],
-        link: ['M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71', 'M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71'],
-        grid2x2: ['M12 3v18', 'M3 12h18', 'M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z'],
-        wand: ['M15 4V2', 'M15 16v-2', 'M8 9h2', 'M20 9h2', 'M17.8 11.8 19 13', 'M15 9h.01', 'M17.8 6.2 19 5', 'm3 21 9-9', 'M12.2 6.2 11 5'],
-        columns2: ['M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z', 'M12 3v18'],
-        hourglass: ['M5 22h14', 'M5 2h14', 'M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22', 'M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2'],
-        layoutGrid: ['M4 3h5a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1h-5a1 1 0 0 1-1-1v-5a1 1 0 0 1 1-1z', 'M15 3h5a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1h-5a1 1 0 0 1-1-1v-5a1 1 0 0 1 1-1z', 'M15 14h5a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1h-5a1 1 0 0 1-1-1v-5a1 1 0 0 1 1-1z', 'M4 14h5a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1h-5a1 1 0 0 1-1-1v-5a1 1 0 0 1 1-1z'],
+        up: ['M12 19V5', 'M5 12l7-7 7 7'],                                  // lucide: arrow-up (time pill ↑)
+        down: ['M12 5v14', 'M19 12l-7 7-7-7'],                              // lucide: arrow-down (time pill ↓)
+        clockUp: [{ c: [9, 9, 7] }, 'M9 5.5V9l2.3 1.3', 'M18 20.5v-7', 'm15 16.5 3-3 3 3'],   // custom: clock + up arrow (extend own time)
+        clockDown: [{ c: [9, 9, 7] }, 'M9 5.5V9l2.3 1.3', 'M18 13.5v7', 'm15 17.5 3 3 3-3'],  // custom: clock + down arrow (shorten rival time)
+        ban: [{ c: [12, 12, 9] }, 'm5.6 5.6 12.8 12.8'],                    // lucide: ban (forbid a colour)
+        check: [{ c: [12, 12, 9] }, 'm8.3 12 2.5 2.5 4.8-4.8'],            // lucide: circle-check (require a colour)
+        qmark: [{ c: [12, 12, 9] }, 'M9.3 9a2.7 2.7 0 0 1 5.2 1c0 1.8-2.7 2.5-2.7 2.7', 'M12 16.1v.01'],   // lucide: circle-help (random)
+        crosshair: [{ c: [12, 12, 7] }, 'M12 2v3', 'M12 19v3', 'M2 12h3', 'M19 12h3'],   // lucide: crosshair (chosen / any)
+        diamond: ['M2.7 10.3a2.41 2.41 0 0 0 0 3.41l7.59 7.59a2.41 2.41 0 0 0 3.41 0l7.59-7.59a2.41 2.41 0 0 0 0-3.41L13.7 2.71a2.41 2.41 0 0 0-3.41 0z'],   // lucide: diamond (enhanced rune)
+        ellipsis: [{ c: [12, 12, 9] }, 'M7 12h.01', 'M12 12h.01', 'M17 12h.01'],   // lucide: circle-ellipsis (combo count)
+        arrowRight: ['M5 12h14', 'm12 5 7 7-7 7'],                          // lucide: arrow-right (transmute connector)
+        shieldBan: ['M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z', 'm5.5 5.5 13 13'],   // lucide: shield-ban (break a shield)
+        // Sandbag draft card glyphs (Lucide 24×24; <rect> expanded to path data).
+        handFist: ['M12.035 17.012a3 3 0 0 0-3-3l-.311-.002a.72.72 0 0 1-.505-1.229l1.195-1.195A2 2 0 0 1 10.828 11H12a2 2 0 0 0 0-4H9.243a3 3 0 0 0-2.122.879l-2.707 2.707A4.83 4.83 0 0 0 3 14a8 8 0 0 0 8 8h2a8 8 0 0 0 8-8V7a2 2 0 1 0-4 0v2a2 2 0 1 0 4 0', 'M13.888 9.662A2 2 0 0 0 17 8V5A2 2 0 1 0 13 5', 'M9 5A2 2 0 1 0 5 5V10', 'M9 7V4A2 2 0 1 1 13 4V7.268'],   // lucide: hand-fist
+        split: ['M16 3h5v5', 'M8 3H3v5', 'M12 22v-8.3a4 4 0 0 0-1.172-2.872L3 3', 'm15 9 6-6'],   // lucide: split
+        squareStack: ['M4 10c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h4c1.1 0 2 .9 2 2', 'M10 16c-1.1 0-2-.9-2-2v-4c0-1.1.9-2 2-2h4c1.1 0 2 .9 2 2', 'M16 14h4a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2z'],   // lucide: square-stack
+        clockArrowUp: ['M12 6v6l1.56.78', 'M13.227 21.925a10 10 0 1 1 8.767-9.588', 'm14 18 4-4 4 4', 'M18 22v-8'],   // lucide: clock-arrow-up
+        circlePlus: [{ c: [12, 12, 10] }, 'M8 12h8', 'M12 8v8'],   // lucide: circle-plus
+        box: ['M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z', 'm3.3 7 8.7 5 8.7-5', 'M12 22V12'],   // lucide: box
+        link: ['M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71', 'M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71'],   // lucide: link
+        grid2x2: ['M12 3v18', 'M3 12h18', 'M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z'],   // lucide: grid-2x2
+        wand: ['M15 4V2', 'M15 16v-2', 'M8 9h2', 'M20 9h2', 'M17.8 11.8 19 13', 'M15 9h.01', 'M17.8 6.2 19 5', 'm3 21 9-9', 'M12.2 6.2 11 5'],   // lucide: wand-sparkles (older variant)
+        columns2: ['M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z', 'M12 3v18'],   // lucide: columns-2
+        hourglass: ['M5 22h14', 'M5 2h14', 'M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22', 'M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2'],   // lucide: hourglass
+        layoutGrid: ['M4 3h5a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1h-5a1 1 0 0 1-1-1v-5a1 1 0 0 1 1-1z', 'M15 3h5a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1h-5a1 1 0 0 1-1-1v-5a1 1 0 0 1 1-1z', 'M15 14h5a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1h-5a1 1 0 0 1-1-1v-5a1 1 0 0 1 1-1z', 'M4 14h5a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1h-5a1 1 0 0 1-1-1v-5a1 1 0 0 1 1-1z'],   // lucide: layout-grid
     };
     const UI_PATHS = {};
     for (const _k in UI_ICON_OPS) UI_PATHS[_k] = UI_ICON_OPS[_k].map((op) => {
