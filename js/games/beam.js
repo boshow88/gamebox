@@ -33,9 +33,13 @@
         beamReplay: 'Tracing…',
         beamHit: 'Hit!', beamMiss: 'Missed!', beamTimeUp: 'Too slow!',
         beamReadyMsg: 'Mirrors flash, then hide. Trace the laser in your head and tap where it <strong>exits</strong>.',
+        beamArcHelp1Html: 'A grid of mirrors (<strong>/</strong> and <strong>\\</strong>) flashes for a moment — <strong>memorise</strong> where they are.',
+        beamArcHelp2Html: 'The mirrors hide and a <strong>laser fires</strong> from one edge. Before the timer runs out, <strong>tap the border</strong> where you think the beam comes out.',
+        beamArcHelp3Html: 'The beam <strong>replays</strong> to reveal the truth: a hit scores (faster &amp; combos = more), a miss or timeout <strong>costs a life</strong>. Grids grow and mirrors multiply. <kbd>P</kbd> pause · <kbd>R</kbd> restart · <kbd>M</kbd> mute.',
+        beamArcHelp4Html: '<strong>Online:</strong> 2–4 players, same puzzle. Answers stay hidden until the replay reveals who hit — if some hit and some miss, the ones who missed lose a life. Last one standing wins.',
         beamOverTitle: 'Game Over',
         beamGetReady: 'Get ready!',
-        beamSuddenDeath: 'SUDDEN DEATH — a tie now costs a life!',
+        beamSuddenDeath: 'SUDDEN DEATH!', beamSuddenDeathHint: 'A tie now costs a life',
         beamSpectating: 'You\u2019re out — watching',
         beamWaitNext: 'Waiting for next round…',
         // lobby
@@ -63,9 +67,13 @@
         beamReplay: '回放中…',
         beamHit: '命中！', beamMiss: '沒中！', beamTimeUp: '太慢了！',
         beamReadyMsg: '鏡子會先閃現再隱藏。在腦中追蹤雷射，點出它<strong>射出</strong>的邊界位置。',
+        beamArcHelp1Html: '一格格鏡子（<strong>/</strong> 與 <strong>\\</strong>）會先閃現一下——<strong>記住</strong>它們的位置。',
+        beamArcHelp2Html: '鏡子隱藏後，雷射會從某個邊緣射入。在時間結束前，<strong>點出你認為雷射射出</strong>的邊界格。',
+        beamArcHelp3Html: '雷射會<strong>回放</strong>揭曉真相：命中得分（越快、連擊越多分越高），點錯或超時<strong>扣一命</strong>。盤面越來越大、鏡子越來越多。<kbd>P</kbd> 暫停 · <kbd>R</kbd> 重來 · <kbd>M</kbd> 靜音。',
+        beamArcHelp4Html: '<strong>連線：</strong>2–4 人、同一題。作答在回放揭曉前互相隱藏——若有人對有人錯，錯的人扣一命。撐到最後者獲勝。',
         beamOverTitle: '遊戲結束',
         beamGetReady: '準備好！',
-        beamSuddenDeath: '驟死！這回合起平手也會扣血',
+        beamSuddenDeath: '驟死！', beamSuddenDeathHint: '平手也會扣血',
         beamSpectating: '你已出局，觀戰中',
         beamWaitNext: '等待下一回合…',
         beamLobbyTitle: '連線房間',
@@ -74,7 +82,7 @@
         beamSignedIn: function (n) { return '已登入：' + n; }, beamSignOut: '登出', beamGuest: '訪客',
         beamCreateRoom: '建立房間', beamRoomCode: '房號', beamJoinRoom: '加入',
         beamCopyCode: '複製房號', beamLeaveRoom: '離開', beamCopied: '已複製！',
-        beamReadyUp: '我準備好了', beamReadyWait: '已準備，等待中…', beamStartMatch: '開始對戰',
+        beamReadyUp: '準備好了', beamReadyWait: '已準備，等待中…', beamStartMatch: '開始對戰',
         beamWaitingPlayers: '等待玩家加入…', beamNeedTwo: '至少需要 2 位玩家',
         beamHostStarts: '大家準備好後，由房主開始。', beamSignInFirst: '請先登入才能連線遊玩。',
         beamRoomNotFound: '找不到房間', beamRoomFull: '房間已滿', beamAlreadyStarted: '該場對戰已經開始',
@@ -118,7 +126,7 @@
     // adaptive online difficulty: a shared "centre" level that drifts with the group's
     // results (all-right → harder, all-wrong → easier, mixed → hold), plus per-round jitter.
     var LEVEL_MIN = 1, LEVEL_MAX = 38, START_LEVEL = 5;    // level 1 → 2×2 (floor), level 37 → 20×20 (ceiling)
-    var STEP_UP = 0.7, STEP_DOWN = 0.9, JITTER = 2.0;      // wider per-round spread → harder to read
+    var STEP_UP = 0.75, STEP_DOWN = 1.0, JITTER = 2.0;     // wider per-round spread → harder to read
     var SOLO_RAMP = 0.6;                                   // solo difficulty climbs ~0.6 level per round (gentler)
     var SOLO_JITTER = 1.0;                                 // solo also varies round-to-round (still trends up)
     var ZERO_MAX = 0.2;                                    // max chance of a straight-through (0-bounce) laser
@@ -130,7 +138,7 @@
     // rounds, memorize + answer times shrink each round (memorize faster than answer),
     // with NO floor. If a match somehow drags to SUDDEN_DEATH_ROUND, even a tie starts
     // costing a life — a guaranteed end.
-    var ACCEL_START = 10, MEMO_DECAY = 0.93, ANSWER_DECAY = 0.96, SUDDEN_DEATH_ROUND = 80;
+    var ACCEL_START = 10, MEMO_DECAY = 0.95, ANSWER_DECAY = 0.96, SUDDEN_DEATH_ROUND = 50;
     function memoAccel(round) { return round <= ACCEL_START ? 1 : Math.pow(MEMO_DECAY, round - ACCEL_START); }
     function answerAccel(round) { return round <= ACCEL_START ? 1 : Math.pow(ANSWER_DECAY, round - ACCEL_START); }
 
@@ -138,6 +146,7 @@
     var S = { mode: 'solo', round: 1, score: 0, lives: 3, combo: 0, phase: 'memorize', t: 0, memo: 1.2, replay: 0.7, puzzle: null, choice: null, answerLeft: 0, lastKind: '' };
     var om = null;                         // online match state while S.mode === 'online'
     var canvas, ctx, DPR = Math.min(window.devicePixelRatio || 1, 2), shell = null;
+    var demo = false, demoAcc = 0.7, demoAutoYou = true, demoTimers = [];   // local bot-match for watching edge cases
 
     // ===============================================================
     // puzzle (deterministic when given a seeded rng)
@@ -303,8 +312,19 @@
         om.aliveStart = Object.assign({}, g.alive || {});
         if (om.host) { om.host.tallied = false; om.host.over = false; }
         AC.audio.play('click');
+        if (demo) demoScheduleBots();
     }
     function myCorrect() { return om && om.choice && om.puzzle && samePort(om.choice, om.puzzle.exit); }
+
+    // All match/host writes go through here: a real Firestore write online, or an
+    // instant local apply in the offline bot-demo (so the SAME loop drives both).
+    function applyPatch(obj, patch) {
+        for (var k in patch) {
+            if (k.indexOf('.') >= 0) { var parts = k.split('.'), o = obj; for (var i = 0; i < parts.length - 1; i++) { if (o[parts[i]] == null || typeof o[parts[i]] !== 'object') o[parts[i]] = {}; o = o[parts[i]]; } o[parts[parts.length - 1]] = patch[k]; }
+            else obj[k] = patch[k];
+        }
+    }
+    function roomWrite(patch) { if (demo) { applyPatch(room.data, patch); onRoom(room.data); return Promise.resolve(); } return net.mp.update(GROUP, room.code, patch); }
 
     function enterMatch(data) {
         if (S.mode === 'online') return;
@@ -364,7 +384,7 @@
         if (!om || !om.alive) return;
         om.choice = port; om.submitted = true;
         AC.audio.play('click');
-        net.mp.update(GROUP, room.code, { ['game.answers.' + om.myUid]: { r: port.r, c: port.c, side: port.side, at: Date.now() } }).catch(function () { });
+        roomWrite({ ['game.answers.' + om.myUid]: { r: port.r, c: port.c, side: port.side, at: Date.now() } }).catch(function () { });
     }
 
     // ---- host authority (effective host = host if present, else first in join order present) ----
@@ -381,6 +401,7 @@
     }
     // Runs whenever we're attached to a room (lobby OR match) so presence works everywhere.
     function watchdog() {
+        if (demo) { var dd = room && room.data, dg = dd && dd.game; if (S.mode === 'online' && om && dg && dg.status === 'playing' && effectiveHost(dd) === om.myUid) { hostCheckForfeit(dd, dg); if (!om.host.over) hostDrive(dd, dg); } return; }
         if (!net || !room || !room.data || !netUser) return;
         var d = room.data, g = d.game || {}, now = Date.now();
         if (!beatT || now - beatT > BEAT_MS) { beatT = now; beatN++; net.mp.update(GROUP, room.code, { ['game.beat.' + netUser.uid]: beatN }).catch(function () { }); }
@@ -402,7 +423,7 @@
         dropped.forEach(function (u) { aliveMap[u] = false; ranks[u] = cnt; cnt--; });
         if (winner) ranks[winner] = 1;
         om.host.over = true;
-        net.mp.update(GROUP, room.code, { 'game.alive': aliveMap, 'game.rankByUid': ranks, 'game.status': 'over', 'game.winner': winner, 'game.endReason': 'left', 'status': 'lobby' }).catch(function () { });
+        roomWrite({ 'game.alive': aliveMap, 'game.rankByUid': ranks, 'game.status': 'over', 'game.winner': winner, 'game.endReason': 'left', 'status': 'lobby' }).catch(function () { });
     }
     function hostDrive(d, g) {
         if (g.round !== om.round || om.host.over) return;      // stale echo, or match already decided
@@ -457,13 +478,13 @@
         };
         if (over) { patch['game.status'] = 'over'; patch['game.winner'] = winner; patch['game.endReason'] = (gone.length > 0 ? 'left' : 'normal'); patch['status'] = 'lobby'; }  // reopen room for rematch/rejoin
         om.host.over = over;                                   // guard local advance until the 'over' echo lands
-        net.mp.update(GROUP, room.code, patch).catch(function () { });
+        roomWrite(patch).catch(function () { });
     }
     function hostNextRound(d, g) {
         var nr = (g.round || 1) + 1;
         var center = (om.host.center != null) ? om.host.center : (g.center != null ? g.center : START_LEVEL);
         var level = AC.math.clamp(center + (Math.random() * 2 - 1) * JITTER, LEVEL_MIN, LEVEL_MAX);   // per-round spread around the centre
-        net.mp.update(GROUP, room.code, { 'game.round': nr, 'game.level': level, 'game.answers': {}, 'game.results': {}, 'game.revealedRound': 0 }).catch(function () { });
+        roomWrite({ 'game.round': nr, 'game.level': level, 'game.answers': {}, 'game.results': {}, 'game.revealedRound': 0 }).catch(function () { });
         var d2 = { game: Object.assign({}, g, { round: nr, level: level }), players: d.players };
         startLocalRound(nr, d2);   // advance the host locally in lockstep with the write (with the new level)
     }
@@ -593,8 +614,9 @@
         var p = om && om.puzzle; if (!p) return;
         var info = phaseAt(performance.now()), ph = info.phase;
         drawGrid(p.N);
-        if (om.round >= SUDDEN_DEATH_ROUND) sdBanner();        // persistent red notice so no one wonders why they're losing HP
-        if (ph === 'countdown') { caption(t('beamGetReady'), BEAM); bigCountdown(Math.ceil(info.remain)); return; }
+        var sd = om.round >= SUDDEN_DEATH_ROUND;
+        if (sd) sdBanner();                                    // persistent short "SUDDEN DEATH!" banner
+        if (ph === 'countdown') { caption(sd ? t('beamSuddenDeathHint') : t('beamGetReady'), sd ? '#f87171' : BEAM); bigCountdown(Math.ceil(info.remain)); return; }   // prep screen explains why
         if (ph === 'memorize') { drawMirrors(p, 1); drawTimerBar(1 - info.ts / om.memo, false); caption(t('beamWatch'), BEAM); return; }
         if (ph === 'answer') {
             if (om.alive) drawPorts(p); drawEntry(p);
@@ -626,12 +648,18 @@
         });
         for (var key in groups) {
             var list = groups[key], a0 = answers[list[0]], R = portRect(a0.r, a0.c, a0.side, p.N), n = list.length;
-            var horiz = R.w >= R.h;                             // wide tile → vertical stripes; tall tile → horizontal
-            ctx.save(); cellPath(R); ctx.clip(); ctx.globalAlpha = 0.92;   // colour BANDS fit any tile size / 2-4 players
+            var grid2x2 = p.N >= 9;                             // big (near-square) tiles: 3-4 players → 2×2 grid
+            var vert = (a0.side === U || a0.side === D);        // orient by SIDE (top/bottom = vertical stripes) — no flip
+            ctx.save(); cellPath(R); ctx.clip(); ctx.globalAlpha = 0.92;
             for (var i = 0; i < n; i++) {
                 ctx.fillStyle = colorForOrder(players[list[i]] ? players[list[i]].order : 0);
-                if (horiz) ctx.fillRect(R.x + R.w * i / n + 0.4, R.y, R.w / n - 0.8, R.h);
-                else ctx.fillRect(R.x, R.y + R.h * i / n + 0.4, R.w, R.h / n - 0.8);
+                var sx, sy, sw, sh;
+                if (n >= 3 && grid2x2) {                        // 3-4 players on a square-ish tile → 2 × ceil(n/2) grid (2×2 for four)
+                    var cols = 2, rows = Math.ceil(n / 2), cc = i % cols, cr = (i / cols) | 0;
+                    sx = R.x + R.w * cc / cols; sy = R.y + R.h * cr / rows; sw = R.w / cols; sh = R.h / rows;
+                } else if (vert) { sx = R.x + R.w * i / n; sy = R.y; sw = R.w / n; sh = R.h; }
+                else { sx = R.x; sy = R.y + R.h * i / n; sw = R.w; sh = R.h / n; }
+                ctx.fillRect(sx + 0.4, sy + 0.4, sw - 0.8, sh - 0.8);
             }
             ctx.restore();
         }
@@ -695,7 +723,7 @@
         var beats = (g && g.beat) || {}, now = Date.now();
         for (var uid in beats) { var p = pres[uid]; if (!p) pres[uid] = { v: beats[uid], at: now }; else if (p.v !== beats[uid]) { p.v = beats[uid]; p.at = now; } }
     }
-    function isStale(uid) { var p = pres[uid]; return !!p && (Date.now() - p.at) > STALL_MS; }
+    function isStale(uid) { if (demo) return false; var p = pres[uid]; return !!p && (Date.now() - p.at) > STALL_MS; }
     function elc(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
     function lbtn(label, cls) { var b = elc('button', cls || 'btn', label); b.type = 'button'; return b; }
     function lrow() { var r = elc('div', 'lobby-row'); for (var i = 0; i < arguments.length; i++) if (arguments[i]) r.appendChild(arguments[i]); return r; }
@@ -725,7 +753,7 @@
     function doSignIn(kind) { (kind === 'google' ? net.signInGoogle() : net.signInGuest()).catch(showLobbyError); }
     function doCreate() { net.mp.create(GROUP, { maxPlayers: MAX_PLAYERS }).then(attachRoom).catch(showLobbyError); }
     function doJoin(code) { code = String(code || '').trim().toUpperCase(); if (!code) return; net.mp.join(GROUP, code).then(attachRoom).catch(showLobbyError); }
-    function doLeave() { var wasMatch = (S.mode === 'online'); if (room) { var c = room.code; detachRoom(); net.mp.leave(GROUP, c).catch(function () { }); } if (wasMatch) exitMatch(); renderLobby(); }
+    function doLeave() { if (demo) { demoStop(); return; } var wasMatch = (S.mode === 'online'); if (room) { var c = room.code; detachRoom(); net.mp.leave(GROUP, c).catch(function () { }); } if (wasMatch) exitMatch(); renderLobby(); }
     function doReady() { if (!room || !netUser) return; net.mp.update(GROUP, room.code, { ['ready.' + netUser.uid]: true }).catch(showLobbyError); }
     function hostStart() {
         if (!room || !room.data || !netUser) return;
@@ -737,7 +765,7 @@
         var seed = (Math.random() * 1e9) >>> 0;
         net.mp.update(GROUP, room.code, { status: 'playing', game: { status: 'playing', round: 1, seed: seed, level: START_LEVEL, center: START_LEVEL, hp: hp, alive: alive, answers: {}, results: {}, rankByUid: {} }, ready: {} }).catch(showLobbyError);
     }
-    function doRematch() { if (!room || !room.data || !netUser) return; if (effectiveHost(room.data) !== netUser.uid) return; net.mp.update(GROUP, room.code, { status: 'lobby', game: {}, ready: {}, round: 0 }).catch(showLobbyError); }
+    function doRematch() { if (demo) { demoStart({ players: (room.data.order || []).length, acc: demoAcc }); return; } if (!room || !room.data || !netUser) return; if (effectiveHost(room.data) !== netUser.uid) return; net.mp.update(GROUP, room.code, { status: 'lobby', game: {}, ready: {}, round: 0 }).catch(showLobbyError); }
     function copyCode(code) { try { var p = navigator.clipboard && navigator.clipboard.writeText(code); if (p && p.catch) p.catch(function () { }); } catch (e) { } if (lobbyRefs) lobbyRefs.status.textContent = t('beamCopied'); }
 
     function renderLobby() {
@@ -874,9 +902,72 @@
         });
         setupMode();
         setupOnline();
+        setupDemo();
         applyHudMode();
         AC.i18n.subscribe(function () { syncHud(); if (S.mode !== 'online') shell.refreshOverlay(); if (room) renderLobby(); });
         syncHud();
+    }
+    // ===============================================================
+    // Demo / watch tool — a LOCAL bot match (no server) for inspecting edge cases:
+    // acceleration, huge grids, colour bands, sudden death, all the on-screen text.
+    //   beamDemo.start({players:4, round:1, level:5, acc:0.7})
+    //   beamDemo.round(80)   jump rounds (see fast clock / sudden death)
+    //   beamDemo.level(30)   jump difficulty (see big grids)   beamDemo.acc(0.9)
+    //   beamDemo.autoYou(false)  play yourself   ·   beamDemo.stop()
+    // ===============================================================
+    function demoBotPort(p, ok) {
+        if (ok) return p.exit;
+        var opts = portList(p.N).filter(function (q) { return !samePort(q, p.entry) && !samePort(q, p.exit); });
+        return opts.length ? opts[(Math.random() * opts.length) | 0] : p.exit;
+    }
+    function demoScheduleBots() {
+        if (!demo || !om || !om.puzzle || om._botRound === om.round) return;
+        om._botRound = om.round;
+        demoTimers.forEach(clearTimeout); demoTimers = [];
+        var p = om.puzzle, g = room.data.game || {}, order = room.data.order || [];
+        var base = (countSec(om.round) + om.memo) * 1000;        // answer window opens here (relative to now)
+        order.forEach(function (uid) {
+            if (g.alive && g.alive[uid] === false) return;
+            if (uid === om.myUid && !demoAutoYou) return;
+            var ok = Math.random() < demoAcc, port = demoBotPort(p, ok);
+            var delay = base + Math.random() * om.answerSec * 0.7 * 1000;
+            demoTimers.push(setTimeout(function () {
+                if (!demo || om.round !== om._botRound) return;
+                if (uid === om.myUid) submitAnswer(port);
+                else roomWrite({ ['game.answers.' + uid]: { r: port.r, c: port.c, side: port.side, at: Date.now() } });
+            }, delay));
+        });
+    }
+    function demoStart(opts) {
+        opts = opts || {};
+        var n = AC.math.clamp(opts.players || 4, 2, 4), lvl = opts.level || START_LEVEL;
+        demoAcc = (opts.acc != null) ? opts.acc : 0.7; demoAutoYou = true;
+        if (room) detachRoom();
+        demo = true; netUser = { uid: 'you', name: 'You', anon: true };
+        var uids = ['you'], playersMap = {}, hp = {}, alive = {};
+        for (var i = 1; i < n; i++) uids.push('bot' + i);
+        uids.forEach(function (u, idx) { playersMap[u] = { uid: u, name: u === 'you' ? 'You' : ('Bot ' + idx), order: idx, anon: true }; hp[u] = HP_START; alive[u] = true; });
+        var seed = (Math.random() * 1e9) >>> 0;
+        room = { code: 'DEMO', unsub: null, data: { code: 'DEMO', status: 'playing', hostUid: 'you', maxPlayers: n, players: playersMap, order: uids, ready: {}, round: 0, game: { status: 'playing', round: opts.round || 1, seed: seed, level: lvl, center: lvl, hp: hp, alive: alive, answers: {}, results: {}, rankByUid: {} } } };
+        if (S.mode === 'online') { om = null; S.mode = 'solo'; }   // reset so enterMatch runs cleanly
+        enterMatch(room.data);
+        return 'demo started — ' + n + ' players, round ' + (opts.round || 1) + ', level ' + lvl + ', acc ' + demoAcc;
+    }
+    function demoStop() {
+        demo = false; demoTimers.forEach(clearTimeout); demoTimers = [];
+        if (om) exitMatch();
+        room = null; netUser = net ? net.currentUser() : undefined;
+        return 'demo stopped';
+    }
+    function setupDemo() {
+        window.beamDemo = {
+            start: demoStart, stop: demoStop,
+            round: function (r) { if (!demo || !om) return 'start a demo first'; roomWrite({ 'game.round': Math.max(1, r | 0), 'game.answers': {}, 'game.results': {}, 'game.revealedRound': 0 }); return 'jumped to round ' + (r | 0); },
+            level: function (x) { if (!demo || !om) return 'start a demo first'; x = +x; roomWrite({ 'game.center': x, 'game.level': x, 'game.round': om.round + 1, 'game.answers': {}, 'game.results': {}, 'game.revealedRound': 0 }); return 'level→' + x + ' (grid ≈ ' + AC.math.clamp(2 + Math.floor((x - 1) / 2), 2, 20) + '×)'; },
+            acc: function (p) { demoAcc = AC.math.clamp(+p, 0, 1); return 'bot accuracy ' + demoAcc; },
+            autoYou: function (b) { demoAutoYou = !!b; return 'autoYou ' + demoAutoYou; },
+        };
+        console.log('%c[beam] watch tool — beamDemo.start() then .round(80) / .level(30) / .acc(0.9) / .stop()', 'color:#22d3ee;font-weight:700');
     }
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
 })();
