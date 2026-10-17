@@ -27,31 +27,33 @@
     Object.assign(AC.i18n.STRINGS.en, {
         beamArcName: 'Beam',
         beamRound: 'Round',
-        beamModeSolo: 'Solo', beamModeOnline: 'Online', beamOnlineBtn: 'Online',
+        beamOnlineBtn: 'Online',
         beamWatch: 'Memorise the mirrors!',
         beamRecall: 'Where does it exit?',
         beamReplay: 'Tracing…',
         beamHit: 'Hit!', beamMiss: 'Missed!', beamTimeUp: 'Too slow!',
-        beamReadyMsg: 'Mirrors flash, then hide. Trace the laser in your head and tap where it <strong>exits</strong>.',
+        beamReadyMsg: 'Memorise the mirrors, then tap where the laser <strong>exits</strong>. Race <strong>3 CPU rivals</strong> — last one standing wins.',
+        beamTierLabel: 'Difficulty', beamTierEasy: 'Easy', beamTierNormal: 'Normal', beamTierHard: 'Hard', beamTierInsane: 'Insane',
+        beamSoloWin: 'You win — 1st! 🏆', beamYourPlace: function (n) { return 'You finished ' + placeLabel(n); }, beamWins: function (n) { return n + ' wins'; },
         beamArcHelp1Html: 'A grid of mirrors (<strong>/</strong> and <strong>\\</strong>) flashes for a moment — <strong>memorise</strong> where they are.',
         beamArcHelp2Html: 'The mirrors hide and a <strong>laser fires</strong> from one edge. Before the timer runs out, <strong>tap the border</strong> where you think the beam comes out.',
-        beamArcHelp3Html: 'The beam <strong>replays</strong> to reveal the truth: a hit scores (faster &amp; combos = more), a miss or timeout <strong>costs a life</strong>. Grids grow and mirrors multiply. <kbd>P</kbd> pause · <kbd>R</kbd> restart · <kbd>M</kbd> mute.',
-        beamArcHelp4Html: '<strong>Online:</strong> 2–4 players, same puzzle. Answers stay hidden until the replay reveals who hit — if some hit and some miss, the ones who missed lose a life. Last one standing wins.',
+        beamArcHelp3Html: 'The beam <strong>replays</strong> to reveal who hit. <strong>Solo</strong> pits you against <strong>3 CPU rivals</strong> (pick a difficulty); if some hit and some miss, those who missed <strong>lose a life</strong> — last one standing wins.',
+        beamArcHelp4Html: '<strong>Online:</strong> 2–4 real players, same puzzle &amp; rules; a long match speeds up until it resolves. <kbd>R</kbd> restart · <kbd>M</kbd> mute.',
         beamOverTitle: 'Game Over',
         beamGetReady: 'Get ready!',
         beamSuddenDeath: 'SUDDEN DEATH!', beamSuddenDeathHint: 'A tie now costs a life',
         beamSpectating: 'You\u2019re out — watching',
         beamWaitNext: 'Waiting for next round…',
-        // lobby
-        beamLobbyTitle: 'Online room',
+        // lobby (wording aligned with Rune Stones)
+        beamLobbyTitle: 'Online match',
         beamClose: 'Close',
         beamSignInGoogle: 'Sign in with Google', beamSignInGuest: 'Play as guest',
-        beamSignedIn: function (n) { return 'Signed in as ' + n; }, beamSignOut: 'Sign out', beamGuest: 'Guest',
+        beamSignedIn: function (n) { return 'Signed in: ' + n; }, beamSignOut: 'Sign out', beamGuest: 'Guest',
         beamCreateRoom: 'Create room', beamRoomCode: 'Code', beamJoinRoom: 'Join',
-        beamCopyCode: 'Copy code', beamLeaveRoom: 'Leave', beamCopied: 'Copied!',
-        beamReadyUp: 'I\u2019m ready', beamReadyWait: 'Ready — waiting…', beamStartMatch: 'Start match',
+        beamCopyCode: 'Copy', beamLeaveRoom: 'Leave room', beamCopied: 'Copied!',
+        beamReadyUp: 'I\u2019m ready to start', beamReadyWait: 'Ready — waiting for others…', beamStartMatch: 'Start match',
         beamWaitingPlayers: 'Waiting for players…', beamNeedTwo: 'Need at least 2 players',
-        beamHostStarts: 'The host starts once everyone is ready.', beamSignInFirst: 'Sign in to play online.',
+        beamHostStarts: 'The host starts once everyone is ready.', beamSignInFirst: 'Sign in to create or join a room.',
         beamRoomNotFound: 'Room not found', beamRoomFull: 'Room is full', beamAlreadyStarted: 'That match already started',
         beamNetErr: 'Network error', beamPlayers: 'Players', beamYou: 'You', beamHost: 'Host', beamReadyTag: 'Ready',
         beamResultsTitle: 'Final results', beamWinner: function (n) { return n + ' wins!'; },
@@ -61,30 +63,32 @@
     Object.assign(AC.i18n.STRINGS.zh, {
         beamArcName: 'Beam',
         beamRound: '回合',
-        beamModeSolo: '單人', beamModeOnline: '連線', beamOnlineBtn: '連線對戰',
+        beamOnlineBtn: '線上',
         beamWatch: '記住鏡子的位置！',
         beamRecall: '它從哪裡射出？',
         beamReplay: '回放中…',
         beamHit: '命中！', beamMiss: '沒中！', beamTimeUp: '太慢了！',
-        beamReadyMsg: '鏡子會先閃現再隱藏。在腦中追蹤雷射，點出它<strong>射出</strong>的邊界位置。',
+        beamReadyMsg: '記住鏡子位置，再點出雷射<strong>射出</strong>的邊界。和 <strong>3 個電腦對手</strong>比賽，撐到最後獲勝。',
+        beamTierLabel: '難度', beamTierEasy: '簡單', beamTierNormal: '普通', beamTierHard: '困難', beamTierInsane: '瘋狂',
+        beamSoloWin: '你贏了——第 1 名！🏆', beamYourPlace: function (n) { return '你的名次：' + placeLabel(n); }, beamWins: function (n) { return '勝 ' + n + ' 場'; },
         beamArcHelp1Html: '一格格鏡子（<strong>/</strong> 與 <strong>\\</strong>）會先閃現一下——<strong>記住</strong>它們的位置。',
         beamArcHelp2Html: '鏡子隱藏後，雷射會從某個邊緣射入。在時間結束前，<strong>點出你認為雷射射出</strong>的邊界格。',
-        beamArcHelp3Html: '雷射會<strong>回放</strong>揭曉真相：命中得分（越快、連擊越多分越高），點錯或超時<strong>扣一命</strong>。盤面越來越大、鏡子越來越多。<kbd>P</kbd> 暫停 · <kbd>R</kbd> 重來 · <kbd>M</kbd> 靜音。',
-        beamArcHelp4Html: '<strong>連線：</strong>2–4 人、同一題。作答在回放揭曉前互相隱藏——若有人對有人錯，錯的人扣一命。撐到最後者獲勝。',
+        beamArcHelp3Html: '雷射會<strong>回放</strong>揭曉誰命中。<strong>單人</strong>是你對 <strong>3 個電腦對手</strong>（可選難度）；若有人對有人錯，錯的人<strong>扣一命</strong>，撐到最後者獲勝。',
+        beamArcHelp4Html: '<strong>連線：</strong>2–4 位真人、同一題、同規則；對戰拖越久會越來越快直到分勝負。<kbd>R</kbd> 重來 · <kbd>M</kbd> 靜音。',
         beamOverTitle: '遊戲結束',
         beamGetReady: '準備好！',
         beamSuddenDeath: '驟死！', beamSuddenDeathHint: '平手也會扣血',
         beamSpectating: '你已出局，觀戰中',
         beamWaitNext: '等待下一回合…',
-        beamLobbyTitle: '連線房間',
+        beamLobbyTitle: '線上對戰',
         beamClose: '關閉',
-        beamSignInGoogle: '用 Google 登入', beamSignInGuest: '以訪客遊玩',
+        beamSignInGoogle: '用 Google 登入', beamSignInGuest: '以訪客身分遊玩',
         beamSignedIn: function (n) { return '已登入：' + n; }, beamSignOut: '登出', beamGuest: '訪客',
         beamCreateRoom: '建立房間', beamRoomCode: '房號', beamJoinRoom: '加入',
-        beamCopyCode: '複製房號', beamLeaveRoom: '離開', beamCopied: '已複製！',
-        beamReadyUp: '準備好了', beamReadyWait: '已準備，等待中…', beamStartMatch: '開始對戰',
+        beamCopyCode: '複製', beamLeaveRoom: '離開房間', beamCopied: '已複製！',
+        beamReadyUp: '準備好了', beamReadyWait: '已準備，等待其他玩家…', beamStartMatch: '開始對戰',
         beamWaitingPlayers: '等待玩家加入…', beamNeedTwo: '至少需要 2 位玩家',
-        beamHostStarts: '大家準備好後，由房主開始。', beamSignInFirst: '請先登入才能連線遊玩。',
+        beamHostStarts: '大家準備好後，由房主開始。', beamSignInFirst: '登入後即可建立或加入房間。',
         beamRoomNotFound: '找不到房間', beamRoomFull: '房間已滿', beamAlreadyStarted: '該場對戰已經開始',
         beamNetErr: '連線錯誤', beamPlayers: '玩家', beamYou: '你', beamHost: '房主', beamReadyTag: '準備',
         beamResultsTitle: '最終名次', beamWinner: function (n) { return n + ' 獲勝！'; },
@@ -127,9 +131,19 @@
     // results (all-right → harder, all-wrong → easier, mixed → hold), plus per-round jitter.
     var LEVEL_MIN = 1, LEVEL_MAX = 38, START_LEVEL = 5;    // level 1 → 2×2 (floor), level 37 → 20×20 (ceiling)
     var STEP_UP = 0.75, STEP_DOWN = 1.0, JITTER = 2.0;     // wider per-round spread → harder to read
-    var SOLO_RAMP = 0.6;                                   // solo difficulty climbs ~0.6 level per round (gentler)
-    var SOLO_JITTER = 1.0;                                 // solo also varies round-to-round (still trends up)
     var ZERO_MAX = 0.2;                                    // max chance of a straight-through (0-bounce) laser
+    // Solo = you vs 3 CPU bots. Each bot has a STRENGTH s; its correct-rate on a puzzle of
+    // difficulty L is a negative-logistic:  P = 1 / (1 + e^(-BOT_K*(s - L)))  — far below its
+    // strength → ~100%, far above → ~0%, equal → 50%. Strengths are drawn ~normal per tier.
+    // A small BOT_K + modest spread keeps ~2/3 of rounds a genuine contest (no "A always
+    // right, B always wrong" split): a clear split needs a strength gap > ~2*1.73/BOT_K.
+    var BOT_K = 0.7;
+    var TIERS = {
+        easy: { mean: 4, std: 1.0, start: 3 }, normal: { mean: 8, std: 1.2, start: 6 },
+        hard: { mean: 13, std: 1.3, start: 11 }, insane: { mean: 18, std: 1.5, start: 16 },
+    };
+    function gauss(mean, std) { var u = 1 - Math.random(), v = 1 - Math.random(); return mean + std * Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); }
+    function pCorrect(strength, level) { return 1 / (1 + Math.exp(-BOT_K * (strength - level))); }
     // per-player colours (distinct from the cyan laser / green "correct" ring)
     var PCOLORS = ['#f59e0b', '#ec4899', '#a855f7', '#3b82f6', '#f97316', '#eab308', '#8b5cf6', '#ef4444'];
     function colorForOrder(i) { i = i || 0; return PCOLORS[((i % PCOLORS.length) + PCOLORS.length) % PCOLORS.length]; }
@@ -143,8 +157,7 @@
     function answerAccel(round) { return round <= ACCEL_START ? 1 : Math.pow(ANSWER_DECAY, round - ACCEL_START); }
 
     // ---- state ----
-    var S = { mode: 'solo', round: 1, score: 0, lives: 3, combo: 0, phase: 'memorize', t: 0, memo: 1.2, replay: 0.7, puzzle: null, choice: null, answerLeft: 0, lastKind: '' };
-    var om = null;                         // online match state while S.mode === 'online'
+    var om = null;                         // the running match (solo-vs-bots when om.local, else online)
     var canvas, ctx, DPR = Math.min(window.devicePixelRatio || 1, 2), shell = null;
 
     // ===============================================================
@@ -250,37 +263,63 @@
     function puzzleForLevel(seed, round, level) { return genPuzzleLevel(level, AC.rng.make((seed + round * 7919) >>> 0)); }
 
     // ===============================================================
-    // SOLO
+    // Solo = a LOCAL match vs 3 CPU bots (reuses the whole online match loop,
+    // but writes apply instantly to a local room — no server).
     // ===============================================================
-    function soloNewPuzzle() {
-        var level = Math.max(1, 1 + (S.round - 1) * SOLO_RAMP + (Math.random() * 2 - 1) * SOLO_JITTER);   // gentler climb, still varies
-        S.puzzle = genPuzzleLevel(level, Math.random);
-        S.choice = null; S.lastKind = '';
-        S.memo = memoSec(S.puzzle.bounces + countMirrors(S.puzzle));
-        soloPhase('memorize'); AC.audio.play('click');
+    function loadSoloStats(tier) { try { return AC.storage.readJSON(AC.storage.storageKey('beam', 'solo', tier), { played: 0, wins: 0, best: 0 }); } catch (e) { return { played: 0, wins: 0, best: 0 }; } }
+    function saveSoloStats(tier, st) { try { AC.storage.writeJSON(AC.storage.storageKey('beam', 'solo', tier), st); } catch (e) { } }
+    function botWrongPort(p) { var opts = portList(p.N).filter(function (q) { return !samePort(q, p.entry) && !samePort(q, p.exit); }); return opts.length ? opts[(Math.random() * opts.length) | 0] : p.exit; }
+    // match/host writes: instant local apply in solo, real Firestore write online.
+    function applyPatch(obj, patch) {
+        for (var k in patch) {
+            if (k.indexOf('.') >= 0) { var parts = k.split('.'), o = obj; for (var i = 0; i < parts.length - 1; i++) { if (o[parts[i]] == null || typeof o[parts[i]] !== 'object') o[parts[i]] = {}; o = o[parts[i]]; } o[parts[parts.length - 1]] = patch[k]; }
+            else obj[k] = patch[k];
+        }
     }
-    function soloReset() { S.round = 1; S.score = 0; S.lives = 3; S.combo = 0; soloNewPuzzle(); syncHud(); }
-    function soloPhase(p) { S.phase = p; S.t = 0; if (p === 'replay') { S.replay = replaySec(S.puzzle.bounces); AC.audio.play('laser'); } }
-    function soloJudge() {
-        var correct = samePort(S.choice, S.puzzle.exit);
-        if (correct) {
-            var speed = Math.round((S.answerLeft / ANSWER_SEC) * 120), mult = 1 + Math.min(S.combo, 5) * 0.2;
-            S.score += Math.round((100 + speed + S.round * 10) * mult); S.combo++; S.lastKind = 'hit';
-            AC.audio.play('gem'); bump('score');
-        } else { S.lives--; S.combo = 0; S.lastKind = S.choice ? 'miss' : 'timeup'; AC.audio.play('explode'); bump('lives'); }
-        syncHud();
+    function roomWrite(patch) { if (om && om.local) { applyPatch(room.data, patch); onRoom(room.data); return Promise.resolve(); } return net.mp.update(GROUP, room.code, patch); }
+
+    function startSoloMatch(tierKey) {
+        var tier = TIERS[tierKey] || TIERS.normal;
+        var uids = ['you'], players = {}, hp = {}, alive = {};
+        players['you'] = { uid: 'you', name: t('beamYou'), order: 0 };
+        for (var i = 1; i <= 3; i++) { var u = 'bot' + i; players[u] = { uid: u, name: 'CPU ' + i, order: i, bot: true, strength: Math.max(1, gauss(tier.mean, tier.std)) }; uids.push(u); }
+        uids.forEach(function (u) { hp[u] = HP_START; alive[u] = true; });
+        var seed = (Math.random() * 1e9) >>> 0;
+        room = { code: 'SOLO', unsub: null, data: { code: 'SOLO', status: 'playing', hostUid: 'you', players: players, order: uids, round: 0, game: { status: 'playing', round: 1, seed: seed, level: tier.start, center: tier.start, hp: hp, alive: alive, answers: {}, results: {}, rankByUid: {} } } };
+        om = { myUid: 'you', local: true, tier: tierKey, seed: seed, round: 0, localStart: 0, puzzle: null, choice: null, submitted: false, alive: true, over: false, lastPhase: '', hpStart: {}, aliveStart: {}, host: { tallied: false, over: false, center: tier.start } };
+        hideShellOverlay(); setControlsForMatch(); applyHudMode();
+        startLocalRound(1, room.data); renderPlayersBar(room.data);
     }
-    function soloAdvance() { if (S.lives <= 0) { shell.gameOver({ score: S.score, win: false, meta: { round: S.round } }); return; } S.round++; soloNewPuzzle(); syncHud(); }
-    function updateSolo(dt) {
-        S.t += dt;
-        if (S.phase === 'memorize') { if (S.t >= S.memo) soloPhase('answer'); }
-        else if (S.phase === 'answer') { if (S.t >= ANSWER_SEC) { S.choice = null; S.answerLeft = 0; soloPhase('replay'); } }
-        else if (S.phase === 'replay') { if (S.t >= S.replay) { soloJudge(); soloPhase('result'); } }
-        else if (S.phase === 'result') { if (S.t >= RESULT_SEC) soloAdvance(); }
+    function soloMatchOver(data) {
+        var g = data.game || {}, rank = (g.rankByUid && g.rankByUid[om.myUid]) || (data.order ? data.order.length : 4), tier = om.tier;
+        var st = loadSoloStats(tier); st.played++; if (rank === 1) st.wins++; st.best = st.best ? Math.min(st.best, rank) : rank; saveSoloStats(tier, st);
+        om.over = true;
+        setControlsForMatch();
+        shell.gameOver({ score: 0, win: rank === 1, meta: { rank: rank, tier: tier, best: st.best, wins: st.wins } });
+    }
+    // Bots "answer" DURING the window (just like real players) so their picks are already
+    // there at the reveal. Correct-rate = logistic of their strength vs this round's level.
+    var botTimers = [];
+    function scheduleBots() {
+        if (!om || !om.local || !om.puzzle || om._botRound === om.round) return;
+        om._botRound = om.round;
+        botTimers.forEach(clearTimeout); botTimers = [];
+        var p = om.puzzle, g = room.data.game || {}, players = room.data.players || {}, order = room.data.order || [];
+        var base = (countSec(om.round) + om.memo) * 1000, myRound = om.round;
+        order.forEach(function (uid) {
+            var pl = players[uid];
+            if (!pl || !pl.bot || (g.alive && g.alive[uid] === false)) return;
+            var port = (Math.random() < pCorrect(pl.strength || 1, om.level)) ? p.exit : botWrongPort(p);
+            var delay = base + Math.random() * om.answerSec * 0.85 * 1000;
+            botTimers.push(setTimeout(function () {
+                if (!om || !om.local || om.round !== myRound) return;
+                roomWrite({ ['game.answers.' + uid]: { r: port.r, c: port.c, side: port.side, at: Date.now() } });
+            }, delay));
+        });
     }
 
     // ===============================================================
-    // ONLINE match
+    // match loop (shared by solo-vs-bots and online)
     // ===============================================================
     // local phase from the moment this client started the current round
     function phaseAt(nowMs) {
@@ -311,43 +350,52 @@
         om.aliveStart = Object.assign({}, g.alive || {});
         if (om.host) { om.host.tallied = false; om.host.over = false; }
         AC.audio.play('click');
+        if (om.local) scheduleBots();
     }
     function myCorrect() { return om && om.choice && om.puzzle && samePort(om.choice, om.puzzle.exit); }
 
-    function enterMatch(data) {
-        if (S.mode === 'online') return;
+    function enterMatch(data) {                       // ONLINE only (solo uses startSoloMatch)
+        if (om) return;
         var g = data.game || {};
-        S.mode = 'online';
-        om = { myUid: netUser.uid, seed: g.seed || 0, round: 0, localStart: 0, puzzle: null, choice: null, submitted: false, alive: true, over: false, lastPhase: '', hpStart: {}, aliveStart: {}, host: { tallied: false, over: false } };
+        om = { myUid: netUser.uid, local: false, seed: g.seed || 0, round: 0, localStart: 0, puzzle: null, choice: null, submitted: false, alive: true, over: false, lastPhase: '', hpStart: {}, aliveStart: {}, host: { tallied: false, over: false } };
         closeLobby();
         hideShellOverlay();
         applyHudMode();
-        setControlsForMatch(true);
-        if (!shell.isPlaying()) shell.start();      // reset() no-ops in online; the loop drives renderOnline
+        setControlsForMatch();
+        if (!shell.isPlaying()) shell.start();      // reset() no-ops online; the loop drives renderOnline
         startLocalRound(g.round || 1, data);
         renderPlayersBar(data);
     }
     function exitMatch() {
-        om = null; S.mode = 'solo';
-        setControlsForMatch(false);
+        om = null;
+        setControlsForMatch();
         var pb = $('players'); if (pb) pb.hidden = true;
         applyHudMode();
-        shell.goIdle();                              // back to the solo ready screen (lobby overlay may sit on top)
+        shell.goIdle();                              // back to the ready screen (lobby overlay may sit on top)
+    }
+    // shell reset() target — return to the ready screen (drop any solo match). Restart/goIdle
+    // call this; the actual solo launch lives in onStart. (Online is driven by enterMatch.)
+    function toReady() {
+        if (om && !om.local) return;                                           // an online match isn't managed via reset
+        if (om && om.local) { om = null; botTimers.forEach(clearTimeout); botTimers = []; }
+        if (room && room.code === 'SOLO') room = null;                          // drop the fake local room (you + 3 CPUs)
+        var pb = $('players'); if (pb) pb.hidden = true;
+        setControlsForMatch(); applyHudMode(); syncHud();
     }
     function onRoom(data, err) {
         if (err) { showLobbyError(err); return; }
-        if (!data) {                                  // room vanished
-            if (S.mode === 'online') { if (AC.toast) AC.toast.show(t('beamRoomGone')); exitMatch(); }
+        if (!data) {                                  // room vanished (online)
+            if (om && !om.local) { if (AC.toast) AC.toast.show(t('beamRoomGone')); exitMatch(); }
             if (room) room.data = null; renderLobby(); return;
         }
         if (room) room.data = data;
         var g = data.game || {};
-        updatePres(g);
-        if (S.mode !== 'online') {                    // sitting in the lobby
+        if (!(om && om.local)) updatePres(g);
+        if (!om) {                                    // not in a match → sitting in the online lobby
             if (g.status === 'playing') { enterMatch(data); return; }
             renderLobby(); return;
         }
-        // in a match
+        // in a match (solo-vs-bots or online)
         if (g.status === 'playing') {
             om.over = false;
             if (g.round && g.round !== om.round) startLocalRound(g.round, data);
@@ -357,12 +405,13 @@
         } else if (g.status === 'over') {
             if (g.round && g.round !== om.round) startLocalRound(g.round, data);
             renderPlayersBar(data);
-            if (!om.over) { om.over = true; openLobby(); if (g.endReason === 'left' && AC.toast) AC.toast.show(t('beamEndLeft')); }   // reveal the final standings once
-            renderLobby();
-        } else {                                      // reset back to lobby (rematch)
-            var hadMatch = !!om;
-            if (hadMatch) { exitMatch(); openLobby(); }
-            renderLobby();
+            if (!om.over) {
+                if (om.local) { soloMatchOver(data); }
+                else { om.over = true; openLobby(); if (g.endReason === 'left' && AC.toast) AC.toast.show(t('beamEndLeft')); }   // online: show standings once
+            }
+            if (!om.local) renderLobby();
+        } else if (!om.local) {                       // online room reset to lobby (rematch)
+            exitMatch(); openLobby(); renderLobby();
         }
     }
 
@@ -372,7 +421,7 @@
         if (!om || !om.alive) return;
         om.choice = port; om.submitted = true;
         AC.audio.play('click');
-        net.mp.update(GROUP, room.code, { ['game.answers.' + om.myUid]: { r: port.r, c: port.c, side: port.side, at: Date.now() } }).catch(function () { });
+        roomWrite({ ['game.answers.' + om.myUid]: { r: port.r, c: port.c, side: port.side, at: Date.now() } }).catch(function () { });
     }
 
     // ---- host authority (effective host = host if present, else first in join order present) ----
@@ -387,13 +436,14 @@
         for (var j = 0; j < order.length; j++) if (players[order[j]]) return order[j];   // all stale → anyone present
         return null;
     }
-    // Runs whenever we're attached to a room (lobby OR match) so presence works everywhere.
+    // Drives the host each tick. Solo runs purely locally; online also sends presence beats.
     function watchdog() {
+        if (om && om.local) { var ld = room.data, lg = ld.game || {}; if (lg.status === 'playing' && !om.host.over) hostDrive(ld, lg); return; }
         if (!net || !room || !room.data || !netUser) return;
         var d = room.data, g = d.game || {}, now = Date.now();
         if (!beatT || now - beatT > BEAT_MS) { beatT = now; beatN++; net.mp.update(GROUP, room.code, { ['game.beat.' + netUser.uid]: beatN }).catch(function () { }); }
         if (effectiveHost(d) === netUser.uid && (!gcT || now - gcT > 15000)) { gcT = now; net.mp.cleanup(GROUP).catch(function () { }); }
-        if (S.mode === 'online' && om && g.status === 'playing' && effectiveHost(d) === om.myUid) { hostCheckForfeit(d, g); if (!om.host.over) hostDrive(d, g); }
+        if (om && !om.local && g.status === 'playing' && effectiveHost(d) === om.myUid) { hostCheckForfeit(d, g); if (!om.host.over) hostDrive(d, g); }
     }
     // If everyone but (at most) one has left/disconnected, end the match NOW by walkover
     // (don't make the survivor wait out a round) and flag it so they're told WHY they won.
@@ -465,13 +515,13 @@
         };
         if (over) { patch['game.status'] = 'over'; patch['game.winner'] = winner; patch['game.endReason'] = (gone.length > 0 ? 'left' : 'normal'); patch['status'] = 'lobby'; }  // reopen room for rematch/rejoin
         om.host.over = over;                                   // guard local advance until the 'over' echo lands
-        net.mp.update(GROUP, room.code, patch).catch(function () { });
+        roomWrite(patch).catch(function () { });
     }
     function hostNextRound(d, g) {
         var nr = (g.round || 1) + 1;
         var center = (om.host.center != null) ? om.host.center : (g.center != null ? g.center : START_LEVEL);
         var level = AC.math.clamp(center + (Math.random() * 2 - 1) * JITTER, LEVEL_MIN, LEVEL_MAX);   // per-round spread around the centre
-        net.mp.update(GROUP, room.code, { 'game.round': nr, 'game.level': level, 'game.answers': {}, 'game.results': {}, 'game.revealedRound': 0 }).catch(function () { });
+        roomWrite({ 'game.round': nr, 'game.level': level, 'game.answers': {}, 'game.results': {}, 'game.revealedRound': 0 }).catch(function () { });
         var d2 = { game: Object.assign({}, g, { round: nr, level: level }), players: d.players };
         startLocalRound(nr, d2);   // advance the host locally in lockstep with the write (with the new level)
     }
@@ -492,19 +542,13 @@
     // input
     // ===============================================================
     function onPointer(ev) {
+        if (!om || !om.alive || !om.puzzle) return;                 // may re-pick until the window ends
+        if (phaseAt(performance.now()).phase !== 'answer') return;
         var rect = canvas.getBoundingClientRect();
         var cx = (ev.clientX - rect.left) / rect.width * CW, cy = (ev.clientY - rect.top) / rect.height * CH;
-        if (S.mode === 'online') {
-            if (!om || !om.alive || !om.puzzle) return;             // may re-pick until the window ends
-            if (phaseAt(performance.now()).phase !== 'answer') return;
-            var p1 = hitPort(cx, cy, om.puzzle.N); if (!p1 || samePort(p1, om.puzzle.entry)) return;
-            if (om.choice && samePort(p1, om.choice)) return;        // tapped the same tile → no change
-            ev.preventDefault(); submitAnswer(p1); return;
-        }
-        if (!shell.isPlaying() || S.phase !== 'answer' || !S.puzzle) return;
-        var p2 = hitPort(cx, cy, S.puzzle.N); if (!p2 || samePort(p2, S.puzzle.entry)) return;
-        ev.preventDefault();
-        S.choice = p2; S.answerLeft = Math.max(0, ANSWER_SEC - S.t); AC.audio.play('click'); soloPhase('replay');
+        var p1 = hitPort(cx, cy, om.puzzle.N); if (!p1 || samePort(p1, om.puzzle.entry)) return;
+        if (om.choice && samePort(p1, om.choice)) return;           // tapped the same tile → no change
+        ev.preventDefault(); submitAnswer(p1);
     }
 
     // ===============================================================
@@ -588,13 +632,7 @@
     function render() {
         if (!ctx) return;
         clear();
-        if (S.mode === 'online') { renderOnline(); return; }
-        var p = S.puzzle; if (!p) return;
-        drawGrid(p.N);
-        if (S.phase === 'memorize') { drawMirrors(p, 1); drawTimerBar(1 - S.t / S.memo, false); caption(t('beamWatch'), BEAM); }
-        else if (S.phase === 'answer') { drawPorts(p); drawEntry(p); var left = 1 - S.t / ANSWER_SEC; drawTimerBar(left, left < 0.25); caption(t('beamRecall')); }
-        else if (S.phase === 'replay') { drawMirrors(p, AC.math.clamp(S.t / 0.25, 0, 1)); drawEntry(p); if (S.choice) strokeCell(portRect(S.choice.r, S.choice.c, S.choice.side, p.N), '#e2e8f0', 2); drawBeamUpTo(p, S.t / S.replay); caption(t('beamReplay')); }
-        else { drawMirrors(p, 1); drawEntry(p); drawBeamUpTo(p, 1); lightExit(p); if (S.choice && !samePort(S.choice, p.exit)) fillCell(portRect(S.choice.r, S.choice.c, S.choice.side, p.N), '#f87171', 0.85); caption(S.lastKind === 'hit' ? t('beamHit') : (S.lastKind === 'timeup' ? t('beamTimeUp') : t('beamMiss')), S.lastKind === 'hit' ? '#34d399' : '#f87171'); }
+        if (om) renderOnline();                 // every match (solo-vs-bots or online) renders here
     }
     function sdBanner() { ctx.save(); ctx.fillStyle = '#f87171'; ctx.font = '700 14px ' + (getComputedStyle(document.body).getPropertyValue('--font-display') || 'sans-serif'); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(t('beamSuddenDeath'), CW / 2, 77); ctx.restore(); }
     function renderOnline() {
@@ -659,18 +697,19 @@
     function $(id) { return document.getElementById(id); }
     function bump(id) { var el = $(id); if (!el) return; el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash'); }
     function syncHud() {
-        if ($('score')) $('score').textContent = AC.format.score(S.score);
-        if ($('round')) $('round').textContent = (S.mode === 'online' && om) ? om.round : S.round;
-        if ($('lives')) $('lives').textContent = S.lives;
+        if ($('round')) $('round').textContent = om ? om.round : 1;
+        var b = $('best'); if (b) { var st = loadSoloStats(stagedTier); b.textContent = st.best ? placeLabel(st.best) : '—'; }
     }
     function applyHudMode() {
-        var online = S.mode === 'online';
-        ['stat-score', 'stat-lives', 'stat-best'].forEach(function (id) { var e = $(id); if (e) e.style.display = online ? 'none' : ''; });
+        var e;
+        if ((e = $('stat-score'))) e.style.display = 'none';                                  // no numeric score any more
+        if ((e = $('stat-lives'))) e.style.display = 'none';                                  // HP is shown in the players strip
+        if ((e = $('stat-best'))) e.style.display = (om && !om.local) ? 'none' : '';           // best = your best placement (solo)
     }
     function pname(uid, players) { var p = players && players[uid]; return (p && p.name) || t('beamGuest'); }
     function renderPlayersBar(data) {
         var bar = $('players'); if (!bar) return;
-        if (S.mode !== 'online' || !om || !data) { bar.hidden = true; return; }
+        if (!om || !data) { bar.hidden = true; return; }
         bar.hidden = false; bar.innerHTML = '';
         var g = data.game || {}, players = data.players || {}, order = data.order || Object.keys(players);
         var ph = phaseAt(performance.now()).phase;
@@ -710,7 +749,7 @@
         var beats = (g && g.beat) || {}, now = Date.now();
         for (var uid in beats) { var p = pres[uid]; if (!p) pres[uid] = { v: beats[uid], at: now }; else if (p.v !== beats[uid]) { p.v = beats[uid]; p.at = now; } }
     }
-    function isStale(uid) { var p = pres[uid]; return !!p && (Date.now() - p.at) > STALL_MS; }
+    function isStale(uid) { if (om && om.local) return false; var p = pres[uid]; return !!p && (Date.now() - p.at) > STALL_MS; }
     function elc(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
     function lbtn(label, cls) { var b = elc('button', cls || 'btn', label); b.type = 'button'; return b; }
     function lrow() { var r = elc('div', 'lobby-row'); for (var i = 0; i < arguments.length; i++) if (arguments[i]) r.appendChild(arguments[i]); return r; }
@@ -725,8 +764,17 @@
         lobbyEl = ov; lobbyRefs = { title: title, auth: auth, room: roomBox, status: status, close: close };
     }
     function hideShellOverlay() { var o = $('overlay'); if (o) o.hidden = true; }
-    function openLobby() { if (!net || !net.ok) return; if (!lobbyEl) buildLobby(); lobbyEl.hidden = false; hideShellOverlay(); renderLobby(); if (net.mp.cleanup) net.mp.cleanup(GROUP).catch(function () { }); }
-    function closeLobby() { if (lobbyEl) lobbyEl.hidden = true; if (S.mode !== 'online' && stagedMode !== 'online') shell.refreshOverlay(); }
+    function openLobby() {
+        if (!net || !net.ok) return;
+        if (om && om.local) { om = null; botTimers.forEach(clearTimeout); botTimers = []; var pb = $('players'); if (pb) pb.hidden = true; }   // drop a solo match
+        if (room && room.code === 'SOLO') room = null;                          // never show the fake local room (you + 3 CPUs) in the online lobby
+        if (!lobbyEl) buildLobby(); lobbyEl.hidden = false; hideShellOverlay(); renderLobby(); if (net.mp.cleanup) net.mp.cleanup(GROUP).catch(function () { });
+    }
+    function closeLobby() {
+        if (lobbyEl) lobbyEl.hidden = true;
+        if (om && om.over && !om.local) { exitMatch(); return; }   // finished online match → back to the ready screen
+        if (!om) shell.refreshOverlay();                           // (no match) → solo ready screen, never a frozen stage
+    }
     function detachRoom() { if (room && room.unsub) { try { room.unsub(); } catch (e) { } } room = null; pres = {}; }
     function attachRoom(code) { detachRoom(); pres = {}; beatT = 0; room = { code: code, data: null, unsub: null }; room.unsub = net.mp.watch(GROUP, code, onRoom); renderLobby(); }
     function showLobbyError(e) {
@@ -740,14 +788,15 @@
     function doSignIn(kind) { (kind === 'google' ? net.signInGoogle() : net.signInGuest()).catch(showLobbyError); }
     function doCreate() { net.mp.create(GROUP, { maxPlayers: MAX_PLAYERS }).then(attachRoom).catch(showLobbyError); }
     function doJoin(code) { code = String(code || '').trim().toUpperCase(); if (!code) return; net.mp.join(GROUP, code).then(attachRoom).catch(showLobbyError); }
-    function doLeave() { var wasMatch = (S.mode === 'online'); if (room) { var c = room.code; detachRoom(); net.mp.leave(GROUP, c).catch(function () { }); } if (wasMatch) exitMatch(); renderLobby(); }
+    function doLeave() { var wasMatch = !!(om && !om.local); if (room) { var c = room.code; detachRoom(); net.mp.leave(GROUP, c).catch(function () { }); } if (wasMatch) exitMatch(); renderLobby(); }
     function doReady() { if (!room || !netUser) return; net.mp.update(GROUP, room.code, { ['ready.' + netUser.uid]: true }).catch(showLobbyError); }
     function hostStart() {
         if (!room || !room.data || !netUser) return;
         var d = room.data; if (effectiveHost(d) !== netUser.uid) return;
         var order = (d.order || Object.keys(d.players || {})).filter(function (u) { return (d.players || {})[u] && !isStale(u); });
         if (order.length < 2) return;
-        var ready = d.ready || {}; if (!order.every(function (u) { return ready[u]; })) return;
+        var hostUid = effectiveHost(d), ready = d.ready || {};
+        if (!order.every(function (u) { return u === hostUid || ready[u]; })) return;   // the host's Start counts as ready; guests must ready up
         var hp = {}, alive = {}; order.forEach(function (u) { hp[u] = HP_START; alive[u] = true; });
         var seed = (Math.random() * 1e9) >>> 0;
         net.mp.update(GROUP, room.code, { status: 'playing', game: { status: 'playing', round: 1, seed: seed, level: START_LEVEL, center: START_LEVEL, hp: hp, alive: alive, answers: {}, results: {}, rankByUid: {} }, ready: {} }).catch(showLobbyError);
@@ -792,22 +841,27 @@
                 li.appendChild(right); ul.appendChild(li);
             });
             rbox.appendChild(ul);
-            // actions
+            // actions — invite + primary action share a row; Leave sits on its own row below
             if (over) {
                 if (effectiveHost(d) === u.uid) { var rem = lbtn(t('beamRematch'), 'btn btn-primary'); rem.onclick = doRematch; rbox.appendChild(lrow(rem)); }
-                var lv2 = lbtn(t('beamLeaveRoom'), 'btn'); lv2.onclick = doLeave; rbox.appendChild(lrow(lv2));
+                var lvo = lbtn(t('beamLeaveRoom'), 'btn'); lvo.onclick = doLeave; rbox.appendChild(lrow(lvo));
             } else {
-                var copy = lbtn(t('beamCopyCode'), 'btn'); copy.onclick = function () { copyCode(d.code); };
-                var row = lrow(copy);
-                if (ready[u.uid]) row.appendChild(elc('span', null, t('beamReadyWait')));
-                else { var rb = lbtn(t('beamReadyUp'), 'btn btn-primary'); rb.onclick = doReady; row.appendChild(rb); }
-                rbox.appendChild(row);
+                var iAmHost = host === u.uid;
                 var present = order.filter(function (x) { return d.players[x] && !isStale(x); });
-                if (effectiveHost(d) === u.uid) {
-                    var canStart = present.length >= 2 && present.every(function (x) { return ready[x]; });
-                    var st = lbtn(t('beamStartMatch'), 'btn btn-primary'); st.disabled = !canStart; st.onclick = hostStart; rbox.appendChild(lrow(st));
+                var copy = lbtn(t('beamCopyCode'), 'btn'); copy.onclick = function () { copyCode(d.code); };
+                var primary;
+                if (iAmHost) {                                             // the host's Start button is their "ready"
+                    var guests = present.filter(function (x) { return x !== u.uid; });
+                    var canStart = present.length >= 2 && guests.every(function (x) { return ready[x]; });
+                    primary = lbtn(t('beamStartMatch'), 'btn btn-primary'); primary.disabled = !canStart; primary.onclick = hostStart;
+                } else if (ready[u.uid]) {
+                    primary = elc('span', null, t('beamReadyWait'));
+                } else {
+                    primary = lbtn(t('beamReadyUp'), 'btn btn-primary'); primary.onclick = doReady;
                 }
-                var lv = lbtn(t('beamLeaveRoom'), 'btn'); lv.onclick = doLeave; rbox.appendChild(lrow(lv));
+                rbox.appendChild(lrow(copy, primary));                    // 複製 + 開始對戰 / 準備好了 同一列
+                var lv = lbtn(t('beamLeaveRoom'), 'btn'); lv.onclick = doLeave;
+                rbox.appendChild(lrow(lv));                               // 離開房間 自己一列
             }
         }
         // status line
@@ -822,31 +876,37 @@
     // ===============================================================
     // mode seg + online button + net boot
     // ===============================================================
-    var stagedMode = 'solo';
-    function inMatch() { return S.mode === 'online' && om && !om.over; }
-    function updateOnlineBtn() { var b = $('online-btn'); if (b) b.hidden = !(stagedMode === 'online' && net && net.ok); }
-    function syncModeButtons() {
-        var seg = $('mode-seg'); if (!seg) return;
-        seg.querySelectorAll('button[data-mode]').forEach(function (b) {
-            var m = b.dataset.mode; b.classList.toggle('active', m === stagedMode); b.setAttribute('aria-checked', m === stagedMode ? 'true' : 'false');
-            b.disabled = inMatch();
+    var stagedTier = 'normal';
+    function onlineLock() { return !!(om && !om.local && !om.over); }   // only an ONLINE match locks the difficulty picker
+    function updateOnlineBtn() { var b = $('online-btn'); if (b) b.hidden = !(net && net.ok); }
+    // Difficulty seg — same staging pattern as the other games: picking only *stages* a tier;
+    // it commits on the next Start/Restart. Solo can re-pick anytime (mid-match it stages and
+    // marks the running tier "committed"); an online match locks it (difficulty is shared & adaptive).
+    function syncTierButtons() {
+        var seg = $('solo-diff'); if (!seg) return;
+        var committed = (om && om.local) ? om.tier : null;             // the tier the current solo match is using
+        seg.querySelectorAll('button[data-tier]').forEach(function (b) {
+            var tk = b.dataset.tier;
+            b.classList.toggle('active', tk === stagedTier);
+            b.classList.toggle('committed', tk === committed && committed !== stagedTier);
+            b.setAttribute('aria-checked', tk === stagedTier ? 'true' : 'false');
+            b.disabled = onlineLock();
         });
-        updateOnlineBtn();
     }
-    function setMode(m) {
-        if ((m !== 'solo' && m !== 'online') || inMatch()) return;
-        stagedMode = m; try { AC.prefs.set('beam', { mode: m }); } catch (e) { }
-        syncModeButtons();
-        if (m === 'online') { if (net && net.ok) openLobby(); }
-        else { if (room) doLeave(); detachRoom(); closeLobby(); if (shell && shell.state === 'idle') shell.refreshOverlay(); }
+    function setTier(tk) {
+        if (!TIERS[tk] || onlineLock() || tk === stagedTier) return;
+        stagedTier = tk; try { AC.prefs.set('beam', { tier: tk }); } catch (e) { }
+        syncTierButtons(); syncHud();                                   // HUD best follows the staged tier
     }
-    function setControlsForMatch(on) { var seg = $('mode-seg'); if (seg) seg.querySelectorAll('button').forEach(function (b) { b.disabled = on; }); var ob = $('online-btn'); if (ob) ob.disabled = on; }
-    function setupMode() {
-        var seg = $('mode-seg'); if (!seg) return;
-        var saved = null; try { saved = (AC.prefs.get('beam') || {}).mode; } catch (e) { }
-        stagedMode = saved === 'online' ? 'online' : 'solo';
-        seg.addEventListener('click', function (e) { var b = e.target.closest('button[data-mode]'); if (b) { AC.audio.unlock(); setMode(b.dataset.mode); } });
-        syncModeButtons(); AC.i18n.subscribe(syncModeButtons);
+    function setControlsForMatch() {
+        var ob = $('online-btn'); if (ob) ob.disabled = !!(om && !om.over);   // can't open the lobby during an active match
+        syncTierButtons();                                                    // the tier seg lock depends only on online state
+    }
+    function setupControls() {
+        var saved = {}; try { saved = AC.prefs.get('beam') || {}; } catch (e) { }
+        stagedTier = TIERS[saved.tier] ? saved.tier : 'normal';
+        var ds = $('solo-diff'); if (ds) ds.addEventListener('click', function (e) { var b = e.target.closest('button[data-tier]'); if (b) { AC.audio.unlock(); setTier(b.dataset.tier); } });
+        syncTierButtons(); AC.i18n.subscribe(syncTierButtons);
     }
     function setupOnline() {
         function ready() {
@@ -857,11 +917,10 @@
             if (net.mp.cleanup) net.mp.cleanup(GROUP).catch(function () { });
             if (btn) btn.addEventListener('click', openLobby);
             updateOnlineBtn();
-            if (stagedMode === 'online') openLobby();
         }
         if (window.ArcadeNet) ready(); else window.addEventListener('arcade-net-ready', ready, { once: true });
         setInterval(watchdog, 250);
-        window.addEventListener('beforeunload', function () { if (room && room.code && net) { try { net.mp.leave(GROUP, room.code); } catch (e) { } } });
+        window.addEventListener('beforeunload', function () { if (room && room.code && net && !(om && om.local)) { try { net.mp.leave(GROUP, room.code); } catch (e) { } } });
     }
 
     // ===============================================================
@@ -876,22 +935,36 @@
         setupCanvas();
         shell = AC.shell.create({
             gameId: 'beam', step: 1 / 60,
-            update: function (dt) { if (S.mode === 'online') updateOnline(); else updateSolo(dt); },
+            update: function () { if (om) updateOnline(); },
             render: render,
-            reset: function () { if (S.mode === 'online') return; soloReset(); },
-            canPause: function () { return S.mode !== 'online'; },
-            canRestart: function () { return S.mode !== 'online'; },
+            restartToReady: true,                                                                     // Restart returns to the ready screen (like Rune Stones)
+            reset: toReady,                                                                           // goIdle/play-again → prepare the ready screen
+            onStart: function () { if (om && !om.local) return; startSoloMatch(stagedTier); },        // Start → launch a solo-vs-bots match (online is set up by enterMatch)
+            canPause: function () { return !om; },                                                    // no pausing a timed match
+            canRestart: function () { return !(om && !om.local); },                                   // solo can restart; online can't
+            onGameOver: function () { syncHud(); },                                                   // re-assert the best-placement HUD (shell just wrote a score-best)
             overlayContent: function (state, result) {
                 if (state === 'idle') return { badge: 'zap', title: t('beamArcName'), message: t('beamReadyMsg'), button: t('start') };
-                if (state === 'over') return { badge: 'zap', title: t('beamOverTitle'), message: t('beamRound') + ' ' + ((result && result.meta && result.meta.round) || S.round) + ' · ' + t('score') + ' ' + AC.format.score((result && result.score) || 0), button: t('restart'), hint: t('best') + ' ' + AC.format.score((result && result.best) || 0) + ((result && result.isNewBest) ? ' · ' + t('newBest') : '') };
+                if (state === 'over') {
+                    var m = (result && result.meta) || {};
+                    return {
+                        badge: m.rank === 1 ? 'trophy' : 'zap',
+                        title: m.rank === 1 ? t('beamSoloWin') : t('beamYourPlace', m.rank || 4),
+                        message: t('beamTierLabel') + '：' + t('beamTier' + capitalize(m.tier || 'normal')),
+                        button: t('restart'),
+                        hint: t('best') + ' ' + placeLabel(m.best || (m.rank || 4)) + ' · ' + t('beamWins', m.wins || 0),
+                    };
+                }
                 return {};
             },
         });
-        setupMode();
+        setupControls();
         setupOnline();
         applyHudMode();
-        AC.i18n.subscribe(function () { syncHud(); if (S.mode !== 'online') shell.refreshOverlay(); if (room) renderLobby(); });
+        AC.i18n.subscribe(function () { syncHud(); if (!om) shell.refreshOverlay(); if (room && !(om && om.local)) renderLobby(); });
         syncHud();
+        render();                                                                                     // paint the backdrop behind the ready overlay
     }
+    function capitalize(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
 })();
