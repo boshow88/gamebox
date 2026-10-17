@@ -146,7 +146,6 @@
     var S = { mode: 'solo', round: 1, score: 0, lives: 3, combo: 0, phase: 'memorize', t: 0, memo: 1.2, replay: 0.7, puzzle: null, choice: null, answerLeft: 0, lastKind: '' };
     var om = null;                         // online match state while S.mode === 'online'
     var canvas, ctx, DPR = Math.min(window.devicePixelRatio || 1, 2), shell = null;
-    var demo = false, demoAcc = 0.7, demoAutoYou = true, demoTimers = [];   // local bot-match for watching edge cases
 
     // ===============================================================
     // puzzle (deterministic when given a seeded rng)
@@ -312,19 +311,8 @@
         om.aliveStart = Object.assign({}, g.alive || {});
         if (om.host) { om.host.tallied = false; om.host.over = false; }
         AC.audio.play('click');
-        if (demo) demoScheduleBots();
     }
     function myCorrect() { return om && om.choice && om.puzzle && samePort(om.choice, om.puzzle.exit); }
-
-    // All match/host writes go through here: a real Firestore write online, or an
-    // instant local apply in the offline bot-demo (so the SAME loop drives both).
-    function applyPatch(obj, patch) {
-        for (var k in patch) {
-            if (k.indexOf('.') >= 0) { var parts = k.split('.'), o = obj; for (var i = 0; i < parts.length - 1; i++) { if (o[parts[i]] == null || typeof o[parts[i]] !== 'object') o[parts[i]] = {}; o = o[parts[i]]; } o[parts[parts.length - 1]] = patch[k]; }
-            else obj[k] = patch[k];
-        }
-    }
-    function roomWrite(patch) { if (demo) { applyPatch(room.data, patch); onRoom(room.data); return Promise.resolve(); } return net.mp.update(GROUP, room.code, patch); }
 
     function enterMatch(data) {
         if (S.mode === 'online') return;
@@ -384,7 +372,7 @@
         if (!om || !om.alive) return;
         om.choice = port; om.submitted = true;
         AC.audio.play('click');
-        roomWrite({ ['game.answers.' + om.myUid]: { r: port.r, c: port.c, side: port.side, at: Date.now() } }).catch(function () { });
+        net.mp.update(GROUP, room.code, { ['game.answers.' + om.myUid]: { r: port.r, c: port.c, side: port.side, at: Date.now() } }).catch(function () { });
     }
 
     // ---- host authority (effective host = host if present, else first in join order present) ----
@@ -401,7 +389,6 @@
     }
     // Runs whenever we're attached to a room (lobby OR match) so presence works everywhere.
     function watchdog() {
-        if (demo) { var dd = room && room.data, dg = dd && dd.game; if (S.mode === 'online' && om && dg && dg.status === 'playing' && effectiveHost(dd) === om.myUid) { hostCheckForfeit(dd, dg); if (!om.host.over) hostDrive(dd, dg); } return; }
         if (!net || !room || !room.data || !netUser) return;
         var d = room.data, g = d.game || {}, now = Date.now();
         if (!beatT || now - beatT > BEAT_MS) { beatT = now; beatN++; net.mp.update(GROUP, room.code, { ['game.beat.' + netUser.uid]: beatN }).catch(function () { }); }
@@ -423,7 +410,7 @@
         dropped.forEach(function (u) { aliveMap[u] = false; ranks[u] = cnt; cnt--; });
         if (winner) ranks[winner] = 1;
         om.host.over = true;
-        roomWrite({ 'game.alive': aliveMap, 'game.rankByUid': ranks, 'game.status': 'over', 'game.winner': winner, 'game.endReason': 'left', 'status': 'lobby' }).catch(function () { });
+        net.mp.update(GROUP, room.code, { 'game.alive': aliveMap, 'game.rankByUid': ranks, 'game.status': 'over', 'game.winner': winner, 'game.endReason': 'left', 'status': 'lobby' }).catch(function () { });
     }
     function hostDrive(d, g) {
         if (g.round !== om.round || om.host.over) return;      // stale echo, or match already decided
@@ -478,13 +465,13 @@
         };
         if (over) { patch['game.status'] = 'over'; patch['game.winner'] = winner; patch['game.endReason'] = (gone.length > 0 ? 'left' : 'normal'); patch['status'] = 'lobby'; }  // reopen room for rematch/rejoin
         om.host.over = over;                                   // guard local advance until the 'over' echo lands
-        roomWrite(patch).catch(function () { });
+        net.mp.update(GROUP, room.code, patch).catch(function () { });
     }
     function hostNextRound(d, g) {
         var nr = (g.round || 1) + 1;
         var center = (om.host.center != null) ? om.host.center : (g.center != null ? g.center : START_LEVEL);
         var level = AC.math.clamp(center + (Math.random() * 2 - 1) * JITTER, LEVEL_MIN, LEVEL_MAX);   // per-round spread around the centre
-        roomWrite({ 'game.round': nr, 'game.level': level, 'game.answers': {}, 'game.results': {}, 'game.revealedRound': 0 }).catch(function () { });
+        net.mp.update(GROUP, room.code, { 'game.round': nr, 'game.level': level, 'game.answers': {}, 'game.results': {}, 'game.revealedRound': 0 }).catch(function () { });
         var d2 = { game: Object.assign({}, g, { round: nr, level: level }), players: d.players };
         startLocalRound(nr, d2);   // advance the host locally in lockstep with the write (with the new level)
     }
@@ -723,7 +710,7 @@
         var beats = (g && g.beat) || {}, now = Date.now();
         for (var uid in beats) { var p = pres[uid]; if (!p) pres[uid] = { v: beats[uid], at: now }; else if (p.v !== beats[uid]) { p.v = beats[uid]; p.at = now; } }
     }
-    function isStale(uid) { if (demo) return false; var p = pres[uid]; return !!p && (Date.now() - p.at) > STALL_MS; }
+    function isStale(uid) { var p = pres[uid]; return !!p && (Date.now() - p.at) > STALL_MS; }
     function elc(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
     function lbtn(label, cls) { var b = elc('button', cls || 'btn', label); b.type = 'button'; return b; }
     function lrow() { var r = elc('div', 'lobby-row'); for (var i = 0; i < arguments.length; i++) if (arguments[i]) r.appendChild(arguments[i]); return r; }
@@ -753,7 +740,7 @@
     function doSignIn(kind) { (kind === 'google' ? net.signInGoogle() : net.signInGuest()).catch(showLobbyError); }
     function doCreate() { net.mp.create(GROUP, { maxPlayers: MAX_PLAYERS }).then(attachRoom).catch(showLobbyError); }
     function doJoin(code) { code = String(code || '').trim().toUpperCase(); if (!code) return; net.mp.join(GROUP, code).then(attachRoom).catch(showLobbyError); }
-    function doLeave() { if (demo) { demoStop(); return; } var wasMatch = (S.mode === 'online'); if (room) { var c = room.code; detachRoom(); net.mp.leave(GROUP, c).catch(function () { }); } if (wasMatch) exitMatch(); renderLobby(); }
+    function doLeave() { var wasMatch = (S.mode === 'online'); if (room) { var c = room.code; detachRoom(); net.mp.leave(GROUP, c).catch(function () { }); } if (wasMatch) exitMatch(); renderLobby(); }
     function doReady() { if (!room || !netUser) return; net.mp.update(GROUP, room.code, { ['ready.' + netUser.uid]: true }).catch(showLobbyError); }
     function hostStart() {
         if (!room || !room.data || !netUser) return;
@@ -765,7 +752,7 @@
         var seed = (Math.random() * 1e9) >>> 0;
         net.mp.update(GROUP, room.code, { status: 'playing', game: { status: 'playing', round: 1, seed: seed, level: START_LEVEL, center: START_LEVEL, hp: hp, alive: alive, answers: {}, results: {}, rankByUid: {} }, ready: {} }).catch(showLobbyError);
     }
-    function doRematch() { if (demo) { demoStart({ players: (room.data.order || []).length, acc: demoAcc }); return; } if (!room || !room.data || !netUser) return; if (effectiveHost(room.data) !== netUser.uid) return; net.mp.update(GROUP, room.code, { status: 'lobby', game: {}, ready: {}, round: 0 }).catch(showLobbyError); }
+    function doRematch() { if (!room || !room.data || !netUser) return; if (effectiveHost(room.data) !== netUser.uid) return; net.mp.update(GROUP, room.code, { status: 'lobby', game: {}, ready: {}, round: 0 }).catch(showLobbyError); }
     function copyCode(code) { try { var p = navigator.clipboard && navigator.clipboard.writeText(code); if (p && p.catch) p.catch(function () { }); } catch (e) { } if (lobbyRefs) lobbyRefs.status.textContent = t('beamCopied'); }
 
     function renderLobby() {
@@ -902,72 +889,9 @@
         });
         setupMode();
         setupOnline();
-        setupDemo();
         applyHudMode();
         AC.i18n.subscribe(function () { syncHud(); if (S.mode !== 'online') shell.refreshOverlay(); if (room) renderLobby(); });
         syncHud();
-    }
-    // ===============================================================
-    // Demo / watch tool — a LOCAL bot match (no server) for inspecting edge cases:
-    // acceleration, huge grids, colour bands, sudden death, all the on-screen text.
-    //   beamDemo.start({players:4, round:1, level:5, acc:0.7})
-    //   beamDemo.round(80)   jump rounds (see fast clock / sudden death)
-    //   beamDemo.level(30)   jump difficulty (see big grids)   beamDemo.acc(0.9)
-    //   beamDemo.autoYou(false)  play yourself   ·   beamDemo.stop()
-    // ===============================================================
-    function demoBotPort(p, ok) {
-        if (ok) return p.exit;
-        var opts = portList(p.N).filter(function (q) { return !samePort(q, p.entry) && !samePort(q, p.exit); });
-        return opts.length ? opts[(Math.random() * opts.length) | 0] : p.exit;
-    }
-    function demoScheduleBots() {
-        if (!demo || !om || !om.puzzle || om._botRound === om.round) return;
-        om._botRound = om.round;
-        demoTimers.forEach(clearTimeout); demoTimers = [];
-        var p = om.puzzle, g = room.data.game || {}, order = room.data.order || [];
-        var base = (countSec(om.round) + om.memo) * 1000;        // answer window opens here (relative to now)
-        order.forEach(function (uid) {
-            if (g.alive && g.alive[uid] === false) return;
-            if (uid === om.myUid && !demoAutoYou) return;
-            var ok = Math.random() < demoAcc, port = demoBotPort(p, ok);
-            var delay = base + Math.random() * om.answerSec * 0.7 * 1000;
-            demoTimers.push(setTimeout(function () {
-                if (!demo || om.round !== om._botRound) return;
-                if (uid === om.myUid) submitAnswer(port);
-                else roomWrite({ ['game.answers.' + uid]: { r: port.r, c: port.c, side: port.side, at: Date.now() } });
-            }, delay));
-        });
-    }
-    function demoStart(opts) {
-        opts = opts || {};
-        var n = AC.math.clamp(opts.players || 4, 2, 4), lvl = opts.level || START_LEVEL;
-        demoAcc = (opts.acc != null) ? opts.acc : 0.7; demoAutoYou = true;
-        if (room) detachRoom();
-        demo = true; netUser = { uid: 'you', name: 'You', anon: true };
-        var uids = ['you'], playersMap = {}, hp = {}, alive = {};
-        for (var i = 1; i < n; i++) uids.push('bot' + i);
-        uids.forEach(function (u, idx) { playersMap[u] = { uid: u, name: u === 'you' ? 'You' : ('Bot ' + idx), order: idx, anon: true }; hp[u] = HP_START; alive[u] = true; });
-        var seed = (Math.random() * 1e9) >>> 0;
-        room = { code: 'DEMO', unsub: null, data: { code: 'DEMO', status: 'playing', hostUid: 'you', maxPlayers: n, players: playersMap, order: uids, ready: {}, round: 0, game: { status: 'playing', round: opts.round || 1, seed: seed, level: lvl, center: lvl, hp: hp, alive: alive, answers: {}, results: {}, rankByUid: {} } } };
-        if (S.mode === 'online') { om = null; S.mode = 'solo'; }   // reset so enterMatch runs cleanly
-        enterMatch(room.data);
-        return 'demo started — ' + n + ' players, round ' + (opts.round || 1) + ', level ' + lvl + ', acc ' + demoAcc;
-    }
-    function demoStop() {
-        demo = false; demoTimers.forEach(clearTimeout); demoTimers = [];
-        if (om) exitMatch();
-        room = null; netUser = net ? net.currentUser() : undefined;
-        return 'demo stopped';
-    }
-    function setupDemo() {
-        window.beamDemo = {
-            start: demoStart, stop: demoStop,
-            round: function (r) { if (!demo || !om) return 'start a demo first'; roomWrite({ 'game.round': Math.max(1, r | 0), 'game.answers': {}, 'game.results': {}, 'game.revealedRound': 0 }); return 'jumped to round ' + (r | 0); },
-            level: function (x) { if (!demo || !om) return 'start a demo first'; x = +x; roomWrite({ 'game.center': x, 'game.level': x, 'game.round': om.round + 1, 'game.answers': {}, 'game.results': {}, 'game.revealedRound': 0 }); return 'level→' + x + ' (grid ≈ ' + AC.math.clamp(2 + Math.floor((x - 1) / 2), 2, 20) + '×)'; },
-            acc: function (p) { demoAcc = AC.math.clamp(+p, 0, 1); return 'bot accuracy ' + demoAcc; },
-            autoYou: function (b) { demoAutoYou = !!b; return 'autoYou ' + demoAutoYou; },
-        };
-        console.log('%c[beam] watch tool — beamDemo.start() then .round(80) / .level(30) / .acc(0.9) / .stop()', 'color:#22d3ee;font-weight:700');
     }
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
 })();
