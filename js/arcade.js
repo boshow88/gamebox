@@ -323,6 +323,11 @@
             '<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>'
             + '<line x1="22" x2="16" y1="9" y2="15"/>'
             + '<line x1="16" x2="22" y1="9" y2="15"/>',
+        // the two Beam mirror glyphs — a "/" and a "\" drawn like the board pieces
+        'mirror-slash':
+            '<line x1="6" x2="18" y1="18" y2="6"/>',
+        'mirror-back':
+            '<line x1="6" x2="18" y1="6" y2="18"/>',
     };
 
     function icon(name, opts) {
