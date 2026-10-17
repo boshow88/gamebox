@@ -31,7 +31,6 @@
     'use strict';
 
     const PC = global.PuzzleCommon;
-    const DEBUG = typeof location !== 'undefined' && /[?&]zip_debug=1\b/.test(location.search); // [DEBUG-HOOK]
 
     // -----------------------------------------------------------------
     // Grid / edge helpers  (cell id = r*N + c)
@@ -496,11 +495,6 @@
         checkpoints.sort((a, b) => a.n - b.n);
         const walls = [...chosen.wallSet].map((k) => edgeToCells(k, N));
         const solution = chosen.path.map((id) => [rowOf(id, N), colOf(id, N)]);
-        if (DEBUG) {
-            /* eslint-disable no-console */
-            console.log(`[zip] N=${N} ${difficulty}: ${checkpoints.length} cps, ${walls.length} walls (min×${wallMultFor(difficulty)})`);
-            /* eslint-enable no-console */
-        }
         return {
             id: `zip-${N}x${N}-${difficulty}-${(seed >>> 0).toString(36)}`,
             game: 'zip', size: N, difficulty,
@@ -510,7 +504,7 @@
 
     if (!global.PuzzleGenerators) global.PuzzleGenerators = {};
     global.PuzzleGenerators.zip = generate;
-    global.PuzzleGenerators.zipInternals = {   // [DEBUG-HOOK]
+    global.PuzzleGenerators.zipInternals = {
         buildAdj, edgeModel, randomHamPath, analyzeEdges, forceUnique,
         edgeKey, idOf, edgeToCells, keyToEdge, pathEdgeSet, attemptsFor, proveBudget,
         placeCheckpoints, cpCountFor, WEAK, weakBudget,

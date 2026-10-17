@@ -31,11 +31,6 @@
     const AC = window.ArcadeCommon;
     const PI2 = Math.PI * 2;
 
-    // [DEBUG-HOOK] Dev affordances, enabled with ?debug=1 (see docs/DEV.md).
-    const PARAMS = new URLSearchParams(location.search);
-    const DEBUG = PARAMS.has('debug');
-    const START_T = Math.max(0, parseFloat(PARAMS.get('t')) || 0);
-
     // =================================================================
     // i18n (gameplay strings; launcher card strings live in common.js)
     // =================================================================
@@ -499,7 +494,6 @@
         ctx.restore();
 
         if (G.countdown > 0) drawCountdown();
-        if (DEBUG) drawDebugOverlay(); // [DEBUG-HOOK]
     }
 
     function drawBullet(b) {
@@ -676,8 +670,8 @@
         G.py = G.ty = H / 2;
         G.bullets = [];
         G.lasers = [];
-        G.elapsed = START_T;   // [DEBUG-HOOK] ?t=<sec> jumps the difficulty clock
-        G.score = START_T;
+        G.elapsed = 0;
+        G.score = 0;
         G.spawnAcc = 0;
         G.laserAcc = 0;
         G.countdown = 0;
@@ -734,72 +728,9 @@
 
         AC.i18n.subscribe(() => { updateHud(); });
 
-        if (DEBUG) setupDebug(); // [DEBUG-HOOK]
-
         syncDiffButtons();
         resetRun();
         render();
-    }
-
-    // =================================================================
-    // [DEBUG-HOOK] window.DD console API + overlay + keys (?debug=1 only)
-    // =================================================================
-
-    function drawDebugOverlay() {
-        const lines = [
-            'DEBUG  [' + G.difficulty + ']',
-            't = ' + G.elapsed.toFixed(0) + 's',
-            'lives = ' + G.lives + '/' + G.maxLives,
-            'rate = ' + spawnRate().toFixed(2) + '/s',
-            'speed = ' + bulletSpeed().toFixed(0) + ' px/s',
-            'homing% = ' + (G.diffCfg.homing * specialRamp() * 100).toFixed(1),
-            'laser/s = ' + ((G.diffCfg.laser || 0) * spawnRate() * specialRamp()).toFixed(2),
-            'bullets = ' + G.bullets.length,
-            'lasers = ' + G.lasers.length,
-        ];
-        ctx.save();
-        ctx.font = `600 13px ${getFont()}`;
-        ctx.textAlign = 'left';
-        ctx.textBaseline = 'top';
-        let w = 0;
-        for (const l of lines) w = Math.max(w, ctx.measureText(l).width);
-        const bw = w + 14, bh = lines.length * 17 + 10;
-        const bx = W - bw - 12, by = 12;
-        ctx.fillStyle = 'rgba(10,8,20,0.72)';
-        roundRect(bx, by, bw, bh, 8); ctx.fill();
-        ctx.fillStyle = '#8fe36b';
-        let y = by + 6;
-        for (const l of lines) { ctx.fillText(l, bx + 7, y); y += 17; }
-        ctx.restore();
-    }
-
-    function setupDebug() {
-        window.DD = {
-            setTime(sec) { G.elapsed = Math.max(0, sec || 0); return G.elapsed; },
-            addTime(sec) { G.elapsed = Math.max(0, G.elapsed + (sec == null ? 30 : sec)); return G.elapsed; },
-            addLife(n) { G.lives += (n == null ? 1 : n); G.maxLives = Math.max(G.maxLives, G.lives); updateHud(); return G.lives; },
-            clear() { G.bullets = []; G.lasers = []; return 0; },
-            diff(d) { setDifficulty(d); return G.difficulty; },
-            info() {
-                return {
-                    difficulty: G.difficulty, t: +G.elapsed.toFixed(1),
-                    lives: G.lives, maxLives: G.maxLives,
-                    ratePerSec: +spawnRate().toFixed(2), speed: +bulletSpeed().toFixed(0),
-                    homingNow: +(G.diffCfg.homing * specialRamp()).toFixed(3),
-                    laserRate: +((G.diffCfg.laser || 0) * spawnRate() * specialRamp()).toFixed(3),
-                    bullets: G.bullets.length, lasers: G.lasers.length,
-                };
-            },
-        };
-        shell.keyboard.onPress((k) => {
-            if (k === ']') window.DD.addTime(30);
-            else if (k === '[') window.DD.addTime(-30);
-            else if (k === 'l' || k === 'L') window.DD.addLife(1);
-            else if (k === 'c' || k === 'C') window.DD.clear();
-        });
-        console.log('%c[Bullet Storm] debug on', 'color:#a78bfa;font-weight:700');
-        console.log('DD.setTime(s) addTime(s) addLife(n) clear() diff("easy"|"normal"|"hard") info()');
-        console.log('keys:  ] +30s   [ -30s   L +life   C clear bullets');
     }
 
     if (document.readyState === 'loading') {

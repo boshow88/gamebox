@@ -32,10 +32,6 @@
 
     const PC = global.PuzzleCommon;
 
-    // Flip on via ?patches_debug=1 for verbose generation logging.  [DEBUG-HOOK]
-    const DEBUG = typeof location !== 'undefined'
-        && /[?&]patches_debug=1\b/.test(location.search);
-
     // -----------------------------------------------------------------
     // Geometry helpers
     // -----------------------------------------------------------------
@@ -936,16 +932,6 @@
             clue: clueIndexFor(clues, rect),
         }));
 
-        if (DEBUG) {
-            const withNum = clues.filter((c) => c.size != null).length;
-            const anys = clues.filter((c) => c.shape === SHAPES.ANY).length;
-            const win = band ? ` window=[${band.lo.toFixed(0)},${band.hi.toFixed(0)}]` : '';
-            /* eslint-disable no-console */
-            console.log(`[patches] N=${N} ${difficulty}: ${clues.length} clues, `
-                + `${withNum} numbered, ${anys} any, hardness=${bestScore.toFixed(1)}${win}`);
-            /* eslint-enable no-console */
-        }
-
         return {
             id: `patches-${N}x${N}-${difficulty}-${(seed >>> 0).toString(36)}`,
             game: 'patches',
@@ -965,7 +951,7 @@
 
     if (!global.PuzzleGenerators) global.PuzzleGenerators = {};
     global.PuzzleGenerators.patches = generate;
-    // Expose internals for the (future) solver-trace dev tool.  [DEBUG-HOOK]
+    // Expose internals for the solver-trace dev tool.
     global.PuzzleGenerators.patchesInternals = {
         enumerateCandidates, countSolutions, isUnique,
         makeState, nextStep, applyStep, findAllDeductions, solveWithTechniques, coverage,

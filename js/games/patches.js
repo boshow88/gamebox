@@ -14,19 +14,6 @@
 
     const PC = window.PuzzleCommon;
 
-    // Exposes game internals on window for the trace/demo tooling and
-    // headless tests. Off unless ?patches_debug=1.  [DEBUG-HOOK]
-    const DEBUG = typeof location !== 'undefined'
-        && /[?&]patches_debug=1\b/.test(location.search);
-
-    // ?patches_demo=conflict auto-places a deliberately wrong rectangle so
-    // the violation UI can be seen (and screenshotted) immediately.  [DEBUG-HOOK]
-    const DEMO = (function () {
-        if (typeof location === 'undefined') return null;
-        const m = /[?&]patches_demo=([a-z0-9]+)/.exec(location.search);
-        return m ? m[1] : null;
-    })();
-
     const BOARD_SIZE = 480;
     const MIN_SIZE = 5;
     const MAX_SIZE = 12;
@@ -102,8 +89,8 @@
     const VALID_SIZES = new Set([5, 6, 7, 8, 9, 10, 11, 12]);
     const VALID_DIFFS = new Set(['easy', 'medium', 'hard']);
 
-    // Each field applies on its own — a bare ?diff=hard or ?size=10 (e.g. for a
-    // ?patches_demo=orphan URL) sets that control without needing a seed too.
+    // Each field applies on its own — a bare ?diff=hard or ?size=10 sets that
+    // control without needing a seed too.
     function readUrlInitial() {
         if (!PC.share) return null;
         const raw = PC.share.readParams();
@@ -1096,7 +1083,6 @@
                 size: shell.size, difficulty: shell.difficulty, seed,
             });
         }
-        if (DEMO) applyDemo();
     }
 
     async function onShareClick() {
@@ -1112,104 +1098,6 @@
             doUndo();
             ev.preventDefault();
         }
-    }
-
-    // Which hint each ?patches_demo=<technique> targets (matched by msgKey).
-    // Like ?sudoku_demo: regenerate until the puzzle actually needs it, follow
-    // the forced placements up to it, then pop that hint. Use diff=hard for
-    // core/orphan. [DEBUG-HOOK]
-    const DEMO_TECH = {
-        commit: ['patchesHint1', 'patchesHint2'],
-        tier3: ['patchesHint3'],
-        core: ['patchesHintCore'],
-    };
-    let demoTries = 0;
-
-    // Demo affordances (see ?patches_demo). 'hint' just opens a hint on the
-    // fresh board; 'conflict' plants a guaranteed size-over violation.
-    function applyDemo() {
-        if (DEMO === 'hint') { onHint(); return; }
-        if (DEMO === 'hint3') { demoTier3(); return; }
-        if (DEMO === 'win') {
-            state.placements = state.puzzle.solution.map((s) => ({
-                r: s.r, c: s.c, w: s.w, h: s.h, clue: s.clue,
-            }));
-            commitChange(); // triggers the win state + animation
-            return;
-        }
-        if (DEMO_TECH[DEMO]) { demoWalkToTechnique(DEMO_TECH[DEMO]); return; }
-        if (DEMO !== 'conflict') return;
-        const p = state.puzzle;
-        const N = p.size;
-        const numbered = p.solution.filter((s) => p.clues[s.clue].size != null);
-        for (const base of numbered) {
-            const grown = growByOne(base, N, base.clue, p.clues);
-            if (grown) {
-                grown.clue = base.clue;
-                state.placements = [grown];
-                repaintRects();
-                showViolations();
-                return;
-            }
-        }
-    }
-
-    // Follow "place this rectangle" hints until a forced-cell hint surfaces
-    // (tier-3 / core / orphan — all `deduce-cell`), then show it.
-    function demoTier3() {
-        for (let step = 0; step < state.puzzle.clues.length; step++) {
-            const h = computeHint();
-            if (h.kind === 'deduce-cell') {
-                state.hint = h; repaintHint(); setHintBanner(hintText(h)); return;
-            }
-            if (h.kind !== 'deduce') return;
-            state.placements.push({ r: h.rc.r, c: h.rc.c, w: h.rc.w, h: h.rc.h, clue: h.rc.clue });
-            repaintRects();
-        }
-    }
-
-    // Walk the current puzzle's forced placements until a hint whose msgKey is
-    // in `keys` appears, then show it. If this puzzle never needs it, spin up a
-    // fresh board and try again (bounded) — same spirit as ?sudoku_demo.
-    function demoWalkToTechnique(keys) {
-        for (let step = 0; step < state.puzzle.clues.length + 5; step++) {
-            const h = computeHint();
-            if (!h) break;
-            if (keys.includes(h.msgKey)) {
-                state.hint = h; repaintHint(); setHintBanner(hintText(h)); return;
-            }
-            if (h.kind !== 'deduce' && h.kind !== 'deduce-cell') break; // none/conflict/wrong
-            // Advance by locking in that clue's full solution rectangle.
-            const sol = state.puzzle.solution.find((s) => s.clue === h.clue);
-            if (!sol) break;
-            state.placements = state.placements.filter((rc) => rc.clue !== sol.clue);
-            state.placements.push({ r: sol.r, c: sol.c, w: sol.w, h: sol.h, clue: sol.clue });
-            repaintRects();
-        }
-        if (demoTries++ < 80) {
-            startNewGame();
-        } else {
-            /* eslint-disable no-console */
-            console.warn(`[patches demo] "${DEMO}" not reached — try diff=hard for core/orphan.`);
-            /* eslint-enable no-console */
-        }
-    }
-
-    function growByOne(base, N, ownIdx, clues) {
-        const opts = [
-            { r: base.r, c: base.c, w: base.w + 1, h: base.h },       // right
-            { r: base.r, c: base.c - 1, w: base.w + 1, h: base.h },   // left
-            { r: base.r, c: base.c, w: base.w, h: base.h + 1 },       // down
-            { r: base.r - 1, c: base.c, w: base.w, h: base.h + 1 },   // up
-        ];
-        for (const o of opts) {
-            if (o.r < 0 || o.c < 0 || o.r + o.h > N || o.c + o.w > N) continue;
-            if (boxHasForeignClue(o.r, o.c, o.r + o.h - 1, o.c + o.w - 1, ownIdx, clues)) {
-                continue;
-            }
-            return o;
-        }
-        return null;
     }
 
     function resetAction() {
@@ -1276,9 +1164,6 @@
         const undoBtn = document.getElementById('undo-btn');
         if (undoBtn) undoBtn.addEventListener('click', doUndo);
 
-        if (DEBUG) {
-            window.__patches = { state, isWin, commitChange, repaintRects };
-        }
         shell.start();
     }
 
