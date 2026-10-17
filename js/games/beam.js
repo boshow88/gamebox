@@ -571,8 +571,8 @@
     }
     function lightExit(p) { fillCell(portRect(p.exit.r, p.exit.c, p.exit.side, p.N), '#34d399', 0.92, true); }
     function drawBeamUpTo(p, frac) {
-        var dist = p.total * frac, pts = p.points, seg = p.seg;
-        ctx.save(); ctx.strokeStyle = BEAM; ctx.lineWidth = 5; ctx.lineJoin = 'round'; ctx.lineCap = 'round'; ctx.shadowColor = BEAM_GLOW; ctx.shadowBlur = 12;
+        var dist = p.total * frac, pts = p.points, seg = p.seg, lw = AC.math.clamp((GRID / p.N) * 0.11, 2, 6);
+        ctx.save(); ctx.strokeStyle = BEAM; ctx.lineWidth = lw; ctx.lineJoin = 'round'; ctx.lineCap = 'round'; ctx.shadowColor = BEAM_GLOW; ctx.shadowBlur = Math.min(12, lw * 2.4);
         ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y);
         for (var i = 1; i < pts.length; i++) {
             if (seg[i] <= dist) ctx.lineTo(pts[i].x, pts[i].y);
