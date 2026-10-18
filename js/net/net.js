@@ -198,8 +198,13 @@ function fail(err) {
                 const order = Array.isArray(d.order) ? d.order.slice() : Object.keys(d.players || {});
                 if (order.length >= (d.maxPlayers || 4)) throw new Error('room full');
                 order.push(user.uid);
+                // colour/slot index = lowest index not currently taken by a present player. This stays
+                // unique after leaves (a leaver's slot frees up) — using order.length-1 could collide,
+                // because mpLeave filters the order array but doesn't re-index players' stored slots.
+                const used = new Set(Object.keys(d.players || {}).map((u) => (d.players[u] || {}).order));
+                let slot = 0; while (used.has(slot)) slot++;
                 tx.update(ref, {
-                    [`players.${user.uid}`]: { uid: user.uid, name: user.name, photo: user.photo, anon: user.anon, order: order.length - 1 },
+                    [`players.${user.uid}`]: { uid: user.uid, name: user.name, photo: user.photo, anon: user.anon, order: slot },
                     order, lastActionAt: serverTimestamp(),
                 });
                 return code;

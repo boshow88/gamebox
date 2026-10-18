@@ -56,7 +56,7 @@
         beamHostStarts: 'The host starts once everyone is ready.', beamSignInFirst: 'Sign in to create or join a room.',
         beamRoomNotFound: 'Room not found', beamRoomFull: 'Room is full', beamAlreadyStarted: 'That match already started',
         beamNetErr: 'Network error', beamPlayers: 'Players', beamYou: 'You', beamHost: 'Host', beamReadyTag: 'Ready',
-        beamResultsTitle: 'Final results', beamWinner: function (n) { return n + ' wins!'; },
+        beamResultsTitle: 'Final standings', beamWinner: function (n) { return n + ' wins!'; },
         beamRematch: 'Rematch', beamRoomGone: 'The room closed.', beamOffline: 'Disconnected',
         beamEndLeft: 'Everyone else left — you win!',
     });
@@ -429,6 +429,7 @@
         renderPlayersBar(data);
     }
     function exitMatch() {
+        detachRoom();                                // cancel the room listener so a finished online room can't leak into a later solo match
         om = null;
         setControlsForMatch();
         var pb = $('players'); if (pb) pb.hidden = true;
@@ -445,6 +446,7 @@
         setControlsForMatch(); applyHudMode(); syncHud();
     }
     function onRoom(data, err) {
+        if (!room) return;                            // stale listener after we detached → ignore (don't re-render / steal input focus)
         if (err) { showLobbyError(err); return; }
         if (!data) {                                  // room vanished (online)
             if (om && !om.local) { if (AC.toast) AC.toast.show(t('beamRoomGone')); exitMatch(); }
@@ -568,10 +570,10 @@
         }
         gone.forEach(function (u) { if (deaths.indexOf(u) === -1) deaths.push(u); });   // left → out
         // assign the worst remaining places to those eliminated this round (join order tiebreak)
-        var aliveCount = aliveBefore.length;
-        deaths.sort(function (a, b) { return order.indexOf(a) - order.indexOf(b); });
-        deaths.forEach(function (u) { alive[u] = false; ranks[u] = aliveCount; aliveCount--; });
-        var remaining = aliveBefore.filter(function (u) { return alive[u] !== false; });
+        var deadSet = {}; deaths.forEach(function (u) { deadSet[u] = true; });
+        var remaining = aliveBefore.filter(function (u) { return !deadSet[u]; });
+        var sharedRank = remaining.length + 1;                 // everyone eliminated THIS round ties (4 players, two die together → 1,2,2,4)
+        deaths.forEach(function (u) { alive[u] = false; ranks[u] = sharedRank; });
         var over = remaining.length <= 1, winner = null;
         if (over && remaining.length === 1) { ranks[remaining[0]] = 1; winner = remaining[0]; }
         // adaptive difficulty: all-right together → harder; all-wrong together → easier; mixed → hold
@@ -861,7 +863,7 @@
     }
     function closeLobby() {
         if (lobbyEl) lobbyEl.hidden = true;
-        if (om && om.over && !om.local) { exitMatch(); return; }   // finished online match → back to the ready screen
+        if (om && om.over && !om.local) { doLeave(); return; }     // finished online match → leave the room cleanly, back to ready
         if (!om) shell.refreshOverlay();                           // (no match) → solo ready screen, never a frozen stage
     }
     function detachRoom() { if (room && room.unsub) { try { room.unsub(); } catch (e) { } } room = null; pres = {}; }
@@ -895,6 +897,10 @@
 
     function renderLobby() {
         if (!lobbyEl) return;
+        // preserve the room-code field across re-renders so a background update can't steal your cursor
+        var _pi = lobbyEl.querySelector('.lobby-room input');
+        var _pv = _pi ? _pi.value : null, _pf = !!(_pi && document.activeElement === _pi);
+        var _ps = _pf ? _pi.selectionStart : 0, _pe = _pf ? _pi.selectionEnd : 0;
         var d = room && room.data, g = (d && d.game) || {}, u = netUser, over = g.status === 'over';
         lobbyRefs.title.textContent = over ? t('beamResultsTitle') : t('beamLobbyTitle');
         lobbyRefs.close.textContent = t('beamClose');
@@ -915,7 +921,8 @@
             // player list
             var ul = elc('ul', 'lobby-plist');
             var order = d.order || Object.keys(d.players || {}), ready = d.ready || {}, host = effectiveHost(d);
-            order.forEach(function (uid) {
+            var listOrder = over ? order.slice().sort(function (a, b) { return ((g.rankByUid || {})[a] || 99) - ((g.rankByUid || {})[b] || 99); }) : order;  // results → sort by placing
+            listOrder.forEach(function (uid) {
                 if (!d.players[uid]) return;
                 var li = elc('li');
                 var left = elc('span'); var dot2 = elc('span', null, '\u25cf '); dot2.style.color = colorForOrder(d.players[uid].order); left.appendChild(dot2); left.appendChild(document.createTextNode(pname(uid, d.players) + (uid === u.uid ? ' (' + t('beamYou') + ')' : '')));
@@ -960,6 +967,10 @@
         else if (over && g.winner) s = t('beamWinner', pname(g.winner, d.players));
         else if (d) { var present2 = (d.order || []).filter(function (x) { return d.players[x]; }); s = present2.length < 2 ? t('beamNeedTwo') : t('beamHostStarts'); }
         lobbyRefs.status.textContent = s;
+        if (_pv != null) {                            // restore the code field (value + focus + caret) after the rebuild
+            var _ni = lobbyRefs.room.querySelector('input');
+            if (_ni) { _ni.value = _pv; if (_pf) { _ni.focus(); try { _ni.setSelectionRange(_ps, _pe); } catch (e) { } } }
+        }
     }
 
     // ===============================================================
@@ -1032,14 +1043,14 @@
                 if (state === 'idle') return { badge: 'zap', title: t('beamArcName'), message: t('beamReadyMsg'), button: t('start') };
                 if (state === 'over') {
                     var m = (result && result.meta) || {};
-                    var list = (m.standings || []).map(function (s) {
-                        return '<div class="row' + (s.you ? ' me' : '') + '"><span class="rk">' + placeLabel(s.rank) + '</span>'
-                            + '<span class="dot" style="color:' + s.color + '">\u25cf</span><span>' + String(s.name).replace(/[<>&]/g, '') + '</span></div>';
+                    var list = (m.standings || []).map(function (s) {       // same layout as the online results list
+                        return '<div class="li' + (s.you ? ' me' : '') + '"><span class="nm"><span class="dot" style="color:' + s.color + '">\u25cf</span> '
+                            + String(s.name).replace(/[<>&]/g, '') + '</span><span class="rk">' + placeLabel(s.rank) + '</span></div>';
                     }).join('');
                     return {
                         badge: m.rank === 1 ? 'trophy' : 'zap',
-                        title: m.rank === 1 ? t('beamSoloWin') : t('beamYourPlace', m.rank || 4),
-                        message: '<div class="beam-standings">' + list + '</div>',
+                        title: t('beamResultsTitle'),
+                        message: '<div class="beam-finrank">' + list + '</div>',
                         button: t('restart'),
                         hint: t('beamTierLabel') + '：' + t('beamTier' + capitalize(m.tier || 'normal')) + ' · ' + t('best') + ' ' + placeLabel(m.best || (m.rank || 4)) + ' · ' + t('beamWins', m.wins || 0),
                     };

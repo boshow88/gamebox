@@ -38,12 +38,13 @@
         .beam-players .pchip .res.ok { color: #34d399; font-weight: 800; }
         .beam-players .pchip .res.no { color: #f87171; font-weight: 800; }
         .beam-players .pchip .rank { color: var(--game-color); font-weight: 800; }
-        /* Final standings on the solo over card */
-        .beam-standings { display: flex; flex-direction: column; gap: 3px; margin: 2px 0 4px; font-size: 14px; }
-        .beam-standings .row { display: flex; align-items: center; gap: 7px; justify-content: center; }
-        .beam-standings .row.me { font-weight: 700; }
-        .beam-standings .rk { color: var(--game-color); font-weight: 700; min-width: 2.4em; text-align: right; }
-        .beam-standings .dot { font-size: 11px; }
+        /* Final standings on the solo over card — matches the online results list (.lobby-plist) */
+        .beam-finrank { display: flex; flex-direction: column; gap: 5px; width: 260px; max-width: 88%; margin: 6px auto; }
+        .beam-finrank .li { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 7px 12px; border-radius: 9px; background: rgba(255,255,255,0.06); font-size: 14px; }
+        .beam-finrank .li.me { outline: 1px solid var(--game-color); font-weight: 700; }
+        .beam-finrank .nm { display: inline-flex; align-items: center; gap: 6px; }
+        .beam-finrank .rk { font-weight: 700; color: var(--game-color); }
+        .beam-finrank .dot { font-size: 11px; }
     </style>
 </head>
 <body>
