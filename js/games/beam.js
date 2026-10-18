@@ -131,7 +131,6 @@
     // per-round jitter. Steps are multiplicative (bigger strides at higher difficulty) and lean
     // slightly lenient (down a touch faster than up). all-right → up, all-wrong → down, mixed → hold.
     var LEVEL_MIN = 1, LEVEL_MAX = 38, START_LEVEL = 5;    // level 1 → 2×2 (floor), level 37 → 20×20 (ceiling)
-    var ZERO_MAX = 0.2;                                    // max chance of a straight-through (0-bounce) laser
     function levelUp(c) { return AC.math.clamp(c * 1.05 + 0.5, LEVEL_MIN, LEVEL_MAX); }
     function levelDown(c) { return AC.math.clamp((c - 0.7) / 1.07, LEVEL_MIN, LEVEL_MAX); }
     function jitterFor(c) { return c * 0.1 + 0.5; }       // per-round spread scales with the centre (min ±0.5)
@@ -224,11 +223,48 @@
         }
     }
     function samePort(a, b) { return a && b && a.r === b.r && a.c === b.c && a.side === b.side; }
-    // Difficulty is driven by a continuous `level`. The PRIMARY lever is mirror
-    // COMPLEXITY (how many mirrors you must memorise — grid size + count). The laser
-    // PATH is deliberately NOT tuned to a target: we pick a RANDOM valid laser, so the
-    // bounce count varies widely — sometimes many, sometimes few, sometimes ZERO
-    // (straight through) — which keeps even strong players from pre-guessing the exit.
+    // --- anti-metagame laser pick -------------------------------------------------------------
+    // So a player can't guess the exit from the start point, we down-weight lasers whose exit
+    // port is near the straight-opposite of the entry (the "straight-through" leak). The
+    // suppression is SELF-CALIBRATING: measure this (N,M)'s base "distance-to-opposite" profile
+    // and flatten it toward its fair share — strong at sparse boards, gentle at dense ones. The
+    // base is measured with a FIXED seed → identical on every client, so online stays in sync.
+    function oppPort(p, N) {
+        if (p.side === U) return { r: N - 1, c: p.c, side: D };
+        if (p.side === D) return { r: 0, c: p.c, side: U };
+        if (p.side === L) return { r: p.r, c: N - 1, side: R };
+        return { r: p.r, c: 0, side: L };
+    }
+    function perimIndex(p, N) {                 // clockwise ring: top L→R, right T→B, bottom R→L, left B→T
+        if (p.side === U) return p.c;
+        if (p.side === R) return N + p.r;
+        if (p.side === D) return 2 * N + (N - 1 - p.c);
+        return 3 * N + (N - 1 - p.r);
+    }
+    function ringDist(a, b, N) { var d = Math.abs(perimIndex(a, N) - perimIndex(b, N)); return Math.min(d, 4 * N - d); }
+    function fairPort(N, d) { return ((d === 0 || d === 2 * N) ? 1 : 2) / (4 * N); }   // fair share of ports at ring-distance d
+    var oppDistCache = {};
+    function getOppDist(N, M) {                 // base distance-to-opposite distribution for (N,M), cached, deterministic
+        var key = N + 'x' + M; if (oppDistCache[key]) return oppDistCache[key];
+        var ports = portList(N), nP = ports.length, cells = N * N, f = new Float64Array(2 * N + 1), tot = 0;
+        var r2 = AC.rng.make((N * 131 + M * 911 + 20261) >>> 0), K = 1000;   // fixed seed → same profile everywhere
+        for (var t = 0; t < K; t++) {
+            var grid = new Int8Array(cells), order = [];
+            for (var i = 0; i < cells; i++) order.push(i);
+            for (var j = order.length - 1; j > 0; j--) { var k = (r2() * (j + 1)) | 0; var tmp = order[j]; order[j] = order[k]; order[k] = tmp; }
+            for (var mi = 0; mi < M; mi++) grid[order[mi]] = r2() < 0.5 ? SLASH : BACK;
+            for (var e = 0; e < nP; e++) {
+                var res = trace(grid, N, ports[e]);
+                if (res.looped || samePort(res.exit, ports[e])) continue;
+                f[ringDist(res.exit, oppPort(ports[e], N), N)]++; tot++;
+            }
+        }
+        for (var d = 0; d < f.length; d++) f[d] = tot ? f[d] / tot : 0;
+        oppDistCache[key] = f; return f;
+    }
+    // Difficulty is driven by a continuous `level`. The PRIMARY lever is mirror COMPLEXITY (how
+    // many mirrors you must memorise — grid size + count). The bounce count stays varied (not tuned
+    // to a target); the valid lasers are only weighted so the EXIT can't be read off the entry.
     function paramsForLevel(level) {
         level = Math.max(1, level);
         var N = AC.math.clamp(2 + Math.floor((level - 1) / 2), 2, 20), cells = N * N;   // 2×2 floor → 20×20 ceiling
@@ -245,7 +281,7 @@
             for (var i = 0; i < cells; i++) order.push(i);
             for (var j = order.length - 1; j > 0; j--) { var k = (rng() * (j + 1)) | 0; var tmp = order[j]; order[j] = order[k]; order[k] = tmp; }
             for (var mi = 0; mi < M; mi++) grid[order[mi]] = rng() < 0.5 ? SLASH : BACK;
-            // any laser that cleanly exits is fair game — pick one at random (bounces may be 0..many)
+            // collect every laser that cleanly exits
             var valid = [];
             for (var e = 0; e < ports.length; e++) {
                 var res = trace(grid, N, ports[e]);
@@ -253,9 +289,15 @@
                 valid.push({ entry: ports[e], res: res });
             }
             if (valid.length) {
-                var bouncers = valid.filter(function (v) { return v.res.bounces >= 1; });
-                var pool = (bouncers.length && rng() >= ZERO_MAX) ? bouncers : valid;   // cap how often a straight-through is picked
-                var pick = pool[(rng() * pool.length) | 0];
+                // weight so the exit can't be guessed from the entry: suppress near-opposite exits
+                var fd = getOppDist(N, M), ws = [], sum = 0;
+                for (var vi = 0; vi < valid.length; vi++) {
+                    var dOpp = ringDist(valid[vi].res.exit, oppPort(valid[vi].entry, N), N);
+                    var w = Math.min(1, fairPort(N, dOpp) / Math.max(fd[dOpp], 1e-6));
+                    ws.push(w); sum += w;
+                }
+                var target = rng() * sum, acc = 0, pick = valid[valid.length - 1];
+                for (var wi = 0; wi < ws.length; wi++) { acc += ws[wi]; if (target <= acc) { pick = valid[wi]; break; } }
                 return build(N, grid, pick.entry, pick.res);
             }
         }
