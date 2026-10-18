@@ -61,7 +61,7 @@
         beamEndLeft: 'Everyone else left — you win!',
     });
     Object.assign(AC.i18n.STRINGS.zh, {
-        beamArcName: 'Beam',
+        beamArcName: '追光',
         beamRound: '回合',
         beamOnlineBtn: '線上',
         beamWatch: '記住鏡子的位置！',

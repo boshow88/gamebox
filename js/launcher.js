@@ -187,7 +187,7 @@
             'bullet-storm_name': '彈幕風暴',
             'bullet-storm_tagline': '閃避子彈，撐過風暴。',
             'bullet-storm_body': '子彈從四面八方湧入。在縫隙間穿梭閃避，盡量撐久一點。',
-            'beam_name': 'Beam',
+            'beam_name': '追光',
             'beam_tagline': '記住鏡子，追蹤雷射。',
             'beam_body': '鏡子出現後消失，雷射射入，在時間內點出它射出的邊界位置。',
             'patches_name': 'Patches',
