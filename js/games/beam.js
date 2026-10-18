@@ -127,21 +127,29 @@
     var HOST_BUFFER_MS = 800;   // after a round fully plays locally, extra wait before advancing (covers lag)
     var BEAT_MS = 3000;         // presence heartbeat interval
     var STALL_MS = 8000;        // no beat for this long → treated as disconnected
-    // adaptive online difficulty: a shared "centre" level that drifts with the group's
-    // results (all-right → harder, all-wrong → easier, mixed → hold), plus per-round jitter.
+    // adaptive difficulty: a shared "centre" level that drifts with the group's results, plus
+    // per-round jitter. Steps are multiplicative (bigger strides at higher difficulty) and lean
+    // slightly lenient (down a touch faster than up). all-right → up, all-wrong → down, mixed → hold.
     var LEVEL_MIN = 1, LEVEL_MAX = 38, START_LEVEL = 5;    // level 1 → 2×2 (floor), level 37 → 20×20 (ceiling)
-    var STEP_UP = 0.75, STEP_DOWN = 1.0, JITTER = 2.0;     // wider per-round spread → harder to read
     var ZERO_MAX = 0.2;                                    // max chance of a straight-through (0-bounce) laser
+    function levelUp(c) { return AC.math.clamp(c * 1.05 + 0.5, LEVEL_MIN, LEVEL_MAX); }
+    function levelDown(c) { return AC.math.clamp((c - 0.7) / 1.07, LEVEL_MIN, LEVEL_MAX); }
+    function jitterFor(c) { return c * 0.1 + 0.5; }       // per-round spread scales with the centre (min ±0.5)
     // Solo = you vs 3 CPU bots. Each bot has a STRENGTH s; its correct-rate on a puzzle of
     // difficulty L is a negative-logistic:  P = 1 / (1 + e^(-BOT_K*(s - L)))  — far below its
-    // strength → ~100%, far above → ~0%, equal → 50%. Strengths are drawn ~normal per tier.
-    // A small BOT_K + modest spread keeps ~2/3 of rounds a genuine contest (no "A always
-    // right, B always wrong" split): a clear split needs a strength gap > ~2*1.73/BOT_K.
+    // strength → ~100%, far above → ~0%, equal → 50%. The difficulty slider has 16 notches
+    // (4 per tier); each notch sets the bots' {mean,std}. A small BOT_K + modest spread keeps
+    // most rounds a genuine contest (no "A always right, B always wrong" split).
     var BOT_K = 0.7;
-    var TIERS = {
-        easy: { mean: 3.5, std: 1.0, start: 2.5 }, normal: { mean: 7, std: 2.0, start: 5.5 },
-        hard: { mean: 11, std: 2.5, start: 9 }, insane: { mean: 18, std: 5, start: 15 },
-    };
+    var DIFF = [
+        { mean: 1.5, std: 0.5 }, { mean: 2.1, std: 0.6 }, { mean: 2.8, std: 0.7 }, { mean: 3.5, std: 0.8 },    // easy
+        { mean: 4.4, std: 0.9 }, { mean: 5.2, std: 1.0 }, { mean: 6.0, std: 1.1 }, { mean: 6.8, std: 1.2 },    // normal
+        { mean: 8.0, std: 1.3 }, { mean: 9.0, std: 1.4 }, { mean: 10.0, std: 1.5 }, { mean: 11.0, std: 1.6 }, // hard
+        { mean: 12.4, std: 1.7 }, { mean: 13.6, std: 1.8 }, { mean: 14.8, std: 1.9 }, { mean: 16.0, std: 2.0 } // insane
+    ];
+    var NOTCH_MAX = DIFF.length - 1;
+    var TIER_NAMES = ['easy', 'normal', 'hard', 'insane'];
+    function tierForNotch(n) { return TIER_NAMES[AC.math.clamp(Math.floor(n / 4), 0, 3)]; }
     function gauss(mean, std) { var u = 1 - Math.random(), v = 1 - Math.random(); return mean + std * Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); }
     function pCorrect(strength, level) { return 1 / (1 + Math.exp(-BOT_K * (strength - level))); }
     // per-player colours (distinct from the cyan laser / green "correct" ring)
@@ -224,7 +232,7 @@
     function paramsForLevel(level) {
         level = Math.max(1, level);
         var N = AC.math.clamp(2 + Math.floor((level - 1) / 2), 2, 20), cells = N * N;   // 2×2 floor → 20×20 ceiling
-        var frac = AC.math.clamp(0.12 + 0.018 * level, 0.12, 0.42);        // mirror density = primary difficulty
+        var frac = AC.math.clamp(0.12 + 0.009 * level, 0.12, 0.42);        // mirror density grows gently; size + bots carry the difficulty
         var M = AC.math.clamp(Math.round(cells * frac), 1, Math.floor(cells * 0.45));
         return { N: N, M: M };
     }
@@ -266,8 +274,8 @@
     // Solo = a LOCAL match vs 3 CPU bots (reuses the whole online match loop,
     // but writes apply instantly to a local room — no server).
     // ===============================================================
-    function loadSoloStats(tier) { try { return AC.storage.readJSON(AC.storage.storageKey('beam', 'solo', tier), { played: 0, wins: 0, best: 0 }); } catch (e) { return { played: 0, wins: 0, best: 0 }; } }
-    function saveSoloStats(tier, st) { try { AC.storage.writeJSON(AC.storage.storageKey('beam', 'solo', tier), st); } catch (e) { } }
+    function loadSoloStats(notch) { try { return AC.storage.readJSON(AC.storage.storageKey('beam', 'solo', 'n' + notch), { played: 0, wins: 0, best: 0 }); } catch (e) { return { played: 0, wins: 0, best: 0 }; } }
+    function saveSoloStats(notch, st) { try { AC.storage.writeJSON(AC.storage.storageKey('beam', 'solo', 'n' + notch), st); } catch (e) { } }
     function botWrongPort(p) { var opts = portList(p.N).filter(function (q) { return !samePort(q, p.entry) && !samePort(q, p.exit); }); return opts.length ? opts[(Math.random() * opts.length) | 0] : p.exit; }
     // match/host writes: instant local apply in solo, real Firestore write online.
     function applyPatch(obj, patch) {
@@ -278,24 +286,30 @@
     }
     function roomWrite(patch) { if (om && om.local) { applyPatch(room.data, patch); onRoom(room.data); return Promise.resolve(); } return net.mp.update(GROUP, room.code, patch); }
 
-    function startSoloMatch(tierKey) {
-        var tier = TIERS[tierKey] || TIERS.normal;
-        var uids = ['you'], players = {}, hp = {}, alive = {};
+    function startSoloMatch(notch) {
+        notch = AC.math.clamp(notch | 0, 0, NOTCH_MAX);
+        var diff = DIFF[notch];
+        var uids = ['you'], players = {}, hp = {}, alive = {}, strengths = [];
         players['you'] = { uid: 'you', name: t('beamYou'), order: 0 };
-        for (var i = 1; i <= 3; i++) { var u = 'bot' + i; players[u] = { uid: u, name: 'CPU ' + i, order: i, bot: true, strength: Math.max(1, gauss(tier.mean, tier.std)) }; uids.push(u); }
+        for (var i = 1; i <= 3; i++) {
+            var s = Math.max(1, gauss(diff.mean, diff.std)); strengths.push(s);
+            players['bot' + i] = { uid: 'bot' + i, name: 'CPU ' + i, order: i, bot: true, strength: s }; uids.push('bot' + i);
+        }
         uids.forEach(function (u) { hp[u] = HP_START; alive[u] = true; });
+        var med = strengths.slice().sort(function (a, b) { return a - b; })[1];          // median of the 3 bots
+        var start = AC.math.clamp(Math.floor(med * 0.85), LEVEL_MIN, LEVEL_MAX);          // opening level trails the field
         var seed = (Math.random() * 1e9) >>> 0;
-        room = { code: 'SOLO', unsub: null, data: { code: 'SOLO', status: 'playing', hostUid: 'you', players: players, order: uids, round: 0, game: { status: 'playing', round: 1, seed: seed, level: tier.start, center: tier.start, hp: hp, alive: alive, answers: {}, results: {}, rankByUid: {} } } };
-        om = { myUid: 'you', local: true, tier: tierKey, seed: seed, round: 0, localStart: 0, puzzle: null, choice: null, submitted: false, alive: true, over: false, lastPhase: '', hpStart: {}, aliveStart: {}, host: { tallied: false, over: false, center: tier.start } };
+        room = { code: 'SOLO', unsub: null, data: { code: 'SOLO', status: 'playing', hostUid: 'you', players: players, order: uids, round: 0, game: { status: 'playing', round: 1, seed: seed, level: start, center: start, hp: hp, alive: alive, answers: {}, results: {}, rankByUid: {} } } };
+        om = { myUid: 'you', local: true, notch: notch, seed: seed, round: 0, localStart: 0, puzzle: null, choice: null, submitted: false, alive: true, over: false, lastPhase: '', hpStart: {}, aliveStart: {}, host: { tallied: false, over: false, center: start } };
         hideShellOverlay(); setControlsForMatch(); applyHudMode();
         startLocalRound(1, room.data); renderPlayersBar(room.data);
     }
     function soloMatchOver(data) {
-        var g = data.game || {}, rank = (g.rankByUid && g.rankByUid[om.myUid]) || (data.order ? data.order.length : 4), tier = om.tier;
-        var st = loadSoloStats(tier); st.played++; if (rank === 1) st.wins++; st.best = st.best ? Math.min(st.best, rank) : rank; saveSoloStats(tier, st);
+        var g = data.game || {}, rank = (g.rankByUid && g.rankByUid[om.myUid]) || (data.order ? data.order.length : 4), notch = om.notch;
+        var st = loadSoloStats(notch); st.played++; if (rank === 1) st.wins++; st.best = st.best ? Math.min(st.best, rank) : rank; saveSoloStats(notch, st);
         om.over = true;
         setControlsForMatch();
-        shell.gameOver({ score: 0, win: rank === 1, meta: { rank: rank, tier: tier, best: st.best, wins: st.wins } });
+        shell.gameOver({ score: 0, win: rank === 1, meta: { rank: rank, tier: tierForNotch(notch), best: st.best, wins: st.wins } });
     }
     // Bots "answer" DURING the window (just like real players) so their picks are already
     // there at the reveal. Correct-rate = logistic of their strength vs this round's level.
@@ -508,8 +522,8 @@
         if (over && remaining.length === 1) { ranks[remaining[0]] = 1; winner = remaining[0]; }
         // adaptive difficulty: all-right together → harder; all-wrong together → easier; mixed → hold
         if (om.host.center == null) om.host.center = (g.center != null ? g.center : START_LEVEL);
-        if (correct.length > 0 && wrong.length === 0) om.host.center = Math.min(LEVEL_MAX, om.host.center + STEP_UP);
-        else if (wrong.length > 0 && correct.length === 0) om.host.center = Math.max(LEVEL_MIN, om.host.center - STEP_DOWN);
+        if (correct.length > 0 && wrong.length === 0) om.host.center = levelUp(om.host.center);
+        else if (wrong.length > 0 && correct.length === 0) om.host.center = levelDown(om.host.center);
         var patch = {
             'game.hp': hp, 'game.alive': alive, 'game.results': results, 'game.revealedRound': r, 'game.rankByUid': ranks, 'game.center': om.host.center,
         };
@@ -520,7 +534,7 @@
     function hostNextRound(d, g) {
         var nr = (g.round || 1) + 1;
         var center = (om.host.center != null) ? om.host.center : (g.center != null ? g.center : START_LEVEL);
-        var level = AC.math.clamp(center + (Math.random() * 2 - 1) * JITTER, LEVEL_MIN, LEVEL_MAX);   // per-round spread around the centre
+        var level = AC.math.clamp(center + (Math.random() * 2 - 1) * jitterFor(center), LEVEL_MIN, LEVEL_MAX);   // per-round spread around the centre
         roomWrite({ 'game.round': nr, 'game.level': level, 'game.answers': {}, 'game.results': {}, 'game.revealedRound': 0 }).catch(function () { });
         var d2 = { game: Object.assign({}, g, { round: nr, level: level }), players: d.players };
         startLocalRound(nr, d2);   // advance the host locally in lockstep with the write (with the new level)
@@ -698,7 +712,7 @@
     function bump(id) { var el = $(id); if (!el) return; el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash'); }
     function syncHud() {
         if ($('round')) $('round').textContent = om ? om.round : 1;
-        var b = $('best'); if (b) { var st = loadSoloStats(stagedTier); b.textContent = st.best ? placeLabel(st.best) : '—'; }
+        var b = $('best'); if (b) { var st = loadSoloStats(stagedNotch); b.textContent = st.best ? placeLabel(st.best) : '—'; }
     }
     function applyHudMode() {
         var e;
@@ -876,37 +890,33 @@
     // ===============================================================
     // mode seg + online button + net boot
     // ===============================================================
-    var stagedTier = 'normal';
+    var stagedNotch = 5;
     function onlineLock() { return !!(om && !om.local && !om.over); }   // only an ONLINE match locks the difficulty picker
     function updateOnlineBtn() { var b = $('online-btn'); if (b) b.hidden = !(net && net.ok); }
-    // Difficulty seg — same staging pattern as the other games: picking only *stages* a tier;
-    // it commits on the next Start/Restart. Solo can re-pick anytime (mid-match it stages and
-    // marks the running tier "committed"); an online match locks it (difficulty is shared & adaptive).
-    function syncTierButtons() {
-        var seg = $('solo-diff'); if (!seg) return;
-        var committed = (om && om.local) ? om.tier : null;             // the tier the current solo match is using
-        seg.querySelectorAll('button[data-tier]').forEach(function (b) {
-            var tk = b.dataset.tier;
-            b.classList.toggle('active', tk === stagedTier);
-            b.classList.toggle('committed', tk === committed && committed !== stagedTier);
-            b.setAttribute('aria-checked', tk === stagedTier ? 'true' : 'false');
-            b.disabled = onlineLock();
-        });
+    // Difficulty slider — 16 equidistant notches (4 per tier). Dragging only *stages* a notch;
+    // it commits on the next Start/Restart (deferred, like the puzzle games' size slider). The
+    // readout shows the tier name only (Easy/Normal/Hard/Insane). An online match locks it.
+    function syncDiffControl() {
+        var sl = $('diff-slider'), rd = $('diff-readout'); if (!sl) return;
+        sl.value = String(stagedNotch);
+        sl.disabled = onlineLock();
+        if (rd) rd.textContent = t('beamTier' + capitalize(tierForNotch(stagedNotch)));
     }
-    function setTier(tk) {
-        if (!TIERS[tk] || onlineLock() || tk === stagedTier) return;
-        stagedTier = tk; try { AC.prefs.set('beam', { tier: tk }); } catch (e) { }
-        syncTierButtons(); syncHud();                                   // HUD best follows the staged tier
+    function setNotch(n) {
+        n = AC.math.clamp(n | 0, 0, NOTCH_MAX);
+        if (onlineLock() || n === stagedNotch) return;
+        stagedNotch = n; try { AC.prefs.set('beam', { notch: n }); } catch (e) { }
+        syncDiffControl(); syncHud();                                   // HUD best follows the staged notch
     }
     function setControlsForMatch() {
         var ob = $('online-btn'); if (ob) ob.disabled = !!(om && !om.over);   // can't open the lobby during an active match
-        syncTierButtons();                                                    // the tier seg lock depends only on online state
+        syncDiffControl();                                                    // the slider lock depends only on online state
     }
     function setupControls() {
         var saved = {}; try { saved = AC.prefs.get('beam') || {}; } catch (e) { }
-        stagedTier = TIERS[saved.tier] ? saved.tier : 'normal';
-        var ds = $('solo-diff'); if (ds) ds.addEventListener('click', function (e) { var b = e.target.closest('button[data-tier]'); if (b) { AC.audio.unlock(); setTier(b.dataset.tier); } });
-        syncTierButtons(); AC.i18n.subscribe(syncTierButtons);
+        stagedNotch = (saved.notch != null && saved.notch >= 0 && saved.notch <= NOTCH_MAX) ? (saved.notch | 0) : 5;
+        var sl = $('diff-slider'); if (sl) sl.addEventListener('input', function () { AC.audio.unlock(); setNotch(parseInt(sl.value, 10)); });
+        syncDiffControl(); AC.i18n.subscribe(syncDiffControl);
     }
     function setupOnline() {
         function ready() {
@@ -939,7 +949,7 @@
             render: render,
             restartToReady: true,                                                                     // Restart returns to the ready screen (like Rune Stones)
             reset: toReady,                                                                           // goIdle/play-again → prepare the ready screen
-            onStart: function () { if (om && !om.local) return; startSoloMatch(stagedTier); },        // Start → launch a solo-vs-bots match (online is set up by enterMatch)
+            onStart: function () { if (om && !om.local) return; startSoloMatch(stagedNotch); },       // Start → launch a solo-vs-bots match (online is set up by enterMatch)
             canPause: function () { return !om; },                                                    // no pausing a timed match
             canRestart: function () { return !(om && !om.local); },                                   // solo can restart; online can't
             onGameOver: function () { syncHud(); },                                                   // re-assert the best-placement HUD (shell just wrote a score-best)
