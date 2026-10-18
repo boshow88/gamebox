@@ -368,6 +368,63 @@ heart heal, combo step, enhanced ×), `AI_LEVELS` (per-difficulty solver `tries`
 
 ---
 
+## Beam
+
+**Goal.** The mirrors flash up for a moment, then vanish. A laser fires in — tap
+the edge cell where it **exits** before the clock runs out. It's a memory-and-
+geometry race: read the layout fast and outlast your rivals.
+
+### A round
+
+Each round runs in four short beats:
+
+1. **Get ready** — a brief countdown (3s on the opening round, 2s after).
+2. **Memorise** — the mirrors appear; the time given scales with how many there
+   are and how far the beam bounces.
+3. **Where does it exit?** — the mirrors vanish, the laser fires from one edge,
+   and you have a few seconds to tap the edge cell it leaves from.
+4. **Replay** — the beam is traced in full, revealing who hit and who missed.
+
+### Mirrors & the beam
+
+- Two mirror orientations — `/` and `\` — each deflect the beam 90°.
+- The beam enters from one edge, bounces off every mirror it meets, and leaves
+  from exactly one edge cell. That exit is the answer.
+- Grids start small (2×2) and grow with difficulty; more mirrors and longer bounce
+  paths make a layout harder to hold in memory.
+
+### Lives & winning
+
+- Everyone starts with **three lives**. In a round where **some hit and some
+  miss**, only those who **missed lose a life** (a round everyone gets right — or
+  everyone gets wrong — costs nothing).
+- Reach **0 lives** and you're out, watching the rest play on. **Last one standing
+  wins.**
+- A long match **gradually speeds up** (memorise time shrinks fastest) so it always
+  resolves; if it still drags on, a **sudden-death** rule makes even a tie cost a
+  life.
+
+### Modes & difficulty
+
+- **Solo** — you versus **3 CPU rivals**. The difficulty bar (16 steps across
+  **Easy / Normal / Hard / Insane**) sets how strong those rivals are; dragging it
+  previews the new setting and commits on the next Start. Best = your best finishing
+  place, kept per difficulty.
+- **Online** — **2–4 real players** by room code; the host starts once everyone is
+  ready. Difficulty is shared and adapts to the group's results, so the picker is
+  locked for the duration of an online match.
+- Difficulty is **adaptive**: do well and the next grid grows / gains mirrors; do
+  badly and it eases off.
+
+### Tuning
+
+All at the top of `js/games/beam.js`: `DIFF` (the 16 solo-bot `{mean,std}` strength
+notches), `paramsForLevel` (grid size + mirror density per level), the round
+timings (`ANSWER_SEC`, `countSec`, memorise scaling), and the late-match speed-up
+(`ACCEL_START`, `MEMO_DECAY`, `ANSWER_DECAY`, `SUDDEN_DEATH_ROUND`).
+
+---
+
 # Puzzle Games
 
 A central reference for the eight puzzles in this collection. Each game
@@ -838,9 +895,11 @@ one connected network. (Also known as Hashiwokakero or Bridges.)
 5. All islands must form a **single connected network** — you can travel from
    any island to any other over the bridges.
 
-Every board has a unique solution. Easy and Medium are solvable by pure
-step-by-step logic; Hard also needs an "assume a connection → hit a
-contradiction → rule it out" step.
+Every board has a unique solution. **Easy** solves by pure step-by-step logic.
+**Medium** may also need a short "assume a connection → hit a contradiction → rule
+it out" step. **Hard** needs a longer one — the contradiction only shows after
+several more forced steps. It is always a single assumption at a time, never a
+guess inside a guess.
 
 ### Controls
 

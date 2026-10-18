@@ -77,9 +77,9 @@
       const SEEDS = [11, 29, 47, 71];
       const rows = [];
       for (const N of [7, 9, 11, 13, 15]) {
-        const tierByDiff = {}, depthByDiff = {};
+        const tierByDiff = {};
         for (const diff of ['easy', 'medium', 'hard']) {
-          const times = [], tiers = [], depths = [];
+          const times = [], tiers = [];
           for (const seed of SEEDS) {
             const t0 = performance.now();
             let p; try { p = await G(N, diff, seed); } catch (e) { fail(`gen ${N} ${diff} #${seed}: ${e && e.message}`); continue; }
@@ -108,12 +108,14 @@
             // uniqueness (independent brute, small boards)
             const bc = bruteCount(graph, needs, 2);
             if (bc !== null && bc !== 1) fail(`${N} ${diff} #${seed}: brute count=${bc} (want 1)`);
-            // reasoning effort matches the difficulty: easy/medium are pure
-            // propagation (0 lookahead), hard genuinely needs lookahead (≥1)
-            const ef = I.effort(graph, needs);
-            if (!ef.solved) fail(`${N} ${diff} #${seed}: not solvable by prop + depth-1 trial`);
-            if (diff === 'hard' && ef.elims < 1) fail(`${N} ${diff} #${seed}: hard needs no lookahead (elims ${ef.elims})`);
-            if (diff !== 'hard' && ef.elims !== 0) fail(`${N} ${diff} #${seed}: ${diff} needs lookahead (elims ${ef.elims})`);
+            // difficulty = single-hypothesis cascade distance (requiredDist): easy is
+            // pure forced (0), medium a short hypothesis (≤2), hard a longer one (3..6).
+            const MEDIUM_DIST = 2, HARD_DIST = 6;
+            const rc = I.requiredDist(graph, needs, HARD_DIST);
+            if (!isFinite(rc)) fail(`${N} ${diff} #${seed}: needs more than a single ≤${HARD_DIST}-step hypothesis`);
+            else if (diff === 'easy' && rc !== 0) fail(`${N} ${diff} #${seed}: easy needs a hypothesis (dist ${rc})`);
+            else if (diff === 'medium' && rc > MEDIUM_DIST) fail(`${N} ${diff} #${seed}: medium too hard (dist ${rc} > ${MEDIUM_DIST})`);
+            else if (diff === 'hard' && (rc <= MEDIUM_DIST || rc > HARD_DIST)) fail(`${N} ${diff} #${seed}: hard out of band (dist ${rc}, want ${MEDIUM_DIST + 1}..${HARD_DIST})`);
             // hint-drivability: the hint engine (nextStep, + nextStepDeep for hard)
             // must march an empty board all the way to the unique solution.
             {
@@ -133,23 +135,18 @@
               if (stuck) fail(`${N} ${diff} #${seed}: hints got stuck`);
               else for (let e = 0; e < graph.edges.length; e++) if (drawn[e] !== solVal[e]) { fail(`${N} ${diff} #${seed}: hint-solve ≠ solution`); break; }
             }
-            tiers.push(p.stats.elims);
-            if (typeof p.stats.depth === 'number' && p.stats.depth >= 0) depths.push(p.stats.depth);
+            if (typeof p.stats.dist === 'number' && p.stats.dist >= 0) tiers.push(p.stats.dist);
           }
           const med = (a) => { if (!a.length) return -1; a = a.slice().sort((x, y) => x - y); return a[a.length >> 1]; };
           tierByDiff[diff] = med(tiers);
-          depthByDiff[diff] = med(depths);
-          rows.push({ key: `${N}×${N} ${diff}`, ms: Math.round(times.reduce((x, y) => x + y, 0) / (times.length || 1)), tier: med(tiers), depth: med(depths), tiers: tiers.join(',') });
+          rows.push({ key: `${N}×${N} ${diff}`, ms: Math.round(times.reduce((x, y) => x + y, 0) / (times.length || 1)), dist: med(tiers), dists: tiers.join(',') });
         }
         const e = tierByDiff.easy, m = tierByDiff.medium, h = tierByDiff.hard;
-        if (e >= 0 && m >= 0 && h >= 0 && !(h >= m && m >= e)) fail(`${N}: effort not monotonic (E ${e} / M ${m} / H ${h})`);
-        // Easy and Medium are both pure-logic but Medium needs a deeper
-        // propagation chain, so its median depth must exceed Easy's.
-        if (depthByDiff.easy >= 0 && depthByDiff.medium >= 0 && !(depthByDiff.medium > depthByDiff.easy)) fail(`${N}: medium not deeper than easy (E ${depthByDiff.easy} / M ${depthByDiff.medium} rounds)`);
+        if (e >= 0 && m >= 0 && h >= 0 && !(h >= m && m >= e)) fail(`${N}: distance not monotonic (E ${e} / M ${m} / H ${h})`);
       }
 
-      let html = '<table><tr><th>config</th><th>avg ms</th><th>median elims</th><th>median depth</th><th>elims</th></tr>';
-      for (const r of rows) html += `<tr><td>${r.key}</td><td>${r.ms}</td><td>${r.tier}</td><td>${r.depth}</td><td>${r.tiers}</td></tr>`;
+      let html = '<table><tr><th>config</th><th>avg ms</th><th>median dist</th><th>dist values</th></tr>';
+      for (const r of rows) html += `<tr><td>${r.key}</td><td>${r.ms}</td><td>${r.dist}</td><td>${r.dists}</td></tr>`;
       html += '</table>';
       document.getElementById('tbl').innerHTML = html;
       document.getElementById('out').textContent = out.join('\n');
@@ -157,7 +154,7 @@
       v.textContent = fails === 0 ? 'ALL HASHI CHECKS PASSED (unique + valid + solvable + monotonic)' : (fails + ' CHECK(S) FAILED');
       v.className = fails === 0 ? 'pass' : 'fail';
       console.log('GENTEST ' + (fails === 0 ? 'PASS' : 'FAIL') + ' fails=' + fails);
-      for (const r of rows) console.log('ROW ' + r.key + ' | ms ' + r.ms + ' | elims ' + r.tier + ' | depth ' + r.depth + ' | elims ' + r.tiers);
+      for (const r of rows) console.log('ROW ' + r.key + ' | ms ' + r.ms + ' | dist ' + r.dist + ' | ' + r.dists);
     } catch (err) {
       document.getElementById('verdict').textContent = 'ERROR: ' + (err && err.message);
       document.getElementById('verdict').className = 'fail';
