@@ -487,6 +487,8 @@
         // click-based games (Tango/Sudoku) still register the tap. The pointer
         // games already acted on pointerup and don't listen for board clicks, so
         // the synthetic click is a harmless no-op for them.
+        // The arcade shell (js/arcade.js) carries the same guard at the document
+        // level — keep them in sync. See docs/CONVENTIONS.md ("iOS double-tap-to-zoom").
         if (dom.board) {
             let lastT = 0, lastX = 0, lastY = 0;
             dom.board.addEventListener('touchend', (e) => {

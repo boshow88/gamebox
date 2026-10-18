@@ -1089,6 +1089,35 @@
             if (document.hidden && state === 'playing') pause();
         });
 
+        // iOS Safari doesn't reliably honour CSS `touch-action` for double-tap-to-
+        // zoom (it ignores it on <canvas>/<svg>), so a quick double-tap on the stage
+        // or a HUD/overlay button can still zoom the page. Suppress it in JS: cancel
+        // the quick second touchend (kills the zoom + its synthesised click) and
+        // re-dispatch a click so buttons still fire. The canvas games act on pointer
+        // events, so the synthetic click is a harmless no-op there.
+        // Keep in sync with the equivalent guard in js/puzzle.js — see
+        // docs/CONVENTIONS.md ("iOS double-tap-to-zoom").
+        (function () {
+            let lastT = 0, lastX = 0, lastY = 0;
+            document.addEventListener('touchend', (e) => {
+                if (e.changedTouches.length !== 1) { lastT = 0; return; }
+                const tp = e.changedTouches[0];
+                const now = Date.now();
+                const near = Math.abs(tp.clientX - lastX) < 40 && Math.abs(tp.clientY - lastY) < 40;
+                if (now - lastT <= 350 && near) {
+                    e.preventDefault();
+                    const el = document.elementFromPoint(tp.clientX, tp.clientY);
+                    if (el) {
+                        el.dispatchEvent(new MouseEvent('click', {
+                            bubbles: true, cancelable: true, view: window,
+                            clientX: tp.clientX, clientY: tp.clientY,
+                        }));
+                    }
+                }
+                lastT = now; lastX = tp.clientX; lastY = tp.clientY;
+            }, { passive: false });
+        })();
+
         // React to locale changes: re-show whatever panel is up so its
         // text re-localises, and refresh the button labels.
         subscribe(() => {
