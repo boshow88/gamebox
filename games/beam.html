@@ -38,6 +38,12 @@
         .beam-players .pchip .res.ok { color: #34d399; font-weight: 800; }
         .beam-players .pchip .res.no { color: #f87171; font-weight: 800; }
         .beam-players .pchip .rank { color: var(--game-color); font-weight: 800; }
+        /* Final standings on the solo over card */
+        .beam-standings { display: flex; flex-direction: column; gap: 3px; margin: 2px 0 4px; font-size: 14px; }
+        .beam-standings .row { display: flex; align-items: center; gap: 7px; justify-content: center; }
+        .beam-standings .row.me { font-weight: 700; }
+        .beam-standings .rk { color: var(--game-color); font-weight: 700; min-width: 2.4em; text-align: right; }
+        .beam-standings .dot { font-size: 11px; }
     </style>
 </head>
 <body>

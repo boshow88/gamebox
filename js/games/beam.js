@@ -347,11 +347,17 @@
         startLocalRound(1, room.data); renderPlayersBar(room.data);
     }
     function soloMatchOver(data) {
-        var g = data.game || {}, rank = (g.rankByUid && g.rankByUid[om.myUid]) || (data.order ? data.order.length : 4), notch = om.notch;
+        var g = data.game || {}, players = data.players || {}, order = data.order || [];
+        var ranks = g.rankByUid || {}, fallback = order.length || 4;
+        var rank = ranks[om.myUid] || fallback, notch = om.notch;
         var st = loadSoloStats(notch); st.played++; if (rank === 1) st.wins++; st.best = st.best ? Math.min(st.best, rank) : rank; saveSoloStats(notch, st);
+        var standings = order.filter(function (u) { return players[u]; }).map(function (u) {
+            return { rank: ranks[u] || fallback, name: pname(u, players), color: colorForOrder(players[u] ? players[u].order : 0), you: u === om.myUid };
+        });
+        standings.sort(function (a, b) { return a.rank - b.rank; });
         om.over = true;
         setControlsForMatch();
-        shell.gameOver({ score: 0, win: rank === 1, meta: { rank: rank, tier: tierForNotch(notch), best: st.best, wins: st.wins } });
+        shell.gameOver({ score: 0, win: rank === 1, meta: { rank: rank, tier: tierForNotch(notch), best: st.best, wins: st.wins, standings: standings } });
     }
     // Bots "answer" DURING the window (just like real players) so their picks are already
     // there at the reveal. Correct-rate = logistic of their strength vs this round's level.
@@ -366,7 +372,7 @@
             var pl = players[uid];
             if (!pl || !pl.bot || (g.alive && g.alive[uid] === false)) return;
             var port = (Math.random() < pCorrect(pl.strength || 1, om.level)) ? p.exit : botWrongPort(p);
-            var delay = base + Math.random() * om.answerSec * 0.85 * 1000;
+            var delay = base + (0.25 + Math.random() * 0.55) * om.answerSec * 1000;   // "think" 25%–80% of the window (never instant, no back-and-forth)
             botTimers.push(setTimeout(function () {
                 if (!om || !om.local || om.round !== myRound) return;
                 roomWrite({ ['game.answers.' + uid]: { r: port.r, c: port.c, side: port.side, at: Date.now() } });
@@ -404,7 +410,7 @@
         om.alive = !(g.alive && g.alive[om.myUid] === false);
         om.hpStart = Object.assign({}, g.hp || {});       // pre-round snapshot — shown until the reveal (no spoiler)
         om.aliveStart = Object.assign({}, g.alive || {});
-        if (om.host) { om.host.tallied = false; om.host.over = false; }
+        if (om.host) { om.host.tallied = false; om.host.over = false; om.host.pending = null; }
         AC.audio.play('click');
         if (om.local) scheduleBots();
     }
@@ -528,8 +534,14 @@
             // players can keep CHANGING their answer right up to the end
             if (nowp >= answerEnd + SETTLE_MS) { hostTally(d, g); om.host.tallied = true; }
         } else if (g.status === 'playing' && nowp >= roundEnd + HOST_BUFFER_MS) {
-            hostNextRound(d, g);                                // advance only after the whole round (incl. reveal) has played
+            if (om.host.pending) hostCommitOver(d, g);          // match decided this round → END only after the reveal has played
+            else hostNextRound(d, g);                           // advance only after the whole round (incl. reveal) has played
         }
+    }
+    function hostCommitOver(d, g) {                             // write the 'over' status AFTER the final round's reveal finished
+        var pend = om.host.pending || {};
+        om.host.over = true; om.host.pending = null;
+        roomWrite({ 'game.status': 'over', 'game.winner': pend.winner || null, 'game.endReason': pend.endReason || 'normal', 'status': 'lobby' }).catch(function () { });
     }
     function hostTally(d, g) {
         var r = g.round, players = d.players || {}, order = d.order || Object.keys(players);
@@ -569,8 +581,9 @@
         var patch = {
             'game.hp': hp, 'game.alive': alive, 'game.results': results, 'game.revealedRound': r, 'game.rankByUid': ranks, 'game.center': om.host.center,
         };
-        if (over) { patch['game.status'] = 'over'; patch['game.winner'] = winner; patch['game.endReason'] = (gone.length > 0 ? 'left' : 'normal'); patch['status'] = 'lobby'; }  // reopen room for rematch/rejoin
-        om.host.over = over;                                   // guard local advance until the 'over' echo lands
+        // If the match is decided, DON'T end it here — let the reveal animation finish first.
+        // Stash the result; hostDrive commits 'over' after roundEnd + buffer (hostCommitOver).
+        if (over) om.host.pending = { winner: winner, endReason: (gone.length > 0 ? 'left' : 'normal') };
         roomWrite(patch).catch(function () { });
     }
     function hostNextRound(d, g) {
@@ -667,6 +680,19 @@
         }
         ctx.stroke(); ctx.restore();
     }
+    // spectator "preview" styling — a faint dashed beam + dashed exit outline, so the answer reads
+    // as a quiet pre-view (not the bright reveal that comes later).
+    function drawBeamPreview(p) {
+        var pts = p.points, lw = AC.math.clamp((GRID / p.N) * 0.09, 2, 5);
+        ctx.save(); ctx.globalAlpha = 0.5; ctx.strokeStyle = '#7dd3fc'; ctx.lineWidth = lw; ctx.lineJoin = 'round'; ctx.lineCap = 'round'; ctx.setLineDash([lw * 2.2, lw * 2.2]);
+        ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y);
+        for (var i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+        ctx.stroke(); ctx.restore();
+    }
+    function previewExit(p) {
+        var R = portRect(p.exit.r, p.exit.c, p.exit.side, p.N);
+        ctx.save(); ctx.globalAlpha = 0.9; ctx.setLineDash([5, 4]); cellPath(R); ctx.strokeStyle = '#34d399'; ctx.lineWidth = 2.5; ctx.stroke(); ctx.restore();
+    }
     var TIMER_Y = 62, TIMER_H = 9;
     function drawTimerBar(frac, danger) {
         ctx.strokeStyle = 'rgba(148,163,184,0.25)'; ctx.lineWidth = 1; roundRect(GX, TIMER_Y, GRID, TIMER_H, TIMER_H / 2); ctx.stroke();
@@ -698,13 +724,20 @@
         var sd = om.round >= SUDDEN_DEATH_ROUND;
         if (sd) sdBanner();                                    // persistent short "SUDDEN DEATH!" banner
         if (ph === 'countdown') { caption(sd ? t('beamSuddenDeathHint') : t('beamGetReady'), sd ? '#f87171' : BEAM); bigCountdown(Math.ceil(info.remain)); return; }   // prep screen explains why
-        if (ph === 'memorize') { drawMirrors(p, 1); drawTimerBar(1 - info.ts / om.memo, false); caption(t('beamWatch'), BEAM); return; }
+        var spec = !!(om && !om.alive);                        // out of the match → spectating
+        // flash: everyone (incl. spectators) sees ONLY the mirrors — no laser yet
+        if (ph === 'memorize') { drawMirrors(p, 1); drawTimerBar(1 - info.ts / om.memo, false); caption(spec ? t('beamSpectating') : t('beamWatch'), spec ? '#94a3b8' : BEAM); return; }
         if (ph === 'answer') {
-            if (om.alive) drawPorts(p); drawEntry(p);
-            var left = 1 - info.ts / om.answerSec; drawTimerBar(left, left < 0.25);
+            var left = 1 - info.ts / om.answerSec;
+            if (spec) {   // spectator: a muted "solution PREVIEW" (dashed path + dashed exit) + everyone's live picks
+                drawMirrors(p, 1); drawEntry(p); drawBeamPreview(p); previewExit(p); drawPicks(p);
+                drawTimerBar(left, false); caption(t('beamSpectating'), '#94a3b8'); return;
+            }
+            drawPorts(p); drawEntry(p); drawTimerBar(left, left < 0.25);
             if (om.choice) { var mc = colorForOrder((room.data && room.data.players && room.data.players[om.myUid]) ? room.data.players[om.myUid].order : 0); highlightCell(portRect(om.choice.r, om.choice.c, om.choice.side, p.N), mc); }
-            caption(om.alive ? t('beamRecall') : t('beamSpectating'), om.alive ? null : '#94a3b8'); return;
+            caption(t('beamRecall')); return;
         }
+        // reveal onward: spectators share the same animation — they feel the reveal, having only previewed it
         if (ph === 'reveal') { drawMirrors(p, AC.math.clamp(info.ts / 0.25, 0, 1)); drawEntry(p); drawPicks(p); drawBeamUpTo(p, info.ts / om.replay); caption(t('beamReplay')); return; }
         if (ph === 'result') {
             drawMirrors(p, 1); drawEntry(p); drawBeamUpTo(p, 1); lightExit(p); drawPicks(p); outlineExit(p);
@@ -999,12 +1032,16 @@
                 if (state === 'idle') return { badge: 'zap', title: t('beamArcName'), message: t('beamReadyMsg'), button: t('start') };
                 if (state === 'over') {
                     var m = (result && result.meta) || {};
+                    var list = (m.standings || []).map(function (s) {
+                        return '<div class="row' + (s.you ? ' me' : '') + '"><span class="rk">' + placeLabel(s.rank) + '</span>'
+                            + '<span class="dot" style="color:' + s.color + '">\u25cf</span><span>' + String(s.name).replace(/[<>&]/g, '') + '</span></div>';
+                    }).join('');
                     return {
                         badge: m.rank === 1 ? 'trophy' : 'zap',
                         title: m.rank === 1 ? t('beamSoloWin') : t('beamYourPlace', m.rank || 4),
-                        message: t('beamTierLabel') + '：' + t('beamTier' + capitalize(m.tier || 'normal')),
+                        message: '<div class="beam-standings">' + list + '</div>',
                         button: t('restart'),
-                        hint: t('best') + ' ' + placeLabel(m.best || (m.rank || 4)) + ' · ' + t('beamWins', m.wins || 0),
+                        hint: t('beamTierLabel') + '：' + t('beamTier' + capitalize(m.tier || 'normal')) + ' · ' + t('best') + ' ' + placeLabel(m.best || (m.rank || 4)) + ' · ' + t('beamWins', m.wins || 0),
                     };
                 }
                 return {};
