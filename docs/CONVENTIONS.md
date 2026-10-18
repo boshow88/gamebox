@@ -36,6 +36,26 @@ Both shells therefore run a small JS guard that cancels the quick second
 **If you add a new shell or a standalone interactive page, add the same guard.**
 Keep the two copies in sync.
 
+## Staged settings & live preview
+
+Difficulty / size pickers **stage** a change rather than apply it at once — the
+running game isn't regenerated until the player commits (puzzle: *New Game*;
+arcade: *Start*). While a change is staged, show a live **"current → pending"**
+readout so the player sees what's running versus what they've picked, and that it
+hasn't taken effect yet:
+
+- Update on the control's `input` event (live while dragging), not `change`.
+- When staged equals applied (nothing pending), show the plain value.
+- When they differ, render `current → pending` — e.g. `9×9 → 11×11` or
+  `Normal II → Hard I` — with a `pending` class; style the current value muted,
+  the arrow fainter, and the pending value in the game colour.
+- Make the readout granular enough that **every** step previews a change (e.g.
+  Beam shows a Roman-numeral sub-step within a tier, so same-tier moves still read
+  as a change).
+
+Reference: `js/puzzle.js` → `syncSizeButtons` (`.size-readout`), and
+`js/games/beam.js` → `syncDiffControl` (`.diff-readout`).
+
 ## Icons
 
 - **DOM icon registries** (`js/launcher.js`, `js/puzzle.js`, `js/arcade.js` → their

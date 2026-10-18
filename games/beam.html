@@ -17,7 +17,11 @@
         .diff-control { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
         .diff-control .diff-label { font-size: 13px; color: var(--text-muted); white-space: nowrap; }
         .diff-control input[type="range"] { width: 130px; min-width: 60px; accent-color: var(--game-color, var(--accent-primary)); }
-        .diff-control .diff-readout { font-weight: 700; min-width: 3.5em; color: var(--game-color); white-space: nowrap; }
+        .diff-control .diff-readout { font-weight: 700; min-width: 3.5em; color: var(--game-color); white-space: nowrap; font-variant-numeric: tabular-nums; }
+        .diff-control .diff-readout.pending { display: inline-flex; align-items: baseline; gap: 4px; }
+        .diff-control .diff-readout .readout-current { color: var(--text-secondary); font-weight: 500; }
+        .diff-control .diff-readout .readout-arrow { color: var(--text-muted); font-weight: 400; }
+        .diff-control .diff-readout .readout-next { color: var(--game-color); }
         .lobby-row { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; align-items: center; margin: 9px 0; }
         .lobby-row .btn { white-space: nowrap; }
         .lobby-row input { width: 120px; padding: 9px 10px; border-radius: 9px; border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.07); color: #fff; font: inherit; text-align: center; text-transform: uppercase; letter-spacing: 3px; }

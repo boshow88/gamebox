@@ -330,6 +330,7 @@
 
     function startSoloMatch(notch) {
         notch = AC.math.clamp(notch | 0, 0, NOTCH_MAX);
+        appliedNotch = notch;   // this is now the committed difficulty (readout stops showing "pending")
         var diff = DIFF[notch];
         var uids = ['you'], players = {}, hp = {}, alive = {}, strengths = [];
         players['you'] = { uid: 'you', name: t('beamYou'), order: 0 };
@@ -977,16 +978,33 @@
     // mode seg + online button + net boot
     // ===============================================================
     var stagedNotch = 5;
+    var appliedNotch = null;   // notch the last/active solo match committed; null until first Start
     function onlineLock() { return !!(om && !om.local && !om.over); }   // only an ONLINE match locks the difficulty picker
     function updateOnlineBtn() { var b = $('online-btn'); if (b) b.hidden = !(net && net.ok); }
-    // Difficulty slider — 16 equidistant notches (4 per tier). Dragging only *stages* a notch;
-    // it commits on the next Start/Restart (deferred, like the puzzle games' size slider). The
-    // readout shows the tier name only (Easy/Normal/Hard/Insane). An online match locks it.
+    // Difficulty slider — 16 equidistant notches (4 per tier). Dragging only *stages* a
+    // notch; it commits on the next Start (deferred, like the puzzle games' size slider).
+    // The readout mirrors that convention: while the staged notch differs from the one the
+    // last match used it shows a live "current → pending" preview, so the new difficulty is
+    // visible before you commit. The Roman numeral is the step WITHIN the tier, so even a
+    // same-tier move previews a change. An online match locks the picker.
+    var ROMAN = ['I', 'II', 'III', 'IV'];
+    function notchLabel(n) { return t('beamTier' + capitalize(tierForNotch(n))) + ' ' + ROMAN[n % 4]; }
     function syncDiffControl() {
         var sl = $('diff-slider'), rd = $('diff-readout'); if (!sl) return;
         sl.value = String(stagedNotch);
         sl.disabled = onlineLock();
-        if (rd) rd.textContent = t('beamTier' + capitalize(tierForNotch(stagedNotch)));
+        if (!rd) return;
+        if (appliedNotch == null || appliedNotch === stagedNotch) {
+            rd.textContent = notchLabel(stagedNotch);
+            rd.classList.remove('pending');
+        } else {
+            rd.innerHTML = '';
+            var cur = document.createElement('span'); cur.className = 'readout-current'; cur.textContent = notchLabel(appliedNotch);
+            var arr = document.createElement('span'); arr.className = 'readout-arrow'; arr.textContent = '→';
+            var nxt = document.createElement('span'); nxt.className = 'readout-next'; nxt.textContent = notchLabel(stagedNotch);
+            rd.appendChild(cur); rd.appendChild(arr); rd.appendChild(nxt);
+            rd.classList.add('pending');
+        }
     }
     function setNotch(n) {
         n = AC.math.clamp(n | 0, 0, NOTCH_MAX);
