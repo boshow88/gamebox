@@ -104,11 +104,14 @@
     // ---------------------------------------------------------------
     var STRINGS = {
         en: {
-            subtitle: 'A collection of small games. Filter by tag.',
+            subtitle: 'A collection of small games.',
             all: 'All',
             playable: 'Playable',
             wip: 'WIP',
-            noResults: 'No games match this tag yet.',
+            searchPlaceholder: 'Search games\u2026',
+            searchAria: 'Search games',
+            searchClear: 'Clear search',
+            noResults: 'No games match your filters.',
             footer: 'A static site — works offline. ' + GAMES.length + ' games and counting.',
 
             tag_puzzle: 'Puzzle',
@@ -157,11 +160,14 @@
             'queens_body': 'Place N queens so that every row, column, colour region and 8-neighbourhood contains exactly one.',
         },
         zh: {
-            subtitle: '一個小遊戲合輯，依標籤篩選。',
+            subtitle: '一個小遊戲合輯。',
             all: '全部',
             playable: '可玩',
             wip: '開發中',
-            noResults: '目前沒有符合這個標籤的遊戲。',
+            searchPlaceholder: '搜尋遊戲…',
+            searchAria: '搜尋遊戲',
+            searchClear: '清除搜尋',
+            noResults: '沒有符合條件的遊戲。',
             footer: '純靜態網站，可離線使用。目前收錄 ' + GAMES.length + ' 款，持續增加中。',
 
             tag_puzzle: '益智',
@@ -280,6 +286,7 @@
         try { localStorage.setItem(LANG_KEY, JSON.stringify(lang)); } catch (e) {}
     })();
     var activeTag = null; // null = show all
+    var query = '';       // lower-cased search text; '' = no search
 
     function t(key) {
         var table = STRINGS[lang] || STRINGS.en;
@@ -294,9 +301,20 @@
         return n;
     }
 
+    // Match the search text against the game's localized name, tagline, body and
+    // tag labels (so searching works in whichever language is showing).
+    function matchesQuery(g) {
+        if (!query) return true;
+        var hay = t(g.id + '_name') + ' ' + t(g.id + '_tagline') + ' ' + t(g.id + '_body');
+        for (var j = 0; j < g.tags.length; j++) hay += ' ' + t('tag_' + g.tags[j]);
+        return hay.toLowerCase().indexOf(query) !== -1;
+    }
+
     function visibleGames() {
-        if (!activeTag) return GAMES;
-        return GAMES.filter(function (g) { return g.tags.indexOf(activeTag) !== -1; });
+        return GAMES.filter(function (g) {
+            if (activeTag && g.tags.indexOf(activeTag) === -1) return false;
+            return matchesQuery(g);
+        });
     }
 
     // ---------------------------------------------------------------
@@ -306,6 +324,10 @@
         document.documentElement.lang = (lang === 'zh') ? 'zh-Hant' : 'en';
         document.getElementById('app-subtitle').textContent = t('subtitle');
         document.getElementById('app-footer').textContent = t('footer');
+        var si = document.getElementById('search-input');
+        if (si) { si.placeholder = t('searchPlaceholder'); si.setAttribute('aria-label', t('searchAria')); }
+        var sc = document.getElementById('search-clear');
+        if (sc) { sc.setAttribute('aria-label', t('searchClear')); sc.title = t('searchClear'); }
         var tog = document.getElementById('lang-toggle');
         var btns = tog.querySelectorAll('button[data-lang]');
         for (var i = 0; i < btns.length; i++) {
@@ -415,6 +437,36 @@
             if (!btn) return;
             setLang(btn.getAttribute('data-lang'));
         });
+
+        var searchInput = document.getElementById('search-input');
+        var searchClear = document.getElementById('search-clear');
+        function applyQuery() {
+            query = searchInput.value.trim().toLowerCase();
+            searchClear.hidden = !searchInput.value;
+            renderGrid();
+        }
+        searchInput.addEventListener('input', applyQuery);
+        searchInput.addEventListener('keydown', function (ev) {
+            if (ev.key === 'Escape' && searchInput.value) {
+                ev.preventDefault();
+                searchInput.value = '';
+                applyQuery();
+            }
+        });
+        searchClear.addEventListener('click', function () {
+            searchInput.value = '';
+            applyQuery();
+            searchInput.focus();
+        });
+        // "/" jumps to the search box (unless you're already typing somewhere).
+        document.addEventListener('keydown', function (ev) {
+            if (ev.key !== '/' || ev.metaKey || ev.ctrlKey || ev.altKey) return;
+            var a = document.activeElement;
+            if (a && (a.tagName === 'INPUT' || a.tagName === 'TEXTAREA' || a.isContentEditable)) return;
+            ev.preventDefault();
+            searchInput.focus();
+        });
+
         renderAll();
     }
 
