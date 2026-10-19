@@ -25,6 +25,19 @@
         .lobby-plist .tag { font-size: 11px; font-weight: 700; padding: 1px 7px; border-radius: 999px; background: rgba(16,185,129,0.22); color: #6ee7b7; }
         .lobby-plist .ok { color: #34d399; }
         .lobby-plist .rank { font-weight: 700; color: var(--game-color); }
+        /* Pre-match settings (named presets; deferred-apply like the puzzle games) */
+        .set-body { display: flex; flex-direction: column; gap: 10px; width: 100%; margin: 6px 0 2px; }
+        .set-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+        .set-label { font-size: 14px; color: rgba(255,255,255,0.82); white-space: nowrap; }
+        .set-seg { display: inline-flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
+        .set-opt { padding: 6px 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.05); color: #e2e8f0; font: inherit; font-size: 13px; cursor: pointer; }
+        .set-opt.on { background: var(--game-color); border-color: var(--game-color); color: #04231a; font-weight: 700; }
+        .set-opt:disabled { cursor: default; }
+        .set-opt.on:disabled { opacity: 0.9; }
+        .set-opt:disabled:not(.on) { opacity: 0.45; }
+        #carom-set .overlay-card { gap: 6px; max-width: 460px; }
+        .lobby-set { width: 100%; margin: 4px 0 2px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 8px; }
+        .lobby-set-note { font-size: 12px; color: rgba(255,255,255,0.55); text-align: center; margin: 2px 0 4px; }
     </style>
 </head>
 <body>
@@ -56,6 +69,10 @@
         </div>
 
         <div class="control-row">
+            <button class="btn" id="settings-btn" type="button">
+                <span data-icon="sliders" aria-hidden="true"></span>
+                <span data-i18n="caromSettings">Settings</span>
+            </button>
             <button class="btn" id="online-btn" type="button" hidden>
                 <span data-icon="users" aria-hidden="true"></span>
                 <span data-i18n="caromOnlineBtn">Online</span>

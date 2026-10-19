@@ -34,6 +34,13 @@
             caromYou: 'You', caromHost: 'Host', caromReadyTag: 'ready',
             caromResultsTitle: 'Final score', caromWinner: function (n) { return n + ' wins!'; }, caromRematch: 'Rematch',
             caromRoomGone: 'Room closed', caromOffline: 'offline', caromEndLeft: 'Your opponent left — you win.',
+            // pre-match settings / presets
+            caromSettings: 'Settings', caromSettingsTitle: 'Match setup', caromSettingsDone: 'Done', caromSetByHost: 'Set by the host',
+            caromFieldLabel: 'Field', caromBallLabel: 'Ball', caromPlayersLabel: 'Players', caromTargetLabel: 'Win at', caromGoalLabel: 'Goal',
+            caromField_grass: 'Grass', caromField_ice: 'Ice', caromField_sand: 'Sand',
+            caromBall_standard: 'Standard', caromBall_beach: 'Beach ball', caromBall_heavy: 'Heavy',
+            caromPlayers_p3: '3 a side', caromPlayers_p5: '5 a side', caromPlayers_p7: '7 a side',
+            caromGoalNarrow: 'Narrow', caromGoalStd: 'Standard', caromGoalWide: 'Wide',
         },
         zh: {
             caromName: '彈球場',
@@ -57,6 +64,13 @@
             caromYou: '你', caromHost: '房主', caromReadyTag: '已準備',
             caromResultsTitle: '最終比分', caromWinner: function (n) { return n + ' 獲勝！'; }, caromRematch: '再來一場',
             caromRoomGone: '房間已關閉', caromOffline: '離線', caromEndLeft: '對手離開了——你獲勝。',
+            // pre-match settings / presets
+            caromSettings: '設定', caromSettingsTitle: '開賽設定', caromSettingsDone: '完成', caromSetByHost: '由房主設定',
+            caromFieldLabel: '場地', caromBallLabel: '球', caromPlayersLabel: '球員', caromTargetLabel: '獲勝分數', caromGoalLabel: '球門',
+            caromField_grass: '草地', caromField_ice: '冰地', caromField_sand: '沙灘',
+            caromBall_standard: '標準球', caromBall_beach: '海灘球', caromBall_heavy: '鉛球',
+            caromPlayers_p3: '3 人', caromPlayers_p5: '5 人', caromPlayers_p7: '7 人',
+            caromGoalNarrow: '窄', caromGoalStd: '標準', caromGoalWide: '寬',
         },
     };
     Object.assign(AC.i18n.STRINGS.en, STRINGS.en);
@@ -68,28 +82,85 @@
     var DPR = Math.min(window.devicePixelRatio || 1, 2);
     var TEAM = ['#38bdf8', '#fb7185'];               // team 0 (blue, bottom) / team 1 (red, top)
     var BALL = '#eef2f7';
-    var MAXPULL = 175, MAXSPEED = 1550, TARGET = 3, CANCEL_R = 17;
+    var MAXPULL = 175, MAXSPEED = 1550, CANCEL_R = 17;
     var SUB = Math.max(1, Math.round((1 / 60) / E.STEP_DT));   // sub-steps/frame at the engine's canonical dt (matches settle → no snap)
     var GROUP = 'carom_rooms', MAX_PLAYERS = 2, BEAT_MS = 3000, STALL_MS = 8000, SIM_MAX_MS = 6000;
+
+    // ---------------- presets (named bundles of physics params) ----------------
+    // Friction = field μ × body fricMul, plus global v² air drag (see carom-engine). Each category owns
+    // DISJOINT params so a field + ball + players combo never fights over the same number.
+    var KAIR = 7e-6;                                  // global air-drag coefficient (shared across fields)
+    var PRESETS = {
+        field: {   // μ = Coulomb deceleration (lower = slippery); look = turf/stripe/line colours
+            grass: { mu: 2600, wallRest: 0.72, turf: '#123a2a', s0: 'rgba(255,255,255,0.025)', s1: 'rgba(0,0,0,0.04)', line: 'rgba(255,255,255,0.35)' },
+            ice: { mu: 900, wallRest: 0.88, turf: '#143247', s0: 'rgba(255,255,255,0.06)', s1: 'rgba(120,180,230,0.05)', line: 'rgba(205,232,255,0.5)' },
+            sand: { mu: 5200, wallRest: 0.45, turf: '#5a4a28', s0: 'rgba(255,240,200,0.05)', s1: 'rgba(0,0,0,0.05)', line: 'rgba(255,245,220,0.4)' },
+        },
+        ball: {    // size / weight / bounce / roll — the air-drag "float" falls out of r & m automatically
+            standard: { ballR: 13, ballMass: 0.55, ballRest: 0.72, ballFric: 0.37 },
+            beach: { ballR: 20, ballMass: 0.30, ballRest: 0.88, ballFric: 0.50 },
+            heavy: { ballR: 11, ballMass: 1.20, ballRest: 0.35, ballFric: 0.30 },
+        },
+        players: { // count / size / weight / bounce
+            p3: { players: 3, playerR: 19, playerMass: 1.0, playerRest: 0.55, playerFric: 1.0 },
+            p5: { players: 5, playerR: 19, playerMass: 1.0, playerRest: 0.55, playerFric: 1.0 },
+            p7: { players: 7, playerR: 18, playerMass: 1.0, playerRest: 0.55, playerFric: 1.0 },
+        },
+    };
+    var FIELD_KEYS = ['grass', 'ice', 'sand'], BALL_KEYS = ['standard', 'beach', 'heavy'], PLAYER_KEYS = ['p3', 'p5', 'p7'];
+    var TARGET_OPTS = [3, 5, 7], GOAL_OPTS = [140, 180, 220];
+    function loadSettings() {
+        var s = {}; try { s = AC.prefs.get('carom') || {}; } catch (e) { }
+        return {
+            field: PRESETS.field[s.field] ? s.field : 'grass',
+            ball: PRESETS.ball[s.ball] ? s.ball : 'standard',
+            players: PRESETS.players[s.players] ? s.players : 'p5',
+            target: TARGET_OPTS.indexOf(s.target) >= 0 ? s.target : 3,
+            goalW: GOAL_OPTS.indexOf(s.goalW) >= 0 ? s.goalW : 180,
+        };
+    }
+    function saveSettings() { try { AC.prefs.set('carom', SETTINGS); } catch (e) { } }
+    function sanitizeSettings(s) {   // coerce a remote (host-broadcast) settings blob to a safe shape
+        s = s || {};
+        return {
+            field: PRESETS.field[s.field] ? s.field : 'grass',
+            ball: PRESETS.ball[s.ball] ? s.ball : 'standard',
+            players: PRESETS.players[s.players] ? s.players : 'p5',
+            target: TARGET_OPTS.indexOf(s.target) >= 0 ? s.target : 3,
+            goalW: GOAL_OPTS.indexOf(s.goalW) >= 0 ? s.goalW : 180,
+        };
+    }
+    var SETTINGS = loadSettings();
 
     var canvas, ctx, shell, world;
     // unified match state. M.local = hot-seat; else online.
     var M = null;
 
     function $(id) { return document.getElementById(id); }
-    function cfg() { return { W: FW, H: FH }; }
+    // the single source of engine config — composed from the chosen presets (+ the preset KEYS so the
+    // other client can mirror look/target). Everything (hot-seat, preview, and the host's broadcast) flows through here.
+    function cfg() {
+        var f = PRESETS.field[SETTINGS.field], b = PRESETS.ball[SETTINGS.ball], p = PRESETS.players[SETTINGS.players];
+        return {
+            W: FW, H: FH, goalW: SETTINGS.goalW, target: SETTINGS.target, kAir: KAIR,
+            field: SETTINGS.field, mu: f.mu, wallRest: f.wallRest,
+            players: p.players, playerR: p.playerR, playerMass: p.playerMass, playerRest: p.playerRest, playerFric: p.playerFric,
+            ballR: b.ballR, ballMass: b.ballMass, ballRest: b.ballRest, ballFric: b.ballFric,
+        };
+    }
+    function curFieldKey() { return (M && M.fieldKey) || SETTINGS.field; }
 
     // ---------------- hot-seat lifecycle ----------------
     function startHotSeat() {
-        world = E.create(cfg());
-        M = { local: true, phase: 'aim', turn: Math.random() < 0.5 ? 0 : 1, score: [0, 0], drag: null, flash: 0 };
+        var c = cfg(); world = E.create(c);
+        M = { local: true, phase: 'aim', turn: Math.random() < 0.5 ? 0 : 1, score: [0, 0], drag: null, flash: 0, target: c.target, fieldKey: c.field };
         hideShellOverlay(); setControlsForMatch(); syncHud();
     }
     function hotEndTurn() { M.turn = 1 - M.turn; M.phase = 'aim'; M.drag = null; syncHud(); }
     function hotGoal(side) {
         var scorer = side === 'top' ? 0 : 1;
         M.score[scorer]++; M.flash = 1; AC.audio.play('gem'); syncHud();
-        if (M.score[scorer] >= TARGET) { shell.gameOver({ score: 0, win: true, meta: { winner: scorer, score: M.score.slice() } }); return; }
+        if (M.score[scorer] >= M.target) { shell.gameOver({ score: 0, win: true, meta: { winner: scorer, score: M.score.slice() } }); return; }
         E.reset(world); M.turn = side === 'top' ? 1 : 0; M.phase = 'aim'; M.drag = null; syncHud();
     }
 
@@ -97,11 +168,13 @@
     function enterMatch(data) {
         if (M && !M.local) return;
         var g = data.game || {};
-        world = E.create(g.config || cfg()); E.reset(world);
+        var c = g.config || cfg();
+        world = E.create(c); E.reset(world);
         var myOrder = (data.players[netUser.uid] || {}).order || 0;
         M = {
             local: false, myUid: netUser.uid, myTeam: myOrder,
             turn: g.turn || 0, score: (g.score || [0, 0]).slice(), seq: g.seq || 0,
+            target: c.target || 3, fieldKey: PRESETS.field[c.field] ? c.field : 'grass',
             phase: null, pending: null, simStart: 0, localGoal: false, over: false, flash: 0, forfeit: false,
         };
         M.phase = (M.turn === M.myTeam) ? 'aim' : 'wait';
@@ -121,7 +194,7 @@
         // pre-compute the authoritative outcome head-less, then broadcast shot + result in one write
         var sim = E.snapshot(world); E.applyShot(sim, idx, dx, dy, power);
         var goal = E.settle(sim), score = M.score.slice(), nextTurn, winner = null;
-        if (goal) { var scorer = goal === 'top' ? 0 : 1; score[scorer]++; nextTurn = goal === 'top' ? 1 : 0; E.reset(sim); winner = score[0] >= TARGET ? 0 : (score[1] >= TARGET ? 1 : null); }
+        if (goal) { var scorer = goal === 'top' ? 0 : 1; score[scorer]++; nextTurn = goal === 'top' ? 1 : 0; E.reset(sim); winner = score[0] >= M.target ? 0 : (score[1] >= M.target ? 1 : null); }
         else nextTurn = 1 - M.turn;
         var state = []; sim.bodies.forEach(function (b) { state.push(Math.round(b.x * 10) / 10, Math.round(b.y * 10) / 10); });   // FLAT [x0,y0,x1,y1,…] — Firestore rejects nested arrays
         var seq = (M.seq || 0) + 1, result = { state: state, goal: goal || null, score: score, turn: nextTurn, winner: winner };
@@ -167,10 +240,11 @@
     function clear() { ctx.clearRect(0, 0, CW, CH); ctx.fillStyle = '#0a1628'; ctx.fillRect(0, 0, CW, CH); }
     function roundRect(x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
     function drawField() {
-        ctx.save(); roundRect(FMX, FMT, FW, FH, 14); ctx.fillStyle = '#123a2a'; ctx.fill(); ctx.clip();
-        for (var i = 0; i < 8; i++) { ctx.fillStyle = (i % 2) ? 'rgba(255,255,255,0.025)' : 'rgba(0,0,0,0.04)'; ctx.fillRect(FMX, FMT + FH * i / 8, FW, FH / 8); }
+        var L = PRESETS.field[curFieldKey()] || PRESETS.field.grass;
+        ctx.save(); roundRect(FMX, FMT, FW, FH, 14); ctx.fillStyle = L.turf; ctx.fill(); ctx.clip();
+        for (var i = 0; i < 8; i++) { ctx.fillStyle = (i % 2) ? L.s0 : L.s1; ctx.fillRect(FMX, FMT + FH * i / 8, FW, FH / 8); }
         ctx.restore();
-        ctx.strokeStyle = 'rgba(255,255,255,0.35)'; ctx.lineWidth = 2;
+        ctx.strokeStyle = L.line; ctx.lineWidth = 2;
         roundRect(FMX + 4, FMT + 4, FW - 8, FH - 8, 12); ctx.stroke();
         ctx.beginPath(); ctx.moveTo(FMX, FMT + FH / 2); ctx.lineTo(FMX + FW, FMT + FH / 2); ctx.stroke();
         ctx.beginPath(); ctx.arc(FMX + FW / 2, FMT + FH / 2, 58, 0, Math.PI * 2); ctx.stroke();
@@ -320,6 +394,7 @@
     }
     function openLobby() {
         if (!net || !net.ok) return;
+        if (setEl) setEl.hidden = true;
         if (!lobbyEl) buildLobby(); lobbyEl.hidden = false; hideShellOverlay(); renderLobby(); if (net.mp.cleanup) net.mp.cleanup(GROUP).catch(function () { });
     }
     function closeLobby() {
@@ -337,7 +412,7 @@
         if (lobbyRefs) lobbyRefs.status.textContent = msg; console.warn('[carom lobby]', e);
     }
     function doSignIn(kind) { (kind === 'google' ? net.signInGoogle() : net.signInGuest()).catch(showLobbyError); }
-    function doCreate() { net.mp.create(GROUP, { maxPlayers: MAX_PLAYERS }).then(attachRoom).catch(showLobbyError); }
+    function doCreate() { net.mp.create(GROUP, { maxPlayers: MAX_PLAYERS }).then(function (code) { attachRoom(code); roomWrite({ settings: Object.assign({}, SETTINGS) }); }).catch(showLobbyError); }
     function doJoin(code) { code = String(code || '').trim().toUpperCase(); if (!code) return; net.mp.join(GROUP, code).then(attachRoom).catch(showLobbyError); }
     function doLeave() { var wasMatch = !!(M && !M.local); if (room) { var c = room.code; detachRoom(); net.mp.leave(GROUP, c).catch(function () { }); } if (wasMatch) exitMatch(); renderLobby(); }
     function doReady() { if (!room || !netUser) return; net.mp.update(GROUP, room.code, { ['ready.' + netUser.uid]: true }).catch(showLobbyError); }
@@ -388,6 +463,9 @@
                 var lvo = lbtn(t('caromLeaveRoom'), 'btn'); lvo.onclick = doLeave; rbox.appendChild(lrow(lvo));
             } else {
                 var iAmHost = host === u.uid, present = order.filter(function (x) { return d.players[x] && !isStale(x); });
+                var setBox = elc('div', 'lobby-set'), curS = iAmHost ? SETTINGS : sanitizeSettings(d.settings);
+                if (!iAmHost) setBox.appendChild(elc('p', 'lobby-set-note', t('caromSetByHost')));
+                renderGroups(setBox, curS, iAmHost ? pickHost : null); rbox.appendChild(setBox);
                 var copy = lbtn(t('caromCopyCode'), 'btn'); copy.onclick = function () { copyCode(d.code); };
                 var primary;
                 if (iAmHost) { var guests = present.filter(function (x) { return x !== u.uid; }); var canStart = present.length >= 2 && guests.every(function (x) { return ready[x]; }); primary = lbtn(t('caromStartMatch'), 'btn btn-primary'); primary.disabled = !canStart; primary.onclick = hostStart; }
@@ -450,9 +528,72 @@
     }
 
     // ===============================================================
+    // pre-match settings (named presets) — standalone panel + shared segmented rows
+    // ===============================================================
+    var setEl = null, setRefs = null;
+    function fieldOpts() { return FIELD_KEYS.map(function (k) { return { val: k, label: t('caromField_' + k) }; }); }
+    function ballOpts() { return BALL_KEYS.map(function (k) { return { val: k, label: t('caromBall_' + k) }; }); }
+    function playerOpts() { return PLAYER_KEYS.map(function (k) { return { val: k, label: t('caromPlayers_' + k) }; }); }
+    function targetOpts() { return TARGET_OPTS.map(function (n) { return { val: n, label: String(n) }; }); }
+    function goalOpts() { return [{ val: 140, label: t('caromGoalNarrow') }, { val: 180, label: t('caromGoalStd') }, { val: 220, label: t('caromGoalWide') }]; }
+    function segRow(labelKey, opts, cur, onPick) {
+        var row = elc('div', 'set-row'); row.appendChild(elc('span', 'set-label', t(labelKey)));
+        var seg = elc('div', 'set-seg');
+        opts.forEach(function (o) {
+            var b = elc('button', 'set-opt' + (o.val === cur ? ' on' : ''), o.label); b.type = 'button';
+            if (onPick) b.onclick = function () { onPick(o.val); }; else b.disabled = true;
+            seg.appendChild(b);
+        });
+        row.appendChild(seg); return row;
+    }
+    function renderGroups(box, cur, pick) {   // pick==null → read-only
+        box.appendChild(segRow('caromFieldLabel', fieldOpts(), cur.field, pick && function (v) { pick('field', v); }));
+        box.appendChild(segRow('caromBallLabel', ballOpts(), cur.ball, pick && function (v) { pick('ball', v); }));
+        box.appendChild(segRow('caromPlayersLabel', playerOpts(), cur.players, pick && function (v) { pick('players', v); }));
+        box.appendChild(segRow('caromTargetLabel', targetOpts(), cur.target, pick && function (v) { pick('target', v); }));
+        box.appendChild(segRow('caromGoalLabel', goalOpts(), cur.goalW, pick && function (v) { pick('goalW', v); }));
+    }
+    function buildSettings() {
+        var wrap = document.querySelector('.stage-wrap') || document.body;
+        var ov = elc('div', 'overlay'); ov.id = 'carom-set'; ov.hidden = true;
+        ov.addEventListener('pointerdown', function (e) { e.stopPropagation(); });
+        var card = elc('div', 'overlay-card'), title = elc('h2', 'overlay-title'), body = elc('div', 'set-body'), done = lbtn('', 'btn btn-primary');
+        done.onclick = closeSettings;
+        card.append(title, body, done); ov.appendChild(card); wrap.appendChild(ov);
+        setEl = ov; setRefs = { title: title, body: body, done: done };
+    }
+    function openSettings() {
+        if (shell && shell.isPlaying()) return;
+        if (room && room.data) { openLobby(); return; }       // online: settings live inside the lobby card
+        if (!setEl) buildSettings();
+        if (lobbyEl) lobbyEl.hidden = true;
+        setEl.hidden = false; hideShellOverlay(); renderSettings();
+    }
+    function closeSettings() { if (setEl) setEl.hidden = true; if (!M) shell.refreshOverlay(); }
+    function pickLocal(key, val) {
+        SETTINGS[key] = val; saveSettings();
+        if (!M) world = E.create(cfg());    // live preview on the ready screen (panel only opens when idle)
+        renderSettings(); render();
+    }
+    function pickHost(key, val) {           // host editing in the lobby → update + broadcast
+        SETTINGS[key] = val; saveSettings();
+        roomWrite({ ['settings.' + key]: val }); renderLobby();
+    }
+    function renderSettings() {
+        if (!setEl) return;
+        setRefs.title.textContent = t('caromSettingsTitle');
+        setRefs.done.textContent = t('caromSettingsDone');
+        var b = setRefs.body; b.innerHTML = ''; renderGroups(b, SETTINGS, pickLocal);
+    }
+
+    // ===============================================================
     // controls (Online button) + shell + boot
     // ===============================================================
-    function setControlsForMatch() { var ob = $('online-btn'); if (ob) ob.disabled = !!(shell && shell.isPlaying()); }   // lobby only reachable when not mid-match
+    function setControlsForMatch() {
+        var playing = !!(shell && shell.isPlaying());
+        var ob = $('online-btn'); if (ob) ob.disabled = playing;       // lobby only reachable when not mid-match
+        var sb = $('settings-btn'); if (sb) sb.disabled = playing;      // settings deferred: edit before Start
+    }
     function updateOnlineBtn() { var b = $('online-btn'); if (b) b.hidden = !(net && net.ok); }
     function setupOnline() {
         function ready() {
@@ -481,7 +622,8 @@
         window.addEventListener('pointermove', onMove, { passive: false });
         window.addEventListener('pointerup', onUp);
         canvas.addEventListener('contextmenu', function (e) { e.preventDefault(); cancelDrag(); });
-        window.addEventListener('keydown', function (e) { if (e.key === 'Escape') cancelDrag(); });
+        window.addEventListener('keydown', function (e) { if (e.key === 'Escape') { if (setEl && !setEl.hidden) { closeSettings(); return; } cancelDrag(); } });
+        var sbtn = $('settings-btn'); if (sbtn) sbtn.addEventListener('click', openSettings);
 
         shell = AC.shell.create({
             gameId: 'carom', step: 1 / 60,
@@ -498,7 +640,7 @@
             },
         });
         setupOnline();
-        AC.i18n.subscribe(function () { syncHud(); if (!M) shell.refreshOverlay(); if (room && lobbyEl && !lobbyEl.hidden) renderLobby(); });
+        AC.i18n.subscribe(function () { syncHud(); if (!M) shell.refreshOverlay(); if (room && lobbyEl && !lobbyEl.hidden) renderLobby(); if (setEl && !setEl.hidden) renderSettings(); });
         world = E.create(cfg()); syncHud(); render();
     }
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();

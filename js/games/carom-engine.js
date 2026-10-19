@@ -29,29 +29,38 @@
         return pts;
     }
 
-    // cfg (all optional): W,H, goalW, players, friction, wallRest,
+    // cfg (all optional): W,H, goalW, players, wallRest,
+    //   mu, kAir, playerFric, ballFric,
     //   playerR, ballR, playerMass, ballMass, playerRest, ballRest
+    //
+    // Friction model (see step): each body decelerates by
+    //     a = mu * fricMul            (Coulomb — constant, field-set, brings it to a TRUE stop)
+    //       + kAir * (r / m) * v^2    (air drag — grows with size/mass, so big+light "floats" to a stop)
+    // mu is the field's drag (ice<grass<sand); fricMul is per-body (ball rolls → <1; players grip → 1).
     function create(cfg) {
         cfg = cfg || {};
         var W = cfg.W || 552, H = cfg.H || 712;
         var w = {
             W: W, H: H,
             goalW: cfg.goalW || 180,
-            friction: cfg.friction != null ? cfg.friction : 0.045,   // fraction of velocity RETAINED per second (lower = more drag)
+            mu: cfg.mu != null ? cfg.mu : 2600,          // field Coulomb deceleration (px/s^2); lower = more slippery
+            kAir: cfg.kAir != null ? cfg.kAir : 7e-6,    // global air-drag coefficient (applied as kAir*(r/m)*v^2)
             rest: cfg.wallRest != null ? cfg.wallRest : 0.72,        // wall restitution
             players: clamp(cfg.players || 5, 2, 7),
             playerR: cfg.playerR || 19, ballR: cfg.ballR || 13,
             playerMass: cfg.playerMass || 1.0, ballMass: cfg.ballMass || 0.55,
             playerRest: cfg.playerRest != null ? cfg.playerRest : 0.55,
             ballRest: cfg.ballRest != null ? cfg.ballRest : 0.72,
+            playerFric: cfg.playerFric != null ? cfg.playerFric : 1.0,   // players grip the floor
+            ballFric: cfg.ballFric != null ? cfg.ballFric : 0.37,        // the ball rolls → far less floor friction
             bodies: [],
         };
         w.goalX0 = (W - w.goalW) / 2; w.goalX1 = (W + w.goalW) / 2;
         var slots = formation(w.players, W, H);
         // top team (1): formation as-is; bottom team (0): mirrored across the mid-line
-        slots.forEach(function (s) { w.bodies.push({ x: s.x, y: s.y, vx: 0, vy: 0, r: w.playerR, m: w.playerMass, rest: w.playerRest, team: 1, kind: 'player' }); });
-        slots.forEach(function (s) { w.bodies.push({ x: s.x, y: H - s.y, vx: 0, vy: 0, r: w.playerR, m: w.playerMass, rest: w.playerRest, team: 0, kind: 'player' }); });
-        w.ball = { x: W / 2, y: H / 2, vx: 0, vy: 0, r: w.ballR, m: w.ballMass, rest: w.ballRest, team: -1, kind: 'ball' };
+        slots.forEach(function (s) { w.bodies.push({ x: s.x, y: s.y, vx: 0, vy: 0, r: w.playerR, m: w.playerMass, rest: w.playerRest, fricMul: w.playerFric, team: 1, kind: 'player' }); });
+        slots.forEach(function (s) { w.bodies.push({ x: s.x, y: H - s.y, vx: 0, vy: 0, r: w.playerR, m: w.playerMass, rest: w.playerRest, fricMul: w.playerFric, team: 0, kind: 'player' }); });
+        w.ball = { x: W / 2, y: H / 2, vx: 0, vy: 0, r: w.ballR, m: w.ballMass, rest: w.ballRest, fricMul: w.ballFric, team: -1, kind: 'ball' };
         w.bodies.push(w.ball);
         return w;
     }
@@ -97,10 +106,16 @@
     }
 
     function step(w, dt) {                // advance one tick; returns 'top'|'bottom'|null
-        var b = w.bodies, n = b.length, goal = null, damp = Math.pow(w.friction, dt), i, j, it, o;
+        var b = w.bodies, n = b.length, goal = null, i, j, it, o;
         for (i = 0; i < n; i++) {
             o = b[i];
-            o.vx *= damp; o.vy *= damp;
+            var sp = Math.sqrt(o.vx * o.vx + o.vy * o.vy);
+            if (sp > 0) {
+                // Coulomb (field μ × this body's fric) + quadratic air drag (grows with r/m and v²)
+                var dec = (w.mu * o.fricMul + w.kAir * (o.r / o.m) * sp * sp) * dt;
+                var ns = sp - dec; if (ns < 0) ns = 0;               // clamp → true stop, never reverses
+                var k = ns / sp; o.vx *= k; o.vy *= k;
+            }
             o.x += o.vx * dt; o.y += o.vy * dt;
             var g = wall(w, o); if (g) goal = g;
         }
