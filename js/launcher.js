@@ -114,6 +114,9 @@
             signIn: 'Sign in',
             signOut: 'Sign out',
             account: 'Account',
+            claimMsg: 'Add this device\u2019s scores to your account?',
+            claimYes: 'Add them',
+            claimNo: 'No thanks',
             playable: 'Playable',
             wip: 'WIP',
             wipGateMsg: 'This one is still being built \u2014 it isn\u2019t open yet.',
@@ -183,6 +186,9 @@
             signIn: '登入',
             signOut: '登出',
             account: '帳號',
+            claimMsg: '把這台裝置的成績歸入你的帳號？',
+            claimYes: '歸入帳號',
+            claimNo: '不用',
             playable: '可玩',
             wip: '開發中',
             wipGateMsg: '這款還在開發中，還沒對外開放。',
@@ -516,6 +522,30 @@
         }, { once: true });
     }
 
+    // One-time "claim this device's guest scores into your account?" prompt, offered by
+    // CloudSync right after signing in when the guest drawer still holds records.
+    var claimShown = false;
+    function showClaimPrompt(doClaim) {
+        if (claimShown) return; claimShown = true;
+        var ov = document.createElement('div');
+        ov.className = 'wip-gate';
+        var card = document.createElement('div');
+        card.className = 'wip-gate-card';
+        card.setAttribute('role', 'dialog'); card.setAttribute('aria-modal', 'true');
+        var msg = document.createElement('p'); msg.className = 'wip-gate-msg'; msg.textContent = t('claimMsg');
+        var actions = document.createElement('div'); actions.className = 'wip-gate-actions';
+        var no = document.createElement('button'); no.type = 'button'; no.className = 'wip-gate-btn stay'; no.textContent = t('claimNo');
+        var yes = document.createElement('button'); yes.type = 'button'; yes.className = 'wip-gate-btn go'; yes.textContent = t('claimYes');
+        actions.appendChild(no); actions.appendChild(yes);
+        card.appendChild(msg); card.appendChild(actions); ov.appendChild(card);
+        function close() { ov.remove(); }
+        no.addEventListener('click', close);
+        yes.addEventListener('click', function () { try { doClaim(); } catch (e) { /* ignore */ } close(); });
+        ov.addEventListener('click', function (e) { if (e.target === ov) close(); });
+        document.body.appendChild(ov);
+        yes.focus();
+    }
+
     // Account control: hidden when cloud is unavailable; "Sign in" (Google) when signed
     // out; avatar + name + "Sign out" when signed in with a real account.
     function renderAccount(user) {
@@ -630,6 +660,8 @@
         whenNet(function (N) {
             if (N && N.ok && N.onAuth) N.onAuth(function (u) { accountUser = u; renderAccount(u); });
         });
+        // Offer to claim this device's guest scores into the account just signed in.
+        if (window.CloudSync) window.CloudSync.onClaimOffer(showClaimPrompt);
 
         renderAll();
         if (wipJustUnlocked) showToast(t('wipUnlockedToast'));

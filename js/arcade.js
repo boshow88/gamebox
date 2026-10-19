@@ -117,63 +117,9 @@
         writeJSON(key, { best: {}, recent: [], epoch: epoch });
     }
 
-    // --- Cloud high-score sync (optional) --------------------------------------
-    // When the player is signed in with a real (non-guest) account, mirror this
-    // device's high scores to their Firestore profile so they follow them across
-    // devices. Everything degrades silently when Firebase/ArcadeNet isn't present,
-    // so offline play and guests are unaffected.
-    function whenNet(cb) {
-        if (window.ArcadeNet) { cb(window.ArcadeNet); return; }
-        window.addEventListener('arcade-net-ready', function once() {
-            window.removeEventListener('arcade-net-ready', once); cb(window.ArcadeNet);
-        }, { once: true });
-    }
-    function cloudNet() { const N = window.ArcadeNet; return (N && N.ok && N.profile) ? N : null; }
-    function cloudAccount() { const N = cloudNet(); if (!N) return null; const u = N.currentUser(); return (u && !u.anon) ? u : null; }
-
-    // Merge a game's cloud bests into local (each mode takes the max both ways).
-    // Returns { localChanged, push } where `push` is the subset local holds higher.
-    function mergeCloudScores(game, cloudBests) {
-        const data = readJSON(scoreKey(game), { best: {}, recent: [] });
-        if (!data.best) data.best = {};
-        const prefix = game + ':';
-        let localChanged = false;
-        const push = {};
-        for (const k in (cloudBests || {})) {
-            if (k.indexOf(prefix) !== 0) continue;
-            const mode = k.slice(prefix.length);
-            const c = cloudBests[k] || 0;
-            if (c > (data.best[mode] || 0)) { data.best[mode] = c; localChanged = true; }
-        }
-        for (const mode in data.best) {
-            const l = data.best[mode] || 0;
-            if (l > ((cloudBests && cloudBests[prefix + mode]) || 0)) push[prefix + mode] = l;
-        }
-        if (localChanged) writeJSON(scoreKey(game), data);
-        return { localChanged, push };
-    }
-
-    // Pull the signed-in player's cloud bests, merge with local, push anything local
-    // holds higher. Resolves to whether the local store changed.
-    function cloudPullMerge(game) {
-        const acct = cloudAccount();
-        if (!acct) return Promise.resolve(false);
-        return cloudNet().profile.get(acct.uid).then((prof) => {
-            const res = mergeCloudScores(game, (prof && prof.bests) || {});
-            if (Object.keys(res.push).length) {
-                try { cloudNet().profile.save(acct.uid, { bests: res.push, name: acct.name || null }); } catch (e) { /* ignore */ }
-            }
-            return res.localChanged;
-        }).catch(() => false);
-    }
-
-    // Push one new best to the cloud (fire-and-forget).
-    function cloudPushBest(game, mode, best) {
-        const acct = cloudAccount();
-        if (!acct) return;
-        const key = game + ':' + (mode || 'default');
-        try { cloudNet().profile.save(acct.uid, { bests: { [key]: best }, name: acct.name || null }); } catch (e) { /* ignore */ }
-    }
+    // High-score cloud sync (per account, across devices) is handled by the shared
+    // CloudSync engine in js/cloud-sync.js. The shell just repaints when it swaps
+    // accounts / merges, and nudges a sync after a new best (see createShell / gameOver).
 
     // -----------------------------------------------------------------
     // Math / misc helpers
@@ -1066,7 +1012,7 @@
             lastResult.best = rec.best;
             lastResult.isNewBest = rec.isNewBest;
             refreshBest();
-            if (rec.isNewBest) cloudPushBest(gameId, modeFn(), rec.best);   // mirror to the signed-in profile
+            if (rec.isNewBest && window.CloudSync) window.CloudSync.sync();   // mirror the new best to the cloud profile
             if (typeof opts.onGameOver === 'function') opts.onGameOver(lastResult);
             audio.play(lastResult.win ? 'levelup' : 'gameover');
             showOverlay('over', lastResult);
@@ -1202,12 +1148,8 @@
         resetScoresIfStale(gameId, opts.scoreEpoch);   // one-time wipe if the game bumped its epoch
         refreshBest();
 
-        // Pull cloud high scores once auth is known, and again on sign-in/out.
-        whenNet(function (N) {
-            if (N && N.ok && N.onAuth) {
-                N.onAuth(function () { cloudPullMerge(gameId).then(function (changed) { if (changed) refreshBest(); }); });
-            }
-        });
+        // Repaint the Best readout whenever CloudSync swaps accounts or merges cloud data.
+        if (window.CloudSync) window.CloudSync.onApplied(refreshBest);
         syncButtons();
         syncSoundBtn();
         showOverlay('idle');

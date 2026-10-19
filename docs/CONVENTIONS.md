@@ -87,21 +87,29 @@ Reference: `js/puzzle.js` → `syncSizeButtons` (`.size-readout`), and
 ## Accounts & cloud sync
 
 Sign-in is **Google-only**, via `ArcadeNet` (`js/net/net.js`), surfaced globally on
-the launcher. A signed-in (non-guest) player's records sync to Firestore
-`profiles/{uid}`:
+the launcher. One shared engine — `js/cloud-sync.js` (`window.CloudSync`) — does
+everything; it loads on the launcher and every arcade game (right after `net/net.js`).
 
-- **Generic high scores** — games that submit a numeric score through the arcade
-  shell — live at `profiles/{uid}.bests["<gameId>:<mode>"]` and are max-merged
-  automatically by `js/arcade.js`. Nothing per-game to write.
-- **Bespoke records** get a small per-game adapter that owns its own profile
-  sub-field, e.g. `beam` (best finishing place per difficulty, **min**-merged) and
-  `runeStones` (Sandbag best total / single-spin per difficulty, **max**-merged).
-- Sync only **monotonic bests** (a max or a min). Leave cumulative counts (plays,
-  wins) device-local — they don't merge cleanly across devices.
-- On sign-in: pull → merge both ways → push anything local holds better. Everything
-  is guarded, so **guests and offline play are unaffected**.
-- A game that syncs must load `firebase-config.js` + `net/net.js`, and
-  `firestore.rules` must allow `profiles/{uid}` for its owner.
+- **Per-account "drawers".** Local records are kept per identity (guest / each uid).
+  Only the signed-in identity's drawer is live (what games read); CloudSync swaps the
+  live keys' contents on auth change and mirrors a real account's drawer to Firestore
+  `profiles/{uid}`. So accounts never bridge through the shared device store, and
+  signing in on the launcher syncs **all** games at once.
+- **Descriptors** (in `cloud-sync.js`) define each record family: how to read/write
+  its slice of the game's own localStorage, how to merge two record objects (per
+  field **max** for scores, **min** for ranks/rounds), and how it maps to the profile
+  doc. Current families: generic high scores (`bests["<game>:<mode>"]`), Beam
+  (`beam["<notch>"]`), Rune Stones Sandbag (`runeStones["<level>"]`).
+- Sync only **monotonic bests** (a max or a min). Cumulative counts (plays, wins)
+  stay device-local — they don't merge cleanly.
+- **Guest → account** is a one-time **claim** (move, not copy): accepting moves the
+  guest drawer into the account and empties it, so the same guest scores can't later
+  seed a second account.
+- Games stay out of it — they just `CloudSync.onApplied(repaint)` and call
+  `CloudSync.sync()` after writing a new best. Everything is guarded, so **guests and
+  offline play are unaffected**.
+- A game that syncs must load `firebase-config.js` + `net/net.js` + `cloud-sync.js`,
+  and `firestore.rules` must allow `profiles/{uid}` for its owner.
 
 ## Git & local dev
 
