@@ -454,6 +454,40 @@ button { font-family: inherit; cursor: pointer; }
     line-height: 1.6;
 }
 
+/* Scrollable list of games inside a dialog (the claim prompt). */
+.wip-gate-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    max-height: 168px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    text-align: left;
+}
+.wip-gate-list li {
+    padding: 8px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    font-size: 0.92rem;
+}
+
+/* Fine-print detail lines under a dialog's headline (e.g. the claim prompt). */
+.wip-gate-note {
+    margin: calc(-1 * var(--space-sm)) 0 0;
+    padding-left: 1.1em;
+    text-align: left;
+    color: var(--text-secondary);
+    font-size: 0.82rem;
+    line-height: 1.5;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
 .wip-gate-actions {
     display: flex;
     gap: var(--space-sm);

@@ -532,7 +532,7 @@
     function setDifficulty(d) {
         if (!DIFFICULTIES[d] || d === staged) return;
         staged = d;
-        AC.prefs.set('ladder-connect', { difficulty: d });
+        AC.prefs.set('colour-ladder', { difficulty: d });
         if (shell && shell.state === 'idle') {
             // On the ready screen, apply immediately so the frozen preview
             // (and the scene Start will play) matches the chosen difficulty.
@@ -927,7 +927,7 @@
 
     function init() {
         // Difficulty from prefs (default easy).
-        const pref = AC.prefs.get('ladder-connect');
+        const pref = AC.prefs.get('colour-ladder');
         staged = DIFFICULTIES[pref.difficulty] ? pref.difficulty : 'easy';
         G.difficulty = staged;
 
@@ -935,7 +935,7 @@
         window.addEventListener('resize', () => { fitCanvas(); render(); });
 
         shell = AC.shell.create({
-            gameId: 'ladder-connect',
+            gameId: 'colour-ladder',
             mode: () => G.difficulty,   // high scores are per-difficulty
             scoreEpoch: 20261009,       // bump this (e.g. to today's date) to reset everyone's bests once
             step: 1 / 60,

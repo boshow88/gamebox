@@ -114,7 +114,9 @@
             signIn: 'Sign in',
             signOut: 'Sign out',
             account: 'Account',
-            claimMsg: 'Add this device\u2019s scores to your account?',
+            claimTitle: 'Add these games\u2019 scores to your account?',
+            claimNote1: 'These are games your account doesn\u2019t have yet but this device has records for.',
+            claimNote2: 'They\u2019ll be bound to this account and synced to your devices (hidden once you sign out). Each game is claimed only once; games you\u2019ve already played are left untouched.',
             claimYes: 'Add them',
             claimNo: 'No thanks',
             playable: 'Playable',
@@ -186,7 +188,9 @@
             signIn: '登入',
             signOut: '登出',
             account: '帳號',
-            claimMsg: '把這台裝置的成績歸入你的帳號？',
+            claimTitle: '把這些遊戲的成績歸入你的帳號？',
+            claimNote1: '這些是你的帳號還沒有、但這台裝置上有紀錄的遊戲。',
+            claimNote2: '歸入後會綁定在此帳號並同步到你的其他裝置，登出後就不會再顯示；每個遊戲只歸入一次，已經玩過的不受影響。',
             claimYes: '歸入帳號',
             claimNo: '不用',
             playable: '可玩',
@@ -522,25 +526,31 @@
         }, { once: true });
     }
 
-    // One-time "claim this device's guest scores into your account?" prompt, offered by
-    // CloudSync right after signing in when the guest drawer still holds records.
+    // "Claim this device's scores?" prompt, offered by CloudSync at sign-in. `offer`
+    // is { games: [displayId], claim: fn }: the games the account doesn't have yet but
+    // this device does. We list them (scrollable if many) and move them all on accept.
     var claimShown = false;
-    function showClaimPrompt(doClaim) {
-        if (claimShown) return; claimShown = true;
+    function gameName(id) { var n = t(id + '_name'); return (n === id + '_name') ? id : n; }
+    function showClaimPrompt(offer) {
+        if (claimShown || !offer || !offer.games || !offer.games.length) return; claimShown = true;
         var ov = document.createElement('div');
         ov.className = 'wip-gate';
         var card = document.createElement('div');
         card.className = 'wip-gate-card';
         card.setAttribute('role', 'dialog'); card.setAttribute('aria-modal', 'true');
-        var msg = document.createElement('p'); msg.className = 'wip-gate-msg'; msg.textContent = t('claimMsg');
+        var msg = document.createElement('p'); msg.className = 'wip-gate-msg'; msg.textContent = t('claimTitle');
+        var list = document.createElement('ul'); list.className = 'wip-gate-list';
+        offer.games.forEach(function (id) { var li = document.createElement('li'); li.textContent = gameName(id); list.appendChild(li); });
+        var note = document.createElement('ul'); note.className = 'wip-gate-note';
+        [t('claimNote1'), t('claimNote2')].forEach(function (line) { var li = document.createElement('li'); li.textContent = line; note.appendChild(li); });
         var actions = document.createElement('div'); actions.className = 'wip-gate-actions';
         var no = document.createElement('button'); no.type = 'button'; no.className = 'wip-gate-btn stay'; no.textContent = t('claimNo');
         var yes = document.createElement('button'); yes.type = 'button'; yes.className = 'wip-gate-btn go'; yes.textContent = t('claimYes');
         actions.appendChild(no); actions.appendChild(yes);
-        card.appendChild(msg); card.appendChild(actions); ov.appendChild(card);
+        card.appendChild(msg); card.appendChild(list); card.appendChild(note); card.appendChild(actions); ov.appendChild(card);
         function close() { ov.remove(); }
         no.addEventListener('click', close);
-        yes.addEventListener('click', function () { try { doClaim(); } catch (e) { /* ignore */ } close(); });
+        yes.addEventListener('click', function () { try { offer.claim(); } catch (e) { /* ignore */ } close(); });
         ov.addEventListener('click', function (e) { if (e.target === ov) close(); });
         document.body.appendChild(ov);
         yes.focus();

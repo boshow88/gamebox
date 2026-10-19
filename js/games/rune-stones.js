@@ -1902,13 +1902,13 @@
     // Sandbag bests are kept PER DIFFICULTY (easy/normal/hard), like the duel bests.
     // Reads default to the selected (staged) difficulty so the HUD updates the
     // moment you switch the difficulty seg; writes use the run's committed level.
-    function sandPrefs(level) { try { const sb = (AC.prefs.get('rune-clash') || {}).sandbox || {}; return sb[level || staged] || {}; } catch (e) { return {}; } }
-    function setSandBest(level, patch) { try { const p = AC.prefs.get('rune-clash') || {}; const sb = Object.assign({}, p.sandbox); sb[level] = Object.assign({}, sb[level], patch); AC.prefs.set('rune-clash', { sandbox: sb }); } catch (e) { /* ignore */ } }
+    function sandPrefs(level) { try { const sb = (AC.prefs.get('rune-stones') || {}).sandbox || {}; return sb[level || staged] || {}; } catch (e) { return {}; } }
+    function setSandBest(level, patch) { try { const p = AC.prefs.get('rune-stones') || {}; const sb = Object.assign({}, p.sandbox); sb[level] = Object.assign({}, sb[level], patch); AC.prefs.set('rune-stones', { sandbox: sb }); } catch (e) { /* ignore */ } }
     function recordSandSpin(v) { G.sandSpinRun = Math.max(G.sandSpinRun || 0, v); const sb = sandPrefs(G.aiLevel); if (sb.bestSpin == null || v > sb.bestSpin) { setSandBest(G.aiLevel, { bestSpin: v }); if (window.CloudSync) window.CloudSync.sync(); } }
     function recordSandTotal(v) { const sb = sandPrefs(G.aiLevel); if (sb.bestTotal == null || v > sb.bestTotal) { setSandBest(G.aiLevel, { bestTotal: v }); if (window.CloudSync) window.CloudSync.sync(); } }
-    function recordDuelSpin(v) { if (!v) return; try { const p = AC.prefs.get('rune-clash') || {}; const bs = Object.assign({}, p.bestSpin); if (bs[G.aiLevel] == null || v > bs[G.aiLevel]) { bs[G.aiLevel] = v; AC.prefs.set('rune-clash', { bestSpin: bs }); } } catch (e) { /* ignore */ } }
-    function duelBestRounds() { try { const v = (AC.prefs.get('rune-clash') || {}).bestRounds; return v && typeof v[staged] === 'number' ? v[staged] : null; } catch (e) { return null; } }
-    function duelBestSpin() { try { const v = (AC.prefs.get('rune-clash') || {}).bestSpin; return v && typeof v[staged] === 'number' ? v[staged] : null; } catch (e) { return null; } }
+    function recordDuelSpin(v) { if (!v) return; try { const p = AC.prefs.get('rune-stones') || {}; const bs = Object.assign({}, p.bestSpin); if (bs[G.aiLevel] == null || v > bs[G.aiLevel]) { bs[G.aiLevel] = v; AC.prefs.set('rune-stones', { bestSpin: bs }); } } catch (e) { /* ignore */ } }
+    function duelBestRounds() { try { const v = (AC.prefs.get('rune-stones') || {}).bestRounds; return v && typeof v[staged] === 'number' ? v[staged] : null; } catch (e) { return null; } }
+    function duelBestSpin() { try { const v = (AC.prefs.get('rune-stones') || {}).bestSpin; return v && typeof v[staged] === 'number' ? v[staged] : null; } catch (e) { return null; } }
 
     // (Cloud sync of the Sandbag bests is handled by the shared CloudSync engine —
     // see js/cloud-sync.js. This file just nudges a sync on a new record and repaints.)
@@ -3101,8 +3101,8 @@
     // and records nothing. The HUD columns are rebuilt per mode (see rebuildHud / updateHud).
     function recordAiWin(rounds) {
         try {
-            const p = AC.prefs.get('rune-clash') || {}, br = Object.assign({}, p.bestRounds);
-            if (br[G.aiLevel] == null || rounds < br[G.aiLevel]) { br[G.aiLevel] = rounds; AC.prefs.set('rune-clash', { bestRounds: br }); }
+            const p = AC.prefs.get('rune-stones') || {}, br = Object.assign({}, p.bestRounds);
+            if (br[G.aiLevel] == null || rounds < br[G.aiLevel]) { br[G.aiLevel] = rounds; AC.prefs.set('rune-stones', { bestRounds: br }); }
         } catch (e) { /* ignore */ }
     }
     function updateHud() {
@@ -3366,13 +3366,13 @@
     function setDifficulty(d) {
         if (!AI_LEVELS[d] || d === staged) return;
         staged = d;
-        try { AC.prefs.set('rune-clash', { difficulty: d }); } catch (e) { /* ignore */ }
+        try { AC.prefs.set('rune-stones', { difficulty: d }); } catch (e) { /* ignore */ }
         if (shell && shell.state === 'idle') { resetRun(); render(); shell.refreshOverlay(); }   // ready screen → apply now (incl. the ready message)
         else { syncDiffButtons(); updateHud(); }                         // mid-run → stage for next run
     }
     function setupDifficulty() {
         const seg = document.getElementById('difficulty-seg'); if (!seg) return;
-        let saved = null; try { saved = (AC.prefs.get('rune-clash') || {}).difficulty; } catch (e) { /* ignore */ }
+        let saved = null; try { saved = (AC.prefs.get('rune-stones') || {}).difficulty; } catch (e) { /* ignore */ }
         staged = AI_LEVELS[saved] ? saved : 'normal';
         G.aiLevel = staged;
         seg.addEventListener('click', (e) => { const btn = e.target.closest('button[data-diff]'); if (btn) { AC.audio.unlock(); setDifficulty(btn.dataset.diff); } });
@@ -3397,13 +3397,13 @@
     function setMode(m) {
         if ((m !== 'duel' && m !== 'sandbox') || m === stagedMode) return;
         stagedMode = m;
-        try { AC.prefs.set('rune-clash', { mode: m }); } catch (e) { /* ignore */ }
+        try { AC.prefs.set('rune-stones', { mode: m }); } catch (e) { /* ignore */ }
         if (shell && shell.state === 'idle') { resetRun(); render(); shell.refreshOverlay(); }   // ready screen → apply now (incl. the ready message)
         else { syncModeButtons(); rebuildHelp(); }                       // mid-run → stage for next run
     }
     function setupMode() {
         const seg = document.getElementById('mode-seg'); if (!seg) return;
-        let saved = null; try { saved = (AC.prefs.get('rune-clash') || {}).mode; } catch (e) { /* ignore */ }
+        let saved = null; try { saved = (AC.prefs.get('rune-stones') || {}).mode; } catch (e) { /* ignore */ }
         stagedMode = (saved === 'duel') ? 'duel' : 'sandbox';   // first visit defaults to Sandbag; a saved choice wins
         G.mode = stagedMode;
         seg.addEventListener('click', (e) => { const btn = e.target.closest('button[data-mode]'); if (btn) { AC.audio.unlock(); setMode(btn.dataset.mode); } });
@@ -3416,7 +3416,7 @@
         setupDifficulty();
         window.addEventListener('resize', () => { fitCanvas(); markDirty(); render(); });
         shell = AC.shell.create({
-            gameId: 'rune-clash',
+            gameId: 'rune-stones',
             mode: () => 'clash',
             step: 1 / 60,
             preventKeys: ['Space'],

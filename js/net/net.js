@@ -145,6 +145,7 @@ function fail(err) {
         // reliably, for free, next time anyone uses the app. Live games refresh
         // lastActionAt every round, so they're never collected mid-match.
         async function cleanupStaleRooms(maxAgeMs) {
+            if (!user) return 0;   // not signed in yet — the query would be denied; it'll run later once auth lands
             try {
                 const cutoff = new Date(Date.now() - (maxAgeMs || 5 * 60 * 1000));
                 const snap = await getDocs(query(collection(db, ROOMS), where('lastActionAt', '<', cutoff)));

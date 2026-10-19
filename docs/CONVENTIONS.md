@@ -90,11 +90,12 @@ Sign-in is **Google-only**, via `ArcadeNet` (`js/net/net.js`), surfaced globally
 the launcher. One shared engine — `js/cloud-sync.js` (`window.CloudSync`) — does
 everything; it loads on the launcher and every arcade game (right after `net/net.js`).
 
-- **Per-account "drawers".** Local records are kept per identity (guest / each uid).
-  Only the signed-in identity's drawer is live (what games read); CloudSync swaps the
-  live keys' contents on auth change and mirrors a real account's drawer to Firestore
-  `profiles/{uid}`. So accounts never bridge through the shared device store, and
-  signing in on the launcher syncs **all** games at once.
+- **Cloud is the source of truth for an account; the live keys are a working copy.**
+  Only the **guest** identity is cached locally (a single "guest drawer"). On sign-in
+  CloudSync stashes the guest's live records, **clears the live keys** (so guest
+  scores can't bleed into the account), then pulls the account from the cloud; on
+  sign-out it brings the guest drawer back. Accounts are never mirrored to a local
+  drawer. Signing in on the launcher syncs **all** games at once.
 - **Descriptors** (in `cloud-sync.js`) define each record family: how to read/write
   its slice of the game's own localStorage, how to merge two record objects (per
   field **max** for scores, **min** for ranks/rounds), and how it maps to the profile
@@ -102,9 +103,12 @@ everything; it loads on the launcher and every arcade game (right after `net/net
   (`beam["<notch>"]`), Rune Stones Sandbag (`runeStones["<level>"]`).
 - Sync only **monotonic bests** (a max or a min). Cumulative counts (plays, wins)
   stay device-local — they don't merge cleanly.
-- **Guest → account** is a one-time **claim** (move, not copy): accepting moves the
-  guest drawer into the account and empties it, so the same guest scores can't later
-  seed a second account.
+- **Guest → account** is a per-game **claim** (move, not copy), offered only at the
+  moment of signing in and only for games the account doesn't have yet but the device
+  does. Accepting merges just those games in, pushes, and drops them from the guest
+  drawer; games the account already has are left in the drawer untouched. Because
+  "already has the game" is the gate, a game is claimable into a given account **at
+  most once**. Declining or ignoring the prompt just waits until the next sign-in.
 - Games stay out of it — they just `CloudSync.onApplied(repaint)` and call
   `CloudSync.sync()` after writing a new best. Everything is guarded, so **guests and
   offline play are unaffected**.

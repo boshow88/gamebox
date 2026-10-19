@@ -3,21 +3,26 @@
  *
  * The problem it solves: local records live in localStorage keyed by DEVICE, so
  * without care they'd bridge accounts (play 10000 as guest → sign in A → A gets
- * 10000 → sign in B → B also gets 10000). CloudSync gives each identity its own
- * "drawer": guest, account A, account B each keep a separate copy of the device's
- * records; only the signed-in identity's drawer is "live" (what the games read),
- * and it mirrors to Firestore `profiles/{uid}` so it follows the player across
- * devices.
+ * 10000 → sign in B → B also gets 10000). CloudSync keeps the guest's records in
+ * their own local "drawer" and CLEARS the live keys on sign-in, so an account only
+ * ever holds what came from the cloud (plus an explicit per-game claim). A signed-in
+ * account mirrors to Firestore `profiles/{uid}` and follows the player across devices.
  *
- * Design — "swap the live drawer on auth change" (games keep reading the SAME
- * keys; this module swaps their contents):
- *   1. On auth change, snapshot the current live records under the identity that
- *      was active, load the incoming identity's snapshot into the live keys, then
- *      (for a real account) merge with the cloud and push anything local holds
- *      higher.
- *   2. Games register `CloudSync.onApplied(refresh)` to repaint, and call
+ * Design — the live localStorage keys are the WORKING copy; the cloud profile is the
+ * source of truth for a signed-in account. Only the guest identity is cached locally
+ * (a single "guest drawer"); accounts are never mirrored to a local drawer.
+ *   1. Sign in: stash the guest's live records in the guest drawer, CLEAR the live
+ *      keys (so guest scores never bleed into the account), then pull the account
+ *      from the cloud into the live keys. Sign out: bring the guest drawer back.
+ *   2. At sign-in, any games the account doesn't have yet but the device does are
+ *      offered as a claim (move, not copy): accepting merges just those games in,
+ *      pushes, and drops them from the guest drawer; games the account already has
+ *      are left alone. "Already has the game" is the gate, so a game is claimable
+ *      into a given account at most once. The prompt appears only at sign-in, so
+ *      declining (or ignoring) it won't reappear until the next sign-in.
+ *   3. Games register `CloudSync.onApplied(refresh)` to repaint, and call
  *      `CloudSync.sync()` after setting a new best so it reaches the cloud.
- *   3. Because this module also loads on the launcher, signing in there runs every
+ *   4. Because this module also loads on the launcher, signing in there runs every
  *      descriptor at once — a single login syncs all games.
  *
  * Guests and offline are unaffected: everything is guarded and the cloud layer
@@ -31,8 +36,8 @@
     'use strict';
 
     var PREFIX = 'arcadeGames';
-    var ACTIVE_KEY = PREFIX + ':activeScope';     // which identity the live keys currently hold
-    var BUCKET = PREFIX + ':bucket:';             // per-identity snapshot of records
+    var ACTIVE_KEY = PREFIX + ':activeScope';     // which identity the live keys currently hold ('guest' or a uid)
+    var BUCKET = PREFIX + ':bucket:';             // guest drawer only (BUCKET+'guest'); accounts live in the cloud
 
     function rd(key, fb) { try { var r = localStorage.getItem(key); return r == null ? fb : JSON.parse(r); } catch (e) { return fb; } }
     function wr(key, v) { try { localStorage.setItem(key, JSON.stringify(v)); } catch (e) { /* ignore */ } }
@@ -59,7 +64,10 @@
     var DESCRIPTORS = [];
 
     // (1) Generic arcade high scores — the `best` map of every arcadeGames:scores:<game>
-    // key. Cloud field: bests["<game>:<mode>"] (max).
+    // key. Cloud field: bests["<game>:<mode>"] (max). A couple of games keep a scores
+    // key for shell bookkeeping but own a bespoke descriptor below (Beam, and Rune
+    // Stones' Sandbag) — EXCLUDE stops them being counted or offered twice.
+    var EXCLUDE = { 'beam': 1, 'rune-stones': 1 };
     function scoreGames() {
         var out = [], p = PREFIX + ':scores:';
         for (var i = 0; i < localStorage.length; i++) {
@@ -71,23 +79,28 @@
     DESCRIPTORS.push({
         read: function () {
             var o = {};
-            scoreGames().forEach(function (g) { var d = rd(PREFIX + ':scores:' + g, null); if (d && d.best && !isEmpty(d.best)) o[g] = d.best; });
+            scoreGames().forEach(function (g) { if (EXCLUDE[g]) return; var d = rd(PREFIX + ':scores:' + g, null); if (d && d.best && !isEmpty(d.best)) o[g] = d.best; });
             return o;
         },
         write: function (obj) {
-            // union of games currently present and those in obj, so a restore can
-            // both set and clear.
-            var games = {}; scoreGames().forEach(function (g) { games[g] = 1; }); Object.keys(obj || {}).forEach(function (g) { games[g] = 1; });
+            // union of present games (bespoke ones excluded) and those in obj, so a
+            // restore can both set and clear.
+            var games = {}; scoreGames().forEach(function (g) { if (!EXCLUDE[g]) games[g] = 1; }); Object.keys(obj || {}).forEach(function (g) { games[g] = 1; });
             Object.keys(games).forEach(function (g) {
                 var key = PREFIX + ':scores:' + g, d = rd(key, { best: {}, recent: [] }) || { best: {}, recent: [] };
                 d.best = (obj && obj[g]) || {};
                 wr(key, d);
             });
         },
+        // clear() wipes ALL scores keys (incl. the excluded ones) so a sign-in can't
+        // leave stale guest bests behind anywhere.
         clear: function () { scoreGames().forEach(function (g) { var key = PREFIX + ':scores:' + g, d = rd(key, null); if (d) { d.best = {}; wr(key, d); } }); },
         merge: function (a, b) { var out = {}, g; for (g in (a || {})) out[g] = a[g]; for (g in (b || {})) out[g] = mergeMap(out[g], b[g], Math.max); return out; },
+        listGames: function (recs) { return Object.keys(recs || {}).map(function (g) { return { key: g, display: g }; }); },
+        subset: function (recs, keys) { var o = {}; Object.keys(recs || {}).forEach(function (g) { if (keys[g]) o[g] = recs[g]; }); return o; },
+        without: function (recs, keys) { var o = {}; Object.keys(recs || {}).forEach(function (g) { if (!keys[g]) o[g] = recs[g]; }); return o; },
         toProfile: function (obj) { var bests = {}; Object.keys(obj || {}).forEach(function (g) { var m = obj[g]; Object.keys(m).forEach(function (mode) { bests[g + ':' + mode] = m[mode]; }); }); return { bests: bests }; },
-        fromProfile: function (prof) { var o = {}, bests = (prof && prof.bests) || {}; Object.keys(bests).forEach(function (key) { var i = key.lastIndexOf(':'); if (i < 0) return; var g = key.slice(0, i), mode = key.slice(i + 1); (o[g] = o[g] || {})[mode] = bests[key]; }); return o; },
+        fromProfile: function (prof) { var o = {}, bests = (prof && prof.bests) || {}; Object.keys(bests).forEach(function (key) { var i = key.lastIndexOf(':'); if (i < 0) return; var g = key.slice(0, i), mode = key.slice(i + 1); if (EXCLUDE[g]) return; (o[g] = o[g] || {})[mode] = bests[key]; }); return o; },
     });
 
     // (2) Beam — best finishing place per difficulty notch (lower is better).
@@ -97,6 +110,9 @@
         read: function () { var o = {}; for (var n = 0; n < 32; n++) { var st = rd(beamKey(n), null); if (st && st.best) o[n] = st; } return o; },
         write: function (obj) { for (var n = 0; n < 32; n++) { var k = beamKey(n); if (obj && obj[n]) wr(k, obj[n]); } },
         clear: function () { for (var n = 0; n < 32; n++) del(beamKey(n)); },
+        listGames: function (recs) { return isEmpty(recs) ? [] : [{ key: 'beam', display: 'beam' }]; },
+        subset: function (recs, keys) { return keys['beam'] ? (recs || {}) : {}; },
+        without: function (recs, keys) { return keys['beam'] ? {} : (recs || {}); },
         merge: function (a, b) {
             var out = {}, n; for (n in (a || {})) out[n] = Object.assign({}, a[n]);
             for (n in (b || {})) {
@@ -115,11 +131,14 @@
 
     // (3) Rune Stones — Sandbag bests (max) live in the prefs blob alongside device
     // settings, so we touch only the record fields. Cloud: runeStones["<level>"] = {total,spin}.
-    var RK = PREFIX + ':prefs:rune-clash';
+    var RK = PREFIX + ':prefs:rune-stones';
     DESCRIPTORS.push({
         read: function () { var p = rd(RK, {}) || {}; var o = {}; if (p.sandbox) o.sandbox = p.sandbox; if (p.bestRounds) o.bestRounds = p.bestRounds; if (p.bestSpin) o.bestSpin = p.bestSpin; return o; },
         write: function (obj) { var p = rd(RK, {}) || {}; p.sandbox = (obj && obj.sandbox) || {}; p.bestRounds = (obj && obj.bestRounds) || {}; p.bestSpin = (obj && obj.bestSpin) || {}; wr(RK, p); },
         clear: function () { var p = rd(RK, null); if (!p) return; delete p.sandbox; delete p.bestRounds; delete p.bestSpin; wr(RK, p); },
+        listGames: function (recs) { recs = recs || {}; var has = !isEmpty(recs.sandbox || {}) || !isEmpty(recs.bestRounds || {}) || !isEmpty(recs.bestSpin || {}); return has ? [{ key: 'rune-stones', display: 'rune-stones' }] : []; },
+        subset: function (recs, keys) { return keys['rune-stones'] ? (recs || {}) : {}; },
+        without: function (recs, keys) { return keys['rune-stones'] ? {} : (recs || {}); },
         merge: function (a, b) {
             a = a || {}; b = b || {};
             var sandbox = {}, lv; var la = a.sandbox || {}, lb = b.sandbox || {};
@@ -145,15 +164,17 @@
     function bucketHasRecords(scope) { var a = bucketGet(scope); return !!(a && a.some(function (r) { return !isEmpty(r); })); }
 
     // --- state + callbacks -----------------------------------------------------
-    var appliedCbs = [], claimCbs = [];
+    var appliedCbs = [], claimCbs = [], claimOffered = false, pendingOffer = null;
     function fireApplied() { appliedCbs.forEach(function (fn) { try { fn(); } catch (e) { /* ignore */ } }); }
     function net() { var N = window.ArcadeNet; return (N && N.ok && N.profile) ? N : null; }
     function account() { var N = net(); if (!N) return null; var u = N.currentUser(); return (u && !u.anon) ? u : null; }
+    function liveScope() { return localStorage.getItem(ACTIVE_KEY) || 'guest'; }
+    function setLiveScope(s) { try { localStorage.setItem(ACTIVE_KEY, s); } catch (e) { /* ignore */ } }
 
     // Pull the signed-in profile, merge both ways into the live keys, push anything
-    // local holds better. No-op for guests/offline.
-    function sync() {
-        var acct = account(); if (!acct) return Promise.resolve(false);
+    // local holds better. Resolves with the profile doc (or null). No-op for guests.
+    function pullMergePush() {
+        var acct = account(); if (!acct) return Promise.resolve(null);
         var N = net();
         return N.profile.get(acct.uid).then(function (prof) {
             var pushFrag = {}, changed = false;
@@ -166,34 +187,75 @@
             });
             if (Object.keys(pushFrag).length) { try { N.profile.save(acct.uid, Object.assign(pushFrag, { name: acct.name || null })); } catch (e) { /* ignore */ } }
             if (changed) fireApplied();
-            return changed;
-        }).catch(function () { return false; });
+            return prof || {};
+        }).catch(function () { return null; });
+    }
+    function sync() { return pullMergePush().then(function (prof) { return !!prof; }); }
+
+    // Which of the guest drawer's games does the signed-in account NOT have yet? Those
+    // are the only ones worth claiming ("has a game" = any record for it, so a game is
+    // claimable into a given account at most once). Returns [{ i, key, display }].
+    function computeOffers() {
+        var guest = bucketGet('guest'); if (!guest) return [];
+        var offers = [];
+        DESCRIPTORS.forEach(function (d, i) {
+            var acctKeys = {}; d.listGames(d.read()).forEach(function (x) { acctKeys[x.key] = 1; });
+            d.listGames(guest[i] || {}).forEach(function (x) { if (!acctKeys[x.key]) offers.push({ i: i, key: x.key, display: x.display }); });
+        });
+        return offers;
     }
 
-    // Move the guest drawer's records into the current account (claim), then empty
-    // the guest drawer so it can't seed another account later.
-    function claim() {
-        var acct = account(); if (!acct) return;
-        var guest = bucketGet('guest'); if (!guest) return;
-        DESCRIPTORS.forEach(function (d, i) { var g = guest[i]; if (g && !isEmpty(g)) d.write(d.merge(d.read(), g)); });
-        del(BUCKET + 'guest');
+    // Claim = MOVE the offered games from the guest drawer into the account: merge them
+    // into the live keys, push, then drop just those games from the drawer. Games the
+    // account already had are left in the drawer untouched.
+    function doClaim(offers) {
+        if (!account() || !offers || !offers.length) return;
+        var guest = bucketGet('guest') || [];
+        var byDesc = {}; offers.forEach(function (o) { (byDesc[o.i] = byDesc[o.i] || {})[o.key] = 1; });
+        DESCRIPTORS.forEach(function (d, i) {
+            var keys = byDesc[i]; if (!keys) return;
+            var moved = d.subset(guest[i] || {}, keys);
+            if (isEmpty(moved)) return;
+            d.write(d.merge(d.read(), moved));
+            guest[i] = d.without(guest[i] || {}, keys);
+        });
+        bucketSet('guest', guest);
+        pendingOffer = null;
         fireApplied();
         sync();
     }
 
+    // Offer the per-game claim at sign-in, for games the account lacks but the device
+    // has. Remembered as `pendingOffer` so a listener that registers slightly later
+    // (the launcher) still receives it.
+    function maybeOfferClaim(prof) {
+        if (claimOffered || !prof) return;          // prof null = offline; try again next sign-in
+        var offers = computeOffers(); if (!offers.length) return;
+        claimOffered = true;
+        pendingOffer = { games: offers.map(function (o) { return o.display; }), claim: function () { doClaim(offers); } };
+        claimCbs.forEach(function (fn) { try { fn(pendingOffer); } catch (e) { /* ignore */ } });
+    }
+
     function onAuth(u) {
         var newScope = (u && !u.anon) ? u.uid : 'guest';
-        var active = localStorage.getItem(ACTIVE_KEY) || 'guest';
-        if (newScope !== active) {
-            bucketSet(active, snapshot());           // stash the outgoing identity's records
-            restore(bucketGet(newScope));            // swap in the incoming identity's records (or clear)
-            try { localStorage.setItem(ACTIVE_KEY, newScope); } catch (e) { /* ignore */ }
+        var cur = liveScope();
+        if (newScope === cur) {                     // same identity still live (reload / navigation)
+            if (newScope !== 'guest') pullMergePush();   // reconcile with the cloud; do NOT re-offer the claim
+            return;
+        }
+        // --- identity transition (an actual sign-in or sign-out) ---
+        claimOffered = false; pendingOffer = null;
+        if (cur === 'guest') bucketSet('guest', snapshot());   // keep the guest's records for later / for the claim
+        if (newScope === 'guest') {                 // signing out → bring the guest drawer back
+            restore(bucketGet('guest'));
+            setLiveScope('guest');
             fireApplied();
+            return;
         }
-        if (newScope !== 'guest') {
-            sync();
-            if (bucketHasRecords('guest')) claimCbs.forEach(function (fn) { try { fn(claim); } catch (e) { /* ignore */ } });
-        }
+        restore(null);                              // signing in → clear live so guest scores can't leak in
+        setLiveScope(newScope);
+        fireApplied();
+        pullMergePush().then(maybeOfferClaim);      // fill from the cloud, then maybe offer the per-game claim
     }
 
     function start() {
@@ -208,9 +270,8 @@
         onApplied: function (fn) { if (typeof fn === 'function') appliedCbs.push(fn); },
         // games: call after writing a new local best so it reaches the cloud
         sync: sync,
-        // launcher: be offered the one-time "claim this device's guest scores" action
-        onClaimOffer: function (fn) { if (typeof fn === 'function') claimCbs.push(fn); },
+        // launcher: receive the per-game claim offer, { games: [displayId], claim: fn }
+        onClaimOffer: function (fn) { if (typeof fn !== 'function') return; claimCbs.push(fn); if (pendingOffer) { try { fn(pendingOffer); } catch (e) { /* ignore */ } } },
         hasGuestRecords: function () { return bucketHasRecords('guest'); },
-        claim: claim,
     };
 })();
