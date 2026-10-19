@@ -128,6 +128,52 @@ button { font-family: inherit; cursor: pointer; }
 .lang-toggle button:hover { background: var(--bg-hover); color: var(--text-primary); }
 .lang-toggle button.active { background: var(--bg-hover); color: var(--text-primary); font-weight: 600; }
 
+/* ---------------- Account (sign-in) ---------------- */
+
+.account {
+    position: absolute;
+    top: 0;
+    left: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-sm);
+    max-width: 48%;
+}
+.account[hidden] { display: none; }
+
+.account-avatar {
+    width: 26px;
+    height: 26px;
+    border-radius: var(--radius-pill);
+    object-fit: cover;
+    border: 1px solid var(--border-color);
+}
+
+.account-name {
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+    max-width: 10ch;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.account-btn {
+    appearance: none;
+    padding: 6px 12px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-color);
+    background: var(--bg-elevated);
+    color: var(--text-secondary);
+    font-size: 0.78rem;
+    cursor: pointer;
+    transition: background var(--transition-fast), color var(--transition-fast),
+        border-color var(--transition-fast);
+}
+.account-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+.account-btn.primary { border-color: var(--accent); color: var(--accent); }
+.account-btn.primary:hover { background: var(--accent); color: var(--text-on-accent); }
+
 /* ---------------- Search ---------------- */
 
 .search-bar {
@@ -370,6 +416,7 @@ button { font-family: inherit; cursor: pointer; }
     .app-shell { padding: var(--space-xl) var(--space-md) var(--space-lg); }
     .app-title { font-size: 2rem; }
     .lang-toggle { position: static; display: inline-flex; margin-bottom: var(--space-md); }
+    .account { position: static; margin-bottom: var(--space-md); max-width: none; justify-content: center; }
     .app-header { text-align: center; }
 }
 

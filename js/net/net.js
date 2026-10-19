@@ -237,6 +237,12 @@ function fail(err) {
             signInGoogle() { return signInWithPopup(auth, new GoogleAuthProvider()); },
             signInGuest() { return signInAnonymously(auth); },
             signOut() { return signOut(auth); },
+            // per-user cloud profile — e.g. { bests: { "<gameId>:<mode>": score } } —
+            // so a signed-in player's high scores follow them across devices.
+            profile: {
+                get(uid) { return getDoc(doc(db, 'profiles', uid)).then((s) => (s.exists() ? s.data() : null)); },
+                save(uid, data) { return setDoc(doc(db, 'profiles', uid), Object.assign({ updatedAt: serverTimestamp() }, data), { merge: true }); },
+            },
             // rooms (1v1 — used by Rune Stones)
             createRoom, joinRoom, leaveRoom, deleteRoom, cleanupStaleRooms,
             watchRoom(code, cb) { return onSnapshot(roomRef(code), (s) => cb(s.exists() ? s.data() : null), (err) => cb(null, err)); },

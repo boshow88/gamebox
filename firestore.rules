@@ -11,6 +11,12 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // ---- Player profiles (per-user saved data, e.g. high scores synced across devices) ----
+    // A signed-in user may read/write only their own profile document.
+    match /profiles/{uid} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+
     // ---- Rune Stones rooms (room-code PvP; collection name kept as duel_rooms) ----
     // Honor-system MVP: any signed-in (anonymous) player may read/write rooms.
     // This is enough for playing with friends via a shared room code. It does

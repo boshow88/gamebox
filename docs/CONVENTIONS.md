@@ -84,6 +84,25 @@ Reference: `js/puzzle.js` → `syncSizeButtons` (`.size-readout`), and
 - Keep each game's in-game copy in the same voice as its siblings.
 - No emoji unless explicitly requested.
 
+## Accounts & cloud sync
+
+Sign-in is **Google-only**, via `ArcadeNet` (`js/net/net.js`), surfaced globally on
+the launcher. A signed-in (non-guest) player's records sync to Firestore
+`profiles/{uid}`:
+
+- **Generic high scores** — games that submit a numeric score through the arcade
+  shell — live at `profiles/{uid}.bests["<gameId>:<mode>"]` and are max-merged
+  automatically by `js/arcade.js`. Nothing per-game to write.
+- **Bespoke records** get a small per-game adapter that owns its own profile
+  sub-field, e.g. `beam` (best finishing place per difficulty, **min**-merged) and
+  `runeStones` (Sandbag best total / single-spin per difficulty, **max**-merged).
+- Sync only **monotonic bests** (a max or a min). Leave cumulative counts (plays,
+  wins) device-local — they don't merge cleanly across devices.
+- On sign-in: pull → merge both ways → push anything local holds better. Everything
+  is guarded, so **guests and offline play are unaffected**.
+- A game that syncs must load `firebase-config.js` + `net/net.js`, and
+  `firestore.rules` must allow `profiles/{uid}` for its owner.
+
 ## Git & local dev
 
 - Shell commands here are PowerShell: chain with `;`, not `&&`.

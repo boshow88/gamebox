@@ -111,6 +111,9 @@
         en: {
             subtitle: 'A collection of small games.',
             all: 'All',
+            signIn: 'Sign in',
+            signOut: 'Sign out',
+            account: 'Account',
             playable: 'Playable',
             wip: 'WIP',
             wipGateMsg: 'This one is still being built \u2014 it isn\u2019t open yet.',
@@ -177,6 +180,9 @@
         zh: {
             subtitle: '一個小遊戲合輯。',
             all: '全部',
+            signIn: '登入',
+            signOut: '登出',
+            account: '帳號',
             playable: '可玩',
             wip: '開發中',
             wipGateMsg: '這款還在開發中，還沒對外開放。',
@@ -315,6 +321,7 @@
     var query = '';       // lower-cased search text; '' = no search
     var wipUnlocked = false;      // WIP games open directly on this device (set by the ?backstage link)
     var wipJustUnlocked = false;  // the ?backstage link was used on THIS load (→ confirm with a toast)
+    var accountUser = null;       // signed-in user (from ArcadeNet), or null
 
     function t(key) {
         var table = STRINGS[lang] || STRINGS.en;
@@ -363,6 +370,7 @@
             btns[i].classList.toggle('active', active);
             btns[i].setAttribute('aria-checked', active ? 'true' : 'false');
         }
+        renderAccount(accountUser);   // re-localise the account control on language change
     }
 
     function renderFilter() {
@@ -499,6 +507,51 @@
         }, 2600);
     }
 
+    // Wait for the async Firebase layer to report in, then run cb with ArcadeNet (or a
+    // stub). Always fires — net.js dispatches arcade-net-ready even when it fails.
+    function whenNet(cb) {
+        if (window.ArcadeNet) { cb(window.ArcadeNet); return; }
+        window.addEventListener('arcade-net-ready', function once() {
+            window.removeEventListener('arcade-net-ready', once); cb(window.ArcadeNet);
+        }, { once: true });
+    }
+
+    // Account control: hidden when cloud is unavailable; "Sign in" (Google) when signed
+    // out; avatar + name + "Sign out" when signed in with a real account.
+    function renderAccount(user) {
+        var el = document.getElementById('account'); if (!el) return;
+        var N = window.ArcadeNet;
+        if (!N || !N.ok) { el.hidden = true; el.innerHTML = ''; return; }
+        el.hidden = false;
+        el.innerHTML = '';
+        if (user && !user.anon) {
+            if (user.photo) {
+                var img = document.createElement('img');
+                img.className = 'account-avatar'; img.src = user.photo; img.alt = '';
+                img.referrerPolicy = 'no-referrer';
+                el.appendChild(img);
+            }
+            var name = document.createElement('span');
+            name.className = 'account-name';
+            name.textContent = user.name || t('account');
+            el.appendChild(name);
+            var out = document.createElement('button');
+            out.type = 'button'; out.className = 'account-btn';
+            out.textContent = t('signOut');
+            out.addEventListener('click', function () { N.signOut(); });
+            el.appendChild(out);
+        } else {
+            var inBtn = document.createElement('button');
+            inBtn.type = 'button'; inBtn.className = 'account-btn primary';
+            inBtn.textContent = t('signIn');
+            inBtn.addEventListener('click', function () {
+                inBtn.disabled = true;
+                Promise.resolve(N.signInGoogle()).catch(function () {}).then(function () { inBtn.disabled = false; });
+            });
+            el.appendChild(inBtn);
+        }
+    }
+
     function renderAll() {
         renderChrome();
         renderFilter();
@@ -571,6 +624,11 @@
             if (a && (a.tagName === 'INPUT' || a.tagName === 'TEXTAREA' || a.isContentEditable)) return;
             ev.preventDefault();
             searchInput.focus();
+        });
+
+        // Account: reflect sign-in state once the Firebase layer reports in.
+        whenNet(function (N) {
+            if (N && N.ok && N.onAuth) N.onAuth(function (u) { accountUser = u; renderAccount(u); });
         });
 
         renderAll();

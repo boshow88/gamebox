@@ -1904,11 +1904,44 @@
     // moment you switch the difficulty seg; writes use the run's committed level.
     function sandPrefs(level) { try { const sb = (AC.prefs.get('rune-clash') || {}).sandbox || {}; return sb[level || staged] || {}; } catch (e) { return {}; } }
     function setSandBest(level, patch) { try { const p = AC.prefs.get('rune-clash') || {}; const sb = Object.assign({}, p.sandbox); sb[level] = Object.assign({}, sb[level], patch); AC.prefs.set('rune-clash', { sandbox: sb }); } catch (e) { /* ignore */ } }
-    function recordSandSpin(v) { G.sandSpinRun = Math.max(G.sandSpinRun || 0, v); const sb = sandPrefs(G.aiLevel); if (sb.bestSpin == null || v > sb.bestSpin) setSandBest(G.aiLevel, { bestSpin: v }); }
-    function recordSandTotal(v) { const sb = sandPrefs(G.aiLevel); if (sb.bestTotal == null || v > sb.bestTotal) setSandBest(G.aiLevel, { bestTotal: v }); }
+    function recordSandSpin(v) { G.sandSpinRun = Math.max(G.sandSpinRun || 0, v); const sb = sandPrefs(G.aiLevel); if (sb.bestSpin == null || v > sb.bestSpin) { setSandBest(G.aiLevel, { bestSpin: v }); pushSandBest(G.aiLevel); } }
+    function recordSandTotal(v) { const sb = sandPrefs(G.aiLevel); if (sb.bestTotal == null || v > sb.bestTotal) { setSandBest(G.aiLevel, { bestTotal: v }); pushSandBest(G.aiLevel); } }
     function recordDuelSpin(v) { if (!v) return; try { const p = AC.prefs.get('rune-clash') || {}; const bs = Object.assign({}, p.bestSpin); if (bs[G.aiLevel] == null || v > bs[G.aiLevel]) { bs[G.aiLevel] = v; AC.prefs.set('rune-clash', { bestSpin: bs }); } } catch (e) { /* ignore */ } }
     function duelBestRounds() { try { const v = (AC.prefs.get('rune-clash') || {}).bestRounds; return v && typeof v[staged] === 'number' ? v[staged] : null; } catch (e) { return null; } }
     function duelBestSpin() { try { const v = (AC.prefs.get('rune-clash') || {}).bestSpin; return v && typeof v[staged] === 'number' ? v[staged] : null; } catch (e) { return null; } }
+
+    // --- Cloud sync: mirror the Sandbag bests (best total & best single-spin, per
+    // difficulty) to the signed-in player's profile so they follow across devices.
+    // Guests/offline unaffected.
+    function rsCloud() { const N = window.ArcadeNet; if (!N || !N.ok || !N.profile) return null; const u = N.currentUser(); return (u && !u.anon) ? { N, uid: u.uid, name: u.name } : null; }
+    function sandboxAll() { try { return (AC.prefs.get('rune-clash') || {}).sandbox || {}; } catch (e) { return {}; } }
+    function pushSandBest(level) {
+        const c = rsCloud(); if (!c) return;
+        const sb = sandPrefs(level), patch = {};
+        if (sb.bestTotal != null) patch.total = sb.bestTotal;
+        if (sb.bestSpin != null) patch.spin = sb.bestSpin;
+        if (!Object.keys(patch).length) return;
+        try { c.N.profile.save(c.uid, { runeStones: { [level]: patch }, name: c.name || null }); } catch (e) { /* ignore */ }
+    }
+    function syncSandScores() {
+        const c = rsCloud(); if (!c) return;
+        c.N.profile.get(c.uid).then((prof) => {
+            const local = sandboxAll(), cloud = (prof && prof.runeStones) || {};
+            const levels = {}; Object.keys(local).forEach((k) => { levels[k] = 1; }); Object.keys(cloud).forEach((k) => { levels[k] = 1; });
+            const push = {};
+            Object.keys(levels).forEach((lvl) => {
+                const sb = local[lvl] || {}, cl = cloud[lvl] || {};
+                if (cl.total != null && (sb.bestTotal == null || cl.total > sb.bestTotal)) setSandBest(lvl, { bestTotal: cl.total });   // cloud → local
+                if (cl.spin != null && (sb.bestSpin == null || cl.spin > sb.bestSpin)) setSandBest(lvl, { bestSpin: cl.spin });
+                const after = sandPrefs(lvl), patch = {};
+                if (after.bestTotal != null && (cl.total == null || after.bestTotal > cl.total)) patch.total = after.bestTotal;   // local → cloud
+                if (after.bestSpin != null && (cl.spin == null || after.bestSpin > cl.spin)) patch.spin = after.bestSpin;
+                if (Object.keys(patch).length) push[lvl] = patch;
+            });
+            if (Object.keys(push).length) { try { c.N.profile.save(c.uid, { runeStones: push, name: c.name || null }); } catch (e) { /* ignore */ } }
+            updateHud();
+        }).catch(() => { });
+    }
 
     // --- sandbox rendering ---
     // Each enemy gets a fixed slot; the drawn card fills the band between the info row and the
@@ -3340,6 +3373,7 @@
             net = N;
             buildLobby();
             net.onAuth((u) => { netUser = u; renderLobby(); });
+            net.onAuth(() => syncSandScores());   // pull/merge Sandbag bests on sign-in
             if (net.cleanupStaleRooms) net.cleanupStaleRooms().catch(() => {});   // purge abandoned rooms on load
             if (btn) { btn.hidden = (stagedMode === 'sandbox'); btn.addEventListener('click', openLobby); }
         };

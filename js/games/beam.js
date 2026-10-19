@@ -318,6 +318,29 @@
     // ===============================================================
     function loadSoloStats(notch) { try { return AC.storage.readJSON(AC.storage.storageKey('beam', 'solo', 'n' + notch), { played: 0, wins: 0, best: 0 }); } catch (e) { return { played: 0, wins: 0, best: 0 }; } }
     function saveSoloStats(notch, st) { try { AC.storage.writeJSON(AC.storage.storageKey('beam', 'solo', 'n' + notch), st); } catch (e) { } }
+    // --- Cloud sync: mirror each difficulty's BEST finishing place (lower = better) to
+    // the signed-in player's profile so it follows across devices. Guests/offline are
+    // unaffected; played/wins stay device-local (cumulative counts don't merge cleanly).
+    function beamCloud() { var N = window.ArcadeNet; if (!N || !N.ok || !N.profile) return null; var u = N.currentUser(); return (u && !u.anon) ? { N: N, uid: u.uid, name: u.name } : null; }
+    function pushBeamBest(notch) {
+        var c = beamCloud(); if (!c) return;
+        var st = loadSoloStats(notch); if (!st.best) return;
+        try { c.N.profile.save(c.uid, { beam: { ['' + notch]: st.best }, name: c.name || null }); } catch (e) { }
+    }
+    function syncBeamScores() {
+        var c = beamCloud(); if (!c) return;
+        c.N.profile.get(c.uid).then(function (prof) {
+            var cloud = (prof && prof.beam) || {}, push = {};
+            for (var n = 0; n <= NOTCH_MAX; n++) {
+                var st = loadSoloStats(n), cr = cloud['' + n];
+                if (cr != null && (!st.best || cr < st.best)) { st.best = cr; saveSoloStats(n, st); }   // cloud → local
+                var cur = loadSoloStats(n).best;
+                if (cur && (cr == null || cur < cr)) push['' + n] = cur;                                // local → cloud
+            }
+            if (Object.keys(push).length) { try { c.N.profile.save(c.uid, { beam: push, name: c.name || null }); } catch (e) { } }
+            syncHud();
+        }).catch(function () { });
+    }
     function botWrongPort(p) { var opts = portList(p.N).filter(function (q) { return !samePort(q, p.entry) && !samePort(q, p.exit); }); return opts.length ? opts[(Math.random() * opts.length) | 0] : p.exit; }
     // match/host writes: instant local apply in solo, real Firestore write online.
     function applyPatch(obj, patch) {
@@ -354,6 +377,8 @@
         var ranks = g.rankByUid || {}, fallback = order.length || 4;
         var rank = ranks[om.myUid] || fallback, notch = om.notch;
         var st = loadSoloStats(notch); st.played++; if (rank === 1) st.wins++; st.best = st.best ? Math.min(st.best, rank) : rank; saveSoloStats(notch, st);
+        pushBeamBest(notch);   // mirror the improved best place to the cloud profile
+
         var standings = order.filter(function (u) { return players[u]; }).map(function (u) {
             return { rank: ranks[u] || fallback, name: pname(u, players), color: colorForOrder(players[u] ? players[u].order : 0), you: u === om.myUid };
         });
@@ -1083,6 +1108,11 @@
         });
         setupControls();
         setupOnline();
+        // Pull cloud high scores (best finishing place per difficulty) once auth is known.
+        (function () {
+            function go() { var N = window.ArcadeNet; if (N && N.ok && N.onAuth) N.onAuth(function () { syncBeamScores(); }); }
+            if (window.ArcadeNet) go(); else window.addEventListener('arcade-net-ready', go, { once: true });
+        })();
         applyHudMode();
         AC.i18n.subscribe(function () { syncHud(); if (!om) shell.refreshOverlay(); if (room && !(om && om.local)) renderLobby(); });
         syncHud();
