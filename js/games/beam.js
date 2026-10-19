@@ -141,8 +141,8 @@
     // most rounds a genuine contest (no "A always right, B always wrong" split).
     var BOT_K = 0.7;
     var DIFF = [
-        { mean: 1.5, std: 0.5 }, { mean: 2.1, std: 0.6 }, { mean: 2.8, std: 0.7 }, { mean: 3.5, std: 0.8 },    // easy
-        { mean: 4.4, std: 0.9 }, { mean: 5.2, std: 1.0 }, { mean: 6.0, std: 1.1 }, { mean: 6.8, std: 1.2 },    // normal
+        { mean: 2.2, std: 0.5 }, { mean: 2.6, std: 0.6 }, { mean: 3.1, std: 0.7 }, { mean: 3.7, std: 0.8 },    // easy
+        { mean: 4.6, std: 0.9 }, { mean: 5.3, std: 1.0 }, { mean: 6.0, std: 1.1 }, { mean: 6.8, std: 1.2 },    // normal
         { mean: 8.0, std: 1.3 }, { mean: 9.0, std: 1.4 }, { mean: 10.0, std: 1.5 }, { mean: 11.0, std: 1.6 }, // hard
         { mean: 12.4, std: 1.7 }, { mean: 13.6, std: 1.8 }, { mean: 14.8, std: 1.9 }, { mean: 16.0, std: 2.0 } // insane
     ];
@@ -335,7 +335,9 @@
         var uids = ['you'], players = {}, hp = {}, alive = {}, strengths = [];
         players['you'] = { uid: 'you', name: t('beamYou'), order: 0 };
         for (var i = 1; i <= 3; i++) {
-            var s = Math.max(1, gauss(diff.mean, diff.std)); strengths.push(s);
+            // clamp each bot's strength to ±2.5σ (never below 1) so a freak Gaussian tail
+            // can't spawn an unbeatable / trivial rival.
+            var s = AC.math.clamp(gauss(diff.mean, diff.std), Math.max(1, diff.mean - 2.5 * diff.std), diff.mean + 2.5 * diff.std); strengths.push(s);
             players['bot' + i] = { uid: 'bot' + i, name: 'CPU ' + i, order: i, bot: true, strength: s }; uids.push('bot' + i);
         }
         uids.forEach(function (u) { hp[u] = HP_START; alive[u] = true; });
@@ -637,10 +639,13 @@
             ctx.beginPath(); ctx.moveTo(GX, GY + i * cs); ctx.lineTo(GX + GRID, GY + i * cs); ctx.stroke();
         }
     }
+    // Shared stroke width for mirrors AND the laser, so the beam (drawn under the
+    // mirrors) never peeks out from behind one on the far side.
+    function mirrorLW(N) { return Math.max(3, (GRID / N) * 0.09); }
     function drawMirror(r, c, m, N, alpha) {
         var cs = GRID / N, pad = cs * 0.22, x0 = GX + c * cs, y0 = GY + r * cs;
         ctx.save(); ctx.globalAlpha = alpha == null ? 1 : alpha;
-        ctx.strokeStyle = '#e2e8f0'; ctx.lineWidth = Math.max(3, cs * 0.09); ctx.lineCap = 'round';
+        ctx.strokeStyle = '#e2e8f0'; ctx.lineWidth = mirrorLW(N); ctx.lineCap = 'round';
         ctx.beginPath();
         if (m === SLASH) { ctx.moveTo(x0 + cs - pad, y0 + pad); ctx.lineTo(x0 + pad, y0 + cs - pad); }
         else { ctx.moveTo(x0 + pad, y0 + pad); ctx.lineTo(x0 + cs - pad, y0 + cs - pad); }
@@ -674,7 +679,7 @@
     }
     function lightExit(p) { fillCell(portRect(p.exit.r, p.exit.c, p.exit.side, p.N), '#34d399', 0.92, true); }
     function drawBeamUpTo(p, frac) {
-        var dist = p.total * frac, pts = p.points, seg = p.seg, lw = AC.math.clamp((GRID / p.N) * 0.11, 2, 6);
+        var dist = p.total * frac, pts = p.points, seg = p.seg, lw = mirrorLW(p.N);
         ctx.save(); ctx.strokeStyle = BEAM; ctx.lineWidth = lw; ctx.lineJoin = 'round'; ctx.lineCap = 'round'; ctx.shadowColor = BEAM_GLOW; ctx.shadowBlur = Math.min(12, lw * 2.4);
         ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y);
         for (var i = 1; i < pts.length; i++) {
@@ -686,7 +691,7 @@
     // spectator "preview" styling — a faint dashed beam + dashed exit outline, so the answer reads
     // as a quiet pre-view (not the bright reveal that comes later).
     function drawBeamPreview(p) {
-        var pts = p.points, lw = AC.math.clamp((GRID / p.N) * 0.09, 2, 5);
+        var pts = p.points, lw = mirrorLW(p.N);
         ctx.save(); ctx.globalAlpha = 0.5; ctx.strokeStyle = '#7dd3fc'; ctx.lineWidth = lw; ctx.lineJoin = 'round'; ctx.lineCap = 'round'; ctx.setLineDash([lw * 2.2, lw * 2.2]);
         ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y);
         for (var i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
@@ -733,7 +738,7 @@
         if (ph === 'answer') {
             var left = 1 - info.ts / om.answerSec;
             if (spec) {   // spectator: a muted "solution PREVIEW" (dashed path + dashed exit) + everyone's live picks
-                drawMirrors(p, 1); drawEntry(p); drawBeamPreview(p); previewExit(p); drawPicks(p);
+                drawBeamPreview(p); drawMirrors(p, 1); drawEntry(p); previewExit(p); drawPicks(p);
                 drawTimerBar(left, false); caption(t('beamSpectating'), '#94a3b8'); return;
             }
             drawPorts(p); drawEntry(p); drawTimerBar(left, left < 0.25);
@@ -741,15 +746,15 @@
             caption(t('beamRecall')); return;
         }
         // reveal onward: spectators share the same animation — they feel the reveal, having only previewed it
-        if (ph === 'reveal') { drawMirrors(p, AC.math.clamp(info.ts / 0.25, 0, 1)); drawEntry(p); drawPicks(p); drawBeamUpTo(p, info.ts / om.replay); caption(t('beamReplay')); return; }
+        if (ph === 'reveal') { drawBeamUpTo(p, info.ts / om.replay); drawMirrors(p, AC.math.clamp(info.ts / 0.25, 0, 1)); drawEntry(p); drawPicks(p); caption(t('beamReplay')); return; }
         if (ph === 'result') {
-            drawMirrors(p, 1); drawEntry(p); drawBeamUpTo(p, 1); lightExit(p); drawPicks(p); outlineExit(p);
+            drawBeamUpTo(p, 1); drawMirrors(p, 1); drawEntry(p); lightExit(p); drawPicks(p); outlineExit(p);
             if (!om.alive) caption(t('beamSpectating'), '#94a3b8');
             else caption(myCorrect() ? t('beamHit') : (om.choice ? t('beamMiss') : t('beamTimeUp')), myCorrect() ? '#34d399' : '#f87171');
             return;
         }
         // await next round
-        drawMirrors(p, 1); drawEntry(p); drawBeamUpTo(p, 1); lightExit(p); drawPicks(p); outlineExit(p); caption(t('beamWaitNext'), '#94a3b8');
+        drawBeamUpTo(p, 1); drawMirrors(p, 1); drawEntry(p); lightExit(p); drawPicks(p); outlineExit(p); caption(t('beamWaitNext'), '#94a3b8');
     }
     // Everyone's chosen exit, colour-coded per player. Picks on the same tile are laid
     // out across it (horizontally on top/bottom tiles, vertically on left/right ones),
