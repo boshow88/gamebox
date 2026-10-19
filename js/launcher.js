@@ -52,7 +52,7 @@
         {
             id: 'beam', theme: 'arcade', icon: 'zap', color: '#22d3ee',
             href: './games/beam.html',
-            tags: ['puzzle', 'timeattack', 'single', 'multi'],
+            tags: ['timeattack', 'single', 'multi'],
         },
         {
             id: 'carom', theme: 'arcade', icon: 'soccer', color: '#10b981', wip: true,
