@@ -431,6 +431,23 @@ button { font-family: inherit; cursor: pointer; }
 .wip-gate-btn.go { border-color: var(--accent); color: var(--accent); }
 .wip-gate-btn.go:hover { background: var(--accent); color: var(--text-on-accent); }
 
+/* Unlocked (tester) variant — a distinct green "backstage" look so you can tell at
+   a glance you're in, and the primary button really opens the game. */
+.wip-gate-eyebrow {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent-success);
+}
+.wip-gate-card.unlocked {
+    border-color: color-mix(in srgb, var(--accent-success) 45%, var(--border-color));
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5),
+        inset 0 0 0 1px color-mix(in srgb, var(--accent-success) 20%, transparent);
+}
+.wip-gate-card.unlocked .wip-gate-btn.go { border-color: var(--accent-success); color: var(--accent-success); }
+.wip-gate-card.unlocked .wip-gate-btn.go:hover { background: var(--accent-success); color: var(--text-on-accent); }
+
 .wip-toast {
     position: fixed;
     left: 50%;

@@ -116,6 +116,9 @@
             wipGateMsg: 'This one is still being built \u2014 it isn\u2019t open yet.',
             wipGateStay: 'I\u2019ll wait',
             wipGateGo: 'Let me in anyway',
+            wipGateUnlockedEyebrow: 'Backstage',
+            wipGateUnlockedMsg: 'Still in development and rough around the edges. Take a look?',
+            wipGateEnter: 'Take a look',
             wipUnlockedToast: 'Preview access unlocked on this device.',
             searchPlaceholder: 'Search games\u2026',
             searchAria: 'Search games',
@@ -179,6 +182,9 @@
             wipGateMsg: '這款還在開發中，還沒對外開放。',
             wipGateStay: '再等等',
             wipGateGo: '我硬要玩',
+            wipGateUnlockedEyebrow: '測試者通道',
+            wipGateUnlockedMsg: '這款還在開發中、尚未完工。要進去看看嗎？',
+            wipGateEnter: '進去看看',
             wipUnlockedToast: '已在此裝置解鎖開發中遊戲。',
             searchPlaceholder: '搜尋遊戲…',
             searchAria: '搜尋遊戲',
@@ -426,35 +432,45 @@
                 + (g.wip ? '<span class="badge badge-wip">' + t('wip') + '</span>' : '<span class="badge badge-playable">' + t('playable') + '</span>')
                 + '</div>';
 
-            // WIP games are soft-gated: on a locked device, clicking a card opens a
-            // confirm dialog (and sends the insistent to a well-known video). The
-            // shareable `?backstage` link unlocks them on a device so they open normally.
-            if (g.wip && !wipUnlocked) {
-                card.addEventListener('click', function (ev) { ev.preventDefault(); openWipGate(); });
+            // WIP games always open a confirm dialog first. On a locked device it's a
+            // "not open yet" deterrent (insisting → a well-known video); once unlocked
+            // via the ?backstage link it's a tester's "take a look?" that really enters.
+            if (g.wip) {
+                card.addEventListener('click', function (ev) {
+                    ev.preventDefault();
+                    openWipGate(ev.currentTarget.getAttribute('href'));
+                });
             }
 
             grid.appendChild(card);
         }
     }
 
-    // Confirm dialog for a locked WIP game. "I'll wait" dismisses; "Let me in anyway"
-    // is the trap — only the ?backstage link grants real access.
-    function openWipGate() {
+    // Confirm dialog for a WIP game. Locked: a "not open yet" deterrent whose "let me
+    // in anyway" is the trap. Unlocked (via ?backstage): a tester's confirmation —
+    // visually distinct (green "backstage" styling) — whose button really opens it.
+    function openWipGate(href) {
         var ov = document.createElement('div');
-        ov.className = 'wip-gate';
+        ov.className = 'wip-gate' + (wipUnlocked ? ' unlocked' : '');
         var card = document.createElement('div');
-        card.className = 'wip-gate-card';
+        card.className = 'wip-gate-card' + (wipUnlocked ? ' unlocked' : '');
         card.setAttribute('role', 'dialog');
         card.setAttribute('aria-modal', 'true');
+        if (wipUnlocked) {
+            var eyebrow = document.createElement('div');
+            eyebrow.className = 'wip-gate-eyebrow';
+            eyebrow.textContent = t('wipGateUnlockedEyebrow');
+            card.appendChild(eyebrow);
+        }
         var msg = document.createElement('p');
         msg.className = 'wip-gate-msg';
-        msg.textContent = t('wipGateMsg');
+        msg.textContent = wipUnlocked ? t('wipGateUnlockedMsg') : t('wipGateMsg');
         var actions = document.createElement('div');
         actions.className = 'wip-gate-actions';
         var stay = document.createElement('button');
         stay.type = 'button'; stay.className = 'wip-gate-btn stay'; stay.textContent = t('wipGateStay');
         var go = document.createElement('button');
-        go.type = 'button'; go.className = 'wip-gate-btn go'; go.textContent = t('wipGateGo');
+        go.type = 'button'; go.className = 'wip-gate-btn go'; go.textContent = wipUnlocked ? t('wipGateEnter') : t('wipGateGo');
         actions.appendChild(stay); actions.appendChild(go);
         card.appendChild(msg); card.appendChild(actions);
         ov.appendChild(card);
@@ -462,10 +478,12 @@
         function onKey(e) { if (e.key === 'Escape') close(); }
         ov.addEventListener('click', function (e) { if (e.target === ov) close(); });
         stay.addEventListener('click', close);
-        go.addEventListener('click', function () { location.href = 'https://youtu.be/dQw4w9WgXcQ'; });
+        go.addEventListener('click', function () {
+            location.href = wipUnlocked ? href : 'https://youtu.be/dQw4w9WgXcQ';
+        });
         document.addEventListener('keydown', onKey);
         document.body.appendChild(ov);
-        stay.focus();
+        (wipUnlocked ? go : stay).focus();  // unlocked: Enter proceeds; locked: Enter just closes (safe)
     }
 
     // Brief auto-dismissing toast (used to confirm the ?backstage unlock worked).
