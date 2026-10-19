@@ -328,6 +328,10 @@
             '<line x1="6" x2="18" y1="18" y2="6"/>',
         'mirror-back':
             '<line x1="6" x2="18" y1="6" y2="18"/>',
+        // a soccer ball (circle + centre pentagon) for Flick
+        soccer:
+            '<circle cx="12" cy="12" r="9"/>'
+            + '<path d="M12 7 14.9 9.1 13.8 12.5 10.2 12.5 9.1 9.1Z"/>',
     };
 
     function icon(name, opts) {
