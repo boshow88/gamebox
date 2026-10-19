@@ -1,4 +1,4 @@
-/* Flick — pure 2-D flick-soccer physics. NO DOM, NO rendering, deterministic given
+/* Carom — pure 2-D flick-physics soccer. NO DOM, NO rendering, deterministic given
  * the same inputs. This is the shared forward model: the live game steps it for
  * animation, online will replay shots through it, and a future CPU / self-play
  * trainer can run it head-less at speed (see `settle`). Keep it free of globals.
@@ -132,7 +132,7 @@
         return c;
     }
 
-    window.FlickEngine = {
+    window.CaromEngine = {
         REST_EPS: REST_EPS,
         create: create, reset: reset, place: place, applyShot: applyShot,
         step: step, atRest: atRest, freeze: freeze, settle: settle, snapshot: snapshot,

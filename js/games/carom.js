@@ -1,36 +1,36 @@
-/* Flick — a hot-seat flick-soccer prototype built on ArcadeCommon + FlickEngine.
+/* Carom — a hot-seat flick-soccer prototype built on ArcadeCommon + CaromEngine.
  * This first cut is PHYSICS + hot-seat (two humans, one device). Online and CPU
- * come next and will reuse the same deterministic FlickEngine. */
+ * come next and will reuse the same deterministic CaromEngine. */
 (function () {
     'use strict';
-    var AC = window.ArcadeCommon, E = window.FlickEngine;
+    var AC = window.ArcadeCommon, E = window.CaromEngine;
     var t = AC.i18n.t;
 
     // ---------------- i18n ----------------
     var STRINGS = {
         en: {
-            flickName: 'Flick',
-            flickReady: 'Two players, one device. On your turn, drag one of your players back and release to flick it — carom into the ball and score. First to 3 wins.',
-            flickScore: 'Score', flickTurn: 'Turn',
-            flickTeam0: 'Blue', flickTeam1: 'Red',
-            flickAim: function (n) { return n + ' to shoot'; },
-            flickWin: function (n) { return n + ' wins!'; },
-            flickGoal: 'GOAL!',
-            flickHelp1Html: 'Hot-seat for <strong>two players</strong>. On your turn, <strong>drag one of your players back</strong> and release to flick it — like a slingshot.',
-            flickHelp2Html: 'Carom off teammates, rivals and the ball to knock the <strong>ball into the far goal</strong>. Knock it into your own net and the point goes to your rival.',
-            flickHelp3Html: '<strong>Right-click</strong> (or the corner ✕) cancels a drag so you can pick another player. First to <strong>3 goals</strong> wins. <kbd>R</kbd> restart · <kbd>M</kbd> mute.',
+            caromName: 'Carom',
+            caromReady: 'Two players, one device. On your turn, drag one of your players back and release to flick it — carom into the ball and score. First to 3 wins.',
+            caromScore: 'Score', caromTurn: 'Turn',
+            caromTeam0: 'Blue', caromTeam1: 'Red',
+            caromAim: function (n) { return n + ' to shoot'; },
+            caromWin: function (n) { return n + ' wins!'; },
+            caromGoal: 'GOAL!',
+            caromHelp1Html: 'Hot-seat for <strong>two players</strong>. On your turn, <strong>drag one of your players back</strong> and release to flick it — like a slingshot.',
+            caromHelp2Html: 'Carom off teammates, rivals and the ball to knock the <strong>ball into the far goal</strong>. Knock it into your own net and the point goes to your rival.',
+            caromHelp3Html: '<strong>Right-click</strong> (or the corner ✕) cancels a drag so you can pick another player. First to <strong>3 goals</strong> wins. <kbd>R</kbd> restart · <kbd>M</kbd> mute.',
         },
         zh: {
-            flickName: 'Flick',
-            flickReady: '兩人同機對戰。輪到你時，往後拖曳你的一個球員再放開彈射——撞擊球把它送進對方球門。先得 3 分者獲勝。',
-            flickScore: '比分', flickTurn: '出手',
-            flickTeam0: '藍方', flickTeam1: '紅方',
-            flickAim: function (n) { return n + '出手'; },
-            flickWin: function (n) { return n + '獲勝！'; },
-            flickGoal: '進球！',
-            flickHelp1Html: '<strong>兩人</strong>同機輪流。輪到你時，<strong>往後拖曳你的一個球員</strong>再放開彈射，像彈弓一樣。',
-            flickHelp2Html: '撞擊隊友、對手與球，把<strong>球撞進對方球門</strong>。若撞進自家球門，分數就送給對手。',
-            flickHelp3Html: '<strong>按右鍵</strong>（或畫面角落的 ✕）可取消拖曳、改選別的球員。先得 <strong>3 分</strong>者獲勝。<kbd>R</kbd> 重來 · <kbd>M</kbd> 靜音。',
+            caromName: '彈球場',
+            caromReady: '兩人同機對戰。輪到你時，往後拖曳你的一個球員再放開彈射——撞擊球把它送進對方球門。先得 3 分者獲勝。',
+            caromScore: '比分', caromTurn: '出手',
+            caromTeam0: '藍方', caromTeam1: '紅方',
+            caromAim: function (n) { return n + '出手'; },
+            caromWin: function (n) { return n + '獲勝！'; },
+            caromGoal: '進球！',
+            caromHelp1Html: '<strong>兩人</strong>同機輪流。輪到你時，<strong>往後拖曳你的一個球員</strong>再放開彈射，像彈弓一樣。',
+            caromHelp2Html: '撞擊隊友、對手與球，把<strong>球撞進對方球門</strong>。若撞進自家球門，分數就送給對手。',
+            caromHelp3Html: '<strong>按右鍵</strong>（或畫面角落的 ✕）可取消拖曳、改選別的球員。先得 <strong>3 分</strong>者獲勝。<kbd>R</kbd> 重來 · <kbd>M</kbd> 靜音。',
         },
     };
     Object.assign(AC.i18n.STRINGS.en, STRINGS.en);
@@ -62,7 +62,7 @@
     }
     function syncHud() {
         var s = $('score'); if (s) s.textContent = G.score[0] + ' : ' + G.score[1];
-        var tn = $('turn'); if (tn) { tn.textContent = t('flickTeam' + G.turn); tn.style.color = TEAM[G.turn]; }
+        var tn = $('turn'); if (tn) { tn.textContent = t('caromTeam' + G.turn); tn.style.color = TEAM[G.turn]; }
     }
     function endTurn() { G.turn = 1 - G.turn; G.phase = 'aim'; G.drag = null; syncHud(); }
     function handleGoal(side) {
@@ -175,8 +175,8 @@
     function render() {
         if (!ctx) return;
         clear(); drawField(); drawBodies(); drawAim();
-        if (G.flash > 0) { ctx.save(); ctx.globalAlpha = G.flash * 0.5; ctx.fillStyle = '#fde68a'; ctx.fillRect(0, 0, CW, CH); ctx.restore(); caption(t('flickGoal'), '#fde68a'); }
-        else if (G.phase === 'aim') caption(t('flickAim', t('flickTeam' + G.turn)), TEAM[G.turn]);
+        if (G.flash > 0) { ctx.save(); ctx.globalAlpha = G.flash * 0.5; ctx.fillStyle = '#fde68a'; ctx.fillRect(0, 0, CW, CH); ctx.restore(); caption(t('caromGoal'), '#fde68a'); }
+        else if (G.phase === 'aim') caption(t('caromAim', t('caromTeam' + G.turn)), TEAM[G.turn]);
     }
     function mix(a, b, u) {
         function h(c) { return [parseInt(c.slice(1, 3), 16), parseInt(c.slice(3, 5), 16), parseInt(c.slice(5, 7), 16)]; }
@@ -234,15 +234,15 @@
         window.addEventListener('keydown', function (e) { if (e.key === 'Escape') cancelDrag(); });
 
         shell = AC.shell.create({
-            gameId: 'flick', step: 1 / 60,
+            gameId: 'carom', step: 1 / 60,
             update: update, render: render, reset: newMatch,
             canPause: function () { return false; },
             canRestart: function () { return true; },
             overlayContent: function (state, result) {
-                if (state === 'idle') return { badge: 'soccer', title: t('flickName'), message: t('flickReady'), button: t('start') };
+                if (state === 'idle') return { badge: 'soccer', title: t('caromName'), message: t('caromReady'), button: t('start') };
                 if (state === 'over') {
                     var m = (result && result.meta) || {}, w = m.winner || 0, sc = m.score || G.score;
-                    return { badge: 'trophy', title: t('flickWin', t('flickTeam' + w)), message: t('flickScore') + '  ' + sc[0] + ' : ' + sc[1], button: t('restart') };
+                    return { badge: 'trophy', title: t('caromWin', t('caromTeam' + w)), message: t('caromScore') + '  ' + sc[0] + ' : ' + sc[1], button: t('restart') };
                 }
                 return {};
             },

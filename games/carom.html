@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Flick · GameBox</title>
+    <title>Carom · GameBox</title>
     <link rel="icon" type="image/svg+xml" href="../favicon.svg">
     <link rel="stylesheet" href="../css/common.css">
     <link rel="stylesheet" href="../css/arcade.css">
@@ -24,7 +24,7 @@
             </a>
             <div class="game-title">
                 <span class="game-icon" data-icon="soccer" aria-hidden="true"></span>
-                <span data-i18n="flickName">Flick</span>
+                <span data-i18n="caromName">Carom</span>
             </div>
             <div class="lang-toggle" id="lang-toggle" role="radiogroup" data-i18n-aria-label="language">
                 <button type="button" data-lang="en" role="radio" aria-checked="true">EN</button>
@@ -34,11 +34,11 @@
 
         <div class="hud">
             <div class="hud-stat accent">
-                <span class="hud-label"><span data-icon="soccer" aria-hidden="true"></span><span data-i18n="flickScore">Score</span></span>
+                <span class="hud-label"><span data-icon="soccer" aria-hidden="true"></span><span data-i18n="caromScore">Score</span></span>
                 <span class="hud-value" id="score">0 : 0</span>
             </div>
             <div class="hud-stat">
-                <span class="hud-label"><span data-icon="zap" aria-hidden="true"></span><span data-i18n="flickTurn">Turn</span></span>
+                <span class="hud-label"><span data-icon="zap" aria-hidden="true"></span><span data-i18n="caromTurn">Turn</span></span>
                 <span class="hud-value" id="turn">—</span>
             </div>
         </div>
@@ -59,7 +59,7 @@
         <div class="stage-pad">
         <div class="stage-wrap">
             <canvas class="stage-canvas drag-stage" id="stage" width="600" height="760"
-                    role="img" aria-label="Flick play field"></canvas>
+                    role="img" aria-label="Carom play field"></canvas>
             <div class="overlay" id="overlay" hidden>
                 <div class="overlay-card">
                     <span class="overlay-badge" id="overlay-badge" aria-hidden="true"></span>
@@ -75,15 +75,15 @@
         <section class="game-footer">
             <h4 data-i18n="howToPlay">How to play</h4>
             <ul>
-                <li data-i18n="flickHelp1Html">Hot-seat for <strong>two players</strong>. On your turn, <strong>drag one of your players back</strong> and release to flick it — like a slingshot.</li>
-                <li data-i18n="flickHelp2Html">Carom off teammates, rivals and the ball to knock the <strong>ball into the far goal</strong>. Knock it into your own net and the point goes to your rival.</li>
-                <li data-i18n="flickHelp3Html"><strong>Right-click</strong> (or the corner ✕) cancels a drag so you can pick another player. First to <strong>3 goals</strong> wins. <kbd>R</kbd> restart · <kbd>M</kbd> mute.</li>
+                <li data-i18n="caromHelp1Html">Hot-seat for <strong>two players</strong>. On your turn, <strong>drag one of your players back</strong> and release to flick it — like a slingshot.</li>
+                <li data-i18n="caromHelp2Html">Carom off teammates, rivals and the ball to knock the <strong>ball into the far goal</strong>. Knock it into your own net and the point goes to your rival.</li>
+                <li data-i18n="caromHelp3Html"><strong>Right-click</strong> (or the corner ✕) cancels a drag so you can pick another player. First to <strong>3 goals</strong> wins. <kbd>R</kbd> restart · <kbd>M</kbd> mute.</li>
             </ul>
         </section>
     </div>
 
     <script src="../js/arcade.js"></script>
-    <script src="../js/games/flick-engine.js"></script>
-    <script src="../js/games/flick.js"></script>
+    <script src="../js/games/carom-engine.js"></script>
+    <script src="../js/games/carom.js"></script>
 </body>
 </html>
