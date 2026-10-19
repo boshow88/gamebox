@@ -23,6 +23,7 @@ loaded manually by opening the file. Safe to ship, but they are dev surface:
 | `tools/patches-hintfix.html` | Self-test: hint soundness + full solve walkthrough, plus the no-leak and forced-cell-merge regressions. |
 | `tools/zip-gentest.html` | Self-test: drives the real `generate()` across sizes/tiers — checks each solution is valid + unique (cross-validated against an independent cell-based counter on small N) and that base checkpoint density is monotonic; reports checkpoint/wall counts + timing. |
 | `tools/nonogram-gentest.html` | Self-test: drives the real `generate()` across sizes/difficulties — checks each board is line-solvable and **unique** (cross-validated against an independent DFS solution counter), that the clues match the solution, that the difficulty score climbs (easy ≤ medium ≤ hard), and that tier-3 (enumeration) reliance is non-decreasing; reports the per-difficulty technique profile (n1/n2/n3), median depth, score + timing. |
+| `tools/nonogram-hintview.html` | Visual check for Nonogram hints: renders generated boards with the first `nextStep` hint drawn (row/column clue ranges + fills/blanks) using the real board geometry so the hint overlay can be eyeballed. |
 | `tools/guards-gentest.html` | Self-test for Guards (Akari / Light Up): drives the real `generate()` across sizes/difficulties — checks each shipped solution is valid, is **unique** (independent backtracking counter) and solvable at its difficulty's depth (Easy/Medium by pure propagation, Hard by one assume→contradiction step), that Hard genuinely needs that step, and that the shown-clue count is monotonic (Easy ≥ Medium ≥ Hard); also sweeps larger sizes for timing + never-blank. |
 | `tools/hashi-gentest.html` | Self-test for Hashi (Bridges): drives the real `generate()` across sizes/difficulties — checks each shipped solution is valid, is **unique** (solver counter cross-validated against an independent brute-force counter on small boards), is solvable within its difficulty's reasoning budget and **hint-drivable** (the `nextStep`/`nextStepDeep` engine solves it from empty), that island numbers are within capacity, and that difficulty tier is monotonic; reports island counts + timing. |
 | `tools/hashi-view.html` | Visual check for Hashi rendering: draws a generated board solved (single/double bridges), won (green), with a hint band + ghost, and a conflict (crossing bridges + over-filled island) — reuses the real CSS classes to eyeball the board vocabulary. |
@@ -35,8 +36,9 @@ want a silent console. Find them with `rg "console\.(log|warn)"`. Current spots:
 
 - `js/generators/tango.js` — row-rejection budget exhausted; "returning unverified".
 - `js/games/queens.js` — a solver-state warning.
-- `js/games/rune-stones.js` / `js/games/beam.js` — `[duel]` / `[lobby]` network errors.
-- `js/common.js` — storage read/write + i18n subscriber failures.
+- `js/games/rune-stones.js` / `js/games/beam.js` / `js/games/carom.js` — `[duel]` / `[lobby]` network errors.
+- `js/net/net.js` — `[ArcadeNet]` disabled on boot (missing/invalid config) and stale-room cleanup failures.
+- `js/puzzle.js` / `js/arcade.js` — `[common]` storage read/write + `[i18n]` subscriber failures (plus, in the arcade shell, an `[input]` press-handler guard).
 
 ## Cleanup checklist
 

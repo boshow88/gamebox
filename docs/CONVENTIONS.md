@@ -114,6 +114,12 @@ everything; it loads on the launcher and every arcade game (right after `net/net
   offline play are unaffected**.
 - A game that syncs must load `firebase-config.js` + `net/net.js` + `cloud-sync.js`,
   and `firestore.rules` must allow `profiles/{uid}` for its owner.
+- **Sign-in needs an authorized https domain.** Google OAuth runs via a popup on
+  desktop and a full-page redirect on mobile (popups get blocked/auto-closed there).
+  Either way it only works on a domain in Firebase's *Authorized domains* over https
+  — i.e. `localhost` or the deployed site. A phone hitting a LAN-IP `http` dev server
+  **can't** sign in (you'll see the OAuth popup flash and vanish); test sign-in on the
+  deployed site or an https tunnel.
 
 ## Git & local dev
 
