@@ -29,7 +29,7 @@ function fail(err) {
         ]);
         const {
             getAuth, onAuthStateChanged, signInAnonymously, signOut,
-            GoogleAuthProvider, signInWithPopup,
+            GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult,
         } = authMod;
         const {
             getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, onSnapshot,
@@ -47,6 +47,11 @@ function fail(err) {
             user = u ? { uid: u.uid, name: u.displayName || null, photo: u.photoURL || null, anon: u.isAnonymous } : null;
             authCbs.forEach((fn) => { try { fn(user); } catch (e) { /* ignore */ } });
         });
+        // Mobile browsers block/auto-close OAuth popups, so sign in there with a full-page
+        // redirect; keep the popup on desktop. getRedirectResult completes a pending
+        // redirect on the way back (onAuthStateChanged then reports the signed-in user).
+        const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '');
+        getRedirectResult(auth).catch(() => { /* ignore */ });
 
         // --- room helpers ---
         const ROOMS = 'duel_rooms';
@@ -235,7 +240,7 @@ function fail(err) {
             // auth
             onAuth(fn) { authCbs.push(fn); if (user !== undefined) fn(user); },
             currentUser() { return user || null; },
-            signInGoogle() { return signInWithPopup(auth, new GoogleAuthProvider()); },
+            signInGoogle() { const p = new GoogleAuthProvider(); return isMobile ? signInWithRedirect(auth, p) : signInWithPopup(auth, p); },
             signInGuest() { return signInAnonymously(auth); },
             signOut() { return signOut(auth); },
             // per-user cloud profile — e.g. { bests: { "<gameId>:<mode>": score } } —
