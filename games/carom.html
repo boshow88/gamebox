@@ -13,6 +13,18 @@
         /* touch-action:none play zone so dragging a player never scrolls the page */
         .stage-pad { touch-action: none; padding: 16px 12px 60px; }
         .stage-canvas { touch-action: none; }
+        /* Online lobby (modeled on Rune Stones / Beam) */
+        .lobby-row { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; align-items: center; margin: 9px 0; }
+        .lobby-row .btn { white-space: nowrap; }
+        .lobby-row input { width: 120px; padding: 9px 10px; border-radius: 9px; border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.07); color: #fff; font: inherit; text-align: center; text-transform: uppercase; letter-spacing: 3px; }
+        .lobby-status { min-height: 1.3em; margin: 8px 2px 2px; color: rgba(255,255,255,0.85); font-size: 14px; }
+        .lobby-code { font-size: 30px; font-weight: 700; letter-spacing: 8px; color: rgba(230,236,255,0.95); margin: 6px 0 2px; text-align: center; }
+        #lobby .overlay-card { gap: 5px; max-width: 460px; }
+        .lobby-plist { list-style: none; margin: 4px 0; padding: 0; width: 100%; display: flex; flex-direction: column; gap: 5px; }
+        .lobby-plist li { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 7px 12px; border-radius: 9px; background: rgba(255,255,255,0.06); font-size: 14px; }
+        .lobby-plist .tag { font-size: 11px; font-weight: 700; padding: 1px 7px; border-radius: 999px; background: rgba(16,185,129,0.22); color: #6ee7b7; }
+        .lobby-plist .ok { color: #34d399; }
+        .lobby-plist .rank { font-weight: 700; color: var(--game-color); }
     </style>
 </head>
 <body>
@@ -44,6 +56,10 @@
         </div>
 
         <div class="control-row">
+            <button class="btn" id="online-btn" type="button" hidden>
+                <span data-icon="users" aria-hidden="true"></span>
+                <span data-i18n="caromOnlineBtn">Online</span>
+            </button>
             <span class="spacer"></span>
             <div class="control-actions">
                 <button class="btn" id="restart-btn" type="button" disabled>
@@ -83,6 +99,8 @@
     </div>
 
     <script src="../js/arcade.js"></script>
+    <script src="../js/firebase-config.js"></script>
+    <script type="module" src="../js/net/net.js"></script>
     <script src="../js/games/carom-engine.js"></script>
     <script src="../js/games/carom.js"></script>
 </body>

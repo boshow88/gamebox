@@ -13,6 +13,8 @@
     'use strict';
 
     var REST_EPS = 6;           // below this speed (px/s) a body is considered stopped
+    var STEP_DT = 1 / 240;      // canonical physics tick — the live game sub-steps at THIS same dt, so its
+                                // animation lands exactly where settle() computes (no end-of-shot snap / desync)
 
     function clamp(v, lo, hi) { return v < lo ? lo : v > hi ? hi : v; }
 
@@ -115,8 +117,8 @@
 
     // head-less: run to rest (or a goal, or maxSteps). Used by CPU rollouts / training.
     function settle(w, maxSteps) {
-        var dt = 1 / 120, i;
-        for (i = 0; i < (maxSteps || 2400); i++) {
+        var dt = STEP_DT, i;
+        for (i = 0; i < (maxSteps || 4000); i++) {
             var g = step(w, dt);
             if (g) return g;
             if (atRest(w)) { freeze(w); return null; }
@@ -133,7 +135,7 @@
     }
 
     window.CaromEngine = {
-        REST_EPS: REST_EPS,
+        REST_EPS: REST_EPS, STEP_DT: STEP_DT,
         create: create, reset: reset, place: place, applyShot: applyShot,
         step: step, atRest: atRest, freeze: freeze, settle: settle, snapshot: snapshot,
     };

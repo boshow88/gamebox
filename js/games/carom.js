@@ -1,6 +1,9 @@
-/* Carom — a hot-seat flick-soccer prototype built on ArcadeCommon + CaromEngine.
- * This first cut is PHYSICS + hot-seat (two humans, one device). Online and CPU
- * come next and will reuse the same deterministic CaromEngine. */
+/* Carom — flick-soccer on ArcadeCommon + CaromEngine.
+ * Hot-seat (two humans, one device) AND online versus (room code, modelled on Rune
+ * Stones / Beam). Turn-based + deterministic physics => online sync is cheap: the
+ * shooter pre-computes the authoritative outcome head-less (CaromEngine.settle),
+ * broadcasts {shot, result} in one write, and both clients animate the shot then SNAP
+ * to the identical result — so float drift can never desync. CPU comes next. */
 (function () {
     'use strict';
     var AC = window.ArcadeCommon, E = window.CaromEngine;
@@ -15,121 +18,182 @@
             caromTeam0: 'Blue', caromTeam1: 'Red',
             caromAim: function (n) { return n + ' to shoot'; },
             caromWin: function (n) { return n + ' wins!'; },
-            caromGoal: 'GOAL!',
-            caromHelp1Html: 'Hot-seat for <strong>two players</strong>. On your turn, <strong>drag one of your players back</strong> and release to flick it — like a slingshot.',
+            caromGoal: 'GOAL!', caromYourTurn: 'Your turn', caromOppTurn: 'Opponent shooting…',
+            caromHelp1Html: 'Hot-seat for <strong>two players</strong> — or tap <strong>Online</strong> to play by room code. On your turn, <strong>drag one of your players back</strong> and release to flick it.',
             caromHelp2Html: 'Carom off teammates, rivals and the ball to knock the <strong>ball into the far goal</strong>. Knock it into your own net and the point goes to your rival.',
             caromHelp3Html: '<strong>Right-click</strong> (or the corner ✕) cancels a drag so you can pick another player. First to <strong>3 goals</strong> wins. <kbd>R</kbd> restart · <kbd>M</kbd> mute.',
+            // lobby (aligned with Rune Stones / Beam)
+            caromOnlineBtn: 'Online', caromLobbyTitle: 'Online match', caromClose: 'Close',
+            caromSignInGoogle: 'Sign in with Google', caromSignInGuest: 'Play as guest',
+            caromSignedIn: function (n) { return 'Signed in: ' + n; }, caromSignOut: 'Sign out', caromGuest: 'Guest',
+            caromCreateRoom: 'Create room', caromRoomCode: 'Code', caromJoinRoom: 'Join',
+            caromCopyCode: 'Copy', caromLeaveRoom: 'Leave room', caromCopied: 'Copied!',
+            caromReadyUp: 'I\u2019m ready to start', caromReadyWait: 'Ready — waiting for others…', caromStartMatch: 'Start match',
+            caromNeedTwo: 'Need 2 players', caromHostStarts: 'The host starts once both are ready.', caromSignInFirst: 'Sign in to create or join a room.',
+            caromRoomNotFound: 'Room not found', caromRoomFull: 'Room is full', caromAlreadyStarted: 'That match already started', caromNetErr: 'Network error',
+            caromYou: 'You', caromHost: 'Host', caromReadyTag: 'ready',
+            caromResultsTitle: 'Final score', caromWinner: function (n) { return n + ' wins!'; }, caromRematch: 'Rematch',
+            caromRoomGone: 'Room closed', caromOffline: 'offline', caromEndLeft: 'Your opponent left — you win.',
         },
         zh: {
             caromName: '彈球場',
-            caromReady: '兩人同機對戰。輪到你時，往後拖曳你的一個球員再放開彈射——撞擊球把它送進對方球門。先得 3 分者獲勝。',
+            caromReady: '兩人同機對戰，或點「線上」用房號配對。輪到你時，往後拖曳你的一個球員再放開彈射——撞擊球把它送進對方球門。先得 3 分者獲勝。',
             caromScore: '比分', caromTurn: '出手',
             caromTeam0: '藍方', caromTeam1: '紅方',
             caromAim: function (n) { return n + '出手'; },
             caromWin: function (n) { return n + '獲勝！'; },
-            caromGoal: '進球！',
-            caromHelp1Html: '<strong>兩人</strong>同機輪流。輪到你時，<strong>往後拖曳你的一個球員</strong>再放開彈射，像彈弓一樣。',
+            caromGoal: '進球！', caromYourTurn: '你的回合', caromOppTurn: '對手出手中…',
+            caromHelp1Html: '<strong>兩人</strong>同機輪流，或點 <strong>線上</strong> 用房號配對。輪到你時，<strong>往後拖曳你的一個球員</strong>再放開彈射，像彈弓一樣。',
             caromHelp2Html: '撞擊隊友、對手與球，把<strong>球撞進對方球門</strong>。若撞進自家球門，分數就送給對手。',
             caromHelp3Html: '<strong>按右鍵</strong>（或畫面角落的 ✕）可取消拖曳、改選別的球員。先得 <strong>3 分</strong>者獲勝。<kbd>R</kbd> 重來 · <kbd>M</kbd> 靜音。',
+            caromOnlineBtn: '線上', caromLobbyTitle: '線上對戰', caromClose: '關閉',
+            caromSignInGoogle: '用 Google 登入', caromSignInGuest: '以訪客身分遊玩',
+            caromSignedIn: function (n) { return '已登入：' + n; }, caromSignOut: '登出', caromGuest: '訪客',
+            caromCreateRoom: '建立房間', caromRoomCode: '房號', caromJoinRoom: '加入',
+            caromCopyCode: '複製', caromLeaveRoom: '離開房間', caromCopied: '已複製！',
+            caromReadyUp: '準備好了', caromReadyWait: '已準備，等待對手…', caromStartMatch: '開始對戰',
+            caromNeedTwo: '需要 2 位玩家', caromHostStarts: '兩人都準備好後，由房主開始。', caromSignInFirst: '登入後即可建立或加入房間。',
+            caromRoomNotFound: '找不到房間', caromRoomFull: '房間已滿', caromAlreadyStarted: '該場對戰已經開始', caromNetErr: '連線錯誤',
+            caromYou: '你', caromHost: '房主', caromReadyTag: '已準備',
+            caromResultsTitle: '最終比分', caromWinner: function (n) { return n + ' 獲勝！'; }, caromRematch: '再來一場',
+            caromRoomGone: '房間已關閉', caromOffline: '離線', caromEndLeft: '對手離開了——你獲勝。',
         },
     };
     Object.assign(AC.i18n.STRINGS.en, STRINGS.en);
     Object.assign(AC.i18n.STRINGS.zh, STRINGS.zh);
 
     // ---------------- constants ----------------
-    var CW = 600, CH = 760, FMX = 24, FMT = 46, FMB = 24;   // margins: sides, top header (caption + ✕), bottom
-    var FW = CW - 2 * FMX, FH = CH - FMT - FMB;             // field size (the header keeps the ✕ off the pitch)
+    var CW = 600, CH = 760, FMX = 24, FMT = 46, FMB = 24;
+    var FW = CW - 2 * FMX, FH = CH - FMT - FMB;
     var DPR = Math.min(window.devicePixelRatio || 1, 2);
-    var TEAM = ['#38bdf8', '#fb7185'];               // 0 = bottom (blue), 1 = top (red)
+    var TEAM = ['#38bdf8', '#fb7185'];               // team 0 (blue, bottom) / team 1 (red, top)
     var BALL = '#eef2f7';
-    var MAXPULL = 175, MAXSPEED = 1550;              // drag distance -> launch speed
-    var SUB = 4;                                     // physics sub-steps per frame
-    var TARGET = 3;                                  // goals to win
-    var CANCEL_R = 17;                               // corner cancel button radius
+    var MAXPULL = 175, MAXSPEED = 1550, TARGET = 3, CANCEL_R = 17;
+    var SUB = Math.max(1, Math.round((1 / 60) / E.STEP_DT));   // sub-steps/frame at the engine's canonical dt (matches settle → no snap)
+    var GROUP = 'carom_rooms', MAX_PLAYERS = 2, BEAT_MS = 3000, STALL_MS = 8000, SIM_MAX_MS = 6000;
 
     var canvas, ctx, shell, world;
-    var G = { phase: 'aim', turn: 0, score: [0, 0], drag: null, flash: 0 };
+    // unified match state. M.local = hot-seat; else online.
+    var M = null;
 
     function $(id) { return document.getElementById(id); }
+    function cfg() { return { W: FW, H: FH }; }
 
-    // ---------------- match lifecycle ----------------
-    function newMatch() {
-        world = E.create({ W: FW, H: FH });
-        G.score = [0, 0];
-        G.turn = Math.random() < 0.5 ? 0 : 1;        // coin-flip first shooter
-        G.drag = null; G.flash = 0; G.phase = 'aim';
+    // ---------------- hot-seat lifecycle ----------------
+    function startHotSeat() {
+        world = E.create(cfg());
+        M = { local: true, phase: 'aim', turn: Math.random() < 0.5 ? 0 : 1, score: [0, 0], drag: null, flash: 0 };
+        hideShellOverlay(); setControlsForMatch(); syncHud();
+    }
+    function hotEndTurn() { M.turn = 1 - M.turn; M.phase = 'aim'; M.drag = null; syncHud(); }
+    function hotGoal(side) {
+        var scorer = side === 'top' ? 0 : 1;
+        M.score[scorer]++; M.flash = 1; AC.audio.play('gem'); syncHud();
+        if (M.score[scorer] >= TARGET) { shell.gameOver({ score: 0, win: true, meta: { winner: scorer, score: M.score.slice() } }); return; }
+        E.reset(world); M.turn = side === 'top' ? 1 : 0; M.phase = 'aim'; M.drag = null; syncHud();
+    }
+
+    // ---------------- online lifecycle ----------------
+    function enterMatch(data) {
+        if (M && !M.local) return;
+        var g = data.game || {};
+        world = E.create(g.config || cfg()); E.reset(world);
+        var myOrder = (data.players[netUser.uid] || {}).order || 0;
+        M = {
+            local: false, myUid: netUser.uid, myTeam: myOrder,
+            turn: g.turn || 0, score: (g.score || [0, 0]).slice(), seq: g.seq || 0,
+            phase: null, pending: null, simStart: 0, localGoal: false, over: false, flash: 0, forfeit: false,
+        };
+        M.phase = (M.turn === M.myTeam) ? 'aim' : 'wait';
+        closeLobby(); hideShellOverlay(); setControlsForMatch();
+        if (!shell.isPlaying()) shell.start();       // onStart no-ops online (M already set)
         syncHud();
     }
-    function syncHud() {
-        var s = $('score'); if (s) s.textContent = G.score[0] + ' : ' + G.score[1];
-        var tn = $('turn'); if (tn) { tn.textContent = t('caromTeam' + G.turn); tn.style.color = TEAM[G.turn]; }
+    function exitMatch() {
+        detachRoom(); M = null; setControlsForMatch();
+        var pb = $('players'); if (pb) pb.hidden = true;
+        shell.goIdle();
     }
-    function endTurn() { G.turn = 1 - G.turn; G.phase = 'aim'; G.drag = null; syncHud(); }
-    function handleGoal(side) {
-        var scorer = side === 'top' ? 0 : 1;         // top net breached -> bottom team (0) scored
-        G.score[scorer]++; G.flash = 1; AC.audio.play('gem'); syncHud();
-        if (G.score[scorer] >= TARGET) { G.phase = 'aim'; shell.gameOver({ score: 0, win: true, meta: { winner: scorer, score: G.score.slice() } }); return; }
-        E.reset(world);
-        G.turn = side === 'top' ? 1 : 0;             // the team that conceded kicks off
-        G.phase = 'aim'; G.drag = null; syncHud();
+    function setBodies(w, state) {
+        for (var i = 0; i < w.bodies.length && i * 2 + 1 < state.length; i++) { var b = w.bodies[i]; b.x = state[i * 2]; b.y = state[i * 2 + 1]; b.vx = 0; b.vy = 0; }
+    }
+    function onlineShoot(idx, dx, dy, power) {
+        // pre-compute the authoritative outcome head-less, then broadcast shot + result in one write
+        var sim = E.snapshot(world); E.applyShot(sim, idx, dx, dy, power);
+        var goal = E.settle(sim), score = M.score.slice(), nextTurn, winner = null;
+        if (goal) { var scorer = goal === 'top' ? 0 : 1; score[scorer]++; nextTurn = goal === 'top' ? 1 : 0; E.reset(sim); winner = score[0] >= TARGET ? 0 : (score[1] >= TARGET ? 1 : null); }
+        else nextTurn = 1 - M.turn;
+        var state = []; sim.bodies.forEach(function (b) { state.push(Math.round(b.x * 10) / 10, Math.round(b.y * 10) / 10); });   // FLAT [x0,y0,x1,y1,…] — Firestore rejects nested arrays
+        var seq = (M.seq || 0) + 1, result = { state: state, goal: goal || null, score: score, turn: nextTurn, winner: winner };
+        M.seq = seq; M.pending = result;
+        var patch = { 'game.seq': seq, 'game.shot': { idx: idx, dx: dx, dy: dy, power: power }, 'game.result': result };
+        if (winner != null) { patch['game.status'] = 'over'; patch['game.winner'] = winner; patch['status'] = 'lobby'; }
+        roomWrite(patch);
+        E.applyShot(world, idx, dx, dy, power); M.phase = 'sim'; M.simStart = performance.now(); M.localGoal = false; AC.audio.play('laser');
+    }
+    function applyPending() {
+        var r = M.pending; if (!r) return;
+        setBodies(world, r.state);
+        M.score = r.score.slice(); M.turn = r.turn; M.pending = null; M.localGoal = false;
+        if (r.goal) { M.flash = 1; AC.audio.play('gem'); }
+        syncHud();
+        if (r.winner != null) { onlineOver(r.winner); return; }
+        M.phase = (M.turn === M.myTeam) ? 'aim' : 'wait';
+    }
+    function onlineOver(winner) {
+        M.over = true; M.phase = 'wait';
+        openLobby();   // results shown in the lobby (winner + rematch/leave), like Beam
     }
 
-    // ---------------- loop ----------------
+    // ---------------- shared loop ----------------
     function update() {
-        if (G.flash > 0) G.flash = Math.max(0, G.flash - 1 / 60 / 0.6);
-        if (G.phase !== 'sim') return;
-        var dt = (1 / 60) / SUB;
-        for (var i = 0; i < SUB; i++) { var g = E.step(world, dt); if (g) { handleGoal(g); return; } }
-        if (E.atRest(world)) { E.freeze(world); endTurn(); }
+        if (!M) return;
+        if (M.flash > 0) M.flash = Math.max(0, M.flash - 1 / 60 / 0.6);
+        if (M.phase !== 'sim') return;
+        var dt = E.STEP_DT;
+        for (var i = 0; i < SUB; i++) { var g = E.step(world, dt); if (g) { if (M.local) { hotGoal(g); return; } M.localGoal = true; break; } }
+        if (M.local) { if (E.atRest(world)) { E.freeze(world); hotEndTurn(); } return; }
+        // online: when our local animation ends, apply the authoritative result
+        if (M.localGoal || E.atRest(world) || performance.now() - M.simStart > SIM_MAX_MS) applyPending();
     }
 
-    // ---------------- rendering ----------------
-    function fx(x) { return FMX + x; }
-    function fy(y) { return FMT + y; }
+    // ---------------- view (board flips 180° for team 1 so you always attack upward) ----------------
+    function flipped() { return !!(M && !M.local && M.myTeam === 1); }
+    function fx(x) { return flipped() ? FMX + (FW - x) : FMX + x; }
+    function fy(y) { return flipped() ? FMT + (FH - y) : FMT + y; }
+    function aimTeam() { if (!M || M.phase !== 'aim') return -1; return M.local ? M.turn : M.myTeam; }
+    function canAim() { return aimTeam() >= 0 && (M.local || M.turn === M.myTeam); }
+
     function clear() { ctx.clearRect(0, 0, CW, CH); ctx.fillStyle = '#0a1628'; ctx.fillRect(0, 0, CW, CH); }
     function roundRect(x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
-
     function drawField() {
-        // pitch
-        ctx.save();
-        roundRect(FMX, FMT, FW, FH, 14); ctx.fillStyle = '#123a2a'; ctx.fill();
-        ctx.clip();
-        // subtle mow stripes
+        ctx.save(); roundRect(FMX, FMT, FW, FH, 14); ctx.fillStyle = '#123a2a'; ctx.fill(); ctx.clip();
         for (var i = 0; i < 8; i++) { ctx.fillStyle = (i % 2) ? 'rgba(255,255,255,0.025)' : 'rgba(0,0,0,0.04)'; ctx.fillRect(FMX, FMT + FH * i / 8, FW, FH / 8); }
         ctx.restore();
-        // lines
         ctx.strokeStyle = 'rgba(255,255,255,0.35)'; ctx.lineWidth = 2;
         roundRect(FMX + 4, FMT + 4, FW - 8, FH - 8, 12); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(FMX, fy(FH / 2)); ctx.lineTo(FMX + FW, fy(FH / 2)); ctx.stroke();
-        ctx.beginPath(); ctx.arc(fx(FW / 2), fy(FH / 2), 58, 0, Math.PI * 2); ctx.stroke();
-        ctx.fillStyle = 'rgba(255,255,255,0.5)'; ctx.beginPath(); ctx.arc(fx(FW / 2), fy(FH / 2), 3, 0, Math.PI * 2); ctx.fill();
-        // goals (mouth + net in the margin), coloured by defending team
-        drawGoal(world.goalX0, world.goalX1, true);   // top net — defended by red (team 1)
-        drawGoal(world.goalX0, world.goalX1, false);  // bottom net — defended by blue (team 0)
+        ctx.beginPath(); ctx.moveTo(FMX, FMT + FH / 2); ctx.lineTo(FMX + FW, FMT + FH / 2); ctx.stroke();
+        ctx.beginPath(); ctx.arc(FMX + FW / 2, FMT + FH / 2, 58, 0, Math.PI * 2); ctx.stroke();
+        ctx.fillStyle = 'rgba(255,255,255,0.5)'; ctx.beginPath(); ctx.arc(FMX + FW / 2, FMT + FH / 2, 3, 0, Math.PI * 2); ctx.fill();
+        var gx0 = world.goalX0, gx1 = world.goalX1;
+        drawGoal(gx0, gx1, !flipped());   // world-top net (team 1) — screen top unless flipped
+        drawGoal(gx0, gx1, flipped());
     }
-    function drawGoal(gx0, gx1, top) {
-        var y = top ? FMT : (FMT + FH), depth = 16, team = top ? 1 : 0;
-        ctx.save();
-        ctx.strokeStyle = TEAM[team]; ctx.lineWidth = 4; ctx.lineCap = 'round';
-        ctx.beginPath(); ctx.moveTo(fx(gx0), y); ctx.lineTo(fx(gx0), y + (top ? -depth : depth));
-        ctx.moveTo(fx(gx1), y); ctx.lineTo(fx(gx1), y + (top ? -depth : depth));
-        ctx.moveTo(fx(gx0), y + (top ? -depth : depth)); ctx.lineTo(fx(gx1), y + (top ? -depth : depth));
-        ctx.stroke();
-        ctx.globalAlpha = 0.18; ctx.fillStyle = TEAM[team];
-        ctx.fillRect(fx(gx0), top ? y - depth : y, gx1 - gx0, depth);
-        ctx.restore();
+    function drawGoal(gx0, gx1, screenTop) {
+        var y = screenTop ? FMT : (FMT + FH), depth = 16, worldTop = flipped() ? !screenTop : screenTop, team = worldTop ? 1 : 0;
+        var x0 = flipped() ? FMX + (FW - gx1) : FMX + gx0, x1 = flipped() ? FMX + (FW - gx0) : FMX + gx1;
+        ctx.save(); ctx.strokeStyle = TEAM[team]; ctx.lineWidth = 4; ctx.lineCap = 'round';
+        var dy = screenTop ? -depth : depth;
+        ctx.beginPath(); ctx.moveTo(x0, y); ctx.lineTo(x0, y + dy); ctx.moveTo(x1, y); ctx.lineTo(x1, y + dy); ctx.moveTo(x0, y + dy); ctx.lineTo(x1, y + dy); ctx.stroke();
+        ctx.globalAlpha = 0.18; ctx.fillStyle = TEAM[team]; ctx.fillRect(x0, screenTop ? y - depth : y, x1 - x0, depth); ctx.restore();
     }
     function drawBodies() {
-        var b = world.bodies, i, o;
-        for (i = 0; i < b.length; i++) {
-            o = b[i];
-            var col = o.kind === 'ball' ? BALL : TEAM[o.team];
-            var pickable = (G.phase === 'aim' && o.kind === 'player' && o.team === G.turn);
-            ctx.save();
-            if (pickable) { ctx.shadowColor = col; ctx.shadowBlur = 14; }
-            ctx.beginPath(); ctx.arc(fx(o.x), fy(o.y), o.r, 0, Math.PI * 2);
-            ctx.fillStyle = col; ctx.fill();
-            ctx.restore();
+        var b = world.bodies, at = aimTeam();
+        for (var i = 0; i < b.length; i++) {
+            var o = b[i], col = o.kind === 'ball' ? BALL : TEAM[o.team];
+            var pickable = (o.kind === 'player' && o.team === at && (M.local || o.team === M.myTeam));
+            ctx.save(); if (pickable) { ctx.shadowColor = col; ctx.shadowBlur = 14; }
+            ctx.beginPath(); ctx.arc(fx(o.x), fy(o.y), o.r, 0, Math.PI * 2); ctx.fillStyle = col; ctx.fill(); ctx.restore();
             ctx.lineWidth = o.kind === 'ball' ? 2 : 2.5;
             ctx.strokeStyle = o.kind === 'ball' ? 'rgba(15,23,42,0.5)' : 'rgba(255,255,255,0.65)';
             ctx.beginPath(); ctx.arc(fx(o.x), fy(o.y), o.r, 0, Math.PI * 2); ctx.stroke();
@@ -137,35 +201,27 @@
         }
     }
     function drawAim() {
-        if (!G.drag) return;
-        var o = world.bodies[G.drag.idx];
-        var dx = o.x - G.drag.x, dy = o.y - G.drag.y;            // launch dir = pull-back opposite
-        var dist = Math.min(Math.hypot(dx, dy), MAXPULL), u = dist / MAXPULL;
+        if (!M || !M.drag) return;
+        var o = world.bodies[M.drag.idx], dx = o.x - M.drag.x, dy = o.y - M.drag.y;
+        var raw = Math.hypot(dx, dy) || 1, dist = Math.min(raw, MAXPULL), u = dist / MAXPULL;
         if (dist < 1) return;
-        var nx = dx / (Math.hypot(dx, dy) || 1), ny = dy / (Math.hypot(dx, dy) || 1);
-        // faint pull line (body -> pointer)
+        var nx = dx / raw, ny = dy / raw;
         ctx.strokeStyle = 'rgba(255,255,255,0.25)'; ctx.lineWidth = 2; ctx.setLineDash([4, 5]);
-        ctx.beginPath(); ctx.moveTo(fx(o.x), fy(o.y)); ctx.lineTo(fx(G.drag.x), fy(G.drag.y)); ctx.stroke(); ctx.setLineDash([]);
-        // power arrow (body -> launch dir)
-        var len = 24 + dist, ex = fx(o.x + nx * len), ey = fy(o.y + ny * len);
-        var col = mix('#34d399', '#f87171', u);
+        ctx.beginPath(); ctx.moveTo(fx(o.x), fy(o.y)); ctx.lineTo(fx(M.drag.x), fy(M.drag.y)); ctx.stroke(); ctx.setLineDash([]);
+        var len = 24 + dist, ex = fx(o.x + nx * len), ey = fy(o.y + ny * len), col = mix('#34d399', '#f87171', u);
         ctx.strokeStyle = col; ctx.lineWidth = 5; ctx.lineCap = 'round';
         ctx.beginPath(); ctx.moveTo(fx(o.x), fy(o.y)); ctx.lineTo(ex, ey); ctx.stroke();
-        var ah = 11, a = Math.atan2(ny, nx);
-        ctx.beginPath(); ctx.moveTo(ex, ey);
-        ctx.lineTo(ex - ah * Math.cos(a - 0.4), ey - ah * Math.sin(a - 0.4));
-        ctx.lineTo(ex - ah * Math.cos(a + 0.4), ey - ah * Math.sin(a + 0.4));
-        ctx.closePath(); ctx.fillStyle = col; ctx.fill();
+        var ah = 11, a = Math.atan2(ey - fy(o.y), ex - fx(o.x));
+        ctx.beginPath(); ctx.moveTo(ex, ey); ctx.lineTo(ex - ah * Math.cos(a - 0.4), ey - ah * Math.sin(a - 0.4)); ctx.lineTo(ex - ah * Math.cos(a + 0.4), ey - ah * Math.sin(a + 0.4)); ctx.closePath(); ctx.fillStyle = col; ctx.fill();
         drawCancel();
     }
-    function cancelXY() { return { x: CW - FMX - CANCEL_R - 4, y: FMT / 2 }; }   // in the top header, clear of the pitch
+    function cancelXY() { return { x: CW - FMX - CANCEL_R - 4, y: FMT / 2 }; }
     function drawCancel() {
         var c = cancelXY();
         ctx.save(); ctx.fillStyle = 'rgba(15,23,42,0.85)'; ctx.strokeStyle = '#f87171'; ctx.lineWidth = 2;
         ctx.beginPath(); ctx.arc(c.x, c.y, CANCEL_R, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
         ctx.strokeStyle = '#f87171'; ctx.lineWidth = 2.5; ctx.lineCap = 'round'; var k = CANCEL_R * 0.42;
-        ctx.beginPath(); ctx.moveTo(c.x - k, c.y - k); ctx.lineTo(c.x + k, c.y + k); ctx.moveTo(c.x + k, c.y - k); ctx.lineTo(c.x - k, c.y + k); ctx.stroke();
-        ctx.restore();
+        ctx.beginPath(); ctx.moveTo(c.x - k, c.y - k); ctx.lineTo(c.x + k, c.y + k); ctx.moveTo(c.x + k, c.y - k); ctx.lineTo(c.x - k, c.y + k); ctx.stroke(); ctx.restore();
     }
     function caption(text, color) {
         ctx.fillStyle = color || 'rgba(226,232,240,0.95)';
@@ -173,10 +229,13 @@
         ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(text, CW / 2, FMT / 2);
     }
     function render() {
-        if (!ctx) return;
-        clear(); drawField(); drawBodies(); drawAim();
-        if (G.flash > 0) { ctx.save(); ctx.globalAlpha = G.flash * 0.5; ctx.fillStyle = '#fde68a'; ctx.fillRect(0, 0, CW, CH); ctx.restore(); caption(t('caromGoal'), '#fde68a'); }
-        else if (G.phase === 'aim') caption(t('caromAim', t('caromTeam' + G.turn)), TEAM[G.turn]);
+        if (!ctx || !world) return;
+        clear(); drawField(); if (M) { drawBodies(); drawAim(); }
+        if (!M) return;
+        if (M.flash > 0) { ctx.save(); ctx.globalAlpha = M.flash * 0.5; ctx.fillStyle = '#fde68a'; ctx.fillRect(0, 0, CW, CH); ctx.restore(); caption(t('caromGoal'), '#fde68a'); return; }
+        if (M.local) { if (M.phase === 'aim') caption(t('caromAim', t('caromTeam' + M.turn)), TEAM[M.turn]); }
+        else if (M.phase === 'aim') caption(t('caromYourTurn'), TEAM[M.myTeam]);
+        else if (M.phase === 'wait') caption(t('caromOppTurn'), '#94a3b8');
     }
     function mix(a, b, u) {
         function h(c) { return [parseInt(c.slice(1, 3), 16), parseInt(c.slice(3, 5), 16), parseInt(c.slice(5, 7), 16)]; }
@@ -187,43 +246,234 @@
     // ---------------- input ----------------
     function evToField(e) {
         var r = canvas.getBoundingClientRect();
-        return { x: (e.clientX - r.left) * (CW / r.width) - FMX, y: (e.clientY - r.top) * (CH / r.height) - FMT };
+        var x = (e.clientX - r.left) * (CW / r.width) - FMX, y = (e.clientY - r.top) * (CH / r.height) - FMT;
+        if (flipped()) { x = FW - x; y = FH - y; }
+        return { x: x, y: y };
     }
     function hitPlayer(p) {
-        var b = world.bodies, best = -1, bd = 1e9;
-        for (var i = 0; i < b.length; i++) {
-            var o = b[i]; if (o.kind !== 'player' || o.team !== G.turn) continue;
-            var d = Math.hypot(o.x - p.x, o.y - p.y);
-            if (d < o.r + 10 && d < bd) { bd = d; best = i; }
-        }
+        var b = world.bodies, best = -1, bd = 1e9, at = aimTeam();
+        for (var i = 0; i < b.length; i++) { var o = b[i]; if (o.kind !== 'player' || o.team !== at) continue; var d = Math.hypot(o.x - p.x, o.y - p.y); if (d < o.r + 10 && d < bd) { bd = d; best = i; } }
         return best;
     }
     function inCancel(e) {
-        var r = canvas.getBoundingClientRect();
-        var cx = (e.clientX - r.left) * (CW / r.width), cy = (e.clientY - r.top) * (CH / r.height), c = cancelXY();
-        return Math.hypot(cx - c.x, cy - c.y) <= CANCEL_R + 4;
+        var r = canvas.getBoundingClientRect(), c = cancelXY();
+        return Math.hypot((e.clientX - r.left) * (CW / r.width) - c.x, (e.clientY - r.top) * (CH / r.height) - c.y) <= CANCEL_R + 4;
     }
     function onDown(e) {
-        if (!shell.isPlaying() || G.phase !== 'aim') return;
-        var p = evToField(e), idx = hitPlayer(p);
-        if (idx < 0) return;
-        AC.audio.unlock();
-        G.drag = { idx: idx, x: p.x, y: p.y }; e.preventDefault();
+        if (!shell.isPlaying() || !canAim()) return;
+        var p = evToField(e), idx = hitPlayer(p); if (idx < 0) return;
+        AC.audio.unlock(); M.drag = { idx: idx, x: p.x, y: p.y }; e.preventDefault();
     }
-    function onMove(e) { if (!G.drag) return; var p = evToField(e); G.drag.x = p.x; G.drag.y = p.y; e.preventDefault(); }
+    function onMove(e) { if (!M || !M.drag) return; var p = evToField(e); M.drag.x = p.x; M.drag.y = p.y; e.preventDefault(); }
     function onUp(e) {
-        if (!G.drag) return;
-        if (inCancel(e)) { G.drag = null; AC.audio.play('click'); e.preventDefault(); return; }   // release over the ✕ → cancel (works on touch too)
-        var o = world.bodies[G.drag.idx], dx = o.x - G.drag.x, dy = o.y - G.drag.y, dist = Math.hypot(dx, dy);
-        var idx = G.drag.idx; G.drag = null;
-        if (dist < 14) return;                                   // tiny pull -> treat as cancel, keep aiming
+        if (!M || !M.drag) return;
+        if (inCancel(e)) { M.drag = null; AC.audio.play('click'); e.preventDefault(); return; }
+        var o = world.bodies[M.drag.idx], dx = o.x - M.drag.x, dy = o.y - M.drag.y, dist = Math.hypot(dx, dy), idx = M.drag.idx;
+        M.drag = null;
+        if (dist < 14) return;
         var power = Math.min(dist, MAXPULL) / MAXPULL * MAXSPEED;
-        E.applyShot(world, idx, dx, dy, power); AC.audio.play('laser');
-        G.phase = 'sim'; e.preventDefault();
+        if (M.local) { E.applyShot(world, idx, dx, dy, power); AC.audio.play('laser'); M.phase = 'sim'; }
+        else onlineShoot(idx, dx, dy, power);
+        e.preventDefault();
     }
-    function cancelDrag() { if (G.drag) { G.drag = null; AC.audio.play('click'); } }
+    function cancelDrag() { if (M && M.drag) { M.drag = null; AC.audio.play('click'); } }
 
-    // ---------------- boot ----------------
+    // ---------------- HUD ----------------
+    function syncHud() {
+        var s = $('score'), tn = $('turn');
+        if (!M) { if (s) s.textContent = '0 : 0'; if (tn) { tn.textContent = '—'; tn.style.color = ''; } return; }
+        if (M.local) { if (s) s.textContent = M.score[0] + ' : ' + M.score[1]; if (tn) { tn.textContent = t('caromTeam' + M.turn); tn.style.color = TEAM[M.turn]; } }
+        else {
+            if (s) s.textContent = M.score[M.myTeam] + ' : ' + M.score[1 - M.myTeam];
+            if (tn) { var mine = M.turn === M.myTeam; tn.textContent = mine ? t('caromYourTurn') : t('caromOppTurn'); tn.style.color = mine ? TEAM[M.myTeam] : '#94a3b8'; }
+        }
+    }
+
+    // ===============================================================
+    // lobby + net (room code; modelled on Beam, 2 players)
+    // ===============================================================
+    var net = null, netUser = undefined, room = null, lobbyEl = null, lobbyRefs = null;
+    var pres = {}, beatN = 0, beatT = 0, gcT = 0;
+    function updatePres(g) { var beats = (g && g.beat) || {}, now = Date.now(); for (var uid in beats) { var p = pres[uid]; if (!p) pres[uid] = { v: beats[uid], at: now }; else if (p.v !== beats[uid]) { p.v = beats[uid]; p.at = now; } } }
+    function isStale(uid) { if (!M || M.local) return false; var p = pres[uid]; return !!p && (Date.now() - p.at) > STALL_MS; }
+    function elc(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+    function lbtn(label, cls) { var b = elc('button', cls || 'btn', label); b.type = 'button'; return b; }
+    function lrow() { var r = elc('div', 'lobby-row'); for (var i = 0; i < arguments.length; i++) if (arguments[i]) r.appendChild(arguments[i]); return r; }
+    function roomWrite(patch) { return net.mp.update(GROUP, room.code, patch).catch(function () { }); }
+    function hideShellOverlay() { var o = $('overlay'); if (o) o.hidden = true; }
+    function pname(uid, players) { var p = players && players[uid]; return (p && p.name) || t('caromGuest'); }
+    function effectiveHost(d) {
+        var players = d.players || {}; if (d.hostUid && players[d.hostUid] && !isStale(d.hostUid)) return d.hostUid;
+        var order = d.order || Object.keys(players);
+        for (var i = 0; i < order.length; i++) if (players[order[i]] && !isStale(order[i])) return order[i];
+        for (var j = 0; j < order.length; j++) if (players[order[j]]) return order[j];
+        return null;
+    }
+    function buildLobby() {
+        var wrap = document.querySelector('.stage-wrap') || document.body;
+        var ov = elc('div', 'overlay'); ov.id = 'lobby'; ov.hidden = true;
+        ov.addEventListener('pointerdown', function (e) { e.stopPropagation(); });
+        var card = elc('div', 'overlay-card'), title = elc('h2', 'overlay-title'), auth = elc('div', 'lobby-auth'), roomBox = elc('div', 'lobby-room'), status = elc('p', 'lobby-status'), close = lbtn('', 'btn');
+        close.addEventListener('click', closeLobby);
+        card.append(title, auth, roomBox, status, close); ov.appendChild(card); wrap.appendChild(ov);
+        lobbyEl = ov; lobbyRefs = { title: title, auth: auth, room: roomBox, status: status, close: close };
+    }
+    function openLobby() {
+        if (!net || !net.ok) return;
+        if (!lobbyEl) buildLobby(); lobbyEl.hidden = false; hideShellOverlay(); renderLobby(); if (net.mp.cleanup) net.mp.cleanup(GROUP).catch(function () { });
+    }
+    function closeLobby() {
+        if (lobbyEl) lobbyEl.hidden = true;
+        if (M && M.over && !M.local) { doLeave(); return; }
+        if (!M) shell.refreshOverlay();
+    }
+    function detachRoom() { if (room && room.unsub) { try { room.unsub(); } catch (e) { } } room = null; pres = {}; }
+    function attachRoom(code) { detachRoom(); pres = {}; beatT = 0; room = { code: code, data: null, unsub: null }; room.unsub = net.mp.watch(GROUP, code, onRoom); renderLobby(); }
+    function showLobbyError(e) {
+        var m = String((e && e.message) || e), msg = t('caromNetErr');
+        if (m.indexOf('not found') !== -1) msg = t('caromRoomNotFound');
+        else if (m.indexOf('full') !== -1) msg = t('caromRoomFull');
+        else if (m.indexOf('already') !== -1) msg = t('caromAlreadyStarted');
+        if (lobbyRefs) lobbyRefs.status.textContent = msg; console.warn('[carom lobby]', e);
+    }
+    function doSignIn(kind) { (kind === 'google' ? net.signInGoogle() : net.signInGuest()).catch(showLobbyError); }
+    function doCreate() { net.mp.create(GROUP, { maxPlayers: MAX_PLAYERS }).then(attachRoom).catch(showLobbyError); }
+    function doJoin(code) { code = String(code || '').trim().toUpperCase(); if (!code) return; net.mp.join(GROUP, code).then(attachRoom).catch(showLobbyError); }
+    function doLeave() { var wasMatch = !!(M && !M.local); if (room) { var c = room.code; detachRoom(); net.mp.leave(GROUP, c).catch(function () { }); } if (wasMatch) exitMatch(); renderLobby(); }
+    function doReady() { if (!room || !netUser) return; net.mp.update(GROUP, room.code, { ['ready.' + netUser.uid]: true }).catch(showLobbyError); }
+    function hostStart() {
+        if (!room || !room.data || !netUser) return;
+        var d = room.data; if (effectiveHost(d) !== netUser.uid) return;
+        var order = (d.order || Object.keys(d.players || {})).filter(function (u) { return (d.players || {})[u] && !isStale(u); });
+        if (order.length < 2) return;
+        var hostUid = effectiveHost(d), ready = d.ready || {};
+        if (!order.every(function (u) { return u === hostUid || ready[u]; })) return;
+        net.mp.update(GROUP, room.code, { status: 'playing', game: { status: 'playing', config: cfg(), score: [0, 0], turn: Math.random() < 0.5 ? 0 : 1, seq: 0, shot: null, result: null, winner: null, beat: {} }, ready: {} }).catch(showLobbyError);
+    }
+    function doRematch() { if (!room || !room.data || !netUser) return; if (effectiveHost(room.data) !== netUser.uid) return; net.mp.update(GROUP, room.code, { status: 'lobby', game: {}, ready: {} }).catch(showLobbyError); }
+    function copyCode(code) { try { var p = navigator.clipboard && navigator.clipboard.writeText(code); if (p && p.catch) p.catch(function () { }); } catch (e) { } if (lobbyRefs) lobbyRefs.status.textContent = t('caromCopied'); }
+
+    function renderLobby() {
+        if (!lobbyEl) return;
+        var _pi = lobbyEl.querySelector('.lobby-room input'), _pv = _pi ? _pi.value : null, _pf = !!(_pi && document.activeElement === _pi), _ps = _pf ? _pi.selectionStart : 0, _pe = _pf ? _pi.selectionEnd : 0;
+        var d = room && room.data, g = (d && d.game) || {}, u = netUser, over = g.status === 'over';
+        lobbyRefs.title.textContent = over ? t('caromResultsTitle') : t('caromLobbyTitle');
+        lobbyRefs.close.textContent = t('caromClose');
+        var auth = lobbyRefs.auth; auth.innerHTML = '';
+        if (!u) { var gg = lbtn(t('caromSignInGoogle'), 'btn btn-primary'); gg.onclick = function () { doSignIn('google'); }; var ag = lbtn(t('caromSignInGuest'), 'btn'); ag.onclick = function () { doSignIn('guest'); }; auth.appendChild(lrow(gg, ag)); }
+        else { var info = elc('span', null, t('caromSignedIn', u.name || t('caromGuest'))); var out = lbtn(t('caromSignOut'), 'btn'); out.onclick = function () { doLeave(); net.signOut(); }; auth.appendChild(lrow(info, out)); }
+        var rbox = lobbyRefs.room; rbox.innerHTML = '';
+        if (u && !d) {
+            var create = lbtn(t('caromCreateRoom'), 'btn btn-primary'); create.onclick = doCreate;
+            var input = elc('input'); input.placeholder = t('caromRoomCode'); input.maxLength = 4;
+            var join = lbtn(t('caromJoinRoom'), 'btn'); join.onclick = function () { doJoin(input.value); };
+            input.addEventListener('keydown', function (e) { if (e.key === 'Enter') doJoin(input.value); });
+            rbox.appendChild(lrow(create)); rbox.appendChild(lrow(input, join));
+        } else if (u && d) {
+            rbox.appendChild(elc('div', 'lobby-code', d.code));
+            var ul = elc('ul', 'lobby-plist'), order = d.order || Object.keys(d.players || {}), ready = d.ready || {}, host = effectiveHost(d);
+            var scoreOf = function (uid) { var o = (d.players[uid] || {}).order || 0; return (g.score || [0, 0])[o]; };
+            order.forEach(function (uid) {
+                if (!d.players[uid]) return;
+                var li = elc('li'), left = elc('span'), dot2 = elc('span', null, '\u25cf '); dot2.style.color = TEAM[(d.players[uid].order || 0) % 2]; left.appendChild(dot2);
+                left.appendChild(document.createTextNode(pname(uid, d.players) + (uid === u.uid ? ' (' + t('caromYou') + ')' : ''))); li.appendChild(left);
+                var right = elc('span');
+                if (over) { right.appendChild(elc('span', 'rank', String(scoreOf(uid)))); }
+                else { if (uid === host) right.appendChild(elc('span', 'tag', t('caromHost'))); if (isStale(uid)) { li.style.opacity = '0.5'; right.appendChild(elc('span', null, ' \u26a0')); } else if (ready[uid]) right.appendChild(elc('span', 'ok', ' ✓ ' + t('caromReadyTag'))); }
+                li.appendChild(right); ul.appendChild(li);
+            });
+            rbox.appendChild(ul);
+            if (over) {
+                if (host === u.uid) { var rem = lbtn(t('caromRematch'), 'btn btn-primary'); rem.onclick = doRematch; rbox.appendChild(lrow(rem)); }
+                var lvo = lbtn(t('caromLeaveRoom'), 'btn'); lvo.onclick = doLeave; rbox.appendChild(lrow(lvo));
+            } else {
+                var iAmHost = host === u.uid, present = order.filter(function (x) { return d.players[x] && !isStale(x); });
+                var copy = lbtn(t('caromCopyCode'), 'btn'); copy.onclick = function () { copyCode(d.code); };
+                var primary;
+                if (iAmHost) { var guests = present.filter(function (x) { return x !== u.uid; }); var canStart = present.length >= 2 && guests.every(function (x) { return ready[x]; }); primary = lbtn(t('caromStartMatch'), 'btn btn-primary'); primary.disabled = !canStart; primary.onclick = hostStart; }
+                else if (ready[u.uid]) primary = elc('span', null, t('caromReadyWait'));
+                else { primary = lbtn(t('caromReadyUp'), 'btn btn-primary'); primary.onclick = doReady; }
+                rbox.appendChild(lrow(copy, primary));
+                var lv = lbtn(t('caromLeaveRoom'), 'btn'); lv.onclick = doLeave; rbox.appendChild(lrow(lv));
+            }
+        }
+        var s = '';
+        if (!u) s = t('caromSignInFirst');
+        else if (over && g.endReason === 'left' && g.winner != null && (d.players[u.uid] || {}).order === g.winner) s = t('caromEndLeft');
+        else if (over && g.winner != null) s = t('caromWinner', t('caromTeam' + g.winner));
+        else if (d) { var present2 = (d.order || []).filter(function (x) { return d.players[x]; }); s = present2.length < 2 ? t('caromNeedTwo') : t('caromHostStarts'); }
+        lobbyRefs.status.textContent = s;
+        if (_pv != null) { var _ni = lobbyRefs.room.querySelector('input'); if (_ni) { _ni.value = _pv; if (_pf) { _ni.focus(); try { _ni.setSelectionRange(_ps, _pe); } catch (e) { } } } }
+    }
+
+    function onRoom(data, err) {
+        if (!room) return;                             // stale listener after detach
+        if (err) { showLobbyError(err); return; }
+        if (!data) { if (M && !M.local) { if (AC.toast) AC.toast.show(t('caromRoomGone')); exitMatch(); } if (room) room.data = null; renderLobby(); return; }
+        room.data = data; var g = data.game || {};
+        updatePres(g);
+        if (!M) { if (g.status === 'playing') enterMatch(data); else renderLobby(); return; }
+        // a new shot (shot + authoritative result arrive together) — animate it, even if it ends the match
+        if (g.seq > M.seq && g.shot && g.result && !M.over) {
+            M.seq = g.seq; M.pending = g.result;
+            E.applyShot(world, g.shot.idx, g.shot.dx, g.shot.dy, g.shot.power);
+            M.phase = 'sim'; M.simStart = performance.now(); M.localGoal = false;
+            return;   // applyPending (at sim end) applies score/turn and, if result.winner, opens the results
+        }
+        if (g.status === 'over') {                      // forfeit / decided with no new shot to animate
+            if (!M.over && !M.pending) { M.over = true; if (g.winner != null) M.score = (g.score || M.score).slice(); openLobby(); if (g.endReason === 'left' && AC.toast) AC.toast.show(t('caromEndLeft')); }
+            renderLobby(); return;
+        }
+        if (g.status !== 'playing') {                   // room reset to the lobby (rematch) — stay in the room
+            M = null; var pb = $('players'); if (pb) pb.hidden = true; setControlsForMatch();
+            if (shell.isPlaying()) shell.goIdle();
+            openLobby(); renderLobby(); return;
+        }
+        if (lobbyEl && !lobbyEl.hidden) renderLobby();
+    }
+
+    // presence beats + opponent-left walkover
+    function watchdog() {
+        setControlsForMatch();          // keep the Online button's enabled state correct on every screen (avoids the goIdle stale-state race)
+        if (!net || !room || !room.data || !netUser || !M || M.local) return;
+        var d = room.data, g = d.game || {}, now = Date.now();
+        if (!beatT || now - beatT > BEAT_MS) { beatT = now; beatN++; net.mp.update(GROUP, room.code, { ['game.beat.' + netUser.uid]: beatN }).catch(function () { }); }
+        if (effectiveHost(d) === netUser.uid && (!gcT || now - gcT > 15000)) { gcT = now; net.mp.cleanup(GROUP).catch(function () { }); }
+        if (g.status === 'playing' && !M.over && !M.forfeit) {
+            var order = d.order || Object.keys(d.players || {});
+            var opp = order.filter(function (u) { return u !== netUser.uid; })[0];
+            if (opp && (!d.players[opp] || isStale(opp))) {            // opponent gone → walkover to me
+                M.forfeit = true; var myTeam = (d.players[netUser.uid] || {}).order || 0;
+                net.mp.update(GROUP, room.code, { 'game.status': 'over', 'game.winner': myTeam, 'game.endReason': 'left', 'status': 'lobby' }).catch(function () { });
+            }
+        }
+    }
+
+    // ===============================================================
+    // controls (Online button) + shell + boot
+    // ===============================================================
+    function setControlsForMatch() { var ob = $('online-btn'); if (ob) ob.disabled = !!(shell && shell.isPlaying()); }   // lobby only reachable when not mid-match
+    function updateOnlineBtn() { var b = $('online-btn'); if (b) b.hidden = !(net && net.ok); }
+    function setupOnline() {
+        function ready() {
+            var N = window.ArcadeNet, btn = $('online-btn');
+            if (!N || !N.ok) { if (btn) btn.hidden = true; return; }
+            net = N; buildLobby();
+            net.onAuth(function (uu) { netUser = uu; renderLobby(); });
+            if (net.mp.cleanup) net.mp.cleanup(GROUP).catch(function () { });
+            if (btn) btn.addEventListener('click', openLobby);
+            updateOnlineBtn();
+        }
+        if (window.ArcadeNet) ready(); else window.addEventListener('arcade-net-ready', ready, { once: true });
+        setInterval(watchdog, 250);
+        window.addEventListener('beforeunload', function () { if (room && room.code && net && M && !M.local) { try { net.mp.leave(GROUP, room.code); } catch (e) { } } });
+    }
+    function toReady() {                 // reset() target: back to the hot-seat ready screen
+        if (M && !M.local && !M.over && room && room.data) return;   // protect only a LIVE online match; a stale one may be cleared
+        M = null; world = E.create(cfg());
+        var pb = $('players'); if (pb) pb.hidden = true;
+        setControlsForMatch(); syncHud();
+    }
     function boot() {
         canvas = $('stage'); canvas.width = CW * DPR; canvas.height = CH * DPR;
         ctx = canvas.getContext('2d'); ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
@@ -235,21 +485,21 @@
 
         shell = AC.shell.create({
             gameId: 'carom', step: 1 / 60,
-            update: update, render: render, reset: newMatch,
+            update: update, render: render,
+            restartToReady: true, reset: toReady,
+            onStart: function () { if (M && !M.local && !M.over && room && room.data) return; startHotSeat(); },
             canPause: function () { return false; },
-            canRestart: function () { return true; },
+            canRestart: function () { return !(M && !M.local); },
+            onGameOver: function () { setControlsForMatch(); },
             overlayContent: function (state, result) {
                 if (state === 'idle') return { badge: 'soccer', title: t('caromName'), message: t('caromReady'), button: t('start') };
-                if (state === 'over') {
-                    var m = (result && result.meta) || {}, w = m.winner || 0, sc = m.score || G.score;
-                    return { badge: 'trophy', title: t('caromWin', t('caromTeam' + w)), message: t('caromScore') + '  ' + sc[0] + ' : ' + sc[1], button: t('restart') };
-                }
+                if (state === 'over') { var m = (result && result.meta) || {}, w = m.winner || 0, sc = m.score || [0, 0]; return { badge: 'trophy', title: t('caromWin', t('caromTeam' + w)), message: t('caromScore') + '  ' + sc[0] + ' : ' + sc[1], button: t('restart') }; }
                 return {};
             },
         });
-        AC.i18n.subscribe(function () { syncHud(); if (shell.state === 'idle' || shell.state === 'over') shell.refreshOverlay(); });
-        // a blank field behind the ready overlay
-        world = E.create({ W: FW, H: FH }); syncHud(); render();
+        setupOnline();
+        AC.i18n.subscribe(function () { syncHud(); if (!M) shell.refreshOverlay(); if (room && lobbyEl && !lobbyEl.hidden) renderLobby(); });
+        world = E.create(cfg()); syncHud(); render();
     }
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
 })();
