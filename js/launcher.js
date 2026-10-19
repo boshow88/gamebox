@@ -113,6 +113,10 @@
             all: 'All',
             playable: 'Playable',
             wip: 'WIP',
+            wipGateMsg: 'This one is still being built \u2014 it isn\u2019t open yet.',
+            wipGateStay: 'I\u2019ll wait',
+            wipGateGo: 'Let me in anyway',
+            wipUnlockedToast: 'Preview access unlocked on this device.',
             searchPlaceholder: 'Search games\u2026',
             searchAria: 'Search games',
             searchClear: 'Clear search',
@@ -172,6 +176,10 @@
             all: '全部',
             playable: '可玩',
             wip: '開發中',
+            wipGateMsg: '這款還在開發中，還沒對外開放。',
+            wipGateStay: '再等等',
+            wipGateGo: '我硬要玩',
+            wipUnlockedToast: '已在此裝置解鎖開發中遊戲。',
             searchPlaceholder: '搜尋遊戲…',
             searchAria: '搜尋遊戲',
             searchClear: '清除搜尋',
@@ -299,6 +307,8 @@
     })();
     var activeTag = null; // null = show all
     var query = '';       // lower-cased search text; '' = no search
+    var wipUnlocked = false;      // WIP games open directly on this device (set by the ?backstage link)
+    var wipJustUnlocked = false;  // the ?backstage link was used on THIS load (→ confirm with a toast)
 
     function t(key) {
         var table = STRINGS[lang] || STRINGS.en;
@@ -416,8 +426,59 @@
                 + (g.wip ? '<span class="badge badge-wip">' + t('wip') + '</span>' : '<span class="badge badge-playable">' + t('playable') + '</span>')
                 + '</div>';
 
+            // WIP games are soft-gated: on a locked device, clicking a card opens a
+            // confirm dialog (and sends the insistent to a well-known video). The
+            // shareable `?backstage` link unlocks them on a device so they open normally.
+            if (g.wip && !wipUnlocked) {
+                card.addEventListener('click', function (ev) { ev.preventDefault(); openWipGate(); });
+            }
+
             grid.appendChild(card);
         }
+    }
+
+    // Confirm dialog for a locked WIP game. "I'll wait" dismisses; "Let me in anyway"
+    // is the trap — only the ?backstage link grants real access.
+    function openWipGate() {
+        var ov = document.createElement('div');
+        ov.className = 'wip-gate';
+        var card = document.createElement('div');
+        card.className = 'wip-gate-card';
+        card.setAttribute('role', 'dialog');
+        card.setAttribute('aria-modal', 'true');
+        var msg = document.createElement('p');
+        msg.className = 'wip-gate-msg';
+        msg.textContent = t('wipGateMsg');
+        var actions = document.createElement('div');
+        actions.className = 'wip-gate-actions';
+        var stay = document.createElement('button');
+        stay.type = 'button'; stay.className = 'wip-gate-btn stay'; stay.textContent = t('wipGateStay');
+        var go = document.createElement('button');
+        go.type = 'button'; go.className = 'wip-gate-btn go'; go.textContent = t('wipGateGo');
+        actions.appendChild(stay); actions.appendChild(go);
+        card.appendChild(msg); card.appendChild(actions);
+        ov.appendChild(card);
+        function close() { ov.remove(); document.removeEventListener('keydown', onKey); }
+        function onKey(e) { if (e.key === 'Escape') close(); }
+        ov.addEventListener('click', function (e) { if (e.target === ov) close(); });
+        stay.addEventListener('click', close);
+        go.addEventListener('click', function () { location.href = 'https://youtu.be/dQw4w9WgXcQ'; });
+        document.addEventListener('keydown', onKey);
+        document.body.appendChild(ov);
+        stay.focus();
+    }
+
+    // Brief auto-dismissing toast (used to confirm the ?backstage unlock worked).
+    function showToast(text) {
+        var el = document.createElement('div');
+        el.className = 'wip-toast';
+        el.textContent = text;
+        document.body.appendChild(el);
+        requestAnimationFrame(function () { el.classList.add('show'); });
+        setTimeout(function () {
+            el.classList.remove('show');
+            setTimeout(function () { el.remove(); }, 300);
+        }, 2600);
     }
 
     function renderAll() {
@@ -443,6 +504,21 @@
     // Boot
     // ---------------------------------------------------------------
     function boot() {
+        // WIP soft-gate: opening `index.html?backstage` unlocks WIP games on this
+        // device (persisted), then the param is stripped for a clean URL. Share that
+        // one link with testers — a click is all it takes.
+        try {
+            var sp = new URLSearchParams(location.search);
+            if (sp.has('backstage')) {
+                localStorage.setItem('gamebox:backstage', '1');
+                wipJustUnlocked = true;
+                sp.delete('backstage');
+                var qs = sp.toString();
+                history.replaceState(null, '', location.pathname + (qs ? '?' + qs : '') + location.hash);
+            }
+            wipUnlocked = localStorage.getItem('gamebox:backstage') === '1';
+        } catch (e) { wipUnlocked = false; }
+
         var tog = document.getElementById('lang-toggle');
         tog.addEventListener('click', function (ev) {
             var btn = ev.target.closest ? ev.target.closest('button[data-lang]') : null;
@@ -480,6 +556,7 @@
         });
 
         renderAll();
+        if (wipJustUnlocked) showToast(t('wipUnlockedToast'));
     }
 
     if (document.readyState === 'loading') {
