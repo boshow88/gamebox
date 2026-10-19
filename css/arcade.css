@@ -313,6 +313,10 @@
     align-items: center;
     justify-content: center;
     padding: var(--space-lg);
+    /* A tall card (e.g. the final-standings panel) must scroll rather than be
+       clipped by the stage-wrap's `overflow: hidden`; `.overlay-card { margin:auto }`
+       keeps it centred when it fits and top-reachable when it doesn't. */
+    overflow-y: auto;
     background: radial-gradient(120% 120% at 50% 0%,
         rgba(20, 18, 37, 0.55), rgba(10, 8, 20, 0.86));
     backdrop-filter: blur(3px);
@@ -329,6 +333,7 @@
 .overlay-card {
     max-width: 420px;
     width: 100%;
+    margin: auto;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -482,5 +487,19 @@
 
     .overlay-title {
         font-size: 1.4rem;
+    }
+    /* Trim the overlay's vertical footprint so a tall card (e.g. Beam's final
+       standings) usually fits the short mobile stage without needing to scroll. */
+    .overlay {
+        padding: var(--space-md);
+    }
+    .overlay-card {
+        padding: var(--space-lg) var(--space-md);
+        gap: var(--space-sm);
+    }
+    .overlay-badge {
+        width: 52px;
+        height: 52px;
+        font-size: 1.5rem;
     }
 }
