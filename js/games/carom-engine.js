@@ -18,9 +18,24 @@
 
     function clamp(v, lo, hi) { return v < lo ? lo : v > hi ? hi : v; }
 
-    // default formation for `count` players in the TOP half (y small); mirrored for the bottom team
+    // formation for `count` players in the TOP half (y small, own goal at y=0); mirrored for the bottom team.
+    // Bespoke layouts (as fractions of W,H) are tuned to deny an easy KICK-OFF goal; others fall back to the
+    // generic goalie + two rows. The 5-man wall: goalie + two backs together seal the goal-mouth width (blocks
+    // the straight shot AND the shot threaded through a gap edge), with two forwards pushed up to also sit in
+    // the diagonal lanes a one-wall-bounce would travel.
+    var FORMATIONS = {
+        5: [
+            { x: 0.50, y: 0.055 },   // goalie — dead centre in the mouth
+            { x: 0.42, y: 0.16 },    // left back  ┐ overlap the goalie to cover the whole gap width
+            { x: 0.58, y: 0.16 },    // right back ┘
+            { x: 0.27, y: 0.35 },    // left forward  ┐ wide + pushed up: attack, and screen the bounce lanes
+            { x: 0.73, y: 0.35 },    // right forward ┘
+        ],
+    };
     function formation(count, W, H) {
-        var pts = [{ x: W / 2, y: H * 0.07 }];        // goalie
+        var spec = FORMATIONS[count];
+        if (spec) return spec.map(function (p) { return { x: W * p.x, y: H * p.y }; });
+        var pts = [{ x: W / 2, y: H * 0.07 }];        // generic: goalie
         var rest = Math.max(0, count - 1);
         var row1 = Math.ceil(rest / 2), row2 = rest - row1;
         var i;

@@ -77,12 +77,12 @@
     Object.assign(AC.i18n.STRINGS.zh, STRINGS.zh);
 
     // ---------------- constants ----------------
-    var CW = 600, CH = 760, FMX = 24, FMT = 46, FMB = 24;
+    var CW = 512, CH = 820, FMX = 24, FMT = 46, FMB = 24;   // narrow + long pitch: tighter lanes, more build-up room
     var FW = CW - 2 * FMX, FH = CH - FMT - FMB;
     var DPR = Math.min(window.devicePixelRatio || 1, 2);
     var TEAM = ['#38bdf8', '#fb7185'];               // team 0 (blue, bottom) / team 1 (red, top)
     var BALL = '#eef2f7';
-    var MAXPULL = 175, MAXSPEED = 1550, CANCEL_R = 17;
+    var MAXPULL = 120, MAXSPEED = 1200, CANCEL_R = 16;
     var SUB = Math.max(1, Math.round((1 / 60) / E.STEP_DT));   // sub-steps/frame at the engine's canonical dt (matches settle → no snap)
     var GROUP = 'carom_rooms', MAX_PLAYERS = 2, BEAT_MS = 3000, STALL_MS = 8000, SIM_MAX_MS = 6000;
 
@@ -92,31 +92,31 @@
     var KAIR = 7e-6;                                  // global air-drag coefficient (shared across fields)
     var PRESETS = {
         field: {   // μ = Coulomb deceleration (lower = slippery); look = turf/stripe/line colours
-            grass: { mu: 2600, wallRest: 0.72, turf: '#123a2a', s0: 'rgba(255,255,255,0.025)', s1: 'rgba(0,0,0,0.04)', line: 'rgba(255,255,255,0.35)' },
-            ice: { mu: 900, wallRest: 0.88, turf: '#143247', s0: 'rgba(255,255,255,0.06)', s1: 'rgba(120,180,230,0.05)', line: 'rgba(205,232,255,0.5)' },
-            sand: { mu: 5200, wallRest: 0.45, turf: '#5a4a28', s0: 'rgba(255,240,200,0.05)', s1: 'rgba(0,0,0,0.05)', line: 'rgba(255,245,220,0.4)' },
+            grass: { mu: 1100, wallRest: 0.86, turf: '#123a2a', s0: 'rgba(255,255,255,0.025)', s1: 'rgba(0,0,0,0.04)', line: 'rgba(255,255,255,0.35)' },
+            ice: { mu: 600, wallRest: 0.98, turf: '#143247', s0: 'rgba(255,255,255,0.06)', s1: 'rgba(120,180,230,0.05)', line: 'rgba(205,232,255,0.5)' },
+            sand: { mu: 1500, wallRest: 0.90, turf: '#5a4a28', s0: 'rgba(255,240,200,0.05)', s1: 'rgba(0,0,0,0.05)', line: 'rgba(255,245,220,0.4)' },
         },
         ball: {    // size / weight / bounce / roll — the air-drag "float" falls out of r & m automatically
-            standard: { ballR: 13, ballMass: 0.55, ballRest: 0.72, ballFric: 0.37 },
-            beach: { ballR: 20, ballMass: 0.30, ballRest: 0.88, ballFric: 0.50 },
-            heavy: { ballR: 11, ballMass: 1.20, ballRest: 0.35, ballFric: 0.30 },
+            standard: { ballR: 8, ballMass: 0.50, ballRest: 0.84, ballFric: 0.85 },
+            beach: { ballR: 14, ballMass: 0.05, ballRest: 0.95, ballFric: 1.60 },
+            heavy: { ballR: 6, ballMass: 1.30, ballRest: 0.25, ballFric: 0.65 },
         },
         players: { // count / size / weight / bounce
-            p3: { players: 3, playerR: 19, playerMass: 1.0, playerRest: 0.55, playerFric: 1.0 },
-            p5: { players: 5, playerR: 19, playerMass: 1.0, playerRest: 0.55, playerFric: 1.0 },
-            p7: { players: 7, playerR: 18, playerMass: 1.0, playerRest: 0.55, playerFric: 1.0 },
+            p3: { players: 3, playerR: 22, playerMass: 1.0, playerRest: 0.60, playerFric: 1.0 },
+            p5: { players: 5, playerR: 21, playerMass: 1.0, playerRest: 0.60, playerFric: 1.0 },
+            p7: { players: 7, playerR: 20, playerMass: 1.0, playerRest: 0.60, playerFric: 1.0 },
         },
     };
     var FIELD_KEYS = ['grass', 'ice', 'sand'], BALL_KEYS = ['standard', 'beach', 'heavy'], PLAYER_KEYS = ['p3', 'p5', 'p7'];
-    var TARGET_OPTS = [3, 5, 7], GOAL_OPTS = [140, 180, 220];
+    var TARGET_OPTS = [3, 5, 7], GOAL_OPTS = [100, 130, 160];
     function loadSettings() {
         var s = {}; try { s = AC.prefs.get('carom') || {}; } catch (e) { }
         return {
             field: PRESETS.field[s.field] ? s.field : 'grass',
             ball: PRESETS.ball[s.ball] ? s.ball : 'standard',
             players: PRESETS.players[s.players] ? s.players : 'p5',
-            target: TARGET_OPTS.indexOf(s.target) >= 0 ? s.target : 3,
-            goalW: GOAL_OPTS.indexOf(s.goalW) >= 0 ? s.goalW : 180,
+            target: TARGET_OPTS.indexOf(s.target) >= 0 ? s.target : TARGET_OPTS[0],
+            goalW: GOAL_OPTS.indexOf(s.goalW) >= 0 ? s.goalW : GOAL_OPTS[Math.floor(GOAL_OPTS.length / 2)],
         };
     }
     function saveSettings() { try { AC.prefs.set('carom', SETTINGS); } catch (e) { } }
@@ -126,11 +126,14 @@
             field: PRESETS.field[s.field] ? s.field : 'grass',
             ball: PRESETS.ball[s.ball] ? s.ball : 'standard',
             players: PRESETS.players[s.players] ? s.players : 'p5',
-            target: TARGET_OPTS.indexOf(s.target) >= 0 ? s.target : 3,
-            goalW: GOAL_OPTS.indexOf(s.goalW) >= 0 ? s.goalW : 180,
+            target: TARGET_OPTS.indexOf(s.target) >= 0 ? s.target : TARGET_OPTS[0],
+            goalW: GOAL_OPTS.indexOf(s.goalW) >= 0 ? s.goalW : GOAL_OPTS[Math.floor(GOAL_OPTS.length / 2)],
         };
     }
     var SETTINGS = loadSettings();
+    saveSettings();   // heal storage: re-persist the normalised settings so a value that fell out of its option
+    //                  list (e.g. an old goalW after GOAL_OPTS changed) is rewritten to a valid one, not silently
+    //                  dropped every reload (and resurrected the next time another setting is saved).
 
     var canvas, ctx, shell, world;
     // unified match state. M.local = hot-seat; else online.
@@ -289,7 +292,19 @@
         ctx.beginPath(); ctx.moveTo(ex, ey); ctx.lineTo(ex - ah * Math.cos(a - 0.4), ey - ah * Math.sin(a - 0.4)); ctx.lineTo(ex - ah * Math.cos(a + 0.4), ey - ah * Math.sin(a + 0.4)); ctx.closePath(); ctx.fillStyle = col; ctx.fill();
         drawCancel();
     }
-    function cancelXY() { return { x: CW - FMX - CANCEL_R - 4, y: FMT / 2 }; }
+    function cancelXY() {   // sit the ✕ in the field corner FARTHEST from the piece being dragged, so it never
+        if (M && M.drag) {  // overlaps the slingshot pull path (stable during a drag → still a reliable tap target)
+            var o = world.bodies[M.drag.idx], px = fx(o.x), py = fy(o.y), pad = CANCEL_R + 10;
+            var corners = [
+                { x: FMX + pad, y: FMT + pad }, { x: FMX + FW - pad, y: FMT + pad },
+                { x: FMX + pad, y: FMT + FH - pad }, { x: FMX + FW - pad, y: FMT + FH - pad },
+            ];
+            var best = corners[0], bd = -1;
+            for (var i = 0; i < corners.length; i++) { var d = Math.hypot(corners[i].x - px, corners[i].y - py); if (d > bd) { bd = d; best = corners[i]; } }
+            return best;
+        }
+        return { x: CW - FMX - CANCEL_R - 4, y: FMT / 2 };
+    }
     function drawCancel() {
         var c = cancelXY();
         ctx.save(); ctx.fillStyle = 'rgba(15,23,42,0.85)'; ctx.strokeStyle = '#f87171'; ctx.lineWidth = 2;
@@ -535,7 +550,10 @@
     function ballOpts() { return BALL_KEYS.map(function (k) { return { val: k, label: t('caromBall_' + k) }; }); }
     function playerOpts() { return PLAYER_KEYS.map(function (k) { return { val: k, label: t('caromPlayers_' + k) }; }); }
     function targetOpts() { return TARGET_OPTS.map(function (n) { return { val: n, label: String(n) }; }); }
-    function goalOpts() { return [{ val: 140, label: t('caromGoalNarrow') }, { val: 180, label: t('caromGoalStd') }, { val: 220, label: t('caromGoalWide') }]; }
+    function goalOpts() {   // values come from GOAL_OPTS; a 3-entry list reads narrow/standard/wide, else just the number
+        var labels = GOAL_OPTS.length === 3 ? [t('caromGoalNarrow'), t('caromGoalStd'), t('caromGoalWide')] : null;
+        return GOAL_OPTS.map(function (n, i) { return { val: n, label: labels ? labels[i] : String(n) }; });
+    }
     function segRow(labelKey, opts, cur, onPick) {
         var row = elc('div', 'set-row'); row.appendChild(elc('span', 'set-label', t(labelKey)));
         var seg = elc('div', 'set-seg');
