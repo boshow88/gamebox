@@ -77,12 +77,14 @@
     Object.assign(AC.i18n.STRINGS.zh, STRINGS.zh);
 
     // ---------------- constants ----------------
-    var CW = 512, CH = 820, FMX = 24, FMT = 46, FMB = 24;   // narrow + long pitch: tighter lanes, more build-up room
+    var POCKET = 40, KEEPER_ZONE = 60;                      // goal recess depth (out) + keeper-zone depth (in); must match engine cfg
+    var CW = 512, CH = 828, FMX = 24, FMT = 50, FMB = 50;   // narrow + long pitch; thin top/bottom margins hold the pocket, with caption + ✕ tucked beside it
     var FW = CW - 2 * FMX, FH = CH - FMT - FMB;
     var DPR = Math.min(window.devicePixelRatio || 1, 2);
     var TEAM = ['#38bdf8', '#fb7185'];               // team 0 (blue, bottom) / team 1 (red, top)
     var BALL = '#eef2f7';
-    var MAXPULL = 120, MAXSPEED = 1200, CANCEL_R = 16;
+    var MAXPULL = 120, MAXSPEED = 1200, CANCEL_R = 16, FIRE_MIN = 14;   // pull shorter than FIRE_MIN won't fire (and shows no arrow)
+    var EJECT_MS = 360;                                        // slide-out animation for a player ejected from a goal
     var SUB = Math.max(1, Math.round((1 / 60) / E.STEP_DT));   // sub-steps/frame at the engine's canonical dt (matches settle → no snap)
     var GROUP = 'carom_rooms', MAX_PLAYERS = 2, BEAT_MS = 3000, STALL_MS = 8000, SIM_MAX_MS = 6000;
 
@@ -92,18 +94,18 @@
     var KAIR = 7e-6;                                  // global air-drag coefficient (shared across fields)
     var PRESETS = {
         field: {   // μ = Coulomb deceleration (lower = slippery); look = turf/stripe/line colours
-            grass: { mu: 1100, wallRest: 0.86, turf: '#123a2a', s0: 'rgba(255,255,255,0.025)', s1: 'rgba(0,0,0,0.04)', line: 'rgba(255,255,255,0.35)' },
-            ice: { mu: 600, wallRest: 0.98, turf: '#143247', s0: 'rgba(255,255,255,0.06)', s1: 'rgba(120,180,230,0.05)', line: 'rgba(205,232,255,0.5)' },
-            sand: { mu: 1500, wallRest: 0.90, turf: '#5a4a28', s0: 'rgba(255,240,200,0.05)', s1: 'rgba(0,0,0,0.05)', line: 'rgba(255,245,220,0.4)' },
+            grass: { mu: 1300, wallRest: 0.86, turf: '#123a2a', s0: 'rgba(255,255,255,0.025)', s1: 'rgba(0,0,0,0.04)', line: 'rgba(255,255,255,0.35)' },
+            ice: { mu: 800, wallRest: 0.98, turf: '#143247', s0: 'rgba(255,255,255,0.06)', s1: 'rgba(120,180,230,0.05)', line: 'rgba(205,232,255,0.5)' },
+            sand: { mu: 1800, wallRest: 0.90, turf: '#5a4a28', s0: 'rgba(255,240,200,0.05)', s1: 'rgba(0,0,0,0.05)', line: 'rgba(255,245,220,0.4)' },
         },
         ball: {    // size / weight / bounce / roll — the air-drag "float" falls out of r & m automatically
-            standard: { ballR: 8, ballMass: 0.50, ballRest: 0.84, ballFric: 0.85 },
-            beach: { ballR: 14, ballMass: 0.05, ballRest: 0.95, ballFric: 1.60 },
-            heavy: { ballR: 6, ballMass: 1.30, ballRest: 0.25, ballFric: 0.65 },
+            standard: { ballR: 8, ballMass: 0.50, ballRest: 0.80, ballFric: 0.75 },
+            beach: { ballR: 14, ballMass: 0.05, ballRest: 0.95, ballFric: 1.20 },
+            heavy: { ballR: 6, ballMass: 1.30, ballRest: 0.22, ballFric: 0.55 },
         },
         players: { // count / size / weight / bounce
-            p3: { players: 3, playerR: 22, playerMass: 1.0, playerRest: 0.60, playerFric: 1.0 },
-            p5: { players: 5, playerR: 21, playerMass: 1.0, playerRest: 0.60, playerFric: 1.0 },
+            p3: { players: 3, playerR: 24, playerMass: 1.0, playerRest: 0.60, playerFric: 1.0 },
+            p5: { players: 5, playerR: 22, playerMass: 1.0, playerRest: 0.60, playerFric: 1.0 },
             p7: { players: 7, playerR: 20, playerMass: 1.0, playerRest: 0.60, playerFric: 1.0 },
         },
     };
@@ -146,6 +148,7 @@
         var f = PRESETS.field[SETTINGS.field], b = PRESETS.ball[SETTINGS.ball], p = PRESETS.players[SETTINGS.players];
         return {
             W: FW, H: FH, goalW: SETTINGS.goalW, target: SETTINGS.target, kAir: KAIR,
+            pocket: POCKET, keeperZone: KEEPER_ZONE,
             field: SETTINGS.field, mu: f.mu, wallRest: f.wallRest,
             players: p.players, playerR: p.playerR, playerMass: p.playerMass, playerRest: p.playerRest, playerFric: p.playerFric,
             ballR: b.ballR, ballMass: b.ballMass, ballRest: b.ballRest, ballFric: b.ballFric,
@@ -199,8 +202,10 @@
         var goal = E.settle(sim), score = M.score.slice(), nextTurn, winner = null;
         if (goal) { var scorer = goal === 'top' ? 0 : 1; score[scorer]++; nextTurn = goal === 'top' ? 1 : 0; E.reset(sim); winner = score[0] >= M.target ? 0 : (score[1] >= M.target ? 1 : null); }
         else nextTurn = 1 - M.turn;
+        var ejected = goal ? [] : E.ejectDeep(sim);   // mutates sim to final positions; skipped on a goal (board resets)
+        var ej = ejected.map(function (m) { return { idx: m.idx, fx: Math.round(m.fromX * 10) / 10, fy: Math.round(m.fromY * 10) / 10 }; });
         var state = []; sim.bodies.forEach(function (b) { state.push(Math.round(b.x * 10) / 10, Math.round(b.y * 10) / 10); });   // FLAT [x0,y0,x1,y1,…] — Firestore rejects nested arrays
-        var seq = (M.seq || 0) + 1, result = { state: state, goal: goal || null, score: score, turn: nextTurn, winner: winner };
+        var seq = (M.seq || 0) + 1, result = { state: state, goal: goal || null, score: score, turn: nextTurn, winner: winner, eject: ej };
         M.seq = seq; M.pending = result;
         var patch = { 'game.seq': seq, 'game.shot': { idx: idx, dx: dx, dy: dy, power: power }, 'game.result': result };
         if (winner != null) { patch['game.status'] = 'over'; patch['game.winner'] = winner; patch['status'] = 'lobby'; }
@@ -225,12 +230,34 @@
     function update() {
         if (!M) return;
         if (M.flash > 0) M.flash = Math.max(0, M.flash - 1 / 60 / 0.6);
+        if (M.phase === 'eject') { stepEject(); return; }
         if (M.phase !== 'sim') return;
         var dt = E.STEP_DT;
         for (var i = 0; i < SUB; i++) { var g = E.step(world, dt); if (g) { if (M.local) { hotGoal(g); return; } M.localGoal = true; break; } }
-        if (M.local) { if (E.atRest(world)) { E.freeze(world); hotEndTurn(); } return; }
-        // online: when our local animation ends, apply the authoritative result
-        if (M.localGoal || E.atRest(world) || performance.now() - M.simStart > SIM_MAX_MS) applyPending();
+        if (M.local) {
+            if (E.atRest(world)) { E.freeze(world); var moved = E.ejectDeep(world); if (moved.length) startEject(moved); else hotEndTurn(); }
+            return;
+        }
+        // online: when our local animation ends, run the (broadcast) ejects then apply the authoritative result
+        if (M.localGoal || E.atRest(world) || performance.now() - M.simStart > SIM_MAX_MS) endOnlineSim();
+    }
+    function endOnlineSim() {
+        var r = M.pending;
+        if (r && r.eject && r.eject.length && !M.localGoal) {
+            var moved = r.eject.map(function (x) { var i2 = x.idx * 2; return { idx: x.idx, fromX: x.fx, fromY: x.fy, toX: r.state[i2], toY: r.state[i2 + 1] }; });
+            startEject(moved);   // stepEject() calls applyPending() when the slide-out finishes
+        } else applyPending();
+    }
+    // animate ejected pieces from their in-net spot out to the keeper zone, then hand off (end turn / apply result)
+    function startEject(moved) {
+        moved.forEach(function (m) { var b = world.bodies[m.idx]; if (b) { b.x = m.fromX; b.y = m.fromY; b.vx = 0; b.vy = 0; } });
+        M.eject = { list: moved, t: 0 }; M.phase = 'eject'; AC.audio.play('click');
+    }
+    function stepEject() {
+        var e = M.eject; e.t += 1 / 60;
+        var u = Math.min(1, e.t / (EJECT_MS / 1000)), k = 1 - Math.pow(1 - u, 3);   // ease-out
+        e.list.forEach(function (m) { var b = world.bodies[m.idx]; if (b) { b.x = m.fromX + (m.toX - m.fromX) * k; b.y = m.fromY + (m.toY - m.fromY) * k; } });
+        if (u >= 1) { e.list.forEach(function (m) { var b = world.bodies[m.idx]; if (b) { b.x = m.toX; b.y = m.toY; } }); M.eject = null; if (M.local) hotEndTurn(); else applyPending(); }
     }
 
     // ---------------- view (board flips 180° for team 1 so you always attack upward) ----------------
@@ -257,12 +284,39 @@
         drawGoal(gx0, gx1, flipped());
     }
     function drawGoal(gx0, gx1, screenTop) {
-        var y = screenTop ? FMT : (FMT + FH), depth = 16, worldTop = flipped() ? !screenTop : screenTop, team = worldTop ? 1 : 0;
+        var lineY = screenTop ? FMT : (FMT + FH), out = screenTop ? -1 : 1;    // outward = toward the pocket
+        var worldTop = flipped() ? !screenTop : screenTop, team = worldTop ? 1 : 0;
         var x0 = flipped() ? FMX + (FW - gx1) : FMX + gx0, x1 = flipped() ? FMX + (FW - gx0) : FMX + gx1;
+        var by = lineY + out * POCKET;                                         // back of the net
+
+        // open the mouth: paint turf over the inset field-border line so field ↔ pocket read as connected
+        ctx.save(); ctx.fillStyle = (PRESETS.field[curFieldKey()] || PRESETS.field.grass).turf;
+        ctx.fillRect(x0, screenTop ? lineY : lineY - 8, x1 - x0, 8); ctx.restore();
+
+        // keeper zone — faint team-tinted band INSIDE the field (where ejected players land)
+        ctx.save();
+        ctx.globalAlpha = 0.07; ctx.fillStyle = TEAM[team];
+        ctx.fillRect(x0, screenTop ? lineY : lineY - KEEPER_ZONE, x1 - x0, KEEPER_ZONE);
+        ctx.globalAlpha = 0.45; ctx.strokeStyle = TEAM[team]; ctx.lineWidth = 1.5; ctx.setLineDash([5, 5]);
+        var ke = lineY + (-out) * KEEPER_ZONE;
+        ctx.beginPath(); ctx.moveTo(x0, ke); ctx.lineTo(x1, ke); ctx.stroke();
+        ctx.restore();
+
+        // pocket recess (OUTWARD) — dark cavity + net hatch so it reads as "inside the goal"
+        ctx.save();
+        ctx.fillStyle = 'rgba(5,11,22,0.9)'; ctx.fillRect(x0, Math.min(lineY, by), x1 - x0, POCKET);
+        ctx.strokeStyle = 'rgba(255,255,255,0.12)'; ctx.lineWidth = 1;
+        for (var nx = x0 + 7; nx < x1; nx += 9) { ctx.beginPath(); ctx.moveTo(nx, lineY); ctx.lineTo(nx, by); ctx.stroke(); }
+        for (var n = 1; n < 3; n++) { var yy = lineY + out * POCKET * n / 3; ctx.beginPath(); ctx.moveTo(x0, yy); ctx.lineTo(x1, yy); ctx.stroke(); }
+        ctx.restore();
+
+        // posts + back bar (team colour)
         ctx.save(); ctx.strokeStyle = TEAM[team]; ctx.lineWidth = 4; ctx.lineCap = 'round';
-        var dy = screenTop ? -depth : depth;
-        ctx.beginPath(); ctx.moveTo(x0, y); ctx.lineTo(x0, y + dy); ctx.moveTo(x1, y); ctx.lineTo(x1, y + dy); ctx.moveTo(x0, y + dy); ctx.lineTo(x1, y + dy); ctx.stroke();
-        ctx.globalAlpha = 0.18; ctx.fillStyle = TEAM[team]; ctx.fillRect(x0, screenTop ? y - depth : y, x1 - x0, depth); ctx.restore();
+        ctx.beginPath();
+        ctx.moveTo(x0, lineY); ctx.lineTo(x0, by);
+        ctx.moveTo(x1, lineY); ctx.lineTo(x1, by);
+        ctx.moveTo(x0, by); ctx.lineTo(x1, by);
+        ctx.stroke(); ctx.restore();
     }
     function drawBodies() {
         var b = world.bodies, at = aimTeam();
@@ -279,52 +333,90 @@
     }
     function drawAim() {
         if (!M || !M.drag) return;
-        var o = world.bodies[M.drag.idx], dx = o.x - M.drag.x, dy = o.y - M.drag.y;
-        var raw = Math.hypot(dx, dy) || 1, dist = Math.min(raw, MAXPULL), u = dist / MAXPULL;
-        if (dist < 1) return;
-        var nx = dx / raw, ny = dy / raw;
-        ctx.strokeStyle = 'rgba(255,255,255,0.25)'; ctx.lineWidth = 2; ctx.setLineDash([4, 5]);
-        ctx.beginPath(); ctx.moveTo(fx(o.x), fy(o.y)); ctx.lineTo(fx(M.drag.x), fy(M.drag.y)); ctx.stroke(); ctx.setLineDash([]);
-        var len = 24 + dist, ex = fx(o.x + nx * len), ey = fy(o.y + ny * len), col = mix('#34d399', '#f87171', u);
-        ctx.strokeStyle = col; ctx.lineWidth = 5; ctx.lineCap = 'round';
-        ctx.beginPath(); ctx.moveTo(fx(o.x), fy(o.y)); ctx.lineTo(ex, ey); ctx.stroke();
-        var ah = 11, a = Math.atan2(ey - fy(o.y), ex - fx(o.x));
-        ctx.beginPath(); ctx.moveTo(ex, ey); ctx.lineTo(ex - ah * Math.cos(a - 0.4), ey - ah * Math.sin(a - 0.4)); ctx.lineTo(ex - ah * Math.cos(a + 0.4), ey - ah * Math.sin(a + 0.4)); ctx.closePath(); ctx.fillStyle = col; ctx.fill();
+        var o = world.bodies[M.drag.idx], dx = o.x - M.drag.x, dy = o.y - M.drag.y;   // fire dir = opposite the pull
+        var raw = Math.hypot(dx, dy);
+        if (raw < FIRE_MIN) return;                                 // too weak to fire → draw nothing (matches onUp)
+        var dist = Math.min(raw, MAXPULL), u = dist / MAXPULL, nx = dx / raw, ny = dy / raw;
+        var ox = fx(o.x), oy = fy(o.y);
+        var ex = fx(o.x + nx * (26 + 150 * u)), ey = fy(o.y + ny * (26 + 150 * u));   // endpoint via fx/fy → flip-correct
+        var sdx = ex - ox, sdy = ey - oy, sl = Math.hypot(sdx, sdy) || 1, sx = sdx / sl, sy = sdy / sl;
+        var col = mix('#5eead4', '#fb7185', u);                     // teal → rose with power
+
+        // slingshot band back to the finger (subtle)
+        ctx.save();
+        ctx.strokeStyle = 'rgba(226,232,240,0.22)'; ctx.lineWidth = 2; ctx.setLineDash([3, 5]);
+        ctx.beginPath(); ctx.moveTo(ox, oy); ctx.lineTo(fx(M.drag.x), fy(M.drag.y)); ctx.stroke();
+        ctx.restore();
+
+        // power arrow — glowing, tapered, with a clean head; length + width scale with power
+        var w = 4 + 6 * u, ah = 12 + 12 * u;
+        ctx.save();
+        ctx.shadowColor = col; ctx.shadowBlur = 12;
+        ctx.strokeStyle = col; ctx.lineWidth = w; ctx.lineCap = 'round';
+        ctx.beginPath(); ctx.moveTo(ox, oy); ctx.lineTo(ex - sx * ah * 0.7, ey - sy * ah * 0.7); ctx.stroke();
+        var a = Math.atan2(sy, sx);
+        ctx.beginPath(); ctx.moveTo(ex, ey);
+        ctx.lineTo(ex - ah * Math.cos(a - 0.42), ey - ah * Math.sin(a - 0.42));
+        ctx.lineTo(ex - ah * Math.cos(a + 0.42), ey - ah * Math.sin(a + 0.42));
+        ctx.closePath(); ctx.fillStyle = col; ctx.fill();
+        ctx.restore();
+
+        // aim-origin ring on the chosen piece
+        ctx.save();
+        ctx.strokeStyle = 'rgba(255,255,255,0.45)'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(ox, oy, o.r + 3, 0, Math.PI * 2); ctx.stroke();
+        ctx.restore();
+
         drawCancel();
     }
-    function cancelXY() {   // sit the ✕ in the field corner FARTHEST from the piece being dragged, so it never
-        if (M && M.drag) {  // overlaps the slingshot pull path (stable during a drag → still a reliable tap target)
-            var o = world.bodies[M.drag.idx], px = fx(o.x), py = fy(o.y), pad = CANCEL_R + 10;
-            var corners = [
-                { x: FMX + pad, y: FMT + pad }, { x: FMX + FW - pad, y: FMT + pad },
-                { x: FMX + pad, y: FMT + FH - pad }, { x: FMX + FW - pad, y: FMT + FH - pad },
-            ];
+    function cancelXY() {   // sit the ✕ OUT in a top/bottom MARGIN corner (off the pitch), farthest from the piece
+        var lx = FMX + CANCEL_R, rx = CW - FMX - CANCEL_R, ty = FMT / 2, by = CH - FMB / 2;
+        if (M && M.drag) {  // farthest corner from the dragged piece → never overlaps the slingshot pull path
+            var o = world.bodies[M.drag.idx], px = fx(o.x), py = fy(o.y);
+            var corners = [{ x: lx, y: ty }, { x: rx, y: ty }, { x: lx, y: by }, { x: rx, y: by }];
             var best = corners[0], bd = -1;
             for (var i = 0; i < corners.length; i++) { var d = Math.hypot(corners[i].x - px, corners[i].y - py); if (d > bd) { bd = d; best = corners[i]; } }
             return best;
         }
-        return { x: CW - FMX - CANCEL_R - 4, y: FMT / 2 };
+        return { x: rx, y: ty };
     }
     function drawCancel() {
-        var c = cancelXY();
-        ctx.save(); ctx.fillStyle = 'rgba(15,23,42,0.85)'; ctx.strokeStyle = '#f87171'; ctx.lineWidth = 2;
-        ctx.beginPath(); ctx.arc(c.x, c.y, CANCEL_R, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-        ctx.strokeStyle = '#f87171'; ctx.lineWidth = 2.5; ctx.lineCap = 'round'; var k = CANCEL_R * 0.42;
-        ctx.beginPath(); ctx.moveTo(c.x - k, c.y - k); ctx.lineTo(c.x + k, c.y + k); ctx.moveTo(c.x + k, c.y - k); ctx.lineTo(c.x - k, c.y + k); ctx.stroke(); ctx.restore();
+        var c = cancelXY(), hot = !!(M && M.drag && M.drag.overCancel);   // lit while the finger/cursor is over it
+        var r = CANCEL_R + (hot ? 4 : 0), k = r * 0.42;
+        ctx.save();
+        if (hot) { ctx.shadowColor = '#f87171'; ctx.shadowBlur = 14; }
+        ctx.fillStyle = hot ? 'rgba(244,63,94,0.92)' : 'rgba(15,23,42,0.85)'; ctx.strokeStyle = '#f87171'; ctx.lineWidth = hot ? 3 : 2;
+        ctx.beginPath(); ctx.arc(c.x, c.y, r, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+        ctx.shadowBlur = 0;
+        ctx.strokeStyle = hot ? '#fff' : '#f87171'; ctx.lineWidth = hot ? 3 : 2.5; ctx.lineCap = 'round';
+        ctx.beginPath(); ctx.moveTo(c.x - k, c.y - k); ctx.lineTo(c.x + k, c.y + k); ctx.moveTo(c.x + k, c.y - k); ctx.lineTo(c.x - k, c.y + k); ctx.stroke();
+        ctx.restore();
     }
-    function caption(text, color) {
-        ctx.fillStyle = color || 'rgba(226,232,240,0.95)';
-        ctx.font = '800 22px ' + (getComputedStyle(document.body).getPropertyValue('--font-display') || 'sans-serif');
-        ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(text, CW / 2, FMT / 2);
+    function capFont(px) { return '800 ' + px + 'px ' + (getComputedStyle(document.body).getPropertyValue('--font-display') || 'sans-serif'); }
+    // turn caption: sits in the margin on `team`'s own end, tucked to a side (clear of the centred pocket), and
+    // flipped 180° when that end is the screen-top so it reads for a player seated on that side (hot-seat).
+    function sideCaption(text, color, team) {
+        var isTop = fy(team === 0 ? FH : 0) < FMT + FH / 2;
+        var cy = isTop ? FMT / 2 : CH - FMB / 2;            // centred in the margin, level with the pocket
+        var cx = isTop ? CW * 0.74 : CW * 0.26;             // tucked to a side, clear of the centred pocket
+        ctx.save();
+        ctx.fillStyle = color || 'rgba(226,232,240,0.95)'; ctx.font = capFont(18);
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.translate(cx, cy); if (isTop) ctx.rotate(Math.PI);
+        ctx.fillText(text, 0, 0); ctx.restore();
+    }
+    function goalCaption(text, color) {
+        ctx.save(); ctx.fillStyle = color; ctx.font = capFont(30);
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(text, CW / 2, FMT + FH / 2); ctx.restore();
     }
     function render() {
         if (!ctx || !world) return;
         clear(); drawField(); if (M) { drawBodies(); drawAim(); }
         if (!M) return;
-        if (M.flash > 0) { ctx.save(); ctx.globalAlpha = M.flash * 0.5; ctx.fillStyle = '#fde68a'; ctx.fillRect(0, 0, CW, CH); ctx.restore(); caption(t('caromGoal'), '#fde68a'); return; }
-        if (M.local) { if (M.phase === 'aim') caption(t('caromAim', t('caromTeam' + M.turn)), TEAM[M.turn]); }
-        else if (M.phase === 'aim') caption(t('caromYourTurn'), TEAM[M.myTeam]);
-        else if (M.phase === 'wait') caption(t('caromOppTurn'), '#94a3b8');
+        if (M.flash > 0) { ctx.save(); ctx.globalAlpha = M.flash * 0.5; ctx.fillStyle = '#fde68a'; ctx.fillRect(0, 0, CW, CH); ctx.restore(); goalCaption(t('caromGoal'), '#fde68a'); return; }
+        if (M.local) { if (M.phase === 'aim') sideCaption(t('caromAim', t('caromTeam' + M.turn)), TEAM[M.turn], M.turn); }
+        else if (M.phase === 'aim') sideCaption(t('caromYourTurn'), TEAM[M.myTeam], M.myTeam);
+        else if (M.phase === 'wait') sideCaption(t('caromOppTurn'), '#94a3b8', 1 - M.myTeam);
     }
     function mix(a, b, u) {
         function h(c) { return [parseInt(c.slice(1, 3), 16), parseInt(c.slice(3, 5), 16), parseInt(c.slice(5, 7), 16)]; }
@@ -353,13 +445,13 @@
         var p = evToField(e), idx = hitPlayer(p); if (idx < 0) return;
         AC.audio.unlock(); M.drag = { idx: idx, x: p.x, y: p.y }; e.preventDefault();
     }
-    function onMove(e) { if (!M || !M.drag) return; var p = evToField(e); M.drag.x = p.x; M.drag.y = p.y; e.preventDefault(); }
+    function onMove(e) { if (!M || !M.drag) return; var p = evToField(e); M.drag.x = p.x; M.drag.y = p.y; M.drag.overCancel = inCancel(e); e.preventDefault(); }
     function onUp(e) {
         if (!M || !M.drag) return;
         if (inCancel(e)) { M.drag = null; AC.audio.play('click'); e.preventDefault(); return; }
         var o = world.bodies[M.drag.idx], dx = o.x - M.drag.x, dy = o.y - M.drag.y, dist = Math.hypot(dx, dy), idx = M.drag.idx;
         M.drag = null;
-        if (dist < 14) return;
+        if (dist < FIRE_MIN) return;
         var power = Math.min(dist, MAXPULL) / MAXPULL * MAXSPEED;
         if (M.local) { E.applyShot(world, idx, dx, dy, power); AC.audio.play('laser'); M.phase = 'sim'; }
         else onlineShoot(idx, dx, dy, power);

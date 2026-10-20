@@ -68,6 +68,8 @@
             ballRest: cfg.ballRest != null ? cfg.ballRest : 0.72,
             playerFric: cfg.playerFric != null ? cfg.playerFric : 1.0,   // players grip the floor
             ballFric: cfg.ballFric != null ? cfg.ballFric : 0.37,        // the ball rolls → far less floor friction
+            pocket: cfg.pocket != null ? cfg.pocket : 26,                // depth the goal recesses OUTWARD past the line (a ball must reach the BACK to score)
+            keeperZone: cfg.keeperZone != null ? cfg.keeperZone : 60,    // depth of the zone IN FRONT of the goal that a too-deep player is ejected to
             bodies: [],
         };
         w.goalX0 = (W - w.goalW) / 2; w.goalX1 = (W + w.goalW) / 2;
@@ -95,14 +97,30 @@
         o.vx = dx / d * power; o.vy = dy / d * power;
     }
 
-    function wall(w, o) {                 // bounce off walls; return a goal side if the ball exits a gap
-        var r = o.r, goal = null, inGap = (o.x > w.goalX0 && o.x < w.goalX1);
-        if (o.x < r) { o.x = r; o.vx = -o.vx * w.rest; }
-        else if (o.x > w.W - r) { o.x = w.W - r; o.vx = -o.vx * w.rest; }
-        if (o.kind === 'ball' && inGap && o.y < 0) return 'top';
-        if (o.kind === 'ball' && inGap && o.y > w.H) return 'bottom';
-        if (o.y < r && !(o.kind === 'ball' && inGap)) { o.y = r; o.vy = -o.vy * w.rest; }
-        else if (o.y > w.H - r && !(o.kind === 'ball' && inGap)) { o.y = w.H - r; o.vy = -o.vy * w.rest; }
+    // Bounce off walls. Each goal is a RECESSED POCKET of depth `pocket` behind the line: within the mouth the
+    // body passes the line into the pocket, bounces off the two posts (extended inward) and the back wall, and a
+    // BALL only scores when it reaches the back. So a ball sitting in the mouth can still be dug back out.
+    function wall(w, o) {
+        var r = o.r, goal = null, DP = w.pocket || 0, inGap = (o.x > w.goalX0 && o.x < w.goalX1);
+        // left/right field walls — only while the body is in the main field (not up/down inside a pocket)
+        if (o.y >= 0 && o.y <= w.H) {
+            if (o.x < r) { o.x = r; o.vx = -o.vx * w.rest; }
+            else if (o.x > w.W - r) { o.x = w.W - r; o.vx = -o.vx * w.rest; }
+        }
+        // TOP edge / pocket — mouth is OPEN (0<=y<r & inGap passes straight through); posts + back only bite once past the line
+        if (DP > 0 && inGap && o.y < r) {         // mouth column (lip + pocket): posts bite the whole way so nothing slips out sideways
+            if (o.x < w.goalX0 + r) { o.x = w.goalX0 + r; o.vx = -o.vx * w.rest; }     // left post
+            else if (o.x > w.goalX1 - r) { o.x = w.goalX1 - r; o.vx = -o.vx * w.rest; } // right post
+            if (o.kind === 'ball') { if (o.y < -r) goal = 'top'; }                      // whole ball past the line = score (partly-in can still be dug out)
+            else if (o.y < -DP + r) { o.y = -DP + r; o.vy = -o.vy * w.rest; }            // players ride the back wall (ejected at settle)
+        } else if (o.y < r) { o.y = r; o.vy = -o.vy * w.rest; }  // closed top wall (outside the gap)
+        // BOTTOM edge / pocket (mirror)
+        if (DP > 0 && inGap && o.y > w.H - r) {
+            if (o.x < w.goalX0 + r) { o.x = w.goalX0 + r; o.vx = -o.vx * w.rest; }
+            else if (o.x > w.goalX1 - r) { o.x = w.goalX1 - r; o.vx = -o.vx * w.rest; }
+            if (o.kind === 'ball') { if (o.y > w.H + r) goal = 'bottom'; }
+            else if (o.y > w.H + DP - r) { o.y = w.H + DP - r; o.vy = -o.vy * w.rest; }
+        } else if (o.y > w.H - r) { o.y = w.H - r; o.vy = -o.vy * w.rest; }
         return goal;
     }
 
@@ -138,6 +156,41 @@
         return goal;
     }
 
+    // After a shot settles: any PLAYER shoved more than half-way into a pocket is ejected to the front edge of
+    // its goal's keeper zone (nudged sideways to a free spot if the base point is occupied). Deterministic (no
+    // RNG), MUTATES the world to the final positions, and returns [{idx, fromX, fromY, toX, toY}] for animation.
+    function ejectDeep(w) {
+        var DP = w.pocket || 0, KZ = w.keeperZone || 0, moved = [], i;
+        if (DP <= 0) return moved;
+        for (i = 0; i < w.bodies.length; i++) {
+            var o = w.bodies[i]; if (o.kind !== 'player') continue;
+            var topDeep = o.y < 0, botDeep = o.y > w.H;        // centre past the goal line = "in" → eject it back out
+            if (!topDeep && !botDeep) continue;
+            var fromX = o.x, fromY = o.y;
+            var ty = topDeep ? KZ : (w.H - KZ);
+            var tx = clamp(o.x, w.goalX0 + o.r, w.goalX1 - o.r);
+            var spot = freeSpot(w, i, tx, ty, o.r);
+            o.x = spot.x; o.y = spot.y; o.vx = 0; o.vy = 0;
+            moved.push({ idx: i, fromX: fromX, fromY: fromY, toX: o.x, toY: o.y });
+        }
+        return moved;
+    }
+    // nearest x (base, then alternating ±steps) with no overlap against the other bodies / already-placed ejects
+    function freeSpot(w, idx, bx, by, r) {
+        var k, j, i, o, offs = [0], step = r * 1.3;
+        for (k = 1; k <= 16; k++) { offs.push(k * step); offs.push(-k * step); }
+        for (j = 0; j < offs.length; j++) {
+            var x = clamp(bx + offs[j], r + 2, w.W - r - 2), ok = true;
+            for (i = 0; i < w.bodies.length; i++) {
+                if (i === idx) continue; o = w.bodies[i];
+                var rr = r + o.r + 1, ddx = o.x - x, ddy = o.y - by;
+                if (ddx * ddx + ddy * ddy < rr * rr) { ok = false; break; }
+            }
+            if (ok) return { x: x, y: by };
+        }
+        return { x: bx, y: by };
+    }
+
     function atRest(w) {
         var b = w.bodies, e2 = REST_EPS * REST_EPS, i;
         for (i = 0; i < b.length; i++) if (b[i].vx * b[i].vx + b[i].vy * b[i].vy > e2) return false;
@@ -167,6 +220,6 @@
     window.CaromEngine = {
         REST_EPS: REST_EPS, STEP_DT: STEP_DT,
         create: create, reset: reset, place: place, applyShot: applyShot,
-        step: step, atRest: atRest, freeze: freeze, settle: settle, snapshot: snapshot,
+        step: step, atRest: atRest, freeze: freeze, settle: settle, snapshot: snapshot, ejectDeep: ejectDeep,
     };
 })();
