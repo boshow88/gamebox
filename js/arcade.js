@@ -747,6 +747,9 @@
         }
 
         // Play one tone. freq in Hz, dur in seconds.
+        // Optional opts (all default to the old plain blip): `attack` (ramp-up s),
+        // `detune` (cents for a thicker second oscillator), `filter` ({ type, freq, to }
+        // sweeps a low/high-pass over the note — softer or airier timbres).
         function tone(freq, dur, opts) {
             if (muted) return;
             const c = ensureCtx();
@@ -758,17 +761,65 @@
             const gain = c.createGain();
             osc.type = o.type || 'square';
             osc.frequency.setValueAtTime(freq, now);
-            if (o.slideTo) {
-                osc.frequency.exponentialRampToValueAtTime(
-                    Math.max(1, o.slideTo), now + dur);
-            }
+            if (o.slideTo) osc.frequency.exponentialRampToValueAtTime(Math.max(1, o.slideTo), now + dur);
             const vol = (o.volume != null ? o.volume : 0.16);
+            const atk = (o.attack != null ? o.attack : 0.008);
             gain.gain.setValueAtTime(0.0001, now);
-            gain.gain.exponentialRampToValueAtTime(vol, now + 0.008);
+            gain.gain.exponentialRampToValueAtTime(vol, now + atk);
             gain.gain.exponentialRampToValueAtTime(0.0001, now + dur);
-            osc.connect(gain).connect(c.destination);
-            osc.start(now);
-            osc.stop(now + dur + 0.02);
+            gain.connect(c.destination);
+            let entry = gain;
+            if (o.filter) {
+                const f = c.createBiquadFilter();
+                f.type = o.filter.type || 'lowpass';
+                f.frequency.setValueAtTime(o.filter.freq || 1200, now);
+                if (o.filter.to) f.frequency.exponentialRampToValueAtTime(Math.max(40, o.filter.to), now + dur);
+                f.connect(gain); entry = f;
+            }
+            osc.connect(entry);
+            osc.start(now); osc.stop(now + dur + 0.02);
+            if (o.detune) {
+                const osc2 = c.createOscillator();
+                osc2.type = osc.type;
+                osc2.detune.setValueAtTime(o.detune, now);
+                osc2.frequency.setValueAtTime(freq, now);
+                if (o.slideTo) osc2.frequency.exponentialRampToValueAtTime(Math.max(1, o.slideTo), now + dur);
+                osc2.connect(entry);
+                osc2.start(now); osc2.stop(now + dur + 0.02);
+            }
+        }
+
+        // A short filtered noise burst — for impacts, whooshes and air. Same mute/ctx
+        // rules as tone(). opts: `volume`, `attack`, `filter` ({ type, freq, to } sweep).
+        function noise(dur, opts) {
+            if (muted) return;
+            const c = ensureCtx();
+            if (!c) return;
+            if (c.state === 'suspended') { try { c.resume(); } catch (e) {} }
+            const o = opts || {};
+            const now = c.currentTime;
+            const len = Math.max(1, Math.floor(c.sampleRate * dur));
+            const buf = c.createBuffer(1, len, c.sampleRate);
+            const data = buf.getChannelData(0);
+            for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
+            const src = c.createBufferSource(); src.buffer = buf;
+            const gain = c.createGain();
+            const vol = (o.volume != null ? o.volume : 0.12);
+            const atk = (o.attack != null ? o.attack : 0.004);
+            gain.gain.setValueAtTime(0.0001, now);
+            gain.gain.exponentialRampToValueAtTime(vol, now + atk);
+            gain.gain.exponentialRampToValueAtTime(0.0001, now + dur);
+            gain.connect(c.destination);
+            let entry = gain;
+            if (o.filter) {
+                const f = c.createBiquadFilter();
+                f.type = o.filter.type || 'lowpass';
+                f.frequency.setValueAtTime(o.filter.freq || 2000, now);
+                if (o.filter.to) f.frequency.exponentialRampToValueAtTime(Math.max(40, o.filter.to), now + dur);
+                f.connect(gain); entry = f;
+            }
+            src.connect(entry);
+            src.start(now); src.stop(now + dur + 0.02);
         }
 
         // A named palette of arcade blips. Games call play('coin') etc.
@@ -796,6 +847,7 @@
                 if (fn) fn();
             },
             tone,
+            noise,
             unlock() {
                 const c = ensureCtx();
                 if (c && c.state === 'suspended') { try { c.resume(); } catch (e) {} }

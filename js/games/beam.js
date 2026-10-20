@@ -418,10 +418,24 @@
         om.hpStart = Object.assign({}, g.hp || {});       // pre-round snapshot — shown until the reveal (no spoiler)
         om.aliveStart = Object.assign({}, g.alive || {});
         if (om.host) { om.host.tallied = false; om.host.over = false; om.host.pending = null; }
-        AC.audio.play('click');
+        sndClick();
         if (om.local) scheduleBots();
     }
     function myCorrect() { return om && om.choice && om.puzzle && samePort(om.choice, om.puzzle.exit); }
+
+    // ---- sound: Beam's own voice (light + laser), built on the shared synth ----
+    function sndClick() { AC.audio.tone(780, 0.05, { type: 'triangle', volume: 0.09, attack: 0.003 }); }
+    function sndReveal() {   // the beam fires: a clean descending laser "pew" (pure sine, no noise)
+        AC.audio.tone(1700, 0.24, { type: 'sine', slideTo: 420, volume: 0.13, attack: 0.004 });
+    }
+    function sndHit() {      // correct: a clean crystalline ping + a shimmer above
+        AC.audio.tone(1175, 0.18, { type: 'triangle', volume: 0.14, detune: 6, filter: { type: 'lowpass', freq: 3600 } });
+        setTimeout(function () { AC.audio.tone(1760, 0.16, { type: 'triangle', volume: 0.08 }); }, 70);
+    }
+    function sndMiss() {     // missed: a soft but clearly audible downward thud (mid-low, not harsh)
+        AC.audio.tone(330, 0.22, { type: 'triangle', slideTo: 150, volume: 0.16, attack: 0.005, filter: { type: 'lowpass', freq: 1400, to: 500 } });
+        AC.audio.noise(0.1, { volume: 0.08, filter: { type: 'bandpass', freq: 1000 } });
+    }
 
     function enterMatch(data) {                       // ONLINE only (solo uses startSoloMatch)
         if (om) return;
@@ -491,7 +505,7 @@
     function submitAnswer(port) {
         if (!om || !om.alive) return;
         om.choice = port; om.submitted = true;
-        AC.audio.play('click');
+        sndClick();
         roomWrite({ ['game.answers.' + om.myUid]: { r: port.r, c: port.c, side: port.side, at: Date.now() } }).catch(function () { });
     }
 
@@ -608,8 +622,8 @@
         if (!om || !om.puzzle) return;
         var ph = phaseAt(performance.now()).phase;
         if (ph !== om.lastPhase) {
-            if (ph === 'reveal') AC.audio.play('laser');
-            if (ph === 'result') { if (om.alive) AC.audio.play(myCorrect() ? 'gem' : 'explode'); }
+            if (ph === 'reveal') sndReveal();
+            if (ph === 'result') { if (om.alive) { if (myCorrect()) sndHit(); else sndMiss(); } }
             // the ✓/✗ + HP only reveal once WE locally reach the reveal (never during the hidden-answer phase)
             if ((ph === 'reveal' || ph === 'result' || ph === 'await') && room && room.data) renderPlayersBar(room.data);
             om.lastPhase = ph;
