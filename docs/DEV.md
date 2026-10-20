@@ -3,21 +3,20 @@
 How this collection is put together, the conventions to follow, and how
 to add another game. For per-game *rules* see [`rules.md`](rules.md).
 
-> **GameBox note.** This file describes the **Arcade engine** specifically.
-> In the merged GameBox tree some paths changed: `js/common.js` → `js/arcade.js`;
-> the old `css/common.css` is now the shared `css/common.css` (base + both
-> themes scoped under `[data-theme]`) plus `css/arcade.css` (the game-page
-> chrome that used to be `css/game.css`); and game pages live in the top-level
-> `games/` with `<body data-theme="arcade">`. The `window.ArcadeCommon` API
-> itself is unchanged. The sibling puzzle engine is `js/puzzle.js`
-> (`window.PuzzleCommon`); its debug notes are in [`DEBUG.md`](DEBUG.md).
+> **Scope.** This file describes the **Arcade engine** (`js/arcade.js`,
+> `window.ArcadeCommon`) and arcade game pages (`games/<id>.html` with
+> `<body data-theme="arcade">`). The sibling **Puzzle engine** is `js/puzzle.js`
+> (`window.PuzzleCommon`). Shared base + both themes live in `css/common.css`
+> (scoped under `[data-theme]`); arcade page chrome is `css/arcade.css`. For house
+> style across both engines see [`CONVENTIONS.md`](CONVENTIONS.md); for dev tools /
+> logging see [`DEBUG.md`](DEBUG.md).
 
 ## Philosophy
 
 - **No build step.** Plain HTML/CSS/JS. It runs from `file://`,
   `python -m http.server`, or GitHub Pages with no tooling.
 - **Framework-free.** Everything shared lives on one global,
-  `window.ArcadeCommon` (`js/common.js`), created by an IIFE.
+  `window.ArcadeCommon` (`js/arcade.js`), created by an IIFE.
 - **Offline-capable.** No CDNs. Icons are an inlined subset of Lucide;
   sound is synthesised with WebAudio (no asset files).
 - **Relative paths everywhere**, so the site can live at any base URL.
@@ -29,18 +28,22 @@ to add another game. For per-game *rules* see [`rules.md`](rules.md).
 ## File layout
 
 ```
-index.html                   Launcher (game picker)
-favicon.svg                  Four arcade buttons
-css/common.css               Theme tokens (CSS variables) + launcher styles + toast
-css/game.css                 Shared game-page chrome: topbar, HUD pills, stamina bar,
+index.html                   Unified launcher (tag-driven game picker)
+favicon.svg                  GameBox mark
+css/common.css               Theme tokens (both themes, scoped under [data-theme]) + toast
+css/launcher.css             Launcher-only hub styles
+css/arcade.css               Arcade game-page chrome: topbar, HUD pills, stamina bar,
                              controls, canvas stage, start/pause/over overlay
-js/common.js                 ArcadeCommon — all shared plumbing (see below)
+js/arcade.js                 ArcadeCommon — all shared arcade plumbing (see below)
+js/launcher.js               Game manifest (GAMES) + tags + render/filter + account UI
+js/net/net.js                Firebase room layer (window.ArcadeNet)
+js/cloud-sync.js             Cross-device high-score sync (window.CloudSync)
 js/games/colour-ladder.js    One file per game: logic + Canvas 2D rendering
 docs/rules.md                Player-facing rules
 docs/DEV.md                  This file
 ```
 
-## `ArcadeCommon` surface (`js/common.js`)
+## `ArcadeCommon` surface (`js/arcade.js`)
 
 | Namespace | What |
 | --- | --- |
@@ -80,6 +83,9 @@ with the epoch it was written under; bump `scoreEpoch` whenever a mechanics
 change invalidates old scores, and every returning player's next load wipes
 that game's bests exactly once, then stores the new epoch. Leave it unset to
 never auto-reset. (Manual one-off: `ArcadeCommon.scores.resetIfStale(game, epoch)`.)
+A signed-in player's cloud bests (CloudSync) are the source of truth and re-seed
+after a local wipe, so bumping the epoch only resets device-local / guest scores —
+clear `profiles` too if you really mean to reset accounts.
 
 DOM ids the shell looks for (all optional): `#overlay`,
 `#overlay-badge`, `#overlay-title`, `#overlay-message`, `#overlay-btn`,
@@ -101,15 +107,17 @@ Switching tabs mid-run auto-pauses.
 
 ## Adding a new game
 
-1. **Launcher card** in `index.html`: copy a `.game-card` block, give it
-   a class (e.g. `panda-dash`) and `href="./games/panda-dash.html"`.
-2. **Accent colour**: add `.game-card.<class> { --game-color: #…; }` in
-   `css/common.css`, and set `body { --game-color: #…; }` in the game
-   page's inline `<style>`.
+1. **Launcher entry**: append one object to `GAMES` in `js/launcher.js`
+   (`id`, `href`, `icon`, `color`, `tags`). The launcher is data-driven, so the
+   card is rendered from this — no HTML to copy.
+2. **Accent colour**: set `body { --game-color: #…; }` in the game page's inline
+   `<style>` (the launcher card uses the `color` field from its `GAMES` entry).
 3. **Game page** `games/<id>.html`: copy `colour-ladder.html` — topbar,
    the HUD pills **your** game needs, a `.stage-wrap` with the
    `<canvas id="stage">` + overlay, controls, and the *How to play*
-   footer. Load `../js/common.js` then `../js/games/<id>.js`.
+   footer. Load `../js/arcade.js` then `../js/games/<id>.js` (add
+   `../js/firebase-config.js` + `../js/net/net.js` + `../js/cloud-sync.js` before
+   the game script only if it syncs scores or goes online).
 4. **Game module** `js/games/<id>.js`: an IIFE that
    - registers its strings on `AC.i18n.STRINGS`,
    - grabs the canvas + its own HUD nodes,
@@ -117,8 +125,8 @@ Switching tabs mid-run auto-pauses.
    - calls `AC.shell.create({ gameId, update, render, reset, … })`,
    - wires its own input and updates its own HUD,
    - calls `shell.gameOver({ score, win })` when the run ends.
-5. **Launcher strings** for the card go in `js/common.js` `STRINGS`
-   (EN + 中); per-game gameplay strings stay in the game file.
+5. **Launcher strings** (`<id>_name` / `_tagline` / `_body`, EN + 中) go in
+   `STRINGS` in `js/launcher.js`; per-game gameplay strings stay in the game file.
 6. Add a rules section to `docs/rules.md`.
 
 Canvas convention: render at a fixed logical resolution (Colour Ladder
@@ -203,12 +211,12 @@ on its page) and scale the backing store by `devicePixelRatio` in a
   fall `CONFIG.healSpeedMul×` the normal speed and draw with a trail + white `+`.
 - **Lives HUD** renders as pips via `renderLives` (easier to read at a glance).
 
-## Ungated logging
+## Logging
 
-The per-game debug overlay / cheat console (`?debug=1`, `?t=`, `window.LC`)
-has been removed. The only logging left is defensive `console.warn` in
-`js/common.js` (storage read/write + i18n subscriber failures). Find with
-`rg "console\.(log|warn)"`.
+No debug URL flags or cheat console remain. The only arcade logging left is
+defensive `console.warn` in `js/arcade.js` (storage read/write + i18n subscriber
+failures) plus `[duel]` / `[lobby]` network warnings in the online games. The full
+inventory (both engines + dev tools) lives in [`DEBUG.md`](DEBUG.md).
 
 ## Run locally & deploy
 

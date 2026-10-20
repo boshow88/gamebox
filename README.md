@@ -25,9 +25,10 @@ js/
   puzzle.js           Puzzle engine (window.PuzzleCommon: timer, generate, undo, share, shell)
   firebase-config.js  Public Firebase web config (online PvP)
   net/net.js          Firebase room layer (window.ArcadeNet)
+  cloud-sync.js       Cross-device high-score sync (window.CloudSync)
   games/*.js          One module per game (logic + rendering)
   generators/*.js     Puzzle generators & solvers
-games/*.html          One page per game (all 11, each sets <body data-theme="…">)
+games/*.html          One page per game (all 13, each sets <body data-theme="…">)
 tools/*.html          Puzzle dev tools (generators/solvers test harnesses)
 docs/
   rules.md            Full player-facing rules for every game (merged)

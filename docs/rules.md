@@ -360,8 +360,8 @@ the reason.
 
 All at the top of `js/games/rune-stones.js`: `DUEL` (HP, round cap, energy, hand size,
 `phaseTimeDef` / `phaseTimeAtk`, resolve pause), `BALANCE` (spin time, base damage,
-heart heal, combo step, enhanced ×), `AI_LEVELS` (per-difficulty solver `tries` /
-`pathLen` / `skill` / shield stacking), and the `CARDS` pool built in `buildCards()`
+heart heal, combo step, enhanced ×), `AI_LEVELS` (per-difficulty spin search `beamW` /
+`beamD`, card-judging `evalW` / `evalD`, and `skill`), and the `CARDS` pool built in `buildCards()`
 (each card's `cost` / `weight` / `cat`). Damage/shield math lives in
 `computeSpinResult()` / `simResolve()` / `shieldUnmet()`.
 
