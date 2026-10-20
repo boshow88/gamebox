@@ -272,11 +272,7 @@
         phaseTimeAtk: 40,               // seconds to decide in the attack phase
         resolvePause: 1.6,              // hold at round end so the mutual attack is readable
         strikeDelay: 0.5,               // online: beat between the heal and the incoming hit (layering)
-        aiThink: 1.5,
-        aiBase: 40, aiPerCombo: 28,     // rival damage ≈ aiBase + combos·aiPerCombo
-        aiComboMin: 3, aiComboMax: 7,   // its simulated combos (before meeting your shields)
-        aiSkill: 0.7,                   // chance it meets each of your shields
-        aiHasten: 0.3,                  // chance it hastens your spin (from round 3)
+        aiThink: 1.5,                   // vs-AI: beat between revealing its cards and its spin
         stallSec: 45,                   // online: opponent idle this long → they forfeit
         takeoverSec: 6,                 // online: both attacked but host didn't tally → take over
     };
