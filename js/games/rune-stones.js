@@ -718,7 +718,7 @@
     // by cell so a sweep still strums. `k` staggers multiple swaps in one frame.
     function swapTick(idx, k) {
         const f = 720 + cellCol(idx) * 24 + cellRow(idx) * 10;
-        const fire = () => AC.audio.tone(f, 0.015, { type: 'triangle', volume: 0.04 });
+        const fire = () => AC.audio.tone(f, 0.02, { type: 'sine', volume: 0.045, attack: 0.001, filter: { type: 'highpass', freq: 500 } });
         if (k) setTimeout(fire, k * 14); else fire();
     }
     function stepToward(from, to) {
@@ -751,7 +751,7 @@
             for (const r of paletteRects()) {
                 if (!inRect(p, r)) continue;
                 if (G.palette.exclude && r.el === G.palette.exclude) { if (e.cancelable) e.preventDefault(); return; }
-                AC.audio.play('grab');
+                sndPick();
                 G.palette.onPick(r.el);
                 if (e.cancelable) e.preventDefault();
                 return;
@@ -765,7 +765,7 @@
                 if (!inRect(p, r)) continue;
                 const sp = G.shieldPick; G.shieldPick = null;
                 if (r.t.kind === 'shield') G.aiShields.splice(r.t.i, 1); else removeSlowStack();
-                AC.audio.play('coin'); consumeCard(sp.i, sp.id);
+                sndCard(); consumeCard(sp.i, sp.id);
                 if (e.cancelable) e.preventDefault();
                 return;
             }
@@ -829,7 +829,7 @@
         setInspect(null);   // grabbing a rune dismisses any restraint tooltip
         if (!G.spinOpen) G.spinTimer = effectiveSpinTime();   // spin window already counting → keep its clock
         const o = board[cell]; if (o) { o.x = p.x; o.y = p.y; }
-        AC.audio.play('grab');
+        sndPick();
         if (e.cancelable) e.preventDefault();
     }
     function onPointerMove(e) {
@@ -887,14 +887,14 @@
         if (!drawFromPool(curType())) return;
         G.lastDrawn = G.hand.length - 1;   // only the single newest card is highlighted
         G.energy -= DUEL.drawCost;
-        AC.audio.play('click');
+        sndTick();
         updateHud();
     }
     function discardCard(i) {
         if (i == null || i < 0 || i >= G.hand.length) return;
         G.hand.splice(i, 1);
         adjustLastDrawn(i);
-        AC.audio.play('click');
+        sndTick();
         updateHud();
     }
     function playable(id) {   // some cards need a legal target
@@ -960,7 +960,7 @@
         if (i >= 0 && i < G.hand.length && G.hand[i] === id) { G.hand.splice(i, 1); adjustLastDrawn(i); }
         else { const k = G.hand.indexOf(id); if (k >= 0) { G.hand.splice(k, 1); adjustLastDrawn(k); } }
         if (CARDS[id].type === 'enhance') G.playedThisRound.push(id);   // your attack skills this round (also revealed to the rival online)
-        AC.audio.play('gem');
+        sndMatch();
         addFloat(W / 2, 150, cardName(id), accent(), 18);
         if (G.online) pushLive();   // reveal this card + the reshaped board to the opponent now
         updateHud();
@@ -1027,7 +1027,20 @@
         G.resolve.stage = 'pop'; G.resolve.t = 0;
         if (big) bigClearSound(); else comboSound(G.resolve.combos.length);   // 5+ gets a fiercer, electronic sting
     }
-    function comboSound(n) { AC.audio.tone(430 + Math.min(n, 12) * 60, 0.09, { type: 'triangle', volume: 0.14 }); }
+    // ---- sound: Rune Stones' voice (elemental crystal + a little magic) on the shared synth ----
+    function sndPick() { AC.audio.tone(560, 0.07, { type: 'triangle', volume: 0.1, attack: 0.003, filter: { type: 'lowpass', freq: 2600 } }); }   // grab / select
+    function sndCard() { AC.audio.tone(540, 0.09, { type: 'triangle', volume: 0.12, attack: 0.004, detune: 8, filter: { type: 'lowpass', freq: 2800 } }); setTimeout(function () { AC.audio.tone(810, 0.1, { type: 'triangle', volume: 0.09 }); }, 55); }   // play / cast a card
+    function sndTick() { AC.audio.tone(680, 0.05, { type: 'triangle', volume: 0.08, attack: 0.003 }); }   // UI click
+    function sndBlock() { AC.audio.tone(240, 0.14, { type: 'triangle', slideTo: 170, volume: 0.12, attack: 0.004, filter: { type: 'lowpass', freq: 700, to: 300 } }); }   // attack blocked by a shield (dull "nope")
+    function sndHurt() { AC.audio.tone(220, 0.22, { type: 'triangle', slideTo: 90, volume: 0.17, attack: 0.003, filter: { type: 'lowpass', freq: 1100, to: 300 } }); AC.audio.noise(0.08, { volume: 0.08, filter: { type: 'lowpass', freq: 1400, to: 400 } }); }   // you take damage
+    function sndMatch() { AC.audio.tone(1047, 0.16, { type: 'triangle', volume: 0.14, detune: 6, filter: { type: 'lowpass', freq: 3600 } }); setTimeout(function () { AC.audio.tone(1568, 0.14, { type: 'triangle', volume: 0.08 }); }, 70); }   // a clear / success chime
+    function sndWin() { [523, 659, 784, 1047, 1319].forEach(function (f, i) { setTimeout(function () { AC.audio.tone(f, 0.16, { type: 'triangle', volume: 0.13, attack: 0.004, detune: 5, filter: { type: 'lowpass', freq: 4200 } }); }, i * 80); }); }
+    function sndLose() { [440, 330, 247].forEach(function (f, i) { setTimeout(function () { AC.audio.tone(f, 0.26, { type: 'triangle', volume: 0.14, attack: 0.005, filter: { type: 'lowpass', freq: 1600, to: 500 } }); }, i * 150); }); }
+    function comboSound(n) {   // escalating crystal bell as the combo climbs
+        var f = 430 + Math.min(n, 12) * 60;
+        AC.audio.tone(f, 0.11, { type: 'triangle', volume: 0.13, attack: 0.003, detune: 7, filter: { type: 'lowpass', freq: 3200 } });
+        AC.audio.tone(f * 2, 0.08, { type: 'sine', volume: 0.04, attack: 0.003 });
+    }
     function stepResolve(dt) {
         const R = G.resolve;
         R.t += dt;
@@ -1394,7 +1407,7 @@
         if (G.online) {
             if (n > 0) {
                 if (heal > 0) addFloat(W / 2, BOARD_TOP - 40, '+' + heal, ELEMENT_COLORS.heart, 20);
-                if (blocked) { addFloat(W / 2, 96, t('rtBlocked'), '#9fe0ff', 22); AC.audio.play('empty'); }
+                if (blocked) { addFloat(W / 2, 96, t('rtBlocked'), '#9fe0ff', 22); sndBlock(); }
                 else if (dmg > 0) { addFloat(W / 2, 92, '-' + dmg, '#ff8a8a', 32); spawnDuelProjectiles(G.resolve.combos); }
                 addFloat(W / 2, 132, t('rtCombo', n), accent(), 18);
             }
@@ -1410,7 +1423,7 @@
         }
         if (n > 0) {
             if (heal > 0) { G.youHp = Math.min(G.youMaxHp, G.youHp + heal); addFloat(W / 2, BOARD_TOP - 40, '+' + heal, ELEMENT_COLORS.heart, 20); }
-            if (blocked) { addFloat(W / 2, 96, t('rtBlocked'), '#9fe0ff', 22); AC.audio.play('empty'); }
+            if (blocked) { addFloat(W / 2, 96, t('rtBlocked'), '#9fe0ff', 22); sndBlock(); }
             else if (dmg > 0) { G.aiHp -= dmg; G.score = Math.min(CONFIG.scoreCap, G.score + dmg); addFloat(W / 2, 92, '-' + dmg, '#ff8a8a', 32); spawnDuelProjectiles(G.resolve.combos); }
             addFloat(W / 2, 132, t('rtCombo', n), accent(), 18);
         }
@@ -1475,12 +1488,12 @@
         if (res.heal > 0) { G.aiHp = Math.min(G.aiMaxHp, G.aiHp + res.heal); addFloat(W / 2, 48, '+' + res.heal, ELEMENT_COLORS.heart, 18); }
         if (blocked) {
             addFloat(W / 2, BOARD_TOP - 70, t('rtBlocked'), '#9fe0ff', 22);
-            AC.audio.play('empty');
+            sndBlock();
         } else if (res.dmg > 0) {
             G.youHp -= res.dmg; G.shake = 0.4;
             addFloat(W / 2, BOARD_TOP - 70, '-' + res.dmg, '#ff6b6b', 24);
             if (res.stats.combos) addFloat(W / 2, BOARD_TOP - 44, t('rtCombo', res.stats.combos), accent(), 16);
-            AC.audio.play('rock');
+            sndHurt();
         }
         updateHud();
         if (G.youHp <= 0) { G.youHp = 0; updateHud(); duelOver(false); return; }
@@ -1545,7 +1558,7 @@
         G.spinTimer = effectiveSpinTime();
         if (G.online) G.online.spinOpenAt = Date.now();   // wall clock, for the backgrounded-tab safety net
         addFloat(W / 2, 150, t('rdSpinNow'), '#ffcf5a', 20);
-        AC.audio.play('grab');
+        sndPick();
         updateHud();
     }
     // Spell out why the match ended (KO / HP at round limit / forfeit / draw).
@@ -1569,7 +1582,7 @@
             // host can start a rematch in the same room (room stays; cleaned on leave/GC).
             lobbyResult = draw ? t('rdDrawGame') : (win ? t('rdYouWin') : t('rdYouLose'));
             lobbyReason = reason;
-            AC.audio.play(win && !draw ? 'levelup' : 'gameover');
+            if (win && !draw) sndWin(); else sndLose();
             openLobby();
         } else {
             if (win && !draw) recordAiWin(G.round);   // fewest-rounds best (vs-AI only)
@@ -1585,16 +1598,17 @@
     const ELEMENT_TONE = { fire: 300, water: 430, wood: 360, light: 560, dark: 250, yao: 490, steel: 200, heart: 470 };
     function playLaunchSound(el) {
         const f = ELEMENT_TONE[el] || 360;
-        AC.audio.tone(f, 0.08, { type: 'square', slideTo: f * 1.7, volume: 0.08 });
+        AC.audio.tone(f, 0.09, { type: 'triangle', slideTo: f * 1.7, volume: 0.09, attack: 0.004, filter: { type: 'lowpass', freq: 2600 } });
     }
     function playHitSound(el) {
         const f = ELEMENT_TONE[el] || 360;
-        AC.audio.tone(f * 0.9, 0.11, { type: 'sawtooth', slideTo: f * 0.5, volume: 0.13 });
+        AC.audio.tone(f * 0.9, 0.13, { type: 'triangle', slideTo: f * 0.5, volume: 0.14, attack: 0.003, filter: { type: 'lowpass', freq: 1600, to: 500 } });
+        AC.audio.noise(0.05, { volume: 0.05, filter: { type: 'bandpass', freq: f * 2 } });
     }
     // A fierce, electronic sting for a big (5+) clear — distinct from the per-combo blip.
-    function bigClearSound() {
-        AC.audio.tone(360, 0.18, { type: 'sawtooth', slideTo: 1300, volume: 0.18 });
-        setTimeout(() => AC.audio.tone(820, 0.12, { type: 'square', volume: 0.1 }), 40);
+    function bigClearSound() {   // fierce but magical sting for a big (5+) clear
+        AC.audio.tone(300, 0.2, { type: 'sawtooth', slideTo: 1200, volume: 0.14, attack: 0.004, filter: { type: 'lowpass', freq: 2200, to: 4800 } });
+        setTimeout(() => { AC.audio.tone(1047, 0.16, { type: 'triangle', volume: 0.1, detune: 6 }); AC.audio.tone(1568, 0.16, { type: 'triangle', volume: 0.07 }); }, 60);
     }
     function launchProjectile(x0, y0, x1, y1, el, onHit) {
         G.projectiles.push({ x: x0, y: y0, x0, y0, x1, y1, el, color: shade(ELEMENT_COLORS[el] || '#ccc', 0.4), t: 0, dur: 0.17, onHit });
@@ -1848,8 +1862,7 @@
         G.sandDraft = { cards };
         G.sandPowers = false;
         G.phase = 'sanddraft';
-        AC.audio.tone(540, 0.09, { type: 'triangle', volume: 0.14 });                 // a little "draft!" chime
-        setTimeout(() => AC.audio.tone(810, 0.11, { type: 'triangle', volume: 0.12 }), 80);
+        [660, 990, 1320].forEach((f, i) => setTimeout(() => AC.audio.tone(f, 0.11, { type: 'triangle', volume: 0.12, attack: 0.004, detune: 5, filter: { type: 'lowpass', freq: 4200 } }), i * 70));   // a bright "draft!" sparkle
         updateHud(); markDirty();
     }
     function chooseSandCard(i) {
@@ -1864,7 +1877,7 @@
     function commitSandCard(id, el) {
         applySandAbility(id, el);
         G.sandDraft = null;
-        AC.audio.play('coin');
+        sndCard();
         const label = t(DRAFT_CARDS[id].key + '_name') + (el ? ' \u00b7 ' + t('el_' + el) : '');
         addFloat(W / 2, BOARD_TOP + 70, label, accent(), 20);
         if (G.round === 0 && (--G.sandOpenLeft) > 0) { openSandDraft(); return; }   // opening: offer DRAFT.openPicks drafts in a row
@@ -2204,7 +2217,7 @@
         s.t -= dt;
         if (s.t > 0) return;
         s.done = true;
-        if (s.dmg > 0) { G.youHp = Math.max(0, G.youHp - s.dmg); G.shake = 0.4; addFloat(W / 2, BOARD_TOP - 70, '-' + s.dmg, '#ff6b6b', 24); AC.audio.play('rock'); }
+        if (s.dmg > 0) { G.youHp = Math.max(0, G.youHp - s.dmg); G.shake = 0.4; addFloat(W / 2, BOARD_TOP - 70, '-' + s.dmg, '#ff6b6b', 24); sndHurt(); }
         if (s.ready) {   // authoritative HP already synced → reconcile + begin the hold
             if (s.youFinal != null) G.youHp = s.youFinal;
             if (s.aiFinal != null) G.aiHp = s.aiFinal;
@@ -2262,7 +2275,7 @@
         // over
         if (g.status === 'over' && G.phase !== 'over') {
             const s = G.online.strike;
-            if (s && !s.done && s.dmg > 0) { G.shake = 0.4; addFloat(W / 2, BOARD_TOP - 70, '-' + s.dmg, '#ff6b6b', 24); AC.audio.play('rock'); }   // show the finishing blow
+            if (s && !s.done && s.dmg > 0) { G.shake = 0.4; addFloat(W / 2, BOARD_TOP - 70, '-' + s.dmg, '#ff6b6b', 24); sndHurt(); }   // show the finishing blow
             G.online.strike = null;
             if (g.hp) { G.youHp = g.hp[my]; G.aiHp = g.hp[opp]; updateHud(); }
             duelOver(g.winner === my, !g.winner);   // no winner recorded → draw (e.g. simultaneous KO)
@@ -2301,9 +2314,10 @@
             if (G.countdown <= 0) {
                 G.phaseTimer = G.phaseMax;   // start the decide clock fresh now
                 if (G.online && !onlineWaiting()) G.online.phaseDeadline = Date.now() + (G.phase === 'attack' ? DUEL.phaseTimeAtk : DUEL.phaseTimeDef) * 1000;
-                AC.audio.tone(1040, 0.12, { type: 'square', volume: 0.12 });
+                AC.audio.tone(784, 0.1, { type: 'triangle', volume: 0.12, attack: 0.004, filter: { type: 'lowpass', freq: 3200 } });
+                setTimeout(() => AC.audio.tone(1047, 0.12, { type: 'triangle', volume: 0.1 }), 60);
             } else if (Math.ceil(G.countdown) !== before) {
-                AC.audio.tone(700, 0.08, { type: 'square', volume: 0.12 });
+                AC.audio.tone(620, 0.07, { type: 'triangle', volume: 0.1, attack: 0.003 });
             }
             markDirty();
             settleOrbs(dt);   // keep the board visually settling, but freeze all phase logic
@@ -2353,7 +2367,7 @@
             const sec = Math.ceil(G.phaseTimer);
             if (sec !== lastSecShown) {
                 lastSecShown = sec; markDirty();
-                if (sec <= 5 && sec > 0) AC.audio.tone(900, 0.07, { type: 'square', volume: 0.1 });   // urgency tick
+                if (sec <= 5 && sec > 0) AC.audio.tone(880, 0.06, { type: 'triangle', volume: 0.1, attack: 0.002 });   // urgency tick
             }
         }
         }   // end duel/online dispatch
