@@ -36,10 +36,10 @@
             caromRoomGone: 'Room closed', caromOffline: 'offline', caromEndLeft: 'Your opponent left — you win.',
             // pre-match settings / presets
             caromSettings: 'Settings', caromSettingsTitle: 'Match setup', caromSettingsDone: 'Done', caromSetByHost: 'Set by the host',
-            caromFieldLabel: 'Field', caromBallLabel: 'Ball', caromPlayersLabel: 'Players', caromTargetLabel: 'Win at', caromGoalLabel: 'Goal',
+            caromFieldLabel: 'Field', caromBallLabel: 'Ball', caromFormationLabel: 'Formation', caromTargetLabel: 'Win at', caromGoalLabel: 'Goal',
             caromField_grass: 'Grass', caromField_ice: 'Ice', caromField_sand: 'Sand',
             caromBall_standard: 'Standard', caromBall_beach: 'Beach ball', caromBall_heavy: 'Heavy',
-            caromPlayers_p3: '3 a side', caromPlayers_p5: '5 a side', caromPlayers_p7: '7 a side',
+            caromFm_f4b: 'Balanced', caromFm_f4a: 'Attack', caromFm_f5b: 'Balanced', caromFm_f5d: 'Defensive', caromFm_f5a: 'Attack', caromFm_f6b: 'Balanced', caromFm_f6d: 'Defensive', caromFm_f6a: 'Attack', caromFm_f7b: 'Standard', caromFm_f7d: 'Bunker',
             caromGoalNarrow: 'Narrow', caromGoalStd: 'Standard', caromGoalWide: 'Wide',
         },
         zh: {
@@ -66,10 +66,10 @@
             caromRoomGone: '房間已關閉', caromOffline: '離線', caromEndLeft: '對手離開了——你獲勝。',
             // pre-match settings / presets
             caromSettings: '設定', caromSettingsTitle: '開賽設定', caromSettingsDone: '完成', caromSetByHost: '由房主設定',
-            caromFieldLabel: '場地', caromBallLabel: '球', caromPlayersLabel: '球員', caromTargetLabel: '獲勝分數', caromGoalLabel: '球門',
+            caromFieldLabel: '場地', caromBallLabel: '球', caromFormationLabel: '陣形', caromTargetLabel: '獲勝分數', caromGoalLabel: '球門',
             caromField_grass: '草地', caromField_ice: '冰地', caromField_sand: '沙灘',
             caromBall_standard: '標準球', caromBall_beach: '海灘球', caromBall_heavy: '鉛球',
-            caromPlayers_p3: '3 人', caromPlayers_p5: '5 人', caromPlayers_p7: '7 人',
+            caromFm_f4b: '平衡', caromFm_f4a: '進攻', caromFm_f5b: '平衡', caromFm_f5d: '防守', caromFm_f5a: '進攻', caromFm_f6b: '平衡', caromFm_f6d: '防守', caromFm_f6a: '進攻', caromFm_f7b: '標準', caromFm_f7d: '鐵桶',
             caromGoalNarrow: '窄', caromGoalStd: '標準', caromGoalWide: '寬',
         },
     };
@@ -103,20 +103,34 @@
             beach: { ballR: 14, ballMass: 0.05, ballRest: 0.95, ballFric: 1.20 },
             heavy: { ballR: 6, ballMass: 1.20, ballRest: 0.22, ballFric: 0.55 },
         },
-        players: { // count / size / weight / bounce
-            p3: { players: 3, playerR: 24, playerMass: 1.0, playerRest: 0.60, playerFric: 1.0 },
-            p5: { players: 5, playerR: 22, playerMass: 1.0, playerRest: 0.60, playerFric: 1.0 },
-            p7: { players: 7, playerR: 20, playerMass: 1.0, playerRest: 0.60, playerFric: 1.0 },
+        // formation = count + per-player size/weight/bounce + starting spots (fractions of the team's OWN half,
+        // y small = near own goal). The bottom team is mirrored. slots are also the hook for custom placement.
+        formation: {
+            // 4 players (goalie + 3)
+            f4b: { players: 4, playerR: 24, playerMass: 1.0, playerRest: 0.60, playerFric: 1.0, slots: [{ x: 0.50, y: 0.055 }, { x: 0.36, y: 0.17 }, { x: 0.64, y: 0.17 }, { x: 0.50, y: 0.36 }] },
+            f4a: { players: 4, playerR: 24, playerMass: 1.0, playerRest: 0.60, playerFric: 1.0, slots: [{ x: 0.50, y: 0.055 }, { x: 0.50, y: 0.17 }, { x: 0.32, y: 0.35 }, { x: 0.68, y: 0.35 }] },
+            // 5 players (goalie + 4)
+            f5b: { players: 5, playerR: 22, playerMass: 1.0, playerRest: 0.60, playerFric: 1.0, slots: [{ x: 0.50, y: 0.055 }, { x: 0.42, y: 0.16 }, { x: 0.58, y: 0.16 }, { x: 0.27, y: 0.35 }, { x: 0.73, y: 0.35 }] },
+            f5d: { players: 5, playerR: 22, playerMass: 1.0, playerRest: 0.60, playerFric: 1.0, slots: [{ x: 0.50, y: 0.055 }, { x: 0.30, y: 0.15 }, { x: 0.50, y: 0.17 }, { x: 0.70, y: 0.15 }, { x: 0.50, y: 0.36 }] },
+            f5a: { players: 5, playerR: 22, playerMass: 1.0, playerRest: 0.60, playerFric: 1.0, slots: [{ x: 0.50, y: 0.055 }, { x: 0.50, y: 0.15 }, { x: 0.28, y: 0.33 }, { x: 0.50, y: 0.42 }, { x: 0.72, y: 0.33 }] },
+            // 6 players (goalie + 5)
+            f6b: { players: 6, playerR: 21, playerMass: 1.0, playerRest: 0.60, playerFric: 1.0, slots: [{ x: 0.50, y: 0.05 }, { x: 0.33, y: 0.15 }, { x: 0.67, y: 0.15 }, { x: 0.50, y: 0.27 }, { x: 0.33, y: 0.38 }, { x: 0.67, y: 0.38 }] },
+            f6d: { players: 6, playerR: 21, playerMass: 1.0, playerRest: 0.60, playerFric: 1.0, slots: [{ x: 0.50, y: 0.05 }, { x: 0.28, y: 0.14 }, { x: 0.50, y: 0.16 }, { x: 0.72, y: 0.14 }, { x: 0.38, y: 0.34 }, { x: 0.62, y: 0.34 }] },
+            f6a: { players: 6, playerR: 21, playerMass: 1.0, playerRest: 0.60, playerFric: 1.0, slots: [{ x: 0.50, y: 0.05 }, { x: 0.35, y: 0.15 }, { x: 0.65, y: 0.15 }, { x: 0.28, y: 0.34 }, { x: 0.50, y: 0.42 }, { x: 0.72, y: 0.34 }] },
+            // 7 players (goalie + 6)
+            f7b: { players: 7, playerR: 20, playerMass: 1.0, playerRest: 0.60, playerFric: 1.0, slots: [{ x: 0.50, y: 0.05 }, { x: 0.26, y: 0.15 }, { x: 0.50, y: 0.15 }, { x: 0.74, y: 0.15 }, { x: 0.30, y: 0.33 }, { x: 0.50, y: 0.35 }, { x: 0.70, y: 0.33 }] },
+            f7d: { players: 7, playerR: 20, playerMass: 1.0, playerRest: 0.60, playerFric: 1.0, slots: [{ x: 0.50, y: 0.05 }, { x: 0.22, y: 0.14 }, { x: 0.42, y: 0.16 }, { x: 0.58, y: 0.16 }, { x: 0.78, y: 0.14 }, { x: 0.38, y: 0.33 }, { x: 0.62, y: 0.33 }] },
         },
     };
-    var FIELD_KEYS = ['grass', 'ice', 'sand'], BALL_KEYS = ['standard', 'beach', 'heavy'], PLAYER_KEYS = ['p3', 'p5', 'p7'];
+    var FIELD_KEYS = ['grass', 'ice', 'sand'], BALL_KEYS = ['standard', 'beach', 'heavy'];
+    var FORMATION_KEYS = ['f4b', 'f4a', 'f5b', 'f5d', 'f5a', 'f6b', 'f6d', 'f6a', 'f7b', 'f7d'], FM_COUNTS = [4, 5, 6, 7];
     var TARGET_OPTS = [3, 5, 7], GOAL_OPTS = [100, 130, 160];
     function loadSettings() {
         var s = {}; try { s = AC.prefs.get('carom') || {}; } catch (e) { }
         return {
             field: PRESETS.field[s.field] ? s.field : 'grass',
             ball: PRESETS.ball[s.ball] ? s.ball : 'standard',
-            players: PRESETS.players[s.players] ? s.players : 'p5',
+            formation: PRESETS.formation[s.formation] ? s.formation : 'f5b',
             target: TARGET_OPTS.indexOf(s.target) >= 0 ? s.target : TARGET_OPTS[0],
             goalW: GOAL_OPTS.indexOf(s.goalW) >= 0 ? s.goalW : GOAL_OPTS[Math.floor(GOAL_OPTS.length / 2)],
         };
@@ -127,7 +141,7 @@
         return {
             field: PRESETS.field[s.field] ? s.field : 'grass',
             ball: PRESETS.ball[s.ball] ? s.ball : 'standard',
-            players: PRESETS.players[s.players] ? s.players : 'p5',
+            formation: PRESETS.formation[s.formation] ? s.formation : 'f5b',
             target: TARGET_OPTS.indexOf(s.target) >= 0 ? s.target : TARGET_OPTS[0],
             goalW: GOAL_OPTS.indexOf(s.goalW) >= 0 ? s.goalW : GOAL_OPTS[Math.floor(GOAL_OPTS.length / 2)],
         };
@@ -145,12 +159,12 @@
     // the single source of engine config — composed from the chosen presets (+ the preset KEYS so the
     // other client can mirror look/target). Everything (hot-seat, preview, and the host's broadcast) flows through here.
     function cfg() {
-        var f = PRESETS.field[SETTINGS.field], b = PRESETS.ball[SETTINGS.ball], p = PRESETS.players[SETTINGS.players];
+        var f = PRESETS.field[SETTINGS.field], b = PRESETS.ball[SETTINGS.ball], p = PRESETS.formation[SETTINGS.formation];
         return {
             W: FW, H: FH, goalW: SETTINGS.goalW, target: SETTINGS.target, kAir: KAIR,
             pocket: POCKET, keeperZone: KEEPER_ZONE, corner: CORNER,
             field: SETTINGS.field, ball: SETTINGS.ball, mu: f.mu, wallRest: f.wallRest,
-            players: p.players, playerR: p.playerR, playerMass: p.playerMass, playerRest: p.playerRest, playerFric: p.playerFric,
+            players: p.players, playerR: p.playerR, playerMass: p.playerMass, playerRest: p.playerRest, playerFric: p.playerFric, slots: p.slots,
             ballR: b.ballR, ballMass: b.ballMass, ballRest: b.ballRest, ballFric: b.ballFric,
         };
     }
@@ -668,7 +682,6 @@
     var setEl = null, setRefs = null;
     function fieldOpts() { return FIELD_KEYS.map(function (k) { return { val: k, label: t('caromField_' + k) }; }); }
     function ballOpts() { return BALL_KEYS.map(function (k) { return { val: k, label: t('caromBall_' + k) }; }); }
-    function playerOpts() { return PLAYER_KEYS.map(function (k) { return { val: k, label: t('caromPlayers_' + k) }; }); }
     function targetOpts() { return TARGET_OPTS.map(function (n) { return { val: n, label: String(n) }; }); }
     function goalOpts() {   // values come from GOAL_OPTS; a 3-entry list reads narrow/standard/wide, else just the number
         var labels = GOAL_OPTS.length === 3 ? [t('caromGoalNarrow'), t('caromGoalStd'), t('caromGoalWide')] : null;
@@ -684,10 +697,47 @@
         });
         row.appendChild(seg); return row;
     }
+    // mini-pitch thumbnail from the PLAYER'S OWN view: own goal gap at the BOTTOM, players rising toward midfield
+    function drawFormationThumb(cv, key) {
+        var c = cv.getContext('2d'), W = cv.width, H = cv.height, f = PRESETS.formation[key]; if (!f) return;
+        c.clearRect(0, 0, W, H);
+        c.fillStyle = '#123a2a'; c.fillRect(0, 0, W, H);
+        var lw = Math.max(2, W * 0.03); c.strokeStyle = 'rgba(255,255,255,0.55)'; c.lineWidth = lw;   // own goal at bottom
+        c.beginPath(); c.moveTo(W * 0.37, H - lw / 2); c.lineTo(W * 0.63, H - lw / 2); c.stroke();
+        c.fillStyle = '#e2e8f0';
+        f.slots.forEach(function (s) {
+            var x = (0.08 + s.x * 0.84) * W, y = H - (0.12 + (s.y / 0.5) * 0.8) * H;
+            c.beginPath(); c.arc(x, y, W * 0.07, 0, Math.PI * 2); c.fill();
+        });
+    }
+    function fmKeysOfCount(n) { return FORMATION_KEYS.filter(function (k) { return PRESETS.formation[k].players === n; }); }
+    function countOfFm(key) { var f = PRESETS.formation[key]; return f ? f.players : 5; }
+    function formationPicker(cur, pick) {
+        var editable = !!pick, curCount = countOfFm(cur), wrap = elc('div', 'set-row set-formrow');
+        wrap.appendChild(elc('span', 'set-label', t('caromFormationLabel')));
+        var tabs = elc('div', 'fm-tabs');                 // player-count tabs → keeps each view to 2–3 shapes
+        FM_COUNTS.forEach(function (n) {
+            var b = elc('button', 'fm-tab' + (n === curCount ? ' on' : ''), String(n)); b.type = 'button';
+            if (editable) b.onclick = function () { if (n !== curCount) pick('formation', fmKeysOfCount(n)[0]); }; else b.disabled = true;
+            tabs.appendChild(b);
+        });
+        wrap.appendChild(tabs);
+        var grid = elc('div', 'fm-grid');                 // thumbnails for the active count only
+        fmKeysOfCount(curCount).forEach(function (k) {
+            var cell = elc('button', 'fm-cell' + (k === cur ? ' on' : '')); cell.type = 'button';
+            var cv = document.createElement('canvas'); cv.className = 'fm-thumb';
+            cv.width = 108; cv.height = 92; cv.style.width = '54px'; cv.style.height = '46px';
+            drawFormationThumb(cv, k); cell.appendChild(cv);
+            cell.appendChild(elc('span', 'fm-name', t('caromFm_' + k)));
+            if (editable) cell.onclick = function () { pick('formation', k); }; else cell.disabled = true;
+            grid.appendChild(cell);
+        });
+        wrap.appendChild(grid); return wrap;
+    }
     function renderGroups(box, cur, pick) {   // pick==null → read-only
         box.appendChild(segRow('caromFieldLabel', fieldOpts(), cur.field, pick && function (v) { pick('field', v); }));
         box.appendChild(segRow('caromBallLabel', ballOpts(), cur.ball, pick && function (v) { pick('ball', v); }));
-        box.appendChild(segRow('caromPlayersLabel', playerOpts(), cur.players, pick && function (v) { pick('players', v); }));
+        box.appendChild(formationPicker(cur.formation, pick));
         box.appendChild(segRow('caromTargetLabel', targetOpts(), cur.target, pick && function (v) { pick('target', v); }));
         box.appendChild(segRow('caromGoalLabel', goalOpts(), cur.goalW, pick && function (v) { pick('goalW', v); }));
     }

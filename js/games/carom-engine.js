@@ -74,7 +74,12 @@
             bodies: [],
         };
         w.goalX0 = (W - w.goalW) / 2; w.goalX1 = (W + w.goalW) / 2;
-        var slots = formation(w.players, W, H);
+        // slots: the TOP team's starting spots. cfg.slots is a list of {x,y} FRACTIONS (0..1) in the team's own
+        // half — the hook for selectable formations and, later, fully custom placement. Falls back to formation().
+        var slots = (cfg.slots && cfg.slots.length)
+            ? cfg.slots.map(function (s) { return { x: s.x * W, y: s.y * H }; })
+            : formation(w.players, W, H);
+        w.players = slots.length; w.slots = slots;        // store absolute spots so reset() restores the same shape
         // top team (1): formation as-is; bottom team (0): mirrored across the mid-line
         slots.forEach(function (s) { w.bodies.push({ x: s.x, y: s.y, vx: 0, vy: 0, r: w.playerR, m: w.playerMass, rest: w.playerRest, fricMul: w.playerFric, team: 1, kind: 'player' }); });
         slots.forEach(function (s) { w.bodies.push({ x: s.x, y: H - s.y, vx: 0, vy: 0, r: w.playerR, m: w.playerMass, rest: w.playerRest, fricMul: w.playerFric, team: 0, kind: 'player' }); });
@@ -85,7 +90,7 @@
 
     // put every body back to its formation slot and the ball to the centre spot
     function reset(w) {
-        var slots = formation(w.players, w.W, w.H), bi = 0, i;
+        var slots = w.slots || formation(w.players, w.W, w.H), bi = 0, i;
         for (i = 0; i < slots.length; i++) place(w.bodies[bi++], slots[i].x, slots[i].y);
         for (i = 0; i < slots.length; i++) place(w.bodies[bi++], slots[i].x, w.H - slots[i].y);
         place(w.ball, w.W / 2, w.H / 2);

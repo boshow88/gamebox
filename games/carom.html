@@ -36,6 +36,21 @@
         .set-opt.on:disabled { opacity: 0.9; }
         .set-opt:disabled:not(.on) { opacity: 0.45; }
         #carom-set .overlay-card { gap: 6px; max-width: 460px; }
+        /* formation picker: a grid of mini-pitch thumbnails so you can see each shape before choosing */
+        .set-formrow { flex-direction: column; align-items: stretch; gap: 7px; }
+        .fm-tabs { display: flex; gap: 6px; justify-content: center; }
+        .fm-tab { min-width: 34px; padding: 5px 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.05); color: #e2e8f0; font: inherit; font-weight: 700; cursor: pointer; }
+        .fm-tab.on { background: var(--game-color); border-color: var(--game-color); color: #04231a; }
+        .fm-tab:disabled { cursor: default; }
+        .fm-tab:disabled:not(.on) { opacity: 0.5; }
+        .fm-grid { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+        .fm-cell { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 4px 5px; border-radius: 9px; border: 1px solid rgba(255,255,255,0.14); background: rgba(255,255,255,0.04); cursor: pointer; }
+        .fm-cell.on { border-color: var(--game-color); background: rgba(16,185,129,0.16); }
+        .fm-cell:disabled { cursor: default; }
+        .fm-cell:disabled:not(.on) { opacity: 0.5; }
+        .fm-thumb { display: block; border-radius: 5px; }
+        .fm-name { font-size: 11px; color: rgba(255,255,255,0.82); white-space: nowrap; }
+        .fm-cell.on .fm-name { color: var(--game-color); font-weight: 700; }
         .lobby-set { width: 100%; margin: 4px 0 2px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 8px; }
         .lobby-set-note { font-size: 12px; color: rgba(255,255,255,0.55); text-align: center; margin: 2px 0 4px; }
     </style>
