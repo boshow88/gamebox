@@ -400,11 +400,11 @@
             if (b.heal && G.lives < G.maxLives) {       // heal ball → regain a life
                 G.lives++;
                 spawnFloater(LANE_X[lane], DELIVER_Y - 12, '+1\u2665', '#7fe08a');
-                AC.audio.play('levelup');
+                sndHeal();
             } else {
                 spawnFloater(LANE_X[lane], DELIVER_Y - 12, '+' + AC.format.score(CONFIG.scorePerCorrect),
                     b.heal ? '#7fe08a' : b.color);
-                AC.audio.play('coin');
+                sndCorrect();
             }
         } else if (b.heal) {
             // Missed heal ball — harmless, no life lost.
@@ -412,7 +412,7 @@
             G.lives--;
             G.shake = Math.max(G.shake, 0.45);
             spawnFloater(LANE_X[lane], DELIVER_Y - 12, '\u2715', '#ff5470');
-            AC.audio.play('rock');
+            sndWrong();
             if (G.lives <= 0) { endRun(); return; }
         }
     }
@@ -454,7 +454,7 @@
             // Advance, crossing any adjacent rungs in height order (rungs can be
             // at staggered heights, so step through them one at a time).
             const yEnd = b.y + v * (b.heal ? CONFIG.healSpeedMul : 1) * dt;
-            let guard = 0;
+            let guard = 0, stepped = false;
             while (guard++ < 16) {
                 let best = -1, bestH = Infinity;
                 for (let i = 0; i < G.rungs.length; i++) {
@@ -467,8 +467,10 @@
                 if (best < 0) break;
                 b.y = bestH;
                 if (G.rungs[best].gap === b.lane) b.lane++; else b.lane--;
+                stepped = true;
             }
             b.y = yEnd;
+            if (stepped) sndStep(b.lane);   // soft tick when a rung steps the ball across
             b.x += (LANE_X[b.lane] - b.x) * Math.min(1, dt * CONFIG.xEase);
             if (b.y >= DELIVER_Y) { deliver(b); b.delivered = true; }
             if (G.ended) break;
@@ -835,6 +837,29 @@
             sx: e.clientX, sy: e.clientY, moved: false,   // grab point in screen px
         };
     }
+    // ---- sound: Colour Ladder's voice (soft, warm, marimba-ish) on the shared synth ----
+    function sndGrab() {     // pick up a rung: a soft pluck
+        AC.audio.tone(430, 0.08, { type: 'triangle', volume: 0.1, attack: 0.004, filter: { type: 'lowpass', freq: 2200 } });
+    }
+    function sndPlace() {    // drop a rung into place: a soft wooden "tok"
+        AC.audio.tone(300, 0.07, { type: 'sine', slideTo: 220, volume: 0.12, attack: 0.002, filter: { type: 'lowpass', freq: 1500 } });
+    }
+    function sndCorrect() {  // right basket: a pleasant two-note up chime
+        AC.audio.tone(784, 0.1, { type: 'triangle', volume: 0.12, attack: 0.004, filter: { type: 'lowpass', freq: 3000 } });
+        setTimeout(function () { AC.audio.tone(1047, 0.12, { type: 'triangle', volume: 0.11 }); }, 60);
+    }
+    function sndHeal() {     // +1 life: a bright four-note rising flourish (climbs past the correct chime)
+        [659, 880, 1175, 1568].forEach(function (f, i) { setTimeout(function () { AC.audio.tone(f, 0.12, { type: 'triangle', volume: 0.12, attack: 0.004, filter: { type: 'lowpass', freq: 4000 } }); }, i * 60); });
+    }
+    function sndWrong() {    // wrong basket (lose a life): a soft low "no" — audible, not harsh
+        AC.audio.tone(300, 0.2, { type: 'triangle', slideTo: 160, volume: 0.15, attack: 0.005, filter: { type: 'lowpass', freq: 1200, to: 400 } });
+    }
+    function sndStep(lane) { // a rung steps a ball across: a tiny, airy magical/tech twinkle
+        var f = 1200 + (lane || 0) * 90;
+        AC.audio.tone(f, 0.05, { type: 'sine', slideTo: f * 1.5, volume: 0.035, attack: 0.001, filter: { type: 'highpass', freq: 800 } });
+        setTimeout(function () { AC.audio.tone(f * 2, 0.06, { type: 'sine', volume: 0.02, attack: 0.001 }); }, 22);
+    }
+
     function onPointerMove(e) {
         if (!drag) return;
         const p = toLogical(e);
@@ -842,7 +867,7 @@
         // distance at any canvas size / resolution.
         if (!drag.moved && Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy) > CONFIG.rungDeadzone) {
             drag.moved = true;        // a real drag began — tiny jitter never gets here
-            AC.audio.play('grab');
+            sndGrab();
         }
         drag.gap = nearestGap(p.x);
         drag.desiredY = AC.math.clamp(p.y, RUNG_TOP, RUNG_BOTTOM);
@@ -858,7 +883,7 @@
                 rg.gap = drag.gap; rg.y = drag.resolvedY;
                 rg.coolDur = cooldownDuration();          // lock it briefly (recharge)
                 rg.readyAt = G.elapsed + rg.coolDur;
-                AC.audio.play('click');
+                sndPlace();
             }
         }
         drag = null;
