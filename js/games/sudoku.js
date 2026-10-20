@@ -1523,6 +1523,12 @@
             onNewGame: startNewGame,
             onReset: resetPlacements,
             onReveal: repaintSymbols,
+            solveSound: function () {
+                // Sudoku solved: a clean, bright major-arpeggio resolve (C-E-G-C) + shimmer.
+                [523, 659, 784, 1047].forEach(function (f, i) {
+                    setTimeout(function () { PC.audio.tone(f, 0.18, { type: 'triangle', volume: 0.14, attack: 0.004, detune: 5, filter: { type: 'lowpass', freq: 4000 } }); }, i * 90);
+                });
+            },
         });
         board = shell.dom.board;
         keypad = document.getElementById('keypad');

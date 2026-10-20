@@ -561,10 +561,38 @@
         syncLangToggle();
     }
 
+    // A global sound on/off toggle, injected beside the language toggle so BOTH game
+    // templates put it in the same place. It flips the shared `gamebox:muted`
+    // preference, silencing every game. (Arcade's old in-HUD sound button is hidden.)
+    function wireSoundToggle() {
+        const tog = document.getElementById('lang-toggle');
+        if (!tog || !tog.parentNode || document.getElementById('sound-toggle')) return;
+        const btn = document.createElement('button');
+        btn.id = 'sound-toggle'; btn.type = 'button'; btn.className = 'sound-toggle';
+        btn.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4z"/><path class="wave" d="M15.5 8.5a5 5 0 0 1 0 7"/><path class="wave" d="M18.5 5.5a9 9 0 0 1 0 13"/><path class="off" d="m23 9-6 6"/><path class="off" d="m17 9 6 6"/></svg>';
+        function sync() {
+            const m = audio.isMuted();
+            btn.classList.toggle('is-muted', m);
+            btn.setAttribute('aria-pressed', m ? 'false' : 'true');
+            btn.setAttribute('title', t(m ? 'soundOff' : 'soundOn'));
+        }
+        btn.addEventListener('click', () => { audio.unlock(); audio.toggleMuted(); sync(); });
+        // Wrap the toggle + language control in one right-side group so adding the
+        // toggle keeps the topbar's three-item balance (the title stays put).
+        const group = document.createElement('div');
+        group.className = 'topbar-actions';
+        tog.parentNode.insertBefore(group, tog);
+        group.appendChild(btn);
+        group.appendChild(tog);
+        sync();
+        subscribe(sync);
+    }
+
     function bootstrapI18n() {
         document.documentElement.lang = currentLocale === 'zh' ? 'zh-Hant' : 'en';
         translateNode(document); // also renders [data-icon] placeholders
         wireLangToggle();
+        wireSoundToggle();
     }
 
     // -----------------------------------------------------------------
@@ -725,7 +753,7 @@
 
     const audio = (function () {
         let ctx = null;
-        const MUTE_KEY = storageKey('muted');
+        const MUTE_KEY = 'gamebox:muted';   // shared across all games so one toggle silences everything
         let muted = readJSON(MUTE_KEY, false) === true;
 
         function ensureCtx() {
@@ -1112,6 +1140,7 @@
             });
         }
         if (dom.soundBtn) {
+            dom.soundBtn.hidden = true;   // retired: the sound toggle now lives in the topbar, beside the language toggle
             dom.soundBtn.addEventListener('click', () => {
                 audio.toggleMuted();
                 syncSoundBtn();

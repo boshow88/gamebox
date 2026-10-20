@@ -77,6 +77,35 @@ button { font-family: inherit; cursor: pointer; }
 .lang-toggle button:hover { background: var(--bg-hover); color: var(--text-primary); }
 .lang-toggle button.active { background: var(--bg-hover); color: var(--text-primary); font-weight: 600; }
 
+/* Right-side topbar group: keeps the sound toggle + language toggle together so the
+   title's balance doesn't shift when the toggle is added. */
+.topbar-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-sm);
+}
+
+/* Sound on/off toggle (shared chrome; sits beside the language toggle) */
+.sound-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    padding: 4px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: background var(--transition-fast), color var(--transition-fast);
+}
+.sound-toggle:hover { background: var(--bg-hover); color: var(--text-primary); }
+.sound-toggle svg { display: block; }
+.sound-toggle .off { display: none; }
+.sound-toggle.is-muted { opacity: 0.75; }
+.sound-toggle.is-muted .wave { display: none; }
+.sound-toggle.is-muted .off { display: inline; }
+
 /* ----------------------------------------------------------------
    Toast (transient bottom-centre notice). Background/border are
    theme-scoped below; everything else is shared.

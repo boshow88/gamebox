@@ -37,6 +37,87 @@
     }
 
     // -----------------------------------------------------------------
+    // Audio — a minimal WebAudio synth (no asset files), mirrored from the arcade
+    // shell. Mute is the SHARED global preference `gamebox:muted`, so one toggle
+    // silences every game. Games pass a `solveSound` to shell.create for the win.
+    // -----------------------------------------------------------------
+    const audio = (function () {
+        let ctx = null;
+        const MUTE_KEY = 'gamebox:muted';
+        let muted = readJSON(MUTE_KEY, false) === true;
+        function ensureCtx() {
+            if (ctx) return ctx;
+            const A = window.AudioContext || window.webkitAudioContext;
+            if (!A) return null;
+            try { ctx = new A(); } catch (e) { ctx = null; }
+            return ctx;
+        }
+        function tone(freq, dur, opts) {
+            if (muted) return;
+            const c = ensureCtx(); if (!c) return;
+            if (c.state === 'suspended') { try { c.resume(); } catch (e) {} }
+            const o = opts || {}, now = c.currentTime;
+            const osc = c.createOscillator(), gain = c.createGain();
+            osc.type = o.type || 'triangle';
+            osc.frequency.setValueAtTime(freq, now);
+            if (o.slideTo) osc.frequency.exponentialRampToValueAtTime(Math.max(1, o.slideTo), now + dur);
+            const vol = (o.volume != null ? o.volume : 0.14), atk = (o.attack != null ? o.attack : 0.008);
+            gain.gain.setValueAtTime(0.0001, now);
+            gain.gain.exponentialRampToValueAtTime(vol, now + atk);
+            gain.gain.exponentialRampToValueAtTime(0.0001, now + dur);
+            gain.connect(c.destination);
+            let entry = gain;
+            if (o.filter) {
+                const f = c.createBiquadFilter();
+                f.type = o.filter.type || 'lowpass';
+                f.frequency.setValueAtTime(o.filter.freq || 1200, now);
+                if (o.filter.to) f.frequency.exponentialRampToValueAtTime(Math.max(40, o.filter.to), now + dur);
+                f.connect(gain); entry = f;
+            }
+            osc.connect(entry); osc.start(now); osc.stop(now + dur + 0.02);
+            if (o.detune) {
+                const osc2 = c.createOscillator();
+                osc2.type = osc.type; osc2.detune.setValueAtTime(o.detune, now);
+                osc2.frequency.setValueAtTime(freq, now);
+                if (o.slideTo) osc2.frequency.exponentialRampToValueAtTime(Math.max(1, o.slideTo), now + dur);
+                osc2.connect(entry); osc2.start(now); osc2.stop(now + dur + 0.02);
+            }
+        }
+        function noise(dur, opts) {
+            if (muted) return;
+            const c = ensureCtx(); if (!c) return;
+            if (c.state === 'suspended') { try { c.resume(); } catch (e) {} }
+            const o = opts || {}, now = c.currentTime;
+            const len = Math.max(1, Math.floor(c.sampleRate * dur));
+            const buf = c.createBuffer(1, len, c.sampleRate), data = buf.getChannelData(0);
+            for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
+            const src = c.createBufferSource(); src.buffer = buf;
+            const gain = c.createGain();
+            const vol = (o.volume != null ? o.volume : 0.1), atk = (o.attack != null ? o.attack : 0.004);
+            gain.gain.setValueAtTime(0.0001, now);
+            gain.gain.exponentialRampToValueAtTime(vol, now + atk);
+            gain.gain.exponentialRampToValueAtTime(0.0001, now + dur);
+            gain.connect(c.destination);
+            let entry = gain;
+            if (o.filter) {
+                const f = c.createBiquadFilter();
+                f.type = o.filter.type || 'lowpass';
+                f.frequency.setValueAtTime(o.filter.freq || 2000, now);
+                if (o.filter.to) f.frequency.exponentialRampToValueAtTime(Math.max(40, o.filter.to), now + dur);
+                f.connect(gain); entry = f;
+            }
+            src.connect(entry); src.start(now); src.stop(now + dur + 0.02);
+        }
+        return {
+            tone, noise,
+            unlock() { const c = ensureCtx(); if (c && c.state === 'suspended') { try { c.resume(); } catch (e) {} } },
+            isMuted() { return muted; },
+            setMuted(m) { muted = !!m; writeJSON(MUTE_KEY, muted); },
+            toggleMuted() { this.setMuted(!muted); return muted; },
+        };
+    })();
+
+    // -----------------------------------------------------------------
     // Per-game preferences (size, difficulty)
     // -----------------------------------------------------------------
 
@@ -572,6 +653,10 @@
             get revealed() { return revealed; },
             setWin(b) {
                 if (dom.winMessage) dom.winMessage.hidden = !b;
+                // Play the per-game solve jingle once, on the transition into the win
+                // (not on every re-assert, nor when undoing back out).
+                if (b && !this._wasWin) { this._wasWin = true; if (typeof opts.solveSound === 'function') { try { opts.solveSound(); } catch (e) { /* ignore */ } } }
+                else if (!b) { this._wasWin = false; }
             },
             setViolationCount(n) {
                 lastViolationN = n;
@@ -848,6 +933,8 @@
             shareCopied: 'Link copied!',
             shareFailed: 'Copy failed — copy from the address bar instead.',
             winMessage: 'You Win!',
+            soundOn: 'Sound on',
+            soundOff: 'Sound off',
             howToPlay: 'How to play',
             conflict: (n) => `${n} conflict${n === 1 ? '' : 's'}`,
             clearPlacements: 'Clear placements',
@@ -1116,6 +1203,8 @@
             shareCopied: '連結已複製！',
             shareFailed: '複製失敗 — 請從網址列手動複製。',
             winMessage: '你贏了！',
+            soundOn: '音效開',
+            soundOff: '音效關',
             howToPlay: '遊玩方式',
             conflict: (n) => `${n} 個衝突`,
             clearPlacements: '清除目前的標記',
@@ -1429,10 +1518,38 @@
         syncLangToggle();
     }
 
+    // A global sound on/off toggle, injected beside the language toggle so it reads
+    // like a sibling control. It flips the shared `gamebox:muted` preference, so it
+    // silences every game (arcade + puzzle), everywhere.
+    function wireSoundToggle() {
+        const tog = document.getElementById('lang-toggle');
+        if (!tog || !tog.parentNode || document.getElementById('sound-toggle')) return;
+        const btn = document.createElement('button');
+        btn.id = 'sound-toggle'; btn.type = 'button'; btn.className = 'sound-toggle';
+        btn.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4z"/><path class="wave" d="M15.5 8.5a5 5 0 0 1 0 7"/><path class="wave" d="M18.5 5.5a9 9 0 0 1 0 13"/><path class="off" d="m23 9-6 6"/><path class="off" d="m17 9 6 6"/></svg>';
+        function sync() {
+            const m = audio.isMuted();
+            btn.classList.toggle('is-muted', m);
+            btn.setAttribute('aria-pressed', m ? 'false' : 'true');
+            btn.setAttribute('title', t(m ? 'soundOff' : 'soundOn'));
+        }
+        btn.addEventListener('click', () => { audio.unlock(); audio.toggleMuted(); sync(); });
+        // Wrap the toggle + language control in one right-side group so adding the
+        // toggle keeps the topbar's three-item balance (the title stays put).
+        const group = document.createElement('div');
+        group.className = 'topbar-actions';
+        tog.parentNode.insertBefore(group, tog);
+        group.appendChild(btn);
+        group.appendChild(tog);
+        sync();
+        subscribe(sync);
+    }
+
     function bootstrapI18n() {
         document.documentElement.lang = currentLocale === 'zh' ? 'zh-Hant' : 'en';
         translateNode(document); // also renders [data-icon] placeholders
         wireLangToggle();
+        wireSoundToggle();
     }
 
     if (document.readyState === 'loading') {
@@ -1746,6 +1863,7 @@
         solves: { log: logSolve, get: getSolveStats },
         timer: createTimer,
         shell: { create: createShell },
+        audio,
         rng: { make: makeRng, pickInt: pickRandomInt, shuffle: shuffleInPlace },
         clamp,
         el,
