@@ -332,16 +332,6 @@
             '<line x1="6" x2="18" y1="18" y2="6"/>',
         'mirror-back':
             '<line x1="6" x2="18" y1="6" y2="18"/>',
-        // a soccer ball (circle + centre pentagon) for Carom
-        soccer:
-            '<circle cx="12" cy="12" r="9"/>'
-            + '<path d="M12 7 14.9 9.1 13.8 12.5 10.2 12.5 9.1 9.1Z"/>',
-        // sliders (lucide sliders-horizontal) — the Carom match-setup button
-        sliders:
-            '<line x1="21" x2="14" y1="4" y2="4"/><line x1="10" x2="3" y1="4" y2="4"/>'
-            + '<line x1="21" x2="12" y1="12" y2="12"/><line x1="8" x2="3" y1="12" y2="12"/>'
-            + '<line x1="21" x2="16" y1="20" y2="20"/><line x1="12" x2="3" y1="20" y2="20"/>'
-            + '<line x1="14" x2="14" y1="2" y2="6"/><line x1="8" x2="8" y1="10" y2="14"/><line x1="16" x2="16" y1="18" y2="22"/>',
     };
 
     function icon(name, opts) {

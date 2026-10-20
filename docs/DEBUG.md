@@ -36,7 +36,7 @@ want a silent console. Find them with `rg "console\.(log|warn)"`. Current spots:
 
 - `js/generators/tango.js` — row-rejection budget exhausted; "returning unverified".
 - `js/games/queens.js` — a solver-state warning.
-- `js/games/rune-stones.js` / `js/games/beam.js` / `js/games/carom.js` — `[duel]` / `[lobby]` network errors.
+- `js/games/rune-stones.js` / `js/games/beam.js` — `[duel]` / `[lobby]` network errors.
 - `js/net/net.js` — `[ArcadeNet]` disabled on boot (missing/invalid config) and stale-room cleanup failures.
 - `js/puzzle.js` / `js/arcade.js` — `[common]` storage read/write + `[i18n]` subscriber failures (plus, in the arcade shell, an `[input]` press-handler guard).
 

@@ -55,11 +55,6 @@
             tags: ['timeattack', 'single', 'multi'],
         },
         {
-            id: 'carom', theme: 'arcade', icon: 'soccer', color: '#10b981', wip: true,
-            href: './games/carom.html',
-            tags: ['action', 'multi'],
-        },
-        {
             id: 'patches', theme: 'puzzle', icon: 'layout-template-ccw', color: '#e5484d',
             href: './games/patches.html',
             tags: ['puzzle', 'single'],
@@ -154,9 +149,6 @@
             'beam_name': 'Beam',
             'beam_tagline': 'Memorise the mirrors, trace the laser.',
             'beam_body': 'Mirrors appear then vanish; a laser fires in and you tap where it exits in time.',
-            'carom_name': 'Carom',
-            'carom_tagline': 'Flick a player, carom the ball in.',
-            'carom_body': 'Two-player hot-seat. Drag a player back and launch it — carom off teammates, rivals and the ball to knock it into the far net.',
             'patches_name': 'Patches',
             'patches_tagline': 'Tile the grid with shapes.',
             'patches_body': "Split the grid into rectangles \u2014 one per clue \u2014 matching each clue\u2019s shape and size.",
@@ -228,9 +220,6 @@
             'beam_name': '追光',
             'beam_tagline': '記住鏡子，追蹤雷射。',
             'beam_body': '鏡子出現後消失，雷射射入，在時間內點出它射出的邊界位置。',
-            'carom_name': '彈球場',
-            'carom_tagline': '彈射球員，碰撞得分。',
-            'carom_body': '兩人同機對戰。往後拖曳球員再放開彈射，撞擊隊友、對手與球，把球送進對方球門。',
             'patches_name': 'Patches',
             'patches_tagline': '用形狀鋪滿整個盤面。',
             'patches_body': '把盤面切成一個個矩形 \u2014 每個提示對應一個 \u2014 並符合該提示的形狀與大小。',
@@ -277,7 +266,6 @@
         image: '<rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>',
         crown: '<path d="M11.562 3.266a.5.5 0 0 1 .876 0L15.39 8.87a1 1 0 0 0 1.516.294L21.183 5.5a.5.5 0 0 1 .798.519l-2.834 10.246a1 1 0 0 1-.956.734H5.81a1 1 0 0 1-.957-.734L2.02 6.02a.5.5 0 0 1 .798-.519l4.276 3.664a1 1 0 0 0 1.516-.294z"/><path d="M5 21h14"/>',
         zap: '<path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/>',
-        soccer: '<circle cx="12" cy="12" r="9"/><path d="M12 7 14.9 9.1 13.8 12.5 10.2 12.5 9.1 9.1Z"/>',
     };
 
     // Hue (0–360) of a #rrggbb colour — used to order the launcher as a soft rainbow.
