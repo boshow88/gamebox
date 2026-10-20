@@ -39,7 +39,10 @@
             caromFieldLabel: 'Field', caromBallLabel: 'Ball', caromFormationLabel: 'Formation', caromTargetLabel: 'Win at', caromGoalLabel: 'Goal',
             caromField_grass: 'Grass', caromField_ice: 'Ice', caromField_sand: 'Sand',
             caromBall_standard: 'Standard', caromBall_beach: 'Beach ball', caromBall_heavy: 'Heavy',
-            caromFm_f4b: 'Balanced', caromFm_f4a: 'Attack', caromFm_f5b: 'Balanced', caromFm_f5d: 'Defensive', caromFm_f5a: 'Attack', caromFm_f6b: 'Balanced', caromFm_f6d: 'Defensive', caromFm_f6a: 'Attack', caromFm_f7b: 'Standard', caromFm_f7d: 'Bunker',
+            caromFm_f4b: 'Balanced', caromFm_f4a: 'Attack', caromFm_f4m: 'Diamond', caromFm_f4t: 'Twin guards',
+            caromFm_f5b: 'Balanced', caromFm_f5d: 'Defensive', caromFm_f5a: 'Attack', caromFm_f5m: 'Diamond',
+            caromFm_f6b: 'Balanced', caromFm_f6d: 'Defensive', caromFm_f6a: 'Attack', caromFm_f6w: 'Wide',
+            caromFm_f7b: 'Standard', caromFm_f7d: 'Bunker', caromFm_f7a: 'Attack', caromFm_f7m: 'Midfield', caromFm_f7w: 'Wall',
             caromGoalNarrow: 'Narrow', caromGoalStd: 'Standard', caromGoalWide: 'Wide',
         },
         zh: {
@@ -69,7 +72,10 @@
             caromFieldLabel: '場地', caromBallLabel: '球', caromFormationLabel: '陣形', caromTargetLabel: '獲勝分數', caromGoalLabel: '球門',
             caromField_grass: '草地', caromField_ice: '冰地', caromField_sand: '沙灘',
             caromBall_standard: '標準球', caromBall_beach: '海灘球', caromBall_heavy: '鉛球',
-            caromFm_f4b: '平衡', caromFm_f4a: '進攻', caromFm_f5b: '平衡', caromFm_f5d: '防守', caromFm_f5a: '進攻', caromFm_f6b: '平衡', caromFm_f6d: '防守', caromFm_f6a: '進攻', caromFm_f7b: '標準', caromFm_f7d: '鐵桶',
+            caromFm_f4b: '平衡', caromFm_f4a: '進攻', caromFm_f4m: '菱形', caromFm_f4t: '雙衛',
+            caromFm_f5b: '平衡', caromFm_f5d: '防守', caromFm_f5a: '進攻', caromFm_f5m: '菱形',
+            caromFm_f6b: '平衡', caromFm_f6d: '防守', caromFm_f6a: '進攻', caromFm_f6w: '寬翼',
+            caromFm_f7b: '標準', caromFm_f7d: '鐵桶', caromFm_f7a: '進攻', caromFm_f7m: '中場', caromFm_f7w: '人牆',
             caromGoalNarrow: '窄', caromGoalStd: '標準', caromGoalWide: '寬',
         },
     };
@@ -106,24 +112,31 @@
         // formation = count + per-player size/weight/bounce + starting spots (fractions of the team's OWN half,
         // y small = near own goal). The bottom team is mirrored. slots are also the hook for custom placement.
         formation: {
-            // 4 players (goalie + 3)
-            f4b: { players: 4, playerR: 24, playerMass: 1.0, playerRest: 0.60, playerFric: 1.0, slots: [{ x: 0.50, y: 0.055 }, { x: 0.36, y: 0.17 }, { x: 0.64, y: 0.17 }, { x: 0.50, y: 0.36 }] },
-            f4a: { players: 4, playerR: 24, playerMass: 1.0, playerRest: 0.60, playerFric: 1.0, slots: [{ x: 0.50, y: 0.055 }, { x: 0.50, y: 0.17 }, { x: 0.32, y: 0.35 }, { x: 0.68, y: 0.35 }] },
+            // 4 players — not all need a lone keeper (f4t guards the mouth with two)
+            f4b: { players: 4, playerR: 24, playerMass: 1.0, playerRest: 0.60, playerFric: 1.0, slots: [{ x: 0.50, y: 0.05 }, { x: 0.35, y: 0.18 }, { x: 0.65, y: 0.18 }, { x: 0.50, y: 0.40 }] },
+            f4a: { players: 4, playerR: 24, playerMass: 1.0, playerRest: 0.60, playerFric: 1.0, slots: [{ x: 0.50, y: 0.05 }, { x: 0.50, y: 0.17 }, { x: 0.30, y: 0.44 }, { x: 0.70, y: 0.44 }] },
+            f4m: { players: 4, playerR: 24, playerMass: 1.0, playerRest: 0.60, playerFric: 1.0, slots: [{ x: 0.50, y: 0.12 }, { x: 0.28, y: 0.30 }, { x: 0.72, y: 0.30 }, { x: 0.50, y: 0.46 }] },
+            f4t: { players: 4, playerR: 24, playerMass: 1.0, playerRest: 0.60, playerFric: 1.0, slots: [{ x: 0.40, y: 0.08 }, { x: 0.60, y: 0.08 }, { x: 0.34, y: 0.34 }, { x: 0.66, y: 0.34 }] },
             // 5 players (goalie + 4)
-            f5b: { players: 5, playerR: 22, playerMass: 1.0, playerRest: 0.60, playerFric: 1.0, slots: [{ x: 0.50, y: 0.055 }, { x: 0.42, y: 0.16 }, { x: 0.58, y: 0.16 }, { x: 0.27, y: 0.35 }, { x: 0.73, y: 0.35 }] },
-            f5d: { players: 5, playerR: 22, playerMass: 1.0, playerRest: 0.60, playerFric: 1.0, slots: [{ x: 0.50, y: 0.055 }, { x: 0.30, y: 0.15 }, { x: 0.50, y: 0.17 }, { x: 0.70, y: 0.15 }, { x: 0.50, y: 0.36 }] },
-            f5a: { players: 5, playerR: 22, playerMass: 1.0, playerRest: 0.60, playerFric: 1.0, slots: [{ x: 0.50, y: 0.055 }, { x: 0.50, y: 0.15 }, { x: 0.28, y: 0.33 }, { x: 0.50, y: 0.42 }, { x: 0.72, y: 0.33 }] },
+            f5b: { players: 5, playerR: 22, playerMass: 1.0, playerRest: 0.60, playerFric: 1.0, slots: [{ x: 0.50, y: 0.05 }, { x: 0.40, y: 0.17 }, { x: 0.60, y: 0.17 }, { x: 0.30, y: 0.38 }, { x: 0.70, y: 0.38 }] },
+            f5d: { players: 5, playerR: 22, playerMass: 1.0, playerRest: 0.60, playerFric: 1.0, slots: [{ x: 0.50, y: 0.05 }, { x: 0.26, y: 0.14 }, { x: 0.50, y: 0.15 }, { x: 0.74, y: 0.14 }, { x: 0.50, y: 0.30 }] },
+            f5a: { players: 5, playerR: 22, playerMass: 1.0, playerRest: 0.60, playerFric: 1.0, slots: [{ x: 0.50, y: 0.05 }, { x: 0.50, y: 0.16 }, { x: 0.26, y: 0.42 }, { x: 0.50, y: 0.47 }, { x: 0.74, y: 0.42 }] },
+            f5m: { players: 5, playerR: 22, playerMass: 1.0, playerRest: 0.60, playerFric: 1.0, slots: [{ x: 0.50, y: 0.05 }, { x: 0.50, y: 0.16 }, { x: 0.28, y: 0.30 }, { x: 0.72, y: 0.30 }, { x: 0.50, y: 0.45 }] },
             // 6 players (goalie + 5)
-            f6b: { players: 6, playerR: 21, playerMass: 1.0, playerRest: 0.60, playerFric: 1.0, slots: [{ x: 0.50, y: 0.05 }, { x: 0.33, y: 0.15 }, { x: 0.67, y: 0.15 }, { x: 0.50, y: 0.27 }, { x: 0.33, y: 0.38 }, { x: 0.67, y: 0.38 }] },
-            f6d: { players: 6, playerR: 21, playerMass: 1.0, playerRest: 0.60, playerFric: 1.0, slots: [{ x: 0.50, y: 0.05 }, { x: 0.28, y: 0.14 }, { x: 0.50, y: 0.16 }, { x: 0.72, y: 0.14 }, { x: 0.38, y: 0.34 }, { x: 0.62, y: 0.34 }] },
-            f6a: { players: 6, playerR: 21, playerMass: 1.0, playerRest: 0.60, playerFric: 1.0, slots: [{ x: 0.50, y: 0.05 }, { x: 0.35, y: 0.15 }, { x: 0.65, y: 0.15 }, { x: 0.28, y: 0.34 }, { x: 0.50, y: 0.42 }, { x: 0.72, y: 0.34 }] },
-            // 7 players (goalie + 6)
-            f7b: { players: 7, playerR: 20, playerMass: 1.0, playerRest: 0.60, playerFric: 1.0, slots: [{ x: 0.50, y: 0.05 }, { x: 0.26, y: 0.15 }, { x: 0.50, y: 0.15 }, { x: 0.74, y: 0.15 }, { x: 0.30, y: 0.33 }, { x: 0.50, y: 0.35 }, { x: 0.70, y: 0.33 }] },
-            f7d: { players: 7, playerR: 20, playerMass: 1.0, playerRest: 0.60, playerFric: 1.0, slots: [{ x: 0.50, y: 0.05 }, { x: 0.22, y: 0.14 }, { x: 0.42, y: 0.16 }, { x: 0.58, y: 0.16 }, { x: 0.78, y: 0.14 }, { x: 0.38, y: 0.33 }, { x: 0.62, y: 0.33 }] },
+            f6b: { players: 6, playerR: 21, playerMass: 1.0, playerRest: 0.60, playerFric: 1.0, slots: [{ x: 0.50, y: 0.045 }, { x: 0.34, y: 0.16 }, { x: 0.66, y: 0.16 }, { x: 0.50, y: 0.28 }, { x: 0.32, y: 0.40 }, { x: 0.68, y: 0.40 }] },
+            f6d: { players: 6, playerR: 21, playerMass: 1.0, playerRest: 0.60, playerFric: 1.0, slots: [{ x: 0.50, y: 0.045 }, { x: 0.25, y: 0.13 }, { x: 0.50, y: 0.14 }, { x: 0.75, y: 0.13 }, { x: 0.38, y: 0.27 }, { x: 0.62, y: 0.27 }] },
+            f6a: { players: 6, playerR: 21, playerMass: 1.0, playerRest: 0.60, playerFric: 1.0, slots: [{ x: 0.50, y: 0.045 }, { x: 0.36, y: 0.16 }, { x: 0.64, y: 0.16 }, { x: 0.27, y: 0.43 }, { x: 0.50, y: 0.47 }, { x: 0.73, y: 0.43 }] },
+            f6w: { players: 6, playerR: 21, playerMass: 1.0, playerRest: 0.60, playerFric: 1.0, slots: [{ x: 0.50, y: 0.045 }, { x: 0.40, y: 0.15 }, { x: 0.60, y: 0.15 }, { x: 0.17, y: 0.35 }, { x: 0.83, y: 0.35 }, { x: 0.50, y: 0.45 }] },
+            // 7 players — f7w is a 3-across "wall" with no lone keeper
+            f7b: { players: 7, playerR: 20, playerMass: 1.0, playerRest: 0.60, playerFric: 1.0, slots: [{ x: 0.50, y: 0.045 }, { x: 0.25, y: 0.15 }, { x: 0.50, y: 0.15 }, { x: 0.75, y: 0.15 }, { x: 0.28, y: 0.38 }, { x: 0.50, y: 0.40 }, { x: 0.72, y: 0.38 }] },
+            f7d: { players: 7, playerR: 20, playerMass: 1.0, playerRest: 0.60, playerFric: 1.0, slots: [{ x: 0.50, y: 0.045 }, { x: 0.22, y: 0.13 }, { x: 0.41, y: 0.15 }, { x: 0.59, y: 0.15 }, { x: 0.78, y: 0.13 }, { x: 0.40, y: 0.28 }, { x: 0.60, y: 0.28 }] },
+            f7a: { players: 7, playerR: 20, playerMass: 1.0, playerRest: 0.60, playerFric: 1.0, slots: [{ x: 0.50, y: 0.05 }, { x: 0.36, y: 0.16 }, { x: 0.64, y: 0.16 }, { x: 0.24, y: 0.42 }, { x: 0.42, y: 0.47 }, { x: 0.58, y: 0.47 }, { x: 0.76, y: 0.42 }] },
+            f7m: { players: 7, playerR: 20, playerMass: 1.0, playerRest: 0.60, playerFric: 1.0, slots: [{ x: 0.50, y: 0.05 }, { x: 0.34, y: 0.15 }, { x: 0.66, y: 0.15 }, { x: 0.34, y: 0.29 }, { x: 0.66, y: 0.29 }, { x: 0.38, y: 0.44 }, { x: 0.62, y: 0.44 }] },
+            f7w: { players: 7, playerR: 20, playerMass: 1.0, playerRest: 0.60, playerFric: 1.0, slots: [{ x: 0.30, y: 0.10 }, { x: 0.50, y: 0.10 }, { x: 0.70, y: 0.10 }, { x: 0.38, y: 0.26 }, { x: 0.62, y: 0.26 }, { x: 0.40, y: 0.44 }, { x: 0.60, y: 0.44 }] },
         },
     };
     var FIELD_KEYS = ['grass', 'ice', 'sand'], BALL_KEYS = ['standard', 'beach', 'heavy'];
-    var FORMATION_KEYS = ['f4b', 'f4a', 'f5b', 'f5d', 'f5a', 'f6b', 'f6d', 'f6a', 'f7b', 'f7d'], FM_COUNTS = [4, 5, 6, 7];
+    var FORMATION_KEYS = ['f4b', 'f4a', 'f4m', 'f4t', 'f5b', 'f5d', 'f5a', 'f5m', 'f6b', 'f6d', 'f6a', 'f6w', 'f7b', 'f7d', 'f7a', 'f7m', 'f7w'], FM_COUNTS = [4, 5, 6, 7];
     var TARGET_OPTS = [3, 5, 7], GOAL_OPTS = [100, 130, 160];
     function loadSettings() {
         var s = {}; try { s = AC.prefs.get('carom') || {}; } catch (e) { }
