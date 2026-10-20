@@ -77,7 +77,7 @@
     Object.assign(AC.i18n.STRINGS.zh, STRINGS.zh);
 
     // ---------------- constants ----------------
-    var POCKET = 40, KEEPER_ZONE = 60;                      // goal recess depth (out) + keeper-zone depth (in); must match engine cfg
+    var POCKET = 40, KEEPER_ZONE = 60, CORNER = 46;         // goal recess (out) + keeper zone (in) + rounded-corner radius; must match engine cfg
     var CW = 512, CH = 828, FMX = 24, FMT = 50, FMB = 50;   // narrow + long pitch; thin top/bottom margins hold the pocket, with caption + ✕ tucked beside it
     var FW = CW - 2 * FMX, FH = CH - FMT - FMB;
     var DPR = Math.min(window.devicePixelRatio || 1, 2);
@@ -94,14 +94,14 @@
     var KAIR = 7e-6;                                  // global air-drag coefficient (shared across fields)
     var PRESETS = {
         field: {   // μ = Coulomb deceleration (lower = slippery); look = turf/stripe/line colours
-            grass: { mu: 1300, wallRest: 0.86, turf: '#123a2a', s0: 'rgba(255,255,255,0.025)', s1: 'rgba(0,0,0,0.04)', line: 'rgba(255,255,255,0.35)' },
-            ice: { mu: 800, wallRest: 0.98, turf: '#143247', s0: 'rgba(255,255,255,0.06)', s1: 'rgba(120,180,230,0.05)', line: 'rgba(205,232,255,0.5)' },
-            sand: { mu: 1800, wallRest: 0.90, turf: '#5a4a28', s0: 'rgba(255,240,200,0.05)', s1: 'rgba(0,0,0,0.05)', line: 'rgba(255,245,220,0.4)' },
+            grass: { mu: 1600, wallRest: 0.86, turf: '#123a2a', s0: 'rgba(255,255,255,0.025)', s1: 'rgba(0,0,0,0.04)', line: 'rgba(255,255,255,0.35)' },
+            ice: { mu: 900, wallRest: 0.98, turf: '#143247', s0: 'rgba(255,255,255,0.06)', s1: 'rgba(120,180,230,0.05)', line: 'rgba(205,232,255,0.5)' },
+            sand: { mu: 2200, wallRest: 0.90, turf: '#5a4a28', s0: 'rgba(255,240,200,0.05)', s1: 'rgba(0,0,0,0.05)', line: 'rgba(255,245,220,0.4)' },
         },
         ball: {    // size / weight / bounce / roll — the air-drag "float" falls out of r & m automatically
-            standard: { ballR: 8, ballMass: 0.50, ballRest: 0.80, ballFric: 0.75 },
+            standard: { ballR: 8, ballMass: 0.35, ballRest: 0.80, ballFric: 0.75 },
             beach: { ballR: 14, ballMass: 0.05, ballRest: 0.95, ballFric: 1.20 },
-            heavy: { ballR: 6, ballMass: 1.30, ballRest: 0.22, ballFric: 0.55 },
+            heavy: { ballR: 6, ballMass: 1.20, ballRest: 0.22, ballFric: 0.55 },
         },
         players: { // count / size / weight / bounce
             p3: { players: 3, playerR: 24, playerMass: 1.0, playerRest: 0.60, playerFric: 1.0 },
@@ -148,18 +148,19 @@
         var f = PRESETS.field[SETTINGS.field], b = PRESETS.ball[SETTINGS.ball], p = PRESETS.players[SETTINGS.players];
         return {
             W: FW, H: FH, goalW: SETTINGS.goalW, target: SETTINGS.target, kAir: KAIR,
-            pocket: POCKET, keeperZone: KEEPER_ZONE,
-            field: SETTINGS.field, mu: f.mu, wallRest: f.wallRest,
+            pocket: POCKET, keeperZone: KEEPER_ZONE, corner: CORNER,
+            field: SETTINGS.field, ball: SETTINGS.ball, mu: f.mu, wallRest: f.wallRest,
             players: p.players, playerR: p.playerR, playerMass: p.playerMass, playerRest: p.playerRest, playerFric: p.playerFric,
             ballR: b.ballR, ballMass: b.ballMass, ballRest: b.ballRest, ballFric: b.ballFric,
         };
     }
     function curFieldKey() { return (M && M.fieldKey) || SETTINGS.field; }
+    function curBallKey() { return (M && M.ballKey) || SETTINGS.ball; }
 
     // ---------------- hot-seat lifecycle ----------------
     function startHotSeat() {
         var c = cfg(); world = E.create(c);
-        M = { local: true, phase: 'aim', turn: Math.random() < 0.5 ? 0 : 1, score: [0, 0], drag: null, flash: 0, target: c.target, fieldKey: c.field };
+        M = { local: true, phase: 'aim', turn: Math.random() < 0.5 ? 0 : 1, score: [0, 0], drag: null, flash: 0, target: c.target, fieldKey: c.field, ballKey: c.ball };
         hideShellOverlay(); setControlsForMatch(); syncHud();
     }
     function hotEndTurn() { M.turn = 1 - M.turn; M.phase = 'aim'; M.drag = null; syncHud(); }
@@ -180,7 +181,7 @@
         M = {
             local: false, myUid: netUser.uid, myTeam: myOrder,
             turn: g.turn || 0, score: (g.score || [0, 0]).slice(), seq: g.seq || 0,
-            target: c.target || 3, fieldKey: PRESETS.field[c.field] ? c.field : 'grass',
+            target: c.target || 3, fieldKey: PRESETS.field[c.field] ? c.field : 'grass', ballKey: PRESETS.ball[c.ball] ? c.ball : 'standard',
             phase: null, pending: null, simStart: 0, localGoal: false, over: false, flash: 0, forfeit: false,
         };
         M.phase = (M.turn === M.myTeam) ? 'aim' : 'wait';
@@ -271,11 +272,11 @@
     function roundRect(x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
     function drawField() {
         var L = PRESETS.field[curFieldKey()] || PRESETS.field.grass;
-        ctx.save(); roundRect(FMX, FMT, FW, FH, 14); ctx.fillStyle = L.turf; ctx.fill(); ctx.clip();
+        ctx.save(); roundRect(FMX, FMT, FW, FH, CORNER); ctx.fillStyle = L.turf; ctx.fill(); ctx.clip();
         for (var i = 0; i < 8; i++) { ctx.fillStyle = (i % 2) ? L.s0 : L.s1; ctx.fillRect(FMX, FMT + FH * i / 8, FW, FH / 8); }
         ctx.restore();
         ctx.strokeStyle = L.line; ctx.lineWidth = 2;
-        roundRect(FMX + 4, FMT + 4, FW - 8, FH - 8, 12); ctx.stroke();
+        roundRect(FMX + 4, FMT + 4, FW - 8, FH - 8, CORNER - 4); ctx.stroke();
         ctx.beginPath(); ctx.moveTo(FMX, FMT + FH / 2); ctx.lineTo(FMX + FW, FMT + FH / 2); ctx.stroke();
         ctx.beginPath(); ctx.arc(FMX + FW / 2, FMT + FH / 2, 58, 0, Math.PI * 2); ctx.stroke();
         ctx.fillStyle = 'rgba(255,255,255,0.5)'; ctx.beginPath(); ctx.arc(FMX + FW / 2, FMT + FH / 2, 3, 0, Math.PI * 2); ctx.fill();
@@ -318,17 +319,44 @@
         ctx.moveTo(x0, by); ctx.lineTo(x1, by);
         ctx.stroke(); ctx.restore();
     }
+    function ringPts(cx, cy, r, n, rot) {   // n evenly-spaced points on a circle
+        var p = [], i; for (i = 0; i < n; i++) { var a = rot + i * 2 * Math.PI / n; p.push([cx + r * Math.cos(a), cy + r * Math.sin(a)]); }
+        return p;
+    }
+    var BEACH_COLS = ['#ff5a5f', '#ffd23f', '#36c5f0', '#ffffff', '#7ee787', '#ff8ad8'];
+    function drawBall(cx, cy, r, key) {
+        ctx.save();
+        if (key === 'beach') {                               // bright radiating panels + white hub
+            var n = 6, a0 = -Math.PI / 2, i;
+            for (i = 0; i < n; i++) { ctx.beginPath(); ctx.moveTo(cx, cy); ctx.arc(cx, cy, r, a0 + i * 2 * Math.PI / n, a0 + (i + 1) * 2 * Math.PI / n); ctx.closePath(); ctx.fillStyle = BEACH_COLS[i % BEACH_COLS.length]; ctx.fill(); }
+            ctx.beginPath(); ctx.arc(cx, cy, r * 0.24, 0, Math.PI * 2); ctx.fillStyle = '#fff'; ctx.fill();
+            ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(15,23,42,0.45)'; ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke();
+        } else if (key === 'heavy') {                        // dark metallic shot with a specular highlight
+            var g = ctx.createRadialGradient(cx - r * 0.35, cy - r * 0.35, r * 0.15, cx, cy, r * 1.05);
+            g.addColorStop(0, '#9aa7b4'); g.addColorStop(0.5, '#5b6775'); g.addColorStop(1, '#262d36');
+            ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fillStyle = g; ctx.fill();
+            ctx.beginPath(); ctx.arc(cx - r * 0.34, cy - r * 0.34, r * 0.22, 0, Math.PI * 2); ctx.fillStyle = 'rgba(255,255,255,0.8)'; ctx.fill();
+            ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(8,12,20,0.8)'; ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke();
+        } else {                                             // soccer: white panel + central black pentagon + seams
+            ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fillStyle = '#f3f5f8'; ctx.fill();
+            var pent = ringPts(cx, cy, r * 0.44, 5, -Math.PI / 2), outer = ringPts(cx, cy, r, 5, -Math.PI / 2), j;
+            ctx.fillStyle = '#19212c'; ctx.beginPath(); ctx.moveTo(pent[0][0], pent[0][1]); for (j = 1; j < 5; j++) ctx.lineTo(pent[j][0], pent[j][1]); ctx.closePath(); ctx.fill();
+            ctx.strokeStyle = '#19212c'; ctx.lineWidth = Math.max(1, r * 0.13); ctx.lineCap = 'round';
+            ctx.beginPath(); for (j = 0; j < 5; j++) { ctx.moveTo(pent[j][0], pent[j][1]); ctx.lineTo(outer[j][0], outer[j][1]); } ctx.stroke();
+            ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(15,23,42,0.5)'; ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke();
+        }
+        ctx.restore();
+    }
     function drawBodies() {
-        var b = world.bodies, at = aimTeam();
+        var b = world.bodies, at = aimTeam(), ballKey = curBallKey();
         for (var i = 0; i < b.length; i++) {
-            var o = b[i], col = o.kind === 'ball' ? BALL : TEAM[o.team];
-            var pickable = (o.kind === 'player' && o.team === at && (M.local || o.team === M.myTeam));
+            var o = b[i];
+            if (o.kind === 'ball') { drawBall(fx(o.x), fy(o.y), o.r, ballKey); continue; }
+            var col = TEAM[o.team], pickable = (o.team === at && (M.local || o.team === M.myTeam));
             ctx.save(); if (pickable) { ctx.shadowColor = col; ctx.shadowBlur = 14; }
             ctx.beginPath(); ctx.arc(fx(o.x), fy(o.y), o.r, 0, Math.PI * 2); ctx.fillStyle = col; ctx.fill(); ctx.restore();
-            ctx.lineWidth = o.kind === 'ball' ? 2 : 2.5;
-            ctx.strokeStyle = o.kind === 'ball' ? 'rgba(15,23,42,0.5)' : 'rgba(255,255,255,0.65)';
+            ctx.lineWidth = 2.5; ctx.strokeStyle = 'rgba(255,255,255,0.65)';
             ctx.beginPath(); ctx.arc(fx(o.x), fy(o.y), o.r, 0, Math.PI * 2); ctx.stroke();
-            if (o.kind === 'ball') { ctx.fillStyle = 'rgba(15,23,42,0.55)'; ctx.beginPath(); ctx.arc(fx(o.x), fy(o.y), o.r * 0.34, 0, Math.PI * 2); ctx.fill(); }
         }
     }
     function drawAim() {

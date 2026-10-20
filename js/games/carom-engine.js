@@ -70,6 +70,7 @@
             ballFric: cfg.ballFric != null ? cfg.ballFric : 0.37,        // the ball rolls → far less floor friction
             pocket: cfg.pocket != null ? cfg.pocket : 26,                // depth the goal recesses OUTWARD past the line (a ball must reach the BACK to score)
             keeperZone: cfg.keeperZone != null ? cfg.keeperZone : 60,    // depth of the zone IN FRONT of the goal that a too-deep player is ejected to
+            corner: cfg.corner != null ? cfg.corner : 0,                 // rounded-corner radius (0 = square); keeps bodies out of the 90° nook
             bodies: [],
         };
         w.goalX0 = (W - w.goalW) / 2; w.goalX1 = (W + w.goalW) / 2;
@@ -101,7 +102,23 @@
     // body passes the line into the pocket, bounces off the two posts (extended inward) and the back wall, and a
     // BALL only scores when it reaches the back. So a ball sitting in the mouth can still be dug back out.
     function wall(w, o) {
-        var r = o.r, goal = null, DP = w.pocket || 0, inGap = (o.x > w.goalX0 && o.x < w.goalX1);
+        var r = o.r, goal = null, DP = w.pocket || 0, inGap = (o.x > w.goalX0 && o.x < w.goalX1), CR = w.corner || 0;
+        // rounded corners: in a corner quadrant the boundary is a quarter-circle arc, so a body is deflected along
+        // it instead of wedging in the 90° nook. Corners sit far from the centred goal mouth, so no pocket conflict.
+        if (CR > r) {
+            var ccx = (o.x < CR) ? CR : (o.x > w.W - CR ? w.W - CR : null);
+            var ccy = (o.y < CR) ? CR : (o.y > w.H - CR ? w.H - CR : null);
+            if (ccx != null && ccy != null) {
+                var cdx = o.x - ccx, cdy = o.y - ccy, cd = Math.sqrt(cdx * cdx + cdy * cdy) || 1, maxd = CR - r;
+                if (cd > maxd) {
+                    var cnx = cdx / cd, cny = cdy / cd;
+                    o.x = ccx + cnx * maxd; o.y = ccy + cny * maxd;
+                    var cvn = o.vx * cnx + o.vy * cny;
+                    if (cvn > 0) { o.vx -= (1 + w.rest) * cvn * cnx; o.vy -= (1 + w.rest) * cvn * cny; }
+                }
+                return null;   // corner fully handles this body (no straight walls, no goal here)
+            }
+        }
         // left/right field walls — only while the body is in the main field (not up/down inside a pocket)
         if (o.y >= 0 && o.y <= w.H) {
             if (o.x < r) { o.x = r; o.vx = -o.vx * w.rest; }
