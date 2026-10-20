@@ -99,8 +99,9 @@ everything; it loads on the launcher and every arcade game (right after `net/net
 - **Descriptors** (in `cloud-sync.js`) define each record family: how to read/write
   its slice of the game's own localStorage, how to merge two record objects (per
   field **max** for scores, **min** for ranks/rounds), and how it maps to the profile
-  doc. Current families: generic high scores (`bests["<game>:<mode>"]`), Beam
-  (`beam["<notch>"]`), Rune Stones Sandbag (`runeStones["<level>"]`).
+  doc. Everything nests under `games.<id>`: generic high scores
+  (`games.<game>.bests[<mode>]`), Beam ranks (`games.beam.ranks[<notch>]`), Rune
+  Stones Sandbag (`games.rune-stones.sandbag[<level>]`).
 - Sync only **monotonic bests** (a max or a min). Cumulative counts (plays, wins)
   stay device-local — they don't merge cleanly.
 - **Guest → account** is a per-game **claim** (move, not copy), offered only at the

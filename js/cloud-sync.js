@@ -64,9 +64,9 @@
     var DESCRIPTORS = [];
 
     // (1) Generic arcade high scores — the `best` map of every arcadeGames:scores:<game>
-    // key. Cloud field: bests["<game>:<mode>"] (max). A couple of games keep a scores
-    // key for shell bookkeeping but own a bespoke descriptor below (Beam, and Rune
-    // Stones' Sandbag) — EXCLUDE stops them being counted or offered twice.
+    // key. Cloud: games.<game>.bests[<mode>] (max). A couple of games keep a scores key
+    // for shell bookkeeping but own a bespoke descriptor below (Beam, and Rune Stones'
+    // Sandbag) — EXCLUDE stops them being counted or offered twice.
     var EXCLUDE = { 'beam': 1, 'rune-stones': 1 };
     function scoreGames() {
         var out = [], p = PREFIX + ':scores:';
@@ -99,12 +99,12 @@
         listGames: function (recs) { return Object.keys(recs || {}).map(function (g) { return { key: g, display: g }; }); },
         subset: function (recs, keys) { var o = {}; Object.keys(recs || {}).forEach(function (g) { if (keys[g]) o[g] = recs[g]; }); return o; },
         without: function (recs, keys) { var o = {}; Object.keys(recs || {}).forEach(function (g) { if (!keys[g]) o[g] = recs[g]; }); return o; },
-        toProfile: function (obj) { var bests = {}; Object.keys(obj || {}).forEach(function (g) { var m = obj[g]; Object.keys(m).forEach(function (mode) { bests[g + ':' + mode] = m[mode]; }); }); return { bests: bests }; },
-        fromProfile: function (prof) { var o = {}, bests = (prof && prof.bests) || {}; Object.keys(bests).forEach(function (key) { var i = key.lastIndexOf(':'); if (i < 0) return; var g = key.slice(0, i), mode = key.slice(i + 1); if (EXCLUDE[g]) return; (o[g] = o[g] || {})[mode] = bests[key]; }); return o; },
+        toProfile: function (obj) { var games = {}; Object.keys(obj || {}).forEach(function (g) { if (!isEmpty(obj[g])) games[g] = { bests: obj[g] }; }); return { games: games }; },
+        fromProfile: function (prof) { var o = {}, games = (prof && prof.games) || {}; Object.keys(games).forEach(function (g) { if (EXCLUDE[g]) return; var b = games[g] && games[g].bests; if (b && !isEmpty(b)) o[g] = Object.assign({}, b); }); return o; },
     });
 
     // (2) Beam — best finishing place per difficulty notch (lower is better).
-    // Local: arcadeGames:beam:solo:n<notch> = { played, wins, best }. Cloud: beam["<notch>"] = best (min).
+    // Local: arcadeGames:beam:solo:n<notch> = { played, wins, best }. Cloud: games.beam.ranks[<notch>] = best (min).
     function beamKey(n) { return PREFIX + ':beam:solo:n' + n; }
     DESCRIPTORS.push({
         read: function () { var o = {}; for (var n = 0; n < 32; n++) { var st = rd(beamKey(n), null); if (st && st.best) o[n] = st; } return o; },
@@ -125,12 +125,12 @@
             }
             return out;
         },
-        toProfile: function (obj) { var beam = {}; Object.keys(obj || {}).forEach(function (n) { if (obj[n].best) beam[n] = obj[n].best; }); return { beam: beam }; },
-        fromProfile: function (prof) { var o = {}, beam = (prof && prof.beam) || {}; Object.keys(beam).forEach(function (n) { o[n] = { best: beam[n] }; }); return o; },
+        toProfile: function (obj) { var ranks = {}; Object.keys(obj || {}).forEach(function (n) { if (obj[n].best) ranks[n] = obj[n].best; }); return isEmpty(ranks) ? { games: {} } : { games: { 'beam': { ranks: ranks } } }; },
+        fromProfile: function (prof) { var o = {}, ranks = (prof && prof.games && prof.games.beam && prof.games.beam.ranks) || {}; Object.keys(ranks).forEach(function (n) { o[n] = { best: ranks[n] }; }); return o; },
     });
 
     // (3) Rune Stones — Sandbag bests (max) live in the prefs blob alongside device
-    // settings, so we touch only the record fields. Cloud: runeStones["<level>"] = {total,spin}.
+    // settings, so we touch only the record fields. Cloud: games.rune-stones.sandbag[<level>] = {total,spin}.
     var RK = PREFIX + ':prefs:rune-stones';
     DESCRIPTORS.push({
         read: function () { var p = rd(RK, {}) || {}; var o = {}; if (p.sandbox) o.sandbox = p.sandbox; if (p.bestRounds) o.bestRounds = p.bestRounds; if (p.bestSpin) o.bestSpin = p.bestSpin; return o; },
@@ -152,8 +152,8 @@
             }
             return { sandbox: sandbox, bestRounds: mergeMap(a.bestRounds, b.bestRounds, Math.min), bestSpin: mergeMap(a.bestSpin, b.bestSpin, Math.max) };
         },
-        toProfile: function (obj) { var rs = {}, sb = (obj && obj.sandbox) || {}; Object.keys(sb).forEach(function (lv) { var e = sb[lv], p = {}; if (e.bestTotal != null) p.total = e.bestTotal; if (e.bestSpin != null) p.spin = e.bestSpin; if (Object.keys(p).length) rs[lv] = p; }); return { runeStones: rs }; },
-        fromProfile: function (prof) { var o = { sandbox: {} }, rs = (prof && prof.runeStones) || {}; Object.keys(rs).forEach(function (lv) { o.sandbox[lv] = { bestTotal: rs[lv].total, bestSpin: rs[lv].spin }; }); return o; },
+        toProfile: function (obj) { var sandbag = {}, sb = (obj && obj.sandbox) || {}; Object.keys(sb).forEach(function (lv) { var e = sb[lv], p = {}; if (e.bestTotal != null) p.total = e.bestTotal; if (e.bestSpin != null) p.spin = e.bestSpin; if (Object.keys(p).length) sandbag[lv] = p; }); return isEmpty(sandbag) ? { games: {} } : { games: { 'rune-stones': { sandbag: sandbag } } }; },
+        fromProfile: function (prof) { var o = { sandbox: {} }, sb = (prof && prof.games && prof.games['rune-stones'] && prof.games['rune-stones'].sandbag) || {}; Object.keys(sb).forEach(function (lv) { o.sandbox[lv] = { bestTotal: sb[lv].total, bestSpin: sb[lv].spin }; }); return o; },
     });
 
     // --- bucket (drawer) management -------------------------------------------
@@ -177,15 +177,18 @@
         var acct = account(); if (!acct) return Promise.resolve(null);
         var N = net();
         return N.profile.get(acct.uid).then(function (prof) {
-            var pushFrag = {}, changed = false;
+            var games = {}, changed = false;
             DESCRIPTORS.forEach(function (d) {
                 var local = d.read(), cloud = d.fromProfile(prof || {});
                 var merged = d.merge(local, cloud);
                 d.write(merged);
                 if (JSON.stringify(merged) !== JSON.stringify(local)) changed = true;
-                Object.assign(pushFrag, d.toProfile(merged));
+                // Each descriptor contributes a { games: { <id>: {...} } } fragment; the
+                // ids are disjoint across descriptors, so a shallow per-id assign is enough.
+                var frag = d.toProfile(merged).games || {};
+                Object.keys(frag).forEach(function (id) { games[id] = Object.assign(games[id] || {}, frag[id]); });
             });
-            if (Object.keys(pushFrag).length) { try { N.profile.save(acct.uid, Object.assign(pushFrag, { name: acct.name || null })); } catch (e) { /* ignore */ } }
+            if (Object.keys(games).length) { try { N.profile.save(acct.uid, { games: games, name: acct.name || null }); } catch (e) { /* ignore */ } }
             if (changed) fireApplied();
             return prof || {};
         }).catch(function () { return null; });
