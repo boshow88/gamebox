@@ -1235,6 +1235,10 @@
     function init() {
         shell = PC.shell.create({
             gameId: 'queens',
+            solveSound: function () {   // a small regal fanfare
+                [523, 784, 1047].forEach(function (f, i) { setTimeout(function () { PC.audio.tone(f, 0.14, { type: 'triangle', volume: 0.12, attack: 0.004, detune: 7, filter: { type: 'lowpass', freq: 3600 } }); }, i * 70); });
+                setTimeout(function () { PC.audio.tone(1047, 0.3, { type: 'triangle', volume: 0.13, detune: 8, filter: { type: 'lowpass', freq: 4000 } }); PC.audio.tone(1319, 0.3, { type: 'triangle', volume: 0.08 }); }, 230);
+            },
             difficulty: {
                 default: urlInitial ? urlInitial.difficulty : 'medium',
             },

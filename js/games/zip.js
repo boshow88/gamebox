@@ -814,6 +814,18 @@
         winTimers = [];
         const at = (idx) => durMs * (idx / (M - 1));   // when the trace reaches path index idx
 
+        // Sound: a zippy run that sweeps WITH the gold trace. Notes are evenly spaced at
+        // a FIXED cadence (~50ms) so every board sounds equally fine/detailed, while the
+        // total pitch travel stays a bounded ~1.2 octaves regardless of size. Pushed into
+        // winTimers so an undo-out-of-win cancels them too.
+        const runSteps = Math.max(6, Math.round(durMs / 50));
+        for (let si = 0; si <= runSteps; si++) {
+            const frac = si / runSteps;
+            winTimers.push(setTimeout(() => {
+                PC.audio.tone(523 * Math.pow(2, frac * 1.2), 0.06, { type: 'triangle', volume: 0.07, attack: 0.002, filter: { type: 'lowpass', freq: 4600 } });
+            }, durMs * frac));
+        }
+
         // Light each checkpoint (dark → gold + glow) as the trace sweeps past
         // its position on the path, so the colour travels through them too.
         const idxByCell = new Map();

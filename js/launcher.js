@@ -75,7 +75,7 @@
             tags: ['puzzle', 'single'],
         },
         {
-            id: 'zip', theme: 'puzzle', icon: 'route', color: '#3498db',
+            id: 'zip', theme: 'puzzle', icon: 'route', color: '#3b82f6',
             href: './games/zip.html',
             tags: ['puzzle', 'single'],
         },

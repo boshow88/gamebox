@@ -1132,6 +1132,10 @@
     function init() {
         shell = PC.shell.create({
             gameId: 'patches',
+            solveSound: function () {   // the quilt settles — a warm, mellow resolve
+                PC.audio.tone(392, 0.2, { type: 'triangle', volume: 0.12, attack: 0.006, filter: { type: 'lowpass', freq: 2000 } });
+                setTimeout(function () { PC.audio.tone(523, 0.3, { type: 'triangle', volume: 0.12, attack: 0.006, detune: 5, filter: { type: 'lowpass', freq: 2400 } }); }, 110);
+            },
             difficulty: { default: (urlInitial && urlInitial.difficulty) || 'medium' },
             size: {
                 kind: 'slider', min: MIN_SIZE, max: MAX_SIZE,

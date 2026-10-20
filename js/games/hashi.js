@@ -875,6 +875,35 @@
     function init() {
         shell = PC.shell.create({
             gameId: 'hashi',
+            solveSound: function () {
+                // Echo the win animation: a green wave spreads BFS-style from the last
+                // bridge, so ping each BFS ring in turn (rising pitch) at the same times
+                // the CSS wave lights up (SPREAD = 0.8s).
+                var G = state.G;
+                if (!G || state.lastEdge < 0 || state.lastEdge >= G.edges.length) {
+                    PC.audio.tone(523, 0.2, { type: 'triangle', volume: 0.12, attack: 0.004, filter: { type: 'lowpass', freq: 3000 } });
+                    return;
+                }
+                var m = G.islands.length, level = new Int32Array(m).fill(-1), maxL = 0;
+                var le = G.edges[state.lastEdge], q = [le.a, le.b];
+                level[le.a] = 0; level[le.b] = 0;
+                for (var h = 0; h < q.length; h++) {
+                    var u = q[h], inc = G.incident[u] || [];
+                    for (var i = 0; i < inc.length; i++) {
+                        var e = inc[i];
+                        if (state.edgeVal[e] < 1) continue;
+                        var w = G.edges[e].a === u ? G.edges[e].b : G.edges[e].a;
+                        if (level[w] === -1) { level[w] = level[u] + 1; q.push(w); if (level[w] > maxL) maxL = level[w]; }
+                    }
+                }
+                for (var L = 0; L <= maxL; L++) {
+                    (function (lv) {
+                        setTimeout(function () {
+                            PC.audio.tone(392 * Math.pow(2, (maxL > 0 ? lv / maxL : 0) * 1.2), 0.14, { type: 'triangle', volume: 0.11, attack: 0.003, detune: 4, filter: { type: 'lowpass', freq: 3600 } });
+                        }, maxL > 0 ? (lv / maxL) * 800 : 0);
+                    })(L);
+                }
+            },
             difficulty: { default: urlInitial ? urlInitial.difficulty : 'medium' },
             size: { kind: 'slider', values: SIZE_STEPS, min: MIN_SIZE, max: MAX_SIZE, default: urlInitial ? urlInitial.size : 11 },
             onNewGame: startNewGame,

@@ -474,9 +474,9 @@
     // positioning / in-place pop structure). `pop` triggers the win
     // animation; only the committed symbols pass it (not hint ghosts
     // or the reveal overlay).
-    function symbolIcon(kind, cx, cy, size, extraClass, pop) {
+    function symbolIcon(kind, cx, cy, size, extraClass, pop, popDelay) {
         const cls = `${kind}${extraClass ? ' ' + extraClass : ''}`;
-        return PC.boardIcon(kind, cx, cy, size, { className: cls, pop: !!pop });
+        return PC.boardIcon(kind, cx, cy, size, { className: cls, pop: !!pop, popDelay: popDelay });
     }
 
     function repaintSymbols() {
@@ -497,6 +497,11 @@
 
         const symbolSize = Math.max(16, Math.floor(cs * 0.56));
 
+        // On win the colour of the LAST-placed cell pops first, then the other colour
+        // 0.26s later — the two symbols ripple in sequence, each with its own pop sound
+        // (see solveSound). The delay here must match solveSound's phase gap.
+        const firstColor = (state.lastMove && state.lastMove.value) || STATES.SUN;
+
         // Symbols (prefilled + player)
         for (let r = 0; r < N; r++) {
             for (let c = 0; c < N; c++) {
@@ -506,8 +511,9 @@
                 const cy = r * cs + cs / 2;
                 const symbolKind = v === STATES.SUN ? 'sun' : 'moon';
                 const lockedClass = isPrefilled(r, c) ? 'prefilled' : '';
+                const popDelay = state.won ? (v === firstColor ? '0s' : '0.26s') : null;
                 group.appendChild(symbolIcon(
-                    symbolKind, cx, cy, symbolSize, lockedClass, state.won));
+                    symbolKind, cx, cy, symbolSize, lockedClass, state.won, popDelay));
             }
         }
 
@@ -1116,6 +1122,22 @@
     function init() {
         shell = PC.shell.create({
             gameId: 'tango',
+            solveSound: function () {
+                // The last-placed colour pops first, the other colour 0.26s later, in sync
+                // with the staggered win ripple. Sun = bright chime, Moon = low + mellow.
+                function pop(v) {
+                    if (v === STATES.SUN) {
+                        PC.audio.tone(784, 0.16, { type: 'triangle', volume: 0.13, attack: 0.004, detune: 6, filter: { type: 'lowpass', freq: 4200 } });
+                        setTimeout(function () { PC.audio.tone(1175, 0.14, { type: 'triangle', volume: 0.07 }); }, 60);
+                    } else {
+                        PC.audio.tone(330, 0.24, { type: 'triangle', volume: 0.14, attack: 0.005, detune: 5, filter: { type: 'lowpass', freq: 1800 } });
+                    }
+                }
+                var first = (state.lastMove && state.lastMove.value) || STATES.SUN;
+                var second = first === STATES.SUN ? STATES.MOON : STATES.SUN;
+                pop(first);
+                setTimeout(function () { pop(second); }, 260);
+            },
             difficulty: {
                 default: urlInitial ? urlInitial.difficulty : 'medium',
             },

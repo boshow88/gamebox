@@ -630,6 +630,21 @@
     function init() {
         shell = PC.shell.create({
             gameId: 'nonogram',
+            solveSound: function () {
+                // Echo the diagonal win ripple: filled cells pop by anti-diagonal (CSS
+                // delay (r+c)*45ms), so ping each diagonal that holds a fill, in the same
+                // sweep order, pitch rising a bounded ~1.2 octaves.
+                var p = state.puzzle;
+                if (!p) { PC.audio.tone(880, 0.2, { type: 'triangle', volume: 0.12 }); return; }
+                var N = p.size, g = state.grid, diag = {};
+                for (var r = 0; r < N; r++) for (var c = 0; c < N; c++) if (g[r * N + c] === FILL) diag[r + c] = true;
+                var maxD = 2 * (N - 1) || 1;
+                Object.keys(diag).map(Number).sort(function (a, b) { return a - b; }).forEach(function (d) {
+                    setTimeout(function () {
+                        PC.audio.tone(523 * Math.pow(2, (d / maxD) * 1.2), 0.09, { type: 'triangle', volume: 0.1, attack: 0.002, detune: 4, filter: { type: 'lowpass', freq: 4600 } });
+                    }, d * 45);
+                });
+            },
             difficulty: { default: urlInitial ? urlInitial.difficulty : 'medium' },
             size: { kind: 'slider', min: MIN_SIZE, max: MAX_SIZE, default: urlInitial ? urlInitial.size : 10 },
             onNewGame: startNewGame,

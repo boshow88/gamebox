@@ -480,6 +480,7 @@
             'board-icon' + (opts && opts.className ? ' ' + opts.className : ''));
         const animG = svgEl('g',
             { class: 'board-pop' + (opts && opts.pop ? ' pop' : '') });
+        if (opts && opts.pop && opts.popDelay) animG.style.animationDelay = opts.popDelay;
         animG.appendChild(svg);
         const posG = svgEl('g', { transform: `translate(${cx}, ${cy})` });
         posG.appendChild(animG);

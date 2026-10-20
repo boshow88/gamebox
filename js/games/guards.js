@@ -592,6 +592,10 @@
     function init() {
         shell = PC.shell.create({
             gameId: 'guards',
+            solveSound: function () {   // the lamps light up — a bright shimmer + sparkle
+                [784, 1047, 1319].forEach(function (f, i) { setTimeout(function () { PC.audio.tone(f, 0.16, { type: 'triangle', volume: 0.12, attack: 0.003, detune: 6, filter: { type: 'lowpass', freq: 4600 } }); }, i * 60); });
+                setTimeout(function () { PC.audio.tone(2093, 0.12, { type: 'sine', volume: 0.05 }); }, 200);
+            },
             difficulty: { default: urlInitial ? urlInitial.difficulty : 'medium' },
             size: { kind: 'slider', values: SIZE_STEPS, min: MIN_SIZE, max: MAX_SIZE, default: urlInitial ? urlInitial.size : 10 },
             onNewGame: startNewGame,
