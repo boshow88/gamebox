@@ -1149,7 +1149,11 @@
         refreshBest();
 
         // Repaint the Best readout whenever CloudSync swaps accounts or merges cloud data.
-        if (window.CloudSync) window.CloudSync.onApplied(refreshBest);
+        // Then re-pull: CloudSync's first sync can land before this shell exists (net.js is
+        // deferred) — its repaint is lost and, for games with a scoreEpoch, the cloud best it
+        // wrote can be wiped by resetScoresIfStale above. Syncing again now (epoch stamped,
+        // listener registered) re-applies the cloud best. No-op for guests.
+        if (window.CloudSync) { window.CloudSync.onApplied(refreshBest); window.CloudSync.sync(); }
         syncButtons();
         syncSoundBtn();
         showOverlay('idle');
