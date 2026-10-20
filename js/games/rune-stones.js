@@ -1114,16 +1114,16 @@
     // never this logic. There is no artificial cap on how many cards / shields it plays — a
     // weaker level just chooses worse, not fewer.
     //   beamW / beamD   beam-search width × depth for the real spin at baseline spin time.
-    //                   Tuned so with NO cards played, average combos land at ~3 (easy) /
-    //                   ~5 (normal) / ~7 (hard). Fast cards grow it, your Shorten shrinks it.
+    //                   Tuned so with NO cards played, average combos land at ~2 (easy) /
+    //                   ~4 (normal) / ~7 (hard). Fast cards grow it, your Shorten shrinks it.
     //   evalW / evalD   beam used only to JUDGE card plays. Bigger = it foresees more
     //                   accurately which shields it can out-spin vs. must break.
     //   skill           quality of its choices (card + target). 1 = always the best option;
     //                   lower = more often takes a weaker (but still helpful) play / target.
     // ------------------------------------------------------------------------------------
     const AI_LEVELS = {
-        easy:   { beamW: 1,  beamD: 3,  evalW: 2, evalD: 4, skill: 0.4  },
-        normal: { beamW: 4,  beamD: 6,  evalW: 4, evalD: 6, skill: 0.75 },
+        easy:   { beamW: 1,  beamD: 2,  evalW: 2, evalD: 4, skill: 0.2  },
+        normal: { beamW: 3,  beamD: 5,  evalW: 3, evalD: 5, skill: 0.6  },
         hard:   { beamW: 10, beamD: 11, evalW: 6, evalD: 8, skill: 0.97 },
     };
     function aiCfg() { return AI_LEVELS[G.aiLevel] || AI_LEVELS.normal; }
@@ -1218,11 +1218,12 @@
         return { res: bestRes, settled: bestSettled };
     }
     // Beam size tracks the AI's effective spin time: timeMult = 1 is the calibrated baseline
-    // (no cards / no Shorten → ~3/5/7 combos); your Shorten ×0.7 each shrinks it, the AI's
-    // Fast ×1/0.7 each grows it. Clamped so stacks can't explode the search.
+    // (no cards / no Shorten → ~2/4/7 combos); your Shorten ×0.7 each shrinks it, the AI's
+    // Fast ×1/0.7 each grows it. Clamped so stacks can't explode the search (depth floor 2
+    // lets the easy level's short spin actually land fewer combos).
     function beamDims(wBase, dBase, timeMult) {
         const m = Math.max(0.3, Math.min(2.2, timeMult || 1));
-        return { width: Math.max(1, Math.round(wBase * m)), depth: Math.max(3, Math.round(dBase * (0.7 + 0.3 * m))) };
+        return { width: Math.max(1, Math.round(wBase * m)), depth: Math.max(2, Math.round(dBase * (0.7 + 0.3 * m))) };
     }
     // The real spin: run the difficulty beam at the AI's current spin time, write the settled
     // board back to `a` (so the mini-board shows exactly the result), return that same rollout.
