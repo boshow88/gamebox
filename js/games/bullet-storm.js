@@ -363,6 +363,23 @@
     // Lasers (telegraphed beams — a warned line, then a lethal beam)
     // =================================================================
 
+    // ---- sound: Bullet Storm's voice (tense / electric), built on the shared synth ----
+    function sndCharge() {   // laser telegraph: a short rising danger whine (kept quiet — fires often)
+        AC.audio.tone(300, 0.18, { type: 'sawtooth', slideTo: 760, volume: 0.07, attack: 0.02, filter: { type: 'lowpass', freq: 600, to: 2200 } });
+    }
+    function sndFire() {     // laser fires: a sharp electric zap + a short crack
+        AC.audio.tone(1500, 0.14, { type: 'square', slideTo: 300, volume: 0.12, attack: 0.002, filter: { type: 'highpass', freq: 400 } });
+        AC.audio.noise(0.06, { volume: 0.06, filter: { type: 'bandpass', freq: 2600 } });
+    }
+    function sndHurt() {     // clipped (lose a life): a punchy low impact
+        AC.audio.tone(260, 0.2, { type: 'triangle', slideTo: 90, volume: 0.17, attack: 0.003, filter: { type: 'lowpass', freq: 1200, to: 300 } });
+        AC.audio.noise(0.09, { volume: 0.09, filter: { type: 'lowpass', freq: 1600, to: 500 } });
+    }
+    function sndDie() {      // last life: a heavier blast (lands just before the shell's game-over tune)
+        AC.audio.tone(180, 0.4, { type: 'sawtooth', slideTo: 50, volume: 0.2, attack: 0.003, filter: { type: 'lowpass', freq: 1400, to: 180 } });
+        AC.audio.noise(0.3, { volume: 0.14, filter: { type: 'lowpass', freq: 1800, to: 200 } });
+    }
+
     function spawnLaser() {
         G.lasers.push({
             x: AC.rng.float(G.rng, 0, W),
@@ -371,7 +388,7 @@
             phase: 'warn',
             t: CONFIG.laserWarn,
         });
-        AC.audio.play('grab');   // a "charging" cue when the warning appears
+        sndCharge();   // a "charging" cue when the warning appears
     }
     // Signed perpendicular distance from a point to the beam's (infinite) line.
     function laserDist(L, px, py) {
@@ -386,7 +403,7 @@
             const L = G.lasers[i];
             L.t -= dt;
             if (L.phase === 'warn') {
-                if (L.t <= 0) { L.phase = 'fire'; L.t = CONFIG.laserActive; AC.audio.play('laser'); }
+                if (L.t <= 0) { L.phase = 'fire'; L.t = CONFIG.laserActive; sndFire(); }
                 continue;
             }
             if (L.t <= 0) { G.lasers.splice(i, 1); continue; }
@@ -409,7 +426,7 @@
         updateHud();
         if (G.lives <= 0) { die(b); return true; }
         G.invuln = CONFIG.invulnSec;
-        AC.audio.play('rock');
+        sndHurt();
         return false;
     }
 
@@ -417,7 +434,7 @@
         if (G.ended) return;
         G.ended = true;
         G.deadBullet = b;
-        AC.audio.play('rock');
+        sndDie();
         shell.gameOver({ score: Math.floor(G.elapsed), win: false, meta: { seconds: +G.elapsed.toFixed(1) } });
     }
 
