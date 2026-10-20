@@ -101,13 +101,13 @@
     var PRESETS = {
         field: {   // μ = Coulomb deceleration (lower = slippery); look = turf/stripe/line colours
             grass: { mu: 1600, wallRest: 0.86, turf: '#123a2a', s0: 'rgba(255,255,255,0.025)', s1: 'rgba(0,0,0,0.04)', line: 'rgba(255,255,255,0.35)' },
-            ice: { mu: 900, wallRest: 0.98, turf: '#143247', s0: 'rgba(255,255,255,0.06)', s1: 'rgba(120,180,230,0.05)', line: 'rgba(205,232,255,0.5)' },
-            sand: { mu: 2200, wallRest: 0.90, turf: '#5a4a28', s0: 'rgba(255,240,200,0.05)', s1: 'rgba(0,0,0,0.05)', line: 'rgba(255,245,220,0.4)' },
+            ice: { mu: 1200, wallRest: 0.92, turf: '#143247', s0: 'rgba(255,255,255,0.06)', s1: 'rgba(120,180,230,0.05)', line: 'rgba(205,232,255,0.5)' },
+            sand: { mu: 2000, wallRest: 0.82, turf: '#5a4a28', s0: 'rgba(255,240,200,0.05)', s1: 'rgba(0,0,0,0.05)', line: 'rgba(255,245,220,0.4)' },
         },
         ball: {    // size / weight / bounce / roll — the air-drag "float" falls out of r & m automatically
             standard: { ballR: 8, ballMass: 0.35, ballRest: 0.80, ballFric: 0.75 },
-            beach: { ballR: 14, ballMass: 0.05, ballRest: 0.95, ballFric: 1.20 },
-            heavy: { ballR: 6, ballMass: 1.20, ballRest: 0.22, ballFric: 0.55 },
+            beach: { ballR: 12, ballMass: 0.18, ballRest: 0.88, ballFric: 0.95 },
+            heavy: { ballR: 7, ballMass: 0.70, ballRest: 0.50, ballFric: 0.62 },
         },
         // formation = count + per-player size/weight/bounce + starting spots (fractions of the team's OWN half,
         // y small = near own goal). The bottom team is mirrored. slots are also the hook for custom placement.
@@ -457,7 +457,8 @@
         ctx.save();
         ctx.fillStyle = color || 'rgba(226,232,240,0.95)'; ctx.font = capFont(18);
         ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.translate(cx, cy); if (isTop) ctx.rotate(Math.PI);
+        var faceFlip = isTop && M && M.local && !M.vsCpu;   // only rotate for two humans sharing one device (hot-seat)
+        ctx.translate(cx, cy); if (faceFlip) ctx.rotate(Math.PI);
         ctx.fillText(text, 0, 0); ctx.restore();
     }
     function goalCaption(text, color) {
