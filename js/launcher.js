@@ -163,6 +163,13 @@
             anonLabel: 'Guest',
             del: 'Delete',
             confirmDelete: 'Confirm?',
+            adminsTitle: 'Admins',
+            adminError: 'Couldn\u2019t load admins.',
+            adminsEmpty: 'No admins yet.',
+            adminEmailPh: 'email@example.com',
+            adminNamePh: 'Name (optional)',
+            adminAddBtn: 'Add',
+            adminSelf: '(you)',
             soundOn: 'Sound on',
             soundOff: 'Muted',
             close: 'Close',
@@ -270,6 +277,13 @@
             anonLabel: '訪客',
             del: '刪除',
             confirmDelete: '確定刪除？',
+            adminsTitle: '管理員',
+            adminError: '讀取管理員失敗。',
+            adminsEmpty: '目前沒有管理員。',
+            adminEmailPh: 'email@example.com',
+            adminNamePh: '名稱（可選）',
+            adminAddBtn: '新增',
+            adminSelf: '（你）',
             soundOn: '音效開啟',
             soundOff: '已靜音',
             close: '關閉',
@@ -441,6 +455,7 @@
         idText('drawer-records', t('myRecords'));
         idText('drawer-feedback', t('feedbackLink'));
         idText('drawer-feedback-admin', t('feedbackInbox'));
+        idText('drawer-admins', t('adminsTitle'));
         var menuB = document.getElementById('menu-btn'); if (menuB) menuB.setAttribute('aria-label', t('menu'));
         var dClose = document.getElementById('drawer-close'); if (dClose) dClose.setAttribute('aria-label', t('close'));
         syncSound();
@@ -603,6 +618,7 @@
         // Category + target-game selectors (both optional context for triage).
         var row = document.createElement('div'); row.className = 'feedback-row';
         var kindSel = document.createElement('select'); kindSel.className = 'feedback-select';
+        var kindAny = document.createElement('option'); kindAny.value = ''; kindAny.textContent = t('feedbackGameAny'); kindSel.appendChild(kindAny);
         [['idea', 'feedbackKindIdea'], ['bug', 'feedbackKindBug'], ['other', 'feedbackKindOther']].forEach(function (p) {
             var o = document.createElement('option'); o.value = p[0]; o.textContent = t(p[1]); kindSel.appendChild(o);
         });
@@ -632,7 +648,7 @@
                 // Feedback needs a signed-in user; fall back to a silent guest sign-in
                 // so visitors who never logged in can still send.
                 var ready = (N.currentUser && N.currentUser()) ? Promise.resolve() : Promise.resolve(N.signInGuest && N.signInGuest());
-                ready.then(function () { return N.feedback({ text: text, lang: lang, kind: kindSel.value, game: gameSel.value || null }); })
+                ready.then(function () { return N.feedback({ text: text, lang: lang, kind: kindSel.value || null, game: gameSel.value || null }); })
                     .then(function () { showToast(t('feedbackThanks')); close(); })
                     .catch(function () { showToast(t('feedbackError')); send.disabled = false; });
             });
@@ -785,6 +801,54 @@
         });
     }
 
+    // Owner-only admin roster — view / add / remove admins (email + name). Backed by
+    // config/admins (admin-only read/write; see firestore.rules).
+    function showAdminRoster() {
+        var m = openModal(t('adminsTitle'));
+        var loading = document.createElement('p'); loading.className = 'records-empty'; loading.textContent = '…'; m.body.appendChild(loading);
+        whenNet(function (N) {
+            if (!N || !N.ok || !N.getAdmins) { loading.textContent = t('adminError'); return; }
+            N.getAdmins().then(function (members) { renderRoster(m, N, members); }).catch(function () { loading.textContent = t('adminError'); });
+        });
+    }
+    function renderRoster(m, N, members) {
+        m.body.innerHTML = '';
+        var me = ((N.currentUser() && N.currentUser().email) || '').toLowerCase();
+        var keys = Object.keys(members || {}).sort();
+        if (!keys.length) { var e = document.createElement('p'); e.className = 'records-empty'; e.textContent = t('adminsEmpty'); m.body.appendChild(e); }
+        keys.forEach(function (em) {
+            var info = members[em] || {};
+            var row = document.createElement('div'); row.className = 'fb-item';
+            var nm = document.createElement('div'); nm.className = 'fb-text'; nm.textContent = (info.name || '—') + (em === me ? ' ' + t('adminSelf') : '');
+            var meta = document.createElement('div'); meta.className = 'fb-meta'; meta.textContent = em;
+            row.appendChild(nm); row.appendChild(meta);
+            if (em !== me) {                       // can't remove yourself (avoids self-lockout)
+                var del = document.createElement('button'); del.type = 'button'; del.className = 'fb-del'; del.textContent = t('del');
+                var armed = false, armT = null;
+                del.addEventListener('click', function () {
+                    if (!armed) { armed = true; del.textContent = t('confirmDelete'); del.classList.add('armed'); armT = setTimeout(function () { armed = false; del.textContent = t('del'); del.classList.remove('armed'); }, 3000); return; }
+                    clearTimeout(armT); del.disabled = true;
+                    Promise.resolve(N.adminRemove(em)).then(function () { return N.getAdmins(); }).then(function (mm) { renderRoster(m, N, mm); }).catch(function () { del.disabled = false; armed = false; del.textContent = t('del'); del.classList.remove('armed'); });
+                });
+                row.appendChild(del);
+            }
+            m.body.appendChild(row);
+        });
+        // Add form.
+        var add = document.createElement('div'); add.className = 'admin-add';
+        var emailIn = document.createElement('input'); emailIn.type = 'email'; emailIn.className = 'admin-input'; emailIn.placeholder = t('adminEmailPh');
+        var nameIn = document.createElement('input'); nameIn.type = 'text'; nameIn.className = 'admin-input'; nameIn.placeholder = t('adminNamePh');
+        var addBtn = document.createElement('button'); addBtn.type = 'button'; addBtn.className = 'wip-gate-btn go'; addBtn.textContent = t('adminAddBtn');
+        addBtn.addEventListener('click', function () {
+            var email = (emailIn.value || '').trim();
+            if (!email) { emailIn.focus(); return; }
+            addBtn.disabled = true;
+            Promise.resolve(N.adminAdd(email, nameIn.value)).then(function () { return N.getAdmins(); }).then(function (mm) { renderRoster(m, N, mm); }).catch(function () { addBtn.disabled = false; });
+        });
+        add.appendChild(emailIn); add.appendChild(nameIn); add.appendChild(addBtn);
+        m.body.appendChild(add);
+    }
+
     // --- Drawer open/close -------------------------------------------------------
     function openDrawer() {
         var d = document.getElementById('drawer'), s = document.getElementById('drawer-scrim'), b = document.getElementById('menu-btn');
@@ -883,14 +947,24 @@
             if (user && !user.anon && user.photo) { av.src = user.photo; av.referrerPolicy = 'no-referrer'; av.hidden = false; }
             else { av.removeAttribute('src'); av.hidden = true; }
         }
-        // Owner-only: reveal the feedback inbox item (checked against the locked
-        // config/admins doc; no identifiers live in this code).
-        var admin = document.getElementById('drawer-feedback-admin');
-        if (admin) {
-            admin.hidden = true;
-            if (N && N.ok && N.isAdmin && user) {
-                N.isAdmin().then(function (ok) { admin.hidden = !ok; }).catch(function () { admin.hidden = true; });
-            }
+        // Owner-only items (feedback inbox + admin roster), revealed per the locked
+        // config/admins doc; no identifiers live in this code.
+        var adminInbox = document.getElementById('drawer-feedback-admin');
+        var adminRoster = document.getElementById('drawer-admins');
+        if (adminInbox) adminInbox.hidden = true;
+        if (adminRoster) adminRoster.hidden = true;
+        if (N && N.ok && N.isAdmin && user && !user.anon) {
+            N.isAdmin().then(function (ok) {
+                if (adminInbox) adminInbox.hidden = !ok;
+                if (adminRoster) adminRoster.hidden = !ok;
+                // Keep my own roster name in sync with my Google display name.
+                if (ok && user.email && user.name && N.getAdmins && N.adminAdd) {
+                    N.getAdmins().then(function (m) {
+                        var e = m[user.email.toLowerCase()];
+                        if (e && e.name !== user.name) N.adminAdd(user.email, user.name);
+                    }).catch(function () { /* ignore */ });
+                }
+            }).catch(function () { /* ignore */ });
         }
     }
 
@@ -945,6 +1019,7 @@
         var drawerRec = document.getElementById('drawer-records'); if (drawerRec) drawerRec.addEventListener('click', showRecords);
         var drawerFb = document.getElementById('drawer-feedback'); if (drawerFb) drawerFb.addEventListener('click', showFeedback);
         var drawerAdmin = document.getElementById('drawer-feedback-admin'); if (drawerAdmin) drawerAdmin.addEventListener('click', showFeedbackAdmin);
+        var drawerAdmins = document.getElementById('drawer-admins'); if (drawerAdmins) drawerAdmins.addEventListener('click', showAdminRoster);
         var soundBtn = document.getElementById('sound-btn'); if (soundBtn) soundBtn.addEventListener('click', function () { setMuted(!isMuted()); });
         document.addEventListener('keydown', function (ev) {
             if (ev.key !== 'Escape') return;

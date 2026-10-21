@@ -49,7 +49,11 @@ function fail(err) {
         try { if (window.FIREBASE_CONFIG.databaseURL) rdb = getDatabase(app); } catch (e) { rdb = null; }
 
         let user = undefined;                 // undefined = unknown yet, null = signed out
-        let adminPromise = null;              // cached read of config/admins (owner uid list)
+        let adminPromise = null;              // cached read of config/admins (admin roster)
+        function readAdmins() {
+            if (!adminPromise) adminPromise = getDoc(doc(db, 'config', 'admins')).then((s) => (s.exists() ? (s.data().members || {}) : {})).catch(() => ({}));
+            return adminPromise;
+        }
         const authCbs = [];
         onAuthStateChanged(auth, (u) => {
             user = u ? { uid: u.uid, name: u.displayName || null, email: u.email || null, photo: u.photoURL || null, anon: u.isAnonymous } : null;
@@ -268,13 +272,30 @@ function fail(err) {
                     .then((snap) => snap.docs.map((d) => Object.assign({ id: d.id }, d.data())));
             },
             feedbackDelete(id) { return deleteDoc(doc(db, 'feedback', id)); },
-            // Owner check — the allow-list is a locked config doc (config/admins =
-            // { uids:[...] }), so no identifiers live in source. Cached per load.
+            // Admin roster — a config doc readable/writable only by admins (see
+            // firestore.rules). Shape: config/admins = { members: { "<email>": { name } } }.
+            // No identifiers live in source; membership is keyed by Google email.
+            getAdmins() { return readAdmins(); },
             isAdmin() {
-                if (!user) return Promise.resolve(false);
-                const uid = user.uid;
-                if (!adminPromise) adminPromise = getDoc(doc(db, 'config', 'admins')).then((s) => (s.exists() ? (s.data().uids || []) : [])).catch(() => []);
-                return adminPromise.then((uids) => uids.indexOf(uid) !== -1);
+                if (!user || !user.email) return Promise.resolve(false);
+                const em = user.email.toLowerCase();
+                return readAdmins().then((m) => !!m[em]);
+            },
+            adminAdd(email, name) {
+                const em = (email || '').trim().toLowerCase();
+                if (!em) return Promise.reject(new Error('no email'));
+                adminPromise = null;                               // invalidate cache
+                const patch = {}; patch[em] = { name: (name || '').trim() || null };
+                return setDoc(doc(db, 'config', 'admins'), { members: patch }, { merge: true });
+            },
+            adminRemove(email) {
+                const em = (email || '').trim().toLowerCase();
+                adminPromise = null;
+                return getDoc(doc(db, 'config', 'admins')).then((s) => {
+                    const m = (s.exists() && s.data().members) || {};
+                    delete m[em];
+                    return updateDoc(doc(db, 'config', 'admins'), { members: m });
+                });
             },
             // rooms (1v1 — used by Rune Stones)
             createRoom, joinRoom, leaveRoom, deleteRoom, cleanupStaleRooms,

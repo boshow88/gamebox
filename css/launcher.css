@@ -605,6 +605,23 @@ button { font-family: inherit; cursor: pointer; }
 }
 .fb-del:hover, .fb-del.armed { border-color: #e5484d; color: #e5484d; }
 
+/* Admin roster add form. */
+.admin-add { display: flex; flex-wrap: wrap; gap: var(--space-sm); align-items: center; }
+.admin-input {
+    flex: 1 1 120px;
+    min-width: 0;
+    box-sizing: border-box;
+    padding: 8px 10px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: 0.9rem;
+}
+.admin-input:focus { outline: none; border-color: var(--accent); }
+.admin-add .wip-gate-btn { flex: 0 0 auto; }
+
 .records-empty { margin: 0; color: var(--text-muted); font-size: 0.86rem; }
 
 @media (max-width: 600px) {
@@ -765,6 +782,9 @@ button { font-family: inherit; cursor: pointer; }
        readable contrast (light text on a dark list). */
     color-scheme: dark;
 }
+/* Explicit option colours — Chromium otherwise paints non-hovered options with
+   low contrast (dark text on the inherited dark control background). */
+.feedback-select option { background: var(--bg-elevated); color: var(--text-primary); }
 .feedback-select:focus { outline: none; border-color: var(--accent); }
 
 .wip-toast {

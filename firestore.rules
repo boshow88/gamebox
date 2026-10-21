@@ -51,19 +51,19 @@ service cloud.firestore {
       allow delete: if request.auth != null;
     }
 
-    // ---- Admin allow-list ----
-    // The owner UID list lives in a locked config doc (config/admins = { uids:[...] }),
-    // edited only in the Firebase console — so no identifiers sit in source. Any
-    // signed-in user may read config (clients use it to toggle owner-only UI), but
-    // nobody may write it from the client.
+    // ---- Admin roster ----
+    // The admin list lives in a single config doc, readable AND writable only by
+    // existing admins (bootstrap the first one in the Firebase console). No
+    // identifiers sit in source; membership is keyed by Google email. Shape:
+    //   config/admins = { members: { "<email>": { name: "<label>" } } }
     match /config/{doc} {
-      allow read: if request.auth != null;
-      allow write: if false;
+      allow read, write: if isOwner();
     }
     function isOwner() {
       return request.auth != null
+             && request.auth.token.email != null
              && exists(/databases/$(database)/documents/config/admins)
-             && get(/databases/$(database)/documents/config/admins).data.get('uids', []).hasAny([request.auth.uid]);
+             && request.auth.token.email.lower() in get(/databases/$(database)/documents/config/admins).data.get('members', {});
     }
 
     // ---- Feedback box (drop box) ----
