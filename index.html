@@ -10,9 +10,15 @@
 <body>
     <div class="app-shell">
         <header class="app-header">
-            <div class="lang-toggle" id="lang-toggle" role="radiogroup" aria-label="Language">
-                <button type="button" data-lang="en" role="radio" aria-checked="true">EN</button>
-                <button type="button" data-lang="zh" role="radio" aria-checked="false">中</button>
+            <div class="header-actions">
+                <button type="button" class="header-action" id="feedback-btn" aria-label="Feedback">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                    <span id="feedback-btn-label">Feedback</span>
+                </button>
+                <div class="lang-toggle" id="lang-toggle" role="radiogroup" aria-label="Language">
+                    <button type="button" data-lang="en" role="radio" aria-checked="true">EN</button>
+                    <button type="button" data-lang="zh" role="radio" aria-checked="false">中</button>
+                </div>
             </div>
             <div class="account" id="account" hidden></div>
             <h1 class="app-title">Game<span class="title-accent">Box</span></h1>

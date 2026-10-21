@@ -102,10 +102,35 @@ button { font-family: inherit; cursor: pointer; }
     margin-top: var(--space-sm);
 }
 
-.lang-toggle {
+/* Top-right header controls: feedback entry + language toggle, grouped. */
+.header-actions {
     position: absolute;
     top: 0;
     right: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-sm);
+}
+
+.header-action {
+    appearance: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 11px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--bg-elevated);
+    color: var(--text-secondary);
+    font-size: 0.78rem;
+    line-height: 1;
+    transition: background var(--transition-fast), color var(--transition-fast),
+        border-color var(--transition-fast);
+}
+.header-action:hover { background: var(--bg-hover); color: var(--text-primary); border-color: var(--accent); }
+.header-action svg { width: 14px; height: 14px; }
+
+.lang-toggle {
     display: inline-flex;
     border: 1px solid var(--border-color);
     border-radius: var(--radius-sm);
@@ -429,7 +454,7 @@ button { font-family: inherit; cursor: pointer; }
 @media (max-width: 600px) {
     .app-shell { padding: var(--space-xl) var(--space-md) var(--space-lg); }
     .app-title { font-size: 2rem; }
-    .lang-toggle { position: static; display: inline-flex; margin-bottom: var(--space-md); }
+    .header-actions { position: static; justify-content: center; margin-bottom: var(--space-md); }
     .account { position: static; margin-bottom: var(--space-md); max-width: none; justify-content: center; }
     .app-header { text-align: center; }
 }

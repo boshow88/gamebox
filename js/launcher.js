@@ -132,7 +132,6 @@
             searchAria: 'Search games',
             searchClear: 'Clear search',
             noResults: 'No games match your filters.',
-            footer: 'A static site — works offline. ' + GAMES.length + ' games and counting.',
             feedbackLink: 'Feedback',
             feedbackTitle: 'Feedback box',
             feedbackHint: 'Hit a bug or have an idea? Tell me — it comes straight to me.',
@@ -214,7 +213,6 @@
             searchAria: '搜尋遊戲',
             searchClear: '清除搜尋',
             noResults: '沒有符合條件的遊戲。',
-            footer: '純靜態網站，可離線使用。目前收錄 ' + GAMES.length + ' 款，持續增加中。',
             feedbackLink: '意見箱',
             feedbackTitle: '意見箱',
             feedbackHint: '遇到問題或有想法嗎？告訴我，會直接傳給我。',
@@ -385,11 +383,12 @@
         document.getElementById('app-subtitle').textContent = t('subtitle');
         var ft = document.getElementById('app-footer');
         if (ft) {
-            ft.textContent = t('footer') + '  ';
+            ft.textContent = '';
             var fb = document.createElement('button'); fb.type = 'button'; fb.className = 'footer-link'; fb.textContent = t('feedbackLink');
             fb.addEventListener('click', showFeedback);
             ft.appendChild(fb);
         }
+        var fbl = document.getElementById('feedback-btn-label'); if (fbl) fbl.textContent = t('feedbackLink');
         var si = document.getElementById('search-input');
         if (si) { si.placeholder = t('searchPlaceholder'); si.setAttribute('aria-label', t('searchAria')); }
         var sc = document.getElementById('search-clear');
@@ -692,6 +691,9 @@
             if (!btn) return;
             setLang(btn.getAttribute('data-lang'));
         });
+
+        var fbBtn = document.getElementById('feedback-btn');
+        if (fbBtn) fbBtn.addEventListener('click', showFeedback);
 
         var searchInput = document.getElementById('search-input');
         var searchClear = document.getElementById('search-clear');
