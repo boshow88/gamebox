@@ -684,48 +684,43 @@
     }
     var DIFF_ORDER = { easy: 0, normal: 1, hard: 2 };
     function byDiff(a, b) { var x = DIFF_ORDER[a], y = DIFF_ORDER[b]; x = (x == null) ? 9 : x; y = (y == null) ? 9 : y; return x - y; }
-    function collectRecords() {
-        var P = 'arcadeGames', blocks = [], i, k;
-        // (1) generic arcade high scores — a best map keyed by mode (usually difficulty).
-        var sp = P + ':scores:', seen = {};
-        for (i = 0; i < localStorage.length; i++) {
-            k = localStorage.key(i);
-            if (!k || k.indexOf(sp) !== 0) continue;
-            var g = k.slice(sp.length);
-            if (g === 'beam' || g === 'rune-stones' || seen[g]) continue;   // bespoke below
-            seen[g] = 1;
-            var d = rdLocal(k), best = d && d.best;
-            if (!best) continue;
-            var modes = Object.keys(best).filter(function (m) { return typeof best[m] === 'number'; });
-            if (!modes.length) continue;
-            modes.sort(byDiff);
-            blocks.push({ key: g, lines: modes.map(function (m) {
-                return { k: (m === 'default') ? t('recordScore') : diffLabel(m), v: best[m].toLocaleString() };
-            }) });
-        }
-        // (2) Beam — best finishing place per difficulty notch (lower is better). Names
-        // mirror the in-game tier + numeral (4 notches per tier); wins/games aren't
-        // synced to the cloud, so we show the best place only.
-        var ROMAN = ['I', 'II', 'III', 'IV'], TIER_KEYS = ['diffEasy', 'diffNormal', 'diffHard', 'diffInsane'];
-        var beamLines = [];
-        for (i = 0; i < 32; i++) {
-            var st = rdLocal(P + ':beam:solo:n' + i);
+    // Build one record block per game, in the SAME order as the launcher grid (GAMES
+    // is pre-sorted by hue at load, so just walk it). Stale non-GAMES score keys are
+    // ignored. Each game type reads its own storage shape.
+    function beamLines(P) {
+        var ROMAN = ['I', 'II', 'III', 'IV'], TIER_KEYS = ['diffEasy', 'diffNormal', 'diffHard', 'diffInsane'], lines = [];
+        for (var n = 0; n < 32; n++) {
+            var st = rdLocal(P + ':beam:solo:n' + n);
             if (!st || !st.best) continue;
-            beamLines.push({ k: t(TIER_KEYS[Math.min((i / 4) | 0, 3)]) + ' ' + ROMAN[i % 4], v: placeLabel(st.best) });
+            lines.push({ k: t(TIER_KEYS[Math.min((n / 4) | 0, 3)]) + ' ' + ROMAN[n % 4], v: placeLabel(st.best) });
         }
-        if (beamLines.length) blocks.push({ key: 'beam', lines: beamLines });
-        // (3) Rune Stones — Sandbag bests per difficulty. Easy inflates totals, so we
-        // list each difficulty separately instead of one combined max.
-        var rp = rdLocal(P + ':prefs:rune-stones'), sb = rp && rp.sandbox;
-        if (sb) {
-            var runeLines = [];
-            Object.keys(sb).sort(byDiff).forEach(function (lv) {
-                var e = sb[lv] || {};
-                if (typeof e.bestTotal === 'number') runeLines.push({ k: diffLabel(lv) + ' · ' + t('recTotal'), v: e.bestTotal.toLocaleString() });
-                if (typeof e.bestSpin === 'number') runeLines.push({ k: diffLabel(lv) + ' · ' + t('recSpin'), v: e.bestSpin.toLocaleString() });
-            });
-            if (runeLines.length) blocks.push({ key: 'rune-stones', lines: runeLines });
-        }
+        return lines;
+    }
+    function runeLines(P) {
+        var rp = rdLocal(P + ':prefs:rune-stones'), sb = rp && rp.sandbox, lines = [];
+        if (sb) Object.keys(sb).sort(byDiff).forEach(function (lv) {
+            var e = sb[lv] || {};
+            if (typeof e.bestTotal === 'number') lines.push({ k: diffLabel(lv) + ' · ' + t('recTotal'), v: e.bestTotal.toLocaleString() });
+            if (typeof e.bestSpin === 'number') lines.push({ k: diffLabel(lv) + ' · ' + t('recSpin'), v: e.bestSpin.toLocaleString() });
+        });
+        return lines;
+    }
+    function scoreLines(P, id) {
+        var d = rdLocal(P + ':scores:' + id), best = d && d.best, lines = [];
+        if (!best) return lines;
+        Object.keys(best).filter(function (m) { return typeof best[m] === 'number'; }).sort(byDiff).forEach(function (m) {
+            lines.push({ k: (m === 'default') ? t('recordScore') : diffLabel(m), v: best[m].toLocaleString() });
+        });
+        return lines;
+    }
+    function collectRecords() {
+        var P = 'arcadeGames', blocks = [];
+        GAMES.forEach(function (g) {
+            var lines = (g.id === 'beam') ? beamLines(P)
+                : (g.id === 'rune-stones') ? runeLines(P)
+                : scoreLines(P, g.id);
+            if (lines.length) blocks.push({ key: g.id, lines: lines });
+        });
         return blocks;
     }
 
