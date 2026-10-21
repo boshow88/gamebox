@@ -297,6 +297,9 @@ function fail(err) {
                     return updateDoc(doc(db, 'config', 'admins'), { members: m });
                 });
             },
+            // Daily Firebase-usage snapshot (stats/usage), written by the scheduled job
+            // and readable only by admins (see firestore.rules).
+            getStats() { return getDoc(doc(db, 'stats', 'usage')).then((s) => (s.exists() ? s.data() : null)).catch(() => null); },
             // rooms (1v1 — used by Rune Stones)
             createRoom, joinRoom, leaveRoom, deleteRoom, cleanupStaleRooms,
             watchRoom(code, cb) { return onSnapshot(roomRef(code), (s) => cb(s.exists() ? s.data() : null), (err) => cb(null, err)); },

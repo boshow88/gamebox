@@ -1,0 +1,45 @@
+name: Firebase usage snapshot
+
+# Pulls daily Firestore read/write/delete counts from Cloud Monitoring and writes
+# them to Firestore (stats/usage) for the in-app admin Usage panel.
+# Requires repo secret GCP_SA_KEY = a service account JSON key with roles
+# monitoring.viewer + datastore.user. Also run manually via "Run workflow".
+
+on:
+  schedule:
+    - cron: '17 1 * * *'   # daily, ~01:17 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    # Skip cleanly until the service account secret has been added (no daily failures).
+    env:
+      HAS_SA: ${{ secrets.GCP_SA_KEY != '' }}
+    steps:
+      - if: env.HAS_SA != 'true'
+        run: echo "GCP_SA_KEY secret not set — skipping usage snapshot."
+      - uses: actions/checkout@v4
+        if: env.HAS_SA == 'true'
+      - uses: actions/setup-node@v4
+        if: env.HAS_SA == 'true'
+        with:
+          node-version: '20'
+      - name: Install deps
+        if: env.HAS_SA == 'true'
+        working-directory: tools/usage
+        run: npm install --no-audit --no-fund
+      - name: Write service account key
+        if: env.HAS_SA == 'true'
+        run: printf '%s' "$GCP_SA_KEY" > "$RUNNER_TEMP/sa.json"
+        env:
+          GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
+      - name: Snapshot usage
+        if: env.HAS_SA == 'true'
+        working-directory: tools/usage
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/sa.json
+        run: node index.js

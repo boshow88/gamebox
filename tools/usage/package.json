@@ -1,0 +1,11 @@
+{
+  "name": "gamebox-usage",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Scheduled Firebase-usage snapshot writer (Cloud Monitoring -> Firestore stats/usage).",
+  "main": "index.js",
+  "dependencies": {
+    "@google-cloud/monitoring": "^4.1.0",
+    "firebase-admin": "^12.6.0"
+  }
+}
