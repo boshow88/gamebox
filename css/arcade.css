@@ -399,6 +399,20 @@
     color: var(--text-secondary);
 }
 
+/* Online lobby rows: equal-width buttons + a full-width code field, so a narrow
+   phone keeps Join / Spectate together on one line instead of wrapping apart. */
+.lobby-row {
+    display: flex;
+    gap: var(--space-sm);
+    align-items: center;
+    flex-wrap: wrap;
+}
+.lobby-row > .btn,
+.lobby-row > input {
+    flex: 1 1 0;
+    min-width: 0;
+}
+
 /* ----------------------------------------------------------------
    How-to-play footer
    ---------------------------------------------------------------- */

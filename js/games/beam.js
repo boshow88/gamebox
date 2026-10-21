@@ -958,7 +958,7 @@
             var join = lbtn(t('beamJoinRoom'), 'btn'); join.onclick = function () { doJoin(input.value); };
             var spectate = lbtn(t('beamSpectate'), 'btn'); spectate.onclick = function () { doSpectate(input.value); };
             input.addEventListener('keydown', function (e) { if (e.key === 'Enter') doJoin(input.value); });
-            rbox.appendChild(lrow(create)); rbox.appendChild(lrow(input, join, spectate));
+            rbox.appendChild(lrow(create)); rbox.appendChild(lrow(input)); rbox.appendChild(lrow(join, spectate));
         } else if (u && d) {
             rbox.appendChild(elc('div', 'lobby-code', d.code));
             // player list
@@ -1126,7 +1126,7 @@
         setupOnline();
         if (window.CloudSync) window.CloudSync.onApplied(syncHud);   // repaint best on account swap / cloud merge
         applyHudMode();
-        AC.i18n.subscribe(function () { syncHud(); if (!om) shell.refreshOverlay(); if (room && !(om && om.local)) renderLobby(); });
+        AC.i18n.subscribe(function () { syncHud(); if (!om) shell.refreshOverlay(); if (lobbyEl && !lobbyEl.hidden) renderLobby(); });
         syncHud();
         render();                                                                                     // paint the backdrop behind the ready overlay
     }
