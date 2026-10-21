@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="arcade">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bomber · GameBox</title>
+    <link rel="icon" type="image/svg+xml" href="../favicon.svg">
+    <link rel="stylesheet" href="../css/common.css">
+    <link rel="stylesheet" href="../css/arcade.css">
+    <style>
+        body { --game-color: #f59e0b; }
+        .stage-wrap { max-width: 520px; margin: 0 auto; position: relative; }
+        .stage-pad { touch-action: none; padding: 12px 12px 18px; }
+        .stage-canvas { touch-action: none; width: 100%; height: auto; image-rendering: auto; background: #0a1322; border-radius: 10px; }
+        .hud-chips { display: flex; gap: 8px; justify-content: center; margin: 2px 0 6px; flex-wrap: wrap; }
+        .pchip { display: inline-flex; align-items: center; gap: 5px; padding: 4px 9px; border-radius: 999px; background: rgba(255,255,255,0.06); font-size: 13px; }
+        .pchip .dot { width: 10px; height: 10px; border-radius: 50%; }
+        .pchip.dead { opacity: 0.4; text-decoration: line-through; }
+        /* touch controls */
+        .pad { display: flex; justify-content: space-between; align-items: center; gap: 12px; max-width: 520px; margin: 10px auto 0; padding: 0 8px; }
+        .dpad { display: grid; grid-template-columns: repeat(3, 52px); grid-template-rows: repeat(3, 52px); gap: 4px; }
+        .dpad button { border: 1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.07); color: #e2e8f0; border-radius: 10px; font-size: 20px; -webkit-user-select: none; user-select: none; touch-action: none; }
+        .dpad .up { grid-area: 1 / 2; } .dpad .left { grid-area: 2 / 1; } .dpad .right { grid-area: 2 / 3; } .dpad .down { grid-area: 3 / 2; }
+        .bomb-btn { width: 96px; height: 96px; border-radius: 50%; border: 2px solid var(--game-color); background: rgba(245,158,11,0.16); color: #fde68a; font-weight: 800; font-size: 18px; -webkit-user-select: none; user-select: none; touch-action: none; }
+    </style>
+</head>
+
+<body>
+    <div class="game-shell">
+        <header class="game-topbar">
+            <a class="back-link" href="../index.html">
+                <span data-icon="arrow-left" aria-hidden="true"></span>
+                <span data-i18n="menu">Menu</span>
+            </a>
+            <div class="game-title">
+                <span class="game-icon" data-icon="bomb" aria-hidden="true"></span>
+                <span data-i18n="bombName">Bomber</span>
+            </div>
+            <div class="lang-toggle" id="lang-toggle" role="radiogroup" data-i18n-aria-label="language">
+                <button type="button" data-lang="en" role="radio" aria-checked="true">EN</button>
+                <button type="button" data-lang="zh" role="radio" aria-checked="false">中</button>
+            </div>
+        </header>
+
+        <div class="hud-chips" id="chips"></div>
+
+        <div class="control-row">
+            <span class="spacer"></span>
+            <div class="control-actions">
+                <button class="btn" id="restart-btn" type="button" disabled>
+                    <span data-icon="rotate-ccw" aria-hidden="true"></span>
+                    <span data-i18n="restart">Restart</span>
+                </button>
+                <button class="btn btn-icon toggle" id="sound-btn" type="button" aria-pressed="true" data-i18n-title="sound" title="Sound">
+                    <span data-role="sound-icon" aria-hidden="true"></span>
+                </button>
+            </div>
+        </div>
+
+        <div class="stage-pad">
+            <div class="stage-wrap">
+                <canvas class="stage-canvas" id="stage" width="442" height="374" role="img" aria-label="Bomber arena"></canvas>
+                <div class="overlay" id="overlay" hidden>
+                    <div class="overlay-card">
+                        <span class="overlay-badge" id="overlay-badge" aria-hidden="true"></span>
+                        <h2 class="overlay-title" id="overlay-title"></h2>
+                        <p class="overlay-message" id="overlay-message"></p>
+                        <button class="btn btn-primary overlay-btn" id="overlay-btn" type="button"></button>
+                        <p class="overlay-hint" id="overlay-hint"></p>
+                    </div>
+                </div>
+            </div>
+            <div class="pad" id="pad">
+                <div class="dpad">
+                    <button class="up" data-dir="0" type="button" aria-label="up">▲</button>
+                    <button class="left" data-dir="3" type="button" aria-label="left">◀</button>
+                    <button class="right" data-dir="1" type="button" aria-label="right">▶</button>
+                    <button class="down" data-dir="2" type="button" aria-label="down">▼</button>
+                </div>
+                <button class="bomb-btn" id="bomb-btn" type="button" data-i18n="bombDrop">BOMB</button>
+            </div>
+        </div>
+
+        <section class="game-footer">
+            <h4 data-i18n="howToPlay">How to play</h4>
+            <ul>
+                <li data-i18n="bombHelp1Html">Move with <kbd>↑↓←→</kbd>/<kbd>WASD</kbd> (or the on-screen pad). Drop a bomb with <kbd>Space</kbd> / the <strong>BOMB</strong> button.</li>
+                <li data-i18n="bombHelp2Html">Blasts break <strong>soft blocks</strong> (some drop power-ups: fire, extra bomb, speed, kick) and destroy players. Be the <strong>last one standing</strong>.</li>
+            </ul>
+        </section>
+    </div>
+
+    <script src="../js/arcade.js"></script>
+    <script src="../js/games/bomb-engine.js"></script>
+    <script src="../js/games/bomb.js"></script>
+</body>
+
+</html>
