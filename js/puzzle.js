@@ -23,7 +23,7 @@
             if (raw == null) return fallback;
             return JSON.parse(raw);
         } catch (e) {
-            console.warn('[common] readJSON failed for', key, e);
+            console.warn('[puzzle] readJSON failed for', key, e);
             return fallback;
         }
     }
@@ -32,7 +32,7 @@
         try {
             localStorage.setItem(key, JSON.stringify(value));
         } catch (e) {
-            console.warn('[common] writeJSON failed for', key, e);
+            console.warn('[puzzle] writeJSON failed for', key, e);
         }
     }
 
@@ -118,21 +118,6 @@
     })();
 
     // -----------------------------------------------------------------
-    // Per-game preferences (size, difficulty)
-    // -----------------------------------------------------------------
-
-    function getPrefs(game) {
-        return readJSON(storageKey('prefs', game), {});
-    }
-
-    function setPrefs(game, patch) {
-        const current = getPrefs(game);
-        const next = Object.assign({}, current, patch);
-        writeJSON(storageKey('prefs', game), next);
-        return next;
-    }
-
-    // -----------------------------------------------------------------
     // Solved-puzzle log
     //
     // We store the *count* of solves per (game,size,difficulty) plus a
@@ -153,10 +138,6 @@
         });
         data.recent = data.recent.slice(0, 25);
         writeJSON(key, data);
-    }
-
-    function getSolveStats(game) {
-        return readJSON(storageKey('solves', game), { byBucket: {}, recent: [] });
     }
 
     // -----------------------------------------------------------------
@@ -375,12 +356,6 @@
         user:
             '<path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/>'
             + '<circle cx="12" cy="7" r="4"/>',
-        'gamepad-2':
-            '<line x1="6" x2="10" y1="11" y2="11"/>'
-            + '<line x1="8" x2="8" y1="9" y2="13"/>'
-            + '<line x1="15" x2="15.01" y1="12" y2="12"/>'
-            + '<line x1="18" x2="18.01" y1="10" y2="10"/>'
-            + '<path d="M17.32 5H6.68a4 4 0 0 0-3.978 3.59c-.006.052-.01.101-.017.152C2.604 9.416 2 14.456 2 16a3 3 0 0 0 3 3c1 0 1.5-.5 2-1l1.414-1.414A2 2 0 0 1 9.828 16h4.344a2 2 0 0 1 1.414.586L17 18c.5.5 1 1 2 1a3 3 0 0 0 3-3c0-1.544-.604-6.584-.685-7.258-.007-.05-.011-.1-.017-.151A4 4 0 0 0 17.32 5z"/>',
         route:
             '<circle cx="6" cy="19" r="3"/>'
             + '<path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15"/>'
@@ -393,10 +368,6 @@
             + '<circle cx="19.5" cy="12" r="2.5"/>'
             + '<path d="m13.8 17.7 3.9-3.9"/>'
             + '<circle cx="12" cy="19.5" r="2.5"/>',
-        shapes:
-            '<path d="M8.3 10a.7.7 0 0 1-.626-1.079L11.4 3a.7.7 0 0 1 1.199 0l3.726 5.921A.7.7 0 0 1 15.7 10Z"/>'
-            + '<rect width="7" height="7" x="3" y="14" rx="1"/>'
-            + '<circle cx="17.5" cy="17.5" r="3.5"/>',
         // lucide: graph-star (Hashi brand)
         'graph-star':
             '<path d="m12.342 9.316 1.764-3.527"/>'
@@ -423,8 +394,6 @@
             + '<path d="M2 12h2"/><path d="M20 12h2"/>'
             + '<path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/>'
             + '<g transform="translate(6 6) scale(0.5)" stroke-width="4"><path d="M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803.401"/></g>',
-        check:
-            '<path d="M20 6 9 17l-5-5"/>',
         lock:
             '<rect width="18" height="11" x="3" y="11" rx="2" ry="2"/>'
             + '<path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
@@ -944,13 +913,6 @@
             showSolution: 'Show solution overlay',
             showSolutionPath: 'Show solution path',
 
-            // Index / launcher
-            appTitle: 'Puzzle Games',
-            appSubtitle: "A collection of logic puzzles inspired by LinkedIn's daily games.",
-            playable: 'Playable',
-            wip: 'WIP',
-            builtNote: 'Built as a static site — works offline, deployable on GitHub Pages.',
-
             // Queens
             queensName: 'Queens',
             queensTagline: 'Royal regions, one queen each.',
@@ -1073,12 +1035,6 @@
             nonogramTagline: 'Reveal the hidden picture.',
             nonogramCardBody:
                 'Use the row and column number clues to fill the grid and reveal the picture.',
-            // Cross-link to the sibling Arcade Games site.
-            arcadeGamesName: 'Arcade Games',
-            arcadeGamesTagline: 'Arcade-style games.',
-            arcadeGamesCardBody:
-                'A separate site with arcade games.',
-            visitLink: 'Visit \u2197',
             nonogramBoardAria: 'Nonogram puzzle board',
             nonogramToolsAria: 'Input mode',
             nonogramToolCycle: 'Cycle',
@@ -1214,12 +1170,6 @@
             showSolution: '顯示解答',
             showSolutionPath: '顯示解答路徑',
 
-            appTitle: 'Puzzle Games',
-            appSubtitle: '一組受 LinkedIn 每日小遊戲啟發的邏輯謎題。',
-            playable: '可玩',
-            wip: '開發中',
-            builtNote: '純靜態網站 — 可離線使用，也可部署於 GitHub Pages。',
-
             queensName: 'Queens',
             queensTagline: '皇家領地，每區一后。',
             queensCardBody: '在每個列、行、色塊區域與 8 鄰域中各放一個皇后。',
@@ -1332,12 +1282,6 @@
             nonogramTagline: '還原隱藏的圖案。',
             nonogramCardBody:
                 '依每列與每行的數字線索把格子填滿，還原出圖案。',
-            // Cross-link to the sibling Arcade Games site.
-            arcadeGamesName: 'Arcade Games',
-            arcadeGamesTagline: '街機風格的遊戲。',
-            arcadeGamesCardBody:
-                '另一個網站，收錄街機遊戲。',
-            visitLink: '前往 \u2197',
             nonogramBoardAria: 'Nonogram 盤面',
             nonogramToolsAria: '輸入模式',
             nonogramToolCycle: '循環',
@@ -1438,7 +1382,7 @@
         },
     };
 
-    const LANG_KEY = 'gamebox:lang';   // shared with the GameBox launcher + sibling collection so the language carries across
+    const LANG_KEY = 'gamebox:lang';   // shared with the GameBox launcher + the arcade shell so the language carries across
     const LANG_SUPPORTED = ['en', 'zh'];
     const localeSubscribers = new Set();
     let currentLocale = readJSON(LANG_KEY, 'en');
@@ -1860,8 +1804,7 @@
 
     global.PuzzleCommon = {
         storage: { readJSON, writeJSON, storageKey },
-        prefs: { get: getPrefs, set: setPrefs },
-        solves: { log: logSolve, get: getSolveStats },
+        solves: { log: logSolve },
         timer: createTimer,
         shell: { create: createShell },
         audio,
