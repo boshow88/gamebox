@@ -43,6 +43,9 @@
         beamGetReady: 'Get ready!',
         beamSuddenDeath: 'SUDDEN DEATH!', beamSuddenDeathHint: 'A tie now costs a life',
         beamSpectating: 'You\u2019re out — watching',
+        beamSpectate: 'Spectate',
+        beamSpectatingRoom: 'Spectating — watching this match.',
+        beamStopSpectating: 'Stop watching',
         beamWaitNext: 'Waiting for next round…',
         // lobby (wording aligned with Rune Stones)
         beamLobbyTitle: 'Online match',
@@ -79,6 +82,9 @@
         beamGetReady: '準備好！',
         beamSuddenDeath: '驟死！', beamSuddenDeathHint: '平手也會扣血',
         beamSpectating: '你已出局，觀戰中',
+        beamSpectate: '觀戰',
+        beamSpectatingRoom: '觀戰中——正在看這場對戰。',
+        beamStopSpectating: '停止觀戰',
         beamWaitNext: '等待下一回合…',
         beamLobbyTitle: '線上對戰',
         beamClose: '關閉',
@@ -414,7 +420,7 @@
         om.answerSec = ANSWER_SEC * answerAccel(round);                                       // answer shrinks slower
         om.replay = replaySec(om.puzzle.bounces);
         om.choice = null; om.submitted = false; om.lastPhase = '';
-        om.alive = !(g.alive && g.alive[om.myUid] === false);
+        om.alive = !om.spectator && !(g.alive && g.alive[om.myUid] === false);
         om.hpStart = Object.assign({}, g.hp || {});       // pre-round snapshot — shown until the reveal (no spoiler)
         om.aliveStart = Object.assign({}, g.alive || {});
         if (om.host) { om.host.tallied = false; om.host.over = false; om.host.pending = null; }
@@ -440,7 +446,8 @@
     function enterMatch(data) {                       // ONLINE only (solo uses startSoloMatch)
         if (om) return;
         var g = data.game || {};
-        om = { myUid: netUser.uid, local: false, seed: g.seed || 0, round: 0, localStart: 0, puzzle: null, choice: null, submitted: false, alive: true, over: false, lastPhase: '', hpStart: {}, aliveStart: {}, host: { tallied: false, over: false } };
+        var spectator = !(data.players && data.players[netUser.uid]);   // not seated in the room → watching only
+        om = { myUid: netUser.uid, local: false, spectator: spectator, seed: g.seed || 0, round: 0, localStart: 0, puzzle: null, choice: null, submitted: false, alive: !spectator, over: false, lastPhase: '', hpStart: {}, aliveStart: {}, host: { tallied: false, over: false } };
         closeLobby();
         hideShellOverlay();
         applyHudMode();
@@ -484,7 +491,7 @@
         if (g.status === 'playing') {
             om.over = false;
             if (g.round && g.round !== om.round) startLocalRound(g.round, data);
-            else om.alive = !(g.alive && g.alive[om.myUid] === false);
+            else om.alive = !om.spectator && !(g.alive && g.alive[om.myUid] === false);
             renderPlayersBar(data);
             if (lobbyEl && !lobbyEl.hidden) renderLobby();
         } else if (g.status === 'over') {
@@ -526,7 +533,8 @@
         if (om && om.local) { var ld = room.data, lg = ld.game || {}; if (lg.status === 'playing' && !om.host.over) hostDrive(ld, lg); return; }
         if (!net || !room || !room.data || !netUser) return;
         var d = room.data, g = d.game || {}, now = Date.now();
-        if (!beatT || now - beatT > BEAT_MS) { beatT = now; beatN++; net.mp.update(GROUP, room.code, { ['game.beat.' + netUser.uid]: beatN }).catch(function () { }); }
+        var watching = !(d.players && d.players[netUser.uid]);   // spectator: observe only, never write to the room
+        if (!watching && (!beatT || now - beatT > BEAT_MS)) { beatT = now; beatN++; net.mp.update(GROUP, room.code, { ['game.beat.' + netUser.uid]: beatN }).catch(function () { }); }
         if (effectiveHost(d) === netUser.uid && (!gcT || now - gcT > 15000)) { gcT = now; net.mp.cleanup(GROUP).catch(function () { }); }
         if (om && !om.local && g.status === 'playing' && effectiveHost(d) === om.myUid) { hostCheckForfeit(d, g); if (!om.host.over) hostDrive(d, g); }
     }
@@ -903,7 +911,8 @@
     function doSignIn(kind) { (kind === 'google' ? net.signInGoogle() : net.signInGuest()).catch(showLobbyError); }
     function doCreate() { net.mp.create(GROUP, { maxPlayers: MAX_PLAYERS }).then(attachRoom).catch(showLobbyError); }
     function doJoin(code) { code = String(code || '').trim().toUpperCase(); if (!code) return; net.mp.join(GROUP, code).then(attachRoom).catch(showLobbyError); }
-    function doLeave() { var wasMatch = !!(om && !om.local); if (room) { var c = room.code; detachRoom(); net.mp.leave(GROUP, c).catch(function () { }); } if (wasMatch) exitMatch(); renderLobby(); }
+    function doSpectate(code) { code = String(code || '').trim().toUpperCase(); if (!code) return; attachRoom(code); }   // watch only — no mp.join, so no seat is taken (works even when the room is full / already started)
+    function doLeave() { var wasMatch = !!(om && !om.local); var watching = !!(room && room.data && room.data.players && netUser && !room.data.players[netUser.uid]); if (room) { var c = room.code; detachRoom(); if (!watching) net.mp.leave(GROUP, c).catch(function () { }); } if (wasMatch) exitMatch(); renderLobby(); }
     function doReady() { if (!room || !netUser) return; net.mp.update(GROUP, room.code, { ['ready.' + netUser.uid]: true }).catch(showLobbyError); }
     function hostStart() {
         if (!room || !room.data || !netUser) return;
@@ -938,8 +947,9 @@
             var create = lbtn(t('beamCreateRoom'), 'btn btn-primary'); create.onclick = doCreate;
             var input = elc('input'); input.placeholder = t('beamRoomCode'); input.maxLength = 4;
             var join = lbtn(t('beamJoinRoom'), 'btn'); join.onclick = function () { doJoin(input.value); };
+            var spectate = lbtn(t('beamSpectate'), 'btn'); spectate.onclick = function () { doSpectate(input.value); };
             input.addEventListener('keydown', function (e) { if (e.key === 'Enter') doJoin(input.value); });
-            rbox.appendChild(lrow(create)); rbox.appendChild(lrow(input, join));
+            rbox.appendChild(lrow(create)); rbox.appendChild(lrow(input, join, spectate));
         } else if (u && d) {
             rbox.appendChild(elc('div', 'lobby-code', d.code));
             // player list
@@ -962,7 +972,10 @@
             });
             rbox.appendChild(ul);
             // actions — invite + primary action share a row; Leave sits on its own row below
-            if (over) {
+            if (!d.players[u.uid]) {                      // spectator: watching only — no ready/start, just stop watching
+                rbox.appendChild(elc('div', 'lobby-note', t('beamSpectatingRoom')));
+                var lvs = lbtn(t('beamStopSpectating'), 'btn'); lvs.onclick = doLeave; rbox.appendChild(lrow(lvs));
+            } else if (over) {
                 if (effectiveHost(d) === u.uid) { var rem = lbtn(t('beamRematch'), 'btn btn-primary'); rem.onclick = doRematch; rbox.appendChild(lrow(rem)); }
                 var lvo = lbtn(t('beamLeaveRoom'), 'btn'); lvo.onclick = doLeave; rbox.appendChild(lrow(lvo));
             } else {
@@ -1057,7 +1070,7 @@
         }
         if (window.ArcadeNet) ready(); else window.addEventListener('arcade-net-ready', ready, { once: true });
         setInterval(watchdog, 250);
-        window.addEventListener('beforeunload', function () { if (room && room.code && net && !(om && om.local)) { try { net.mp.leave(GROUP, room.code); } catch (e) { } } });
+        window.addEventListener('beforeunload', function () { if (room && room.code && net && !(om && om.local) && room.data && netUser && room.data.players && room.data.players[netUser.uid]) { try { net.mp.leave(GROUP, room.code); } catch (e) { } } });
     }
 
     // ===============================================================
