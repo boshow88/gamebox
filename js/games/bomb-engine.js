@@ -62,8 +62,9 @@
         for (y = 0; y < rows; y++) for (x = 0; x < cols; x++) {    // hide items under some soft blocks
             if (w.grid[y][x] === 2 && rnd() < w.itemRate) w.items.push({ x: x, y: y, type: ITEMS[(rnd() * ITEMS.length) | 0], hidden: true });
         }
+        var order = np === 2 ? [0, 3] : [0, 1, 2, 3];              // 2 players spawn on a DIAGONAL (TL+BR), not side-by-side
         for (var i = 0; i < np; i++) {
-            var c = corners[i];
+            var c = corners[order[i]];
             w.players.push({ id: i, x: c[0] * GRID + GRID / 2, y: c[1] * GRID + GRID / 2, alive: true, dir: 2, moving: false, speed: w.baseSpeed, power: w.powerStart, bombs: w.bombStart, placed: 0, kick: false });
         }
         return w;

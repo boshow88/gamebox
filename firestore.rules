@@ -38,5 +38,17 @@ service cloud.firestore {
       allow update: if request.auth != null;
       allow delete: if request.auth != null;
     }
+
+    // ---- Bomber rooms (2-player P2P lockstep) ----
+    // Same honor-system MVP: the room doc is only a lobby + WebRTC signaling relay
+    // (SDP offer/answer). Once peers connect, gameplay inputs flow P2P over the
+    // DataChannel and never touch Firestore. Any signed-in player may read/write a
+    // room they know the code of.
+    match /bomb_rooms/{roomId} {
+      allow read:   if request.auth != null;
+      allow create: if request.auth != null;
+      allow update: if request.auth != null;
+      allow delete: if request.auth != null;
+    }
   }
 }

@@ -23,6 +23,15 @@
         .dpad button { border: 1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.07); color: #e2e8f0; border-radius: 10px; font-size: 20px; -webkit-user-select: none; user-select: none; touch-action: none; }
         .dpad .up { grid-area: 1 / 2; } .dpad .left { grid-area: 2 / 1; } .dpad .right { grid-area: 2 / 3; } .dpad .down { grid-area: 3 / 2; }
         .bomb-btn { width: 96px; height: 96px; border-radius: 50%; border: 2px solid var(--game-color); background: rgba(245,158,11,0.16); color: #fde68a; font-weight: 800; font-size: 18px; -webkit-user-select: none; user-select: none; touch-action: none; }
+        /* Online lobby (layered over the board, modeled on Beam) */
+        #lobby .overlay-card { gap: 7px; max-width: 460px; }
+        .lobby-title { font-size: 20px; font-weight: 800; margin: 2px 0; }
+        .lobby-row { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; align-items: center; margin: 7px 0; }
+        .lobby-row .btn { white-space: nowrap; }
+        .lobby-row input { width: 130px; padding: 9px 10px; border-radius: 9px; border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.07); color: #fff; font: inherit; text-align: center; text-transform: uppercase; letter-spacing: 4px; }
+        .lobby-status { min-height: 1.3em; margin: 6px 2px 2px; color: rgba(255,255,255,0.85); font-size: 14px; }
+        .lobby-code { font-size: 34px; font-weight: 800; letter-spacing: 10px; color: #fde68a; margin: 8px 0 2px; text-align: center; }
+        .lobby-sub { font-size: 13px; color: rgba(255,255,255,0.6); }
     </style>
 </head>
 
@@ -46,6 +55,10 @@
         <div class="hud-chips" id="chips"></div>
 
         <div class="control-row">
+            <button class="btn" id="online-btn" type="button" hidden>
+                <span data-icon="users" aria-hidden="true"></span>
+                <span data-i18n="bombOnline">Online</span>
+            </button>
             <span class="spacer"></span>
             <div class="control-actions">
                 <button class="btn" id="restart-btn" type="button" disabled>
@@ -70,6 +83,9 @@
                         <p class="overlay-hint" id="overlay-hint"></p>
                     </div>
                 </div>
+                <div class="overlay" id="lobby" hidden>
+                    <div class="overlay-card" id="lobby-card"></div>
+                </div>
             </div>
             <div class="pad" id="pad">
                 <div class="dpad">
@@ -92,6 +108,9 @@
     </div>
 
     <script src="../js/arcade.js"></script>
+    <script src="../js/firebase-config.js"></script>
+    <script type="module" src="../js/net/net.js"></script>
+    <script src="../js/net/rtc.js"></script>
     <script src="../js/games/bomb-engine.js"></script>
     <script src="../js/games/bomb.js"></script>
 </body>

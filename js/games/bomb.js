@@ -12,6 +12,12 @@
             bombName: 'Bomber', bombDrop: 'BOMB',
             bombReady: 'Drop bombs to blow up blocks and rivals. Grab power-ups. Be the last one standing!',
             bombWin: 'You win!', bombLose: 'You were blown up!', bombDraw: 'Everyone\u2019s gone!',
+            bombOnline: 'Online', bombNetTitle: 'Online match', bombNetSub: 'Head-to-head 1v1 over the internet.',
+            bombHostBtn: 'Create room', bombJoinBtn: 'Join', bombCloseBtn: 'Close', bombLeaveBtn: 'Leave',
+            bombCodeLabel: 'Give this code to your opponent', bombWaiting: 'Waiting for an opponent\u2026',
+            bombNetConnecting: 'Connecting\u2026', bombNetFailed: 'Connection failed. Try again.',
+            bombNetNoRoom: 'Room not found.', bombNetErr: 'Network error.', bombRoomGone: 'Room closed.',
+            bombRematch: 'Rematch', bombWaitHost: 'Waiting for the host to restart\u2026', bombOppLeft: 'Opponent left.',
             bombHelp1Html: 'Move with <kbd>\u2191\u2193\u2190\u2192</kbd>/<kbd>WASD</kbd> (or the on-screen pad). Drop a bomb with <kbd>Space</kbd> / the <strong>BOMB</strong> button.',
             bombHelp2Html: 'Blasts break <strong>soft blocks</strong> (some drop power-ups: fire, extra bomb, speed, kick) and destroy players. Be the <strong>last one standing</strong>.',
         },
@@ -19,6 +25,12 @@
             bombName: '轟炸人', bombDrop: '放炸彈',
             bombReady: '放炸彈炸開磚塊與對手，撿道具強化，成為最後存活者！',
             bombWin: '你贏了！', bombLose: '你被炸飛了！', bombDraw: '同歸於盡！',
+            bombOnline: '線上對戰', bombNetTitle: '線上對戰', bombNetSub: '透過網路 1v1 對戰。',
+            bombHostBtn: '建立房間', bombJoinBtn: '加入', bombCloseBtn: '關閉', bombLeaveBtn: '離開',
+            bombCodeLabel: '把房號給對手', bombWaiting: '等待對手加入\u2026',
+            bombNetConnecting: '連線中\u2026', bombNetFailed: '連線失敗，請再試一次。',
+            bombNetNoRoom: '找不到房間。', bombNetErr: '網路錯誤。', bombRoomGone: '房間已關閉。',
+            bombRematch: '再來一場', bombWaitHost: '等待房主再來一場\u2026', bombOppLeft: '對手已離開。',
             bombHelp1Html: '用 <kbd>\u2191\u2193\u2190\u2192</kbd>/<kbd>WASD</kbd>（或螢幕方向鍵）移動。<kbd>空白鍵</kbd> / <strong>放炸彈</strong>鈕 放炸彈。',
             bombHelp2Html: '爆風會炸開<strong>軟磚</strong>（部分掉落道具：火力、炸彈數、速度、踢）並炸死玩家。當<strong>最後存活者</strong>。',
         },
@@ -137,9 +149,197 @@
         return { dir: cs.dir == null ? -1 : cs.dir, bomb: bomb };
     }
 
+    // ================= ONLINE — deterministic lockstep over WebRTC =================
+    // Both peers run the SAME engine from the SAME seed. Each frame a peer samples its
+    // own input, tags it for tick (now + D) and sends it; a tick only advances once
+    // BOTH players' inputs for it are in hand. Symmetric input delay D ⇒ fair, no host
+    // advantage. Transport is a reliable+ordered DataChannel (ArcadeRTC); the Firestore
+    // room (bomb_rooms) is only the lobby + SDP signaling. No CPU runs online.
+    var GROUP = 'bomb_rooms';
+    var INPUT_DELAY = 4;                        // ~66ms of buffered input per side (absorbs typical P2P RTT + jitter)
+    var NEUTRAL = { dir: -1, bomb: 0 };
+    var netCtx = null;                          // { group, code, role, gen, conn, slot, seed, data, roomUnsub, _status }
+
+    function online() { return !!(M && M.mode === 'online'); }
+    function getNet() { return (window.ArcadeNet && window.ArcadeNet.ok) ? window.ArcadeNet : null; }
+    function onlineWorld(seed) { return E.create(Object.assign({}, CFG, { players: 2 }), seed); }
+    function netSend(obj) { if (netCtx && netCtx.conn) netCtx.conn.send(JSON.stringify(obj)); }
+    function ensureAuth() {
+        var N = getNet(); if (!N) return Promise.reject(new Error('no net'));
+        if (N.currentUser()) return Promise.resolve();
+        return new Promise(function (res, rej) {
+            var done = false;
+            N.onAuth(function (u) { if (u && !done) { done = true; res(); } });
+            N.signInGuest().catch(function (e) { if (!done) { done = true; rej(e); } });
+            setTimeout(function () { if (!done) { done = true; N.currentUser() ? res() : rej(new Error('auth timeout')); } }, 8000);
+        });
+    }
+
+    // ----- lobby UI (rendered into the #lobby overlay, layered over the board) -----
+    function lobbyCard() { return $('lobby-card'); }
+    function showLobby() { var o = $('lobby'); if (o) o.hidden = false; }
+    function hideLobby() { var o = $('lobby'); if (o) o.hidden = true; }
+    function setStatus(msg) { if (netCtx) netCtx._status = msg; var s = $('lobby-status'); if (s) s.textContent = msg; }
+    function lobbyErr() { setStatus(t('bombNetErr')); }
+    function btn(label, cls, fn) { var b = document.createElement('button'); b.type = 'button'; b.className = 'btn ' + (cls || ''); b.textContent = label; b.addEventListener('click', fn); return b; }
+    function titleEl(txt) { var h = document.createElement('div'); h.className = 'lobby-title'; h.textContent = txt; return h; }
+    function subEl(txt) { var s = document.createElement('div'); s.className = 'lobby-sub'; s.textContent = txt; return s; }
+
+    function openLobby() {
+        var N = getNet(); if (!N) return;
+        ensureAuth().catch(function () { });
+        if (N.mp.cleanup) N.mp.cleanup(GROUP).catch(function () { });
+        if (!netCtx) renderLobbyMenu(); else renderLobby();
+        showLobby();
+    }
+    function renderLobbyMenu() {
+        var card = lobbyCard(); if (!card) return;
+        card.innerHTML = '';
+        card.appendChild(titleEl(t('bombNetTitle')));
+        card.appendChild(subEl(t('bombNetSub')));
+        var r1 = document.createElement('div'); r1.className = 'lobby-row';
+        r1.appendChild(btn(t('bombHostBtn'), 'btn-primary', doHost));
+        card.appendChild(r1);
+        var r2 = document.createElement('div'); r2.className = 'lobby-row';
+        var inp = document.createElement('input'); inp.id = 'lobby-code-input'; inp.maxLength = 4; inp.placeholder = '----'; inp.autocomplete = 'off';
+        inp.addEventListener('keydown', function (e) { e.stopPropagation(); if (e.key === 'Enter') doJoin(inp.value); });
+        r2.appendChild(inp); r2.appendChild(btn(t('bombJoinBtn'), '', function () { doJoin(inp.value); }));
+        card.appendChild(r2);
+        var st = document.createElement('div'); st.className = 'lobby-status'; st.id = 'lobby-status'; card.appendChild(st);
+        card.appendChild(btn(t('bombCloseBtn'), '', hideLobby));
+    }
+    function renderLobby() {
+        var card = lobbyCard(); if (!card || !netCtx) return;
+        card.innerHTML = '';
+        card.appendChild(titleEl(t('bombNetTitle')));
+        if (netCtx.role === 'host') { card.appendChild(subEl(t('bombCodeLabel'))); var cc = document.createElement('div'); cc.className = 'lobby-code'; cc.textContent = netCtx.code; card.appendChild(cc); }
+        var st = document.createElement('div'); st.className = 'lobby-status'; st.id = 'lobby-status'; st.textContent = netCtx._status || ''; card.appendChild(st);
+        card.appendChild(btn(t('bombLeaveBtn'), '', leaveOnline));
+    }
+
+    function doHost() {
+        var N = getNet(); if (!N) return;
+        setStatus(t('bombNetConnecting'));
+        ensureAuth().then(function () { return N.mp.create(GROUP, { maxPlayers: 2 }); }).then(function (code) {
+            netCtx = { group: GROUP, code: code, role: 'host', gen: 1, conn: null, slot: 0, seed: (Math.random() * 1e9) >>> 0, _status: t('bombWaiting') };
+            watchRoom(); renderLobby(); beginConnect();
+        }).catch(lobbyErr);
+    }
+    function doJoin(code) {
+        var N = getNet(); if (!N) return;
+        code = String(code || '').trim().toUpperCase(); if (code.length < 4) return;
+        setStatus(t('bombNetConnecting'));
+        ensureAuth().then(function () { return N.mp.join(GROUP, code); }).then(function () {
+            netCtx = { group: GROUP, code: code, role: 'guest', gen: 0, conn: null, slot: 1, seed: 0, _status: t('bombNetConnecting') };
+            watchRoom(); renderLobby();
+        }).catch(function () { setStatus(t('bombNetNoRoom')); });
+    }
+    function watchRoom() {
+        if (!netCtx) return;
+        if (netCtx.roomUnsub) { try { netCtx.roomUnsub(); } catch (e) { } }
+        netCtx.roomUnsub = getNet().mp.watch(netCtx.group, netCtx.code, onRoom);
+    }
+    function onRoom(d, err) {
+        if (!netCtx) return;
+        if (err) { setStatus(t('bombNetErr')); return; }
+        if (!d) { if (AC.toast) AC.toast.show(t('bombRoomGone')); leaveOnline(); return; }   // room vanished
+        netCtx.data = d;
+        if (netCtx.role === 'guest' && d.gen && d.gen !== netCtx.gen) { netCtx.gen = d.gen; beginConnect(); }   // host (re)started → (re)connect
+        if (netCtx.role === 'host' && !netCtx.conn) { var n = (d.order ? d.order.length : Object.keys(d.players || {}).length); if (n >= 2) setStatus(t('bombNetConnecting')); }
+    }
+    function beginConnect() {
+        var N = getNet(); if (!N || !netCtx || !window.ArcadeRTC) return;
+        if (netCtx.conn) { try { netCtx.conn.close(); } catch (e) { } netCtx.conn = null; }
+        setStatus(t('bombNetConnecting'));
+        if (netCtx.role === 'host') N.mp.update(netCtx.group, netCtx.code, { gen: netCtx.gen }).catch(function () { });
+        window.ArcadeRTC.connect(netCtx.group, netCtx.code, netCtx.role === 'host', { sid: netCtx.gen, onMessage: onNetMessage, onClose: onNetClose })
+            .then(function (conn) {
+                if (!netCtx) { try { conn.close(); } catch (e) { } return; }
+                netCtx.conn = conn;
+                if (netCtx.role === 'host') { netSend({ t: 'start', seed: netCtx.seed }); startOnlineMatch(netCtx.seed); }
+            })
+            .catch(function () { setStatus(t('bombNetFailed')); });
+    }
+    function leaveOnline() {
+        if (netCtx) {
+            netSend({ t: 'bye' });
+            if (netCtx.roomUnsub) { try { netCtx.roomUnsub(); } catch (e) { } }
+            if (netCtx.conn) { try { netCtx.conn.close(); } catch (e) { } }
+            var N = getNet(); if (N) N.mp.leave(netCtx.group, netCtx.code).catch(function () { });
+            netCtx = null;
+        }
+        M = null; hideLobby(); shell.goIdle();
+    }
+
+    // ----- the lockstep match itself -----
+    function startOnlineMatch(seed) {
+        world = onlineWorld(seed);
+        M = { mode: 'online', slot: netCtx ? netCtx.slot : 0, D: INPUT_DELAY, simTick: 0, produceTick: INPUT_DELAY, remoteMax: INPUT_DELAY - 1, inbuf: [{}, {}], keyOrder: [], dpadDir: -1, bombQueued: false, started: true, over: false };
+        for (var k = 0; k < INPUT_DELAY; k++) { M.inbuf[0][k] = NEUTRAL; M.inbuf[1][k] = NEUTRAL; }   // first D ticks are a neutral "countdown" both agree on
+        hideLobby(); syncChips();
+        if (!shell.isPlaying()) shell.start();
+    }
+    function onNetMessage(data) {
+        var m; try { m = JSON.parse(data); } catch (e) { return; }
+        if (m.t === 'start') { if (!online() || M.over) startOnlineMatch(m.seed); return; }
+        if (!online()) return;
+        if (m.t === 'i') { M.inbuf[1 - M.slot][m.k] = { dir: m.d, bomb: m.b }; if (m.k > M.remoteMax) M.remoteMax = m.k; }
+        else if (m.t === 'bye') { endOnline(M.slot, 'left'); }
+    }
+    function onNetClose(conn) {
+        if (!netCtx || (conn && conn !== netCtx.conn)) return;        // ignore a superseded (rematch) connection
+        if (online() && !M.over) endOnline(M.slot, 'drop');
+        else if (!online()) setStatus(t('bombNetFailed'));
+    }
+    function updateOnline() {
+        if (!M.started || M.over) return;
+        var inp = humanInput();                                        // sample my input, tag it D frames ahead, send it
+        M.inbuf[M.slot][M.produceTick] = inp;
+        netSend({ t: 'i', k: M.produceTick, d: inp.dir, b: inp.bomb });
+        M.produceTick++;
+        var canExec = Math.min(M.produceTick - 1, M.remoteMax);        // highest tick with BOTH players' inputs in hand
+        var ahead = canExec - M.simTick + 1;
+        var budget = ahead <= 0 ? 0 : (ahead > M.D + 3 ? 3 : (ahead > M.D ? 2 : 1));   // 1 tick/frame; gently catch up after a stall
+        while (budget-- > 0 && M.simTick <= canExec) {
+            var evs = E.step(world, [M.inbuf[0][M.simTick], M.inbuf[1][M.simTick]]);
+            for (var j = 0; j < evs.length; j++) playEvent(evs[j]);
+            delete M.inbuf[0][M.simTick - 2 * M.D]; delete M.inbuf[1][M.simTick - 2 * M.D];   // free consumed inputs
+            M.simTick++;
+            if (world.over) { endOnline(world.winner, 'normal'); break; }
+        }
+        syncChips();
+    }
+    function endOnline(winnerSlot, reason) {
+        if (!M || M.over) return;
+        M.over = true;
+        var draw = winnerSlot == null, win = winnerSlot === M.slot;
+        shell.gameOver({ score: 0, win: win, meta: { winner: winnerSlot, online: true } });
+        showResult(win, reason, draw);
+    }
+    function showResult(win, reason, draw) {
+        var card = lobbyCard(); if (!card) return;
+        card.innerHTML = '';
+        card.appendChild(titleEl(draw ? t('bombDraw') : (win ? t('bombWin') : t('bombLose'))));
+        if (reason === 'left' || reason === 'drop') card.appendChild(subEl(t('bombOppLeft')));
+        var row = document.createElement('div'); row.className = 'lobby-row';
+        if (netCtx && netCtx.role === 'host') row.appendChild(btn(t('bombRematch'), 'btn-primary', doRematch));
+        else card.appendChild(subEl(t('bombWaitHost')));
+        row.appendChild(btn(t('bombLeaveBtn'), '', leaveOnline));
+        card.appendChild(row);
+        showLobby();
+    }
+    function doRematch() {
+        if (!netCtx || netCtx.role !== 'host') return;
+        netCtx.gen++; netCtx.seed = (Math.random() * 1e9) >>> 0;       // new generation (fresh SDP) + new map; keep M (online, over) so reset stays guarded
+        setStatus(t('bombNetConnecting')); renderLobby();
+        beginConnect();
+    }
+
     // ---------------- loop ----------------
     function update() {
-        if (!M || world.over) return;
+        if (!M) return;
+        if (M.mode === 'online') { updateOnline(); return; }
+        if (world.over) return;
         M.danger = buildDanger(world);
         var inputs = [humanInput()];
         for (var i = 1; i < world.players.length; i++) inputs[i] = cpuInput(world.players[i]);
@@ -185,7 +385,8 @@
             if (world) for (var i = 0; i < world.players.length; i++) { var c = document.createElement('span'); c.className = 'pchip'; var dot = document.createElement('span'); dot.className = 'dot'; dot.style.background = PCOL[i]; var lab = document.createElement('span'); c.append(dot, lab); c._lab = lab; box.appendChild(c); }
         }
         if (!world) return;
-        for (var j = 0; j < box.children.length; j++) { var p = world.players[j], chip = box.children[j]; chip.classList.toggle('dead', !p.alive); chip._lab.textContent = (j === 0 ? 'P1' : 'CPU') + (j === 0 ? '  ✦' + p.power + ' ✚' + p.bombs + ' »' + (p.speed - CFG.speed + 1) : ''); }
+        var meId = online() ? M.slot : 0;
+        for (var j = 0; j < box.children.length; j++) { var p = world.players[j], chip = box.children[j]; chip.classList.toggle('dead', !p.alive); var nm = online() ? ('P' + (j + 1)) : (j === 0 ? 'P1' : 'CPU'); chip._lab.textContent = nm + (j === meId ? '  ✦' + p.power + ' ✚' + p.bombs + ' »' + (p.speed - CFG.speed + 1) : ''); }
     }
 
     // ---------------- boot ----------------
@@ -195,6 +396,7 @@
         ctx = canvas.getContext('2d'); ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
 
         window.addEventListener('keydown', function (e) {
+            if (e.target && /^(INPUT|TEXTAREA)$/.test(e.target.tagName)) return;   // don't hijack the room-code field
             if (!M) return; var d = dirFromKey(e.key);
             if (d >= 0) { if (M.keyOrder.indexOf(d) < 0) M.keyOrder.push(d); e.preventDefault(); }
             else if (e.key === ' ' || e.key.toLowerCase() === 'k') { M.bombQueued = true; e.preventDefault(); AC.audio.unlock(); }
@@ -213,16 +415,22 @@
         shell = AC.shell.create({
             gameId: 'bomb', step: 1 / 60,
             update: update, render: render,
-            restartToReady: false, onStart: newMatch,
-            reset: function () { M = null; world = E.create(CFG, 1); syncChips(); render(); },
-            canPause: function () { return false; }, canRestart: function () { return true; },
+            restartToReady: false,
+            onStart: function () { if (online()) return; newMatch(); },                 // online is driven by startOnlineMatch, not the shell's Start
+            reset: function () { if (online()) return; M = null; world = E.create(CFG, 1); syncChips(); render(); },   // never tear down a live online match
+            canPause: function () { return false; }, canRestart: function () { return !online(); },
             overlayContent: function (state) {
                 if (state === 'idle') return { badge: 'bomb', title: t('bombName'), message: t('bombReady'), button: t('start') };
-                if (state === 'over') { var ttl = world.winner === 0 ? t('bombWin') : (world.winner == null ? t('bombDraw') : t('bombLose')); return { badge: world.winner === 0 ? 'trophy' : 'skull', title: ttl, message: '', button: t('restart') }; }
+                if (state === 'over') { var me = online() ? M.slot : 0, ttl = world.winner === me ? t('bombWin') : (world.winner == null ? t('bombDraw') : t('bombLose')); return { badge: world.winner === me ? 'trophy' : 'skull', title: ttl, message: '', button: t('restart') }; }
                 return {};
             },
         });
         AC.i18n.subscribe(function () { if (!M) shell.refreshOverlay(); });
+        var ob = $('online-btn');
+        if (ob) ob.addEventListener('click', function () { AC.audio.unlock(); openLobby(); });
+        function netReady() { var N = getNet(); if (N && ob) { ob.hidden = false; if (N.mp.cleanup) N.mp.cleanup(GROUP).catch(function () { }); } }
+        if (window.ArcadeNet) netReady(); else window.addEventListener('arcade-net-ready', netReady, { once: true });
+        window.addEventListener('beforeunload', function () { if (netCtx && getNet()) { try { netSend({ t: 'bye' }); getNet().mp.leave(netCtx.group, netCtx.code); } catch (e) { } } });
         world = E.create(CFG, 1); syncChips(); render();
     }
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
