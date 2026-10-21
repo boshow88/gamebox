@@ -2,15 +2,6 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // ---- Optional: shared high-score leaderboard (future) ----
-    match /game_scores/{scoreId} {
-      allow read: if true;
-      // A signed-in user may only create/update a row carrying their own UID.
-      allow create, update: if request.auth != null
-                            && request.resource.data.user_id == request.auth.uid;
-      allow delete: if false;
-    }
-
     // ---- Player profiles (per-user saved data, e.g. high scores synced across devices) ----
     // A signed-in user may read/write only their own profile document.
     match /profiles/{uid} {
