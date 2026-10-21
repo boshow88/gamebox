@@ -51,16 +51,32 @@ service cloud.firestore {
       allow delete: if request.auth != null;
     }
 
-    // ---- Feedback box (write-only drop box) ----
-    // Anyone signed in (incl. anonymous) may submit; nobody can read / edit / delete
-    // it from the client — the owner reads submissions in the Firebase console. The
-    // size cap keeps abuse in check.
+    // ---- Admin allow-list ----
+    // The owner UID list lives in a locked config doc (config/admins = { uids:[...] }),
+    // edited only in the Firebase console — so no identifiers sit in source. Any
+    // signed-in user may read config (clients use it to toggle owner-only UI), but
+    // nobody may write it from the client.
+    match /config/{doc} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+    function isOwner() {
+      return request.auth != null
+             && exists(/databases/$(database)/documents/config/admins)
+             && get(/databases/$(database)/documents/config/admins).data.get('uids', []).hasAny([request.auth.uid]);
+    }
+
+    // ---- Feedback box (drop box) ----
+    // Anyone signed in (incl. anonymous) may submit a size-capped note. Only an owner
+    // (see config/admins) may read them (in-app admin view); nobody may edit, and only
+    // an owner may delete (e.g. clearing a handled note).
     match /feedback/{id} {
       allow create: if request.auth != null
                        && request.resource.data.text is string
                        && request.resource.data.text.size() > 0
                        && request.resource.data.text.size() <= 2000;
-      allow read, update, delete: if false;
+      allow read, delete: if isOwner();
+      allow update: if false;
     }
   }
 }

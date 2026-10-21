@@ -10,17 +10,22 @@
 <body>
     <div class="app-shell">
         <header class="app-header">
-            <div class="header-actions">
-                <button type="button" class="header-action" id="feedback-btn" aria-label="Feedback">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-                    <span id="feedback-btn-label">Feedback</span>
+            <div class="header-top">
+                <button type="button" class="header-action menu-btn" id="menu-btn" aria-label="Menu" aria-expanded="false" aria-controls="drawer">
+                    <img class="menu-avatar" id="menu-avatar" alt="" hidden>
+                    <svg class="menu-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M3 12h18"/><path d="M3 18h18"/></svg>
                 </button>
-                <div class="lang-toggle" id="lang-toggle" role="radiogroup" aria-label="Language">
-                    <button type="button" data-lang="en" role="radio" aria-checked="true">EN</button>
-                    <button type="button" data-lang="zh" role="radio" aria-checked="false">中</button>
+                <div class="header-actions">
+                    <button type="button" class="header-action icon-only sound-toggle" id="sound-btn" aria-label="Sound">
+                        <svg class="snd-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M19 5a9 9 0 0 1 0 14"/></svg>
+                        <svg class="snd-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="m23 9-6 6"/><path d="m17 9 6 6"/></svg>
+                    </button>
+                    <div class="lang-toggle" id="lang-toggle" role="radiogroup" aria-label="Language">
+                        <button type="button" data-lang="en" role="radio" aria-checked="true">EN</button>
+                        <button type="button" data-lang="zh" role="radio" aria-checked="false">中</button>
+                    </div>
                 </div>
             </div>
-            <div class="account" id="account" hidden></div>
             <h1 class="app-title">Game<span class="title-accent">Box</span></h1>
             <p class="app-subtitle" id="app-subtitle"></p>
         </header>
@@ -40,6 +45,27 @@
 
         <footer class="app-footer" id="app-footer"></footer>
     </div>
+
+    <!-- Slide-out menu (left). Houses account, language, records and feedback. -->
+    <div class="drawer-scrim" id="drawer-scrim" hidden></div>
+    <aside class="drawer" id="drawer" aria-hidden="true" aria-label="Menu">
+        <div class="drawer-head">
+            <span class="drawer-title" id="drawer-title">Menu</span>
+            <button type="button" class="drawer-close" id="drawer-close" aria-label="Close">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+            </button>
+        </div>
+        <section class="drawer-section">
+            <h3 class="drawer-label" id="drawer-account-label">Account</h3>
+            <div class="account" id="account" hidden></div>
+        </section>
+        <section class="drawer-section">
+            <button type="button" class="drawer-item" id="drawer-records">My records</button>
+            <button type="button" class="drawer-item" id="drawer-feedback">Feedback</button>
+            <button type="button" class="drawer-item" id="drawer-feedback-admin" hidden>Feedback inbox</button>
+        </section>
+    </aside>
+
     <script src="./js/firebase-config.js"></script>
     <script type="module" src="./js/net/net.js"></script>
     <script src="./js/cloud-sync.js"></script>

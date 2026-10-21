@@ -134,12 +134,38 @@
             noResults: 'No games match your filters.',
             feedbackLink: 'Feedback',
             feedbackTitle: 'Feedback box',
-            feedbackHint: 'Hit a bug or have an idea? Tell me — it comes straight to me.',
+            feedbackHint: 'Questions, suggestions, or ideas are all welcome.',
             feedbackPlaceholder: 'Type your feedback…',
             feedbackSend: 'Send',
             feedbackCancel: 'Cancel',
             feedbackThanks: 'Thanks — got it!',
             feedbackError: 'Couldn\u2019t send — please try again later.',
+            feedbackKindLabel: 'Type',
+            feedbackGameLabel: 'Game',
+            feedbackKindIdea: 'Idea',
+            feedbackKindBug: 'Bug',
+            feedbackKindOther: 'Other',
+            feedbackGameAny: 'Not specified',
+            menu: 'Menu',
+            myRecords: 'My records',
+            recordsEmpty: 'No records yet — play a few rounds!',
+            recordScore: 'High score',
+            recordPlace: 'Best place',
+            recTotal: 'Best total',
+            recSpin: 'Best spin',
+            recWins: 'W/G',
+            diffEasy: 'Easy',
+            diffNormal: 'Normal',
+            diffHard: 'Hard',
+            feedbackInbox: 'Feedback inbox',
+            feedbackInboxEmpty: 'No feedback yet.',
+            feedbackInboxError: 'Couldn\u2019t load feedback.',
+            anonLabel: 'Guest',
+            del: 'Delete',
+            confirmDelete: 'Confirm?',
+            soundOn: 'Sound on',
+            soundOff: 'Muted',
+            close: 'Close',
 
             tag_puzzle: 'Puzzle',
             tag_action: 'Action',
@@ -215,12 +241,38 @@
             noResults: '沒有符合條件的遊戲。',
             feedbackLink: '意見箱',
             feedbackTitle: '意見箱',
-            feedbackHint: '遇到問題或有想法嗎？告訴我，會直接傳給我。',
+            feedbackHint: '有任何問題、建議或想法，都歡迎留言。',
             feedbackPlaceholder: '寫下你的意見…',
             feedbackSend: '送出',
             feedbackCancel: '取消',
             feedbackThanks: '收到了，謝謝！',
             feedbackError: '送出失敗，請稍後再試。',
+            feedbackKindLabel: '類型',
+            feedbackGameLabel: '遊戲',
+            feedbackKindIdea: '建議',
+            feedbackKindBug: '問題回報',
+            feedbackKindOther: '其他',
+            feedbackGameAny: '不指定',
+            menu: '選單',
+            myRecords: '我的紀錄',
+            recordsEmpty: '還沒有紀錄，先去玩幾場吧！',
+            recordScore: '最高分',
+            recordPlace: '最佳名次',
+            recTotal: '最高總傷害',
+            recSpin: '最佳單轉',
+            recWins: '勝/場',
+            diffEasy: '簡單',
+            diffNormal: '普通',
+            diffHard: '困難',
+            feedbackInbox: '意見箱（管理）',
+            feedbackInboxEmpty: '目前沒有留言。',
+            feedbackInboxError: '讀取失敗。',
+            anonLabel: '訪客',
+            del: '刪除',
+            confirmDelete: '確定刪除？',
+            soundOn: '音效開啟',
+            soundOff: '已靜音',
+            close: '關閉',
 
             tag_puzzle: '益智',
             tag_action: '動作',
@@ -382,13 +434,16 @@
         document.documentElement.lang = (lang === 'zh') ? 'zh-Hant' : 'en';
         document.getElementById('app-subtitle').textContent = t('subtitle');
         var ft = document.getElementById('app-footer');
-        if (ft) {
-            ft.textContent = '';
-            var fb = document.createElement('button'); fb.type = 'button'; fb.className = 'footer-link'; fb.textContent = t('feedbackLink');
-            fb.addEventListener('click', showFeedback);
-            ft.appendChild(fb);
-        }
-        var fbl = document.getElementById('feedback-btn-label'); if (fbl) fbl.textContent = t('feedbackLink');
+        if (ft) { ft.textContent = ''; ft.hidden = true; }
+        var idText = function (id, s) { var n = document.getElementById(id); if (n) n.textContent = s; };
+        idText('drawer-title', t('menu'));
+        idText('drawer-account-label', t('account'));
+        idText('drawer-records', t('myRecords'));
+        idText('drawer-feedback', t('feedbackLink'));
+        idText('drawer-feedback-admin', t('feedbackInbox'));
+        var menuB = document.getElementById('menu-btn'); if (menuB) menuB.setAttribute('aria-label', t('menu'));
+        var dClose = document.getElementById('drawer-close'); if (dClose) dClose.setAttribute('aria-label', t('close'));
+        syncSound();
         var si = document.getElementById('search-input');
         if (si) { si.placeholder = t('searchPlaceholder'); si.setAttribute('aria-label', t('searchAria')); }
         var sc = document.getElementById('search-clear');
@@ -545,12 +600,26 @@
         var card = document.createElement('div'); card.className = 'wip-gate-card'; card.setAttribute('role', 'dialog'); card.setAttribute('aria-modal', 'true');
         var msg = document.createElement('p'); msg.className = 'wip-gate-msg'; msg.textContent = t('feedbackTitle');
         var hint = document.createElement('p'); hint.className = 'feedback-hint'; hint.textContent = t('feedbackHint');
+        // Category + target-game selectors (both optional context for triage).
+        var row = document.createElement('div'); row.className = 'feedback-row';
+        var kindSel = document.createElement('select'); kindSel.className = 'feedback-select';
+        [['idea', 'feedbackKindIdea'], ['bug', 'feedbackKindBug'], ['other', 'feedbackKindOther']].forEach(function (p) {
+            var o = document.createElement('option'); o.value = p[0]; o.textContent = t(p[1]); kindSel.appendChild(o);
+        });
+        var gameSel = document.createElement('select'); gameSel.className = 'feedback-select';
+        var any = document.createElement('option'); any.value = ''; any.textContent = t('feedbackGameAny'); gameSel.appendChild(any);
+        GAMES.forEach(function (g) { var o = document.createElement('option'); o.value = g.id; o.textContent = gameName(g.id); gameSel.appendChild(o); });
+        var kindLab = document.createElement('label'); kindLab.className = 'feedback-field';
+        var ks = document.createElement('span'); ks.textContent = t('feedbackKindLabel'); kindLab.appendChild(ks); kindLab.appendChild(kindSel);
+        var gameLab = document.createElement('label'); gameLab.className = 'feedback-field';
+        var gs = document.createElement('span'); gs.textContent = t('feedbackGameLabel'); gameLab.appendChild(gs); gameLab.appendChild(gameSel);
+        row.appendChild(kindLab); row.appendChild(gameLab);
         var ta = document.createElement('textarea'); ta.className = 'feedback-input'; ta.maxLength = 2000; ta.rows = 4; ta.placeholder = t('feedbackPlaceholder');
         var actions = document.createElement('div'); actions.className = 'wip-gate-actions';
         var cancel = document.createElement('button'); cancel.type = 'button'; cancel.className = 'wip-gate-btn stay'; cancel.textContent = t('feedbackCancel');
         var send = document.createElement('button'); send.type = 'button'; send.className = 'wip-gate-btn go'; send.textContent = t('feedbackSend');
         actions.appendChild(cancel); actions.appendChild(send);
-        card.appendChild(msg); card.appendChild(hint); card.appendChild(ta); card.appendChild(actions); ov.appendChild(card);
+        card.appendChild(msg); card.appendChild(hint); card.appendChild(row); card.appendChild(ta); card.appendChild(actions); ov.appendChild(card);
         function close() { ov.remove(); }
         cancel.addEventListener('click', close);
         ov.addEventListener('click', function (e) { if (e.target === ov) close(); });
@@ -563,13 +632,175 @@
                 // Feedback needs a signed-in user; fall back to a silent guest sign-in
                 // so visitors who never logged in can still send.
                 var ready = (N.currentUser && N.currentUser()) ? Promise.resolve() : Promise.resolve(N.signInGuest && N.signInGuest());
-                ready.then(function () { return N.feedback({ text: text, lang: lang }); })
+                ready.then(function () { return N.feedback({ text: text, lang: lang, kind: kindSel.value, game: gameSel.value || null }); })
                     .then(function () { showToast(t('feedbackThanks')); close(); })
                     .catch(function () { showToast(t('feedbackError')); send.disabled = false; });
             });
         });
         document.body.appendChild(ov);
         ta.focus();
+    }
+
+    // --- Global sound toggle (shared with every game via `gamebox:muted`) --------
+    var MUTE_KEY = 'gamebox:muted';
+    function isMuted() { try { return localStorage.getItem(MUTE_KEY) === '1'; } catch (e) { return false; } }
+    function setMuted(m) { try { localStorage.setItem(MUTE_KEY, m ? '1' : '0'); } catch (e) { /* ignore */ } syncSound(); }
+    function syncSound() {
+        var b = document.getElementById('sound-btn'); if (!b) return;
+        var m = isMuted();
+        b.classList.toggle('is-muted', m);
+        var label = t(m ? 'soundOff' : 'soundOn');
+        b.setAttribute('aria-label', label); b.title = label;
+    }
+
+    // --- "My records" — reads the live localStorage, i.e. the CURRENT identity's
+    // records (sign-in swaps these to the account's cloud data; see cloud-sync.js).
+    // Returns per-game blocks, each with a line per difficulty / mode. --------------
+    function rdLocal(k) { try { var r = localStorage.getItem(k); return r == null ? null : JSON.parse(r); } catch (e) { return null; } }
+    function placeLabel(n) { return (lang === 'zh') ? ('第 ' + n + ' 名') : ('#' + n); }
+    function diffLabel(m) {
+        if (m === 'easy') return t('diffEasy');
+        if (m === 'normal') return t('diffNormal');
+        if (m === 'hard') return t('diffHard');
+        return m;
+    }
+    var DIFF_ORDER = { easy: 0, normal: 1, hard: 2 };
+    function byDiff(a, b) { var x = DIFF_ORDER[a], y = DIFF_ORDER[b]; x = (x == null) ? 9 : x; y = (y == null) ? 9 : y; return x - y; }
+    function collectRecords() {
+        var P = 'arcadeGames', blocks = [], i, k;
+        // (1) generic arcade high scores — a best map keyed by mode (usually difficulty).
+        var sp = P + ':scores:', seen = {};
+        for (i = 0; i < localStorage.length; i++) {
+            k = localStorage.key(i);
+            if (!k || k.indexOf(sp) !== 0) continue;
+            var g = k.slice(sp.length);
+            if (g === 'beam' || g === 'rune-stones' || seen[g]) continue;   // bespoke below
+            seen[g] = 1;
+            var d = rdLocal(k), best = d && d.best;
+            if (!best) continue;
+            var modes = Object.keys(best).filter(function (m) { return typeof best[m] === 'number'; });
+            if (!modes.length) continue;
+            modes.sort(byDiff);
+            blocks.push({ key: g, lines: modes.map(function (m) {
+                return { k: (m === 'default') ? t('recordScore') : diffLabel(m), v: best[m].toLocaleString() };
+            }) });
+        }
+        // (2) Beam — best finishing place per difficulty notch (lower is better).
+        var beamLines = [];
+        for (i = 0; i < 32; i++) {
+            var st = rdLocal(P + ':beam:solo:n' + i);
+            if (!st || !st.best) continue;
+            beamLines.push({
+                k: (lang === 'zh' ? '難度 ' : 'Lv ') + (i + 1),
+                v: placeLabel(st.best) + '  ' + t('recWins') + ' ' + (st.wins || 0) + '/' + (st.played || 0),
+            });
+        }
+        if (beamLines.length) blocks.push({ key: 'beam', lines: beamLines });
+        // (3) Rune Stones — Sandbag bests per difficulty. Easy inflates totals, so we
+        // list each difficulty separately instead of one combined max.
+        var rp = rdLocal(P + ':prefs:rune-stones'), sb = rp && rp.sandbox;
+        if (sb) {
+            var runeLines = [];
+            Object.keys(sb).sort(byDiff).forEach(function (lv) {
+                var e = sb[lv] || {};
+                if (typeof e.bestTotal === 'number') runeLines.push({ k: diffLabel(lv) + ' · ' + t('recTotal'), v: e.bestTotal.toLocaleString() });
+                if (typeof e.bestSpin === 'number') runeLines.push({ k: diffLabel(lv) + ' · ' + t('recSpin'), v: e.bestSpin.toLocaleString() });
+            });
+            if (runeLines.length) blocks.push({ key: 'rune-stones', lines: runeLines });
+        }
+        return blocks;
+    }
+
+    // Shared modal shell (sits above the still-open drawer). Returns { ov, body }.
+    function openModal(titleText) {
+        var ov = document.createElement('div'); ov.className = 'wip-gate';
+        var card = document.createElement('div'); card.className = 'modal-card'; card.setAttribute('role', 'dialog'); card.setAttribute('aria-modal', 'true');
+        var head = document.createElement('div'); head.className = 'modal-head';
+        var ttl = document.createElement('span'); ttl.className = 'modal-title'; ttl.textContent = titleText;
+        var x = document.createElement('button'); x.type = 'button'; x.className = 'drawer-close'; x.setAttribute('aria-label', t('close'));
+        x.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>';
+        head.appendChild(ttl); head.appendChild(x);
+        var body = document.createElement('div'); body.className = 'modal-body';
+        card.appendChild(head); card.appendChild(body); ov.appendChild(card);
+        function onKey(e) { if (e.key === 'Escape') close(); }
+        function close() { ov.remove(); document.removeEventListener('keydown', onKey); }
+        x.addEventListener('click', close);
+        ov.addEventListener('click', function (e) { if (e.target === ov) close(); });
+        document.addEventListener('keydown', onKey);
+        document.body.appendChild(ov);
+        return { ov: ov, body: body, close: close };
+    }
+
+    function showRecords() {
+        var m = openModal(t('myRecords')), blocks = collectRecords();
+        if (!blocks.length) { var e = document.createElement('p'); e.className = 'records-empty'; e.textContent = t('recordsEmpty'); m.body.appendChild(e); return; }
+        blocks.forEach(function (b) {
+            var g = document.createElement('div'); g.className = 'rec-game';
+            var nm = document.createElement('div'); nm.className = 'rec-game-name'; nm.textContent = gameName(b.key); g.appendChild(nm);
+            b.lines.forEach(function (ln) {
+                var row = document.createElement('div'); row.className = 'rec-line';
+                var ks = document.createElement('span'); ks.className = 'k'; ks.textContent = ln.k;
+                var vs = document.createElement('span'); vs.className = 'v'; vs.textContent = ln.v;
+                row.appendChild(ks); row.appendChild(vs); g.appendChild(row);
+            });
+            m.body.appendChild(g);
+        });
+    }
+
+    // Owner-only feedback inbox. Reads the Firestore `feedback` collection (allowed
+    // only for the owner emails in firestore.rules) and lists the notes newest-first.
+    function fmtTime(at) {
+        try { var d = at && at.toDate ? at.toDate() : (at ? new Date(at) : null); return d ? d.toLocaleString() : ''; } catch (e) { return ''; }
+    }
+    function showFeedbackAdmin() {
+        var m = openModal(t('feedbackInbox'));
+        var loading = document.createElement('p'); loading.className = 'records-empty'; loading.textContent = '…'; m.body.appendChild(loading);
+        whenNet(function (N) {
+            if (!N || !N.ok || !N.feedbackList) { loading.textContent = t('feedbackInboxError'); return; }
+            Promise.resolve(N.feedbackList(100)).then(function (list) {
+                m.body.innerHTML = '';
+                if (!list || !list.length) { var e = document.createElement('p'); e.className = 'records-empty'; e.textContent = t('feedbackInboxEmpty'); m.body.appendChild(e); return; }
+                list.forEach(function (fb) {
+                    var it = document.createElement('div'); it.className = 'fb-item';
+                    var tx = document.createElement('div'); tx.className = 'fb-text'; tx.textContent = fb.text || '';
+                    var meta = document.createElement('div'); meta.className = 'fb-meta';
+                    var who = fb.anon ? t('anonLabel') : (fb.name || fb.email || t('anonLabel'));
+                    var kindTxt = fb.kind ? t('feedbackKind' + fb.kind.charAt(0).toUpperCase() + fb.kind.slice(1)) : '';
+                    var gameTxt = fb.game ? gameName(fb.game) : '';
+                    meta.textContent = [who, kindTxt, gameTxt, (fb.lang || '').toUpperCase(), fmtTime(fb.at)].filter(Boolean).join(' · ');
+                    // Delete — two clicks (arms, then confirms) to avoid accidents.
+                    var del = document.createElement('button'); del.type = 'button'; del.className = 'fb-del'; del.textContent = t('del');
+                    var armed = false, armT = null;
+                    del.addEventListener('click', function () {
+                        if (!armed) { armed = true; del.textContent = t('confirmDelete'); del.classList.add('armed'); armT = setTimeout(function () { armed = false; del.textContent = t('del'); del.classList.remove('armed'); }, 3000); return; }
+                        clearTimeout(armT); del.disabled = true;
+                        Promise.resolve(N.feedbackDelete(fb.id)).then(function () {
+                            it.remove();
+                            if (!m.body.querySelector('.fb-item')) { var e = document.createElement('p'); e.className = 'records-empty'; e.textContent = t('feedbackInboxEmpty'); m.body.appendChild(e); }
+                        }).catch(function () { del.disabled = false; armed = false; del.textContent = t('del'); del.classList.remove('armed'); });
+                    });
+                    it.appendChild(tx); it.appendChild(meta); it.appendChild(del); m.body.appendChild(it);
+                });
+            }).catch(function () { m.body.innerHTML = ''; var e = document.createElement('p'); e.className = 'records-empty'; e.textContent = t('feedbackInboxError'); m.body.appendChild(e); });
+        });
+    }
+
+    // --- Drawer open/close -------------------------------------------------------
+    function openDrawer() {
+        var d = document.getElementById('drawer'), s = document.getElementById('drawer-scrim'), b = document.getElementById('menu-btn');
+        if (!d || !s) return;
+        s.hidden = false;
+        requestAnimationFrame(function () { s.classList.add('show'); d.classList.add('open'); });
+        d.setAttribute('aria-hidden', 'false');
+        if (b) b.setAttribute('aria-expanded', 'true');
+    }
+    function closeDrawer() {
+        var d = document.getElementById('drawer'), s = document.getElementById('drawer-scrim'), b = document.getElementById('menu-btn');
+        if (!d || !s) return;
+        d.classList.remove('open'); s.classList.remove('show');
+        d.setAttribute('aria-hidden', 'true');
+        if (b) b.setAttribute('aria-expanded', 'false');
+        setTimeout(function () { s.hidden = true; }, 200);
     }
 
     // Wait for the async Firebase layer to report in, then run cb with ArcadeNet (or a
@@ -645,6 +876,22 @@
             });
             el.appendChild(inBtn);
         }
+        // Menu button shows the account avatar when signed in (identity is glanceable
+        // while the ☰ glyph stays, so it still reads as an openable menu).
+        var av = document.getElementById('menu-avatar');
+        if (av) {
+            if (user && !user.anon && user.photo) { av.src = user.photo; av.referrerPolicy = 'no-referrer'; av.hidden = false; }
+            else { av.removeAttribute('src'); av.hidden = true; }
+        }
+        // Owner-only: reveal the feedback inbox item (checked against the locked
+        // config/admins doc; no identifiers live in this code).
+        var admin = document.getElementById('drawer-feedback-admin');
+        if (admin) {
+            admin.hidden = true;
+            if (N && N.ok && N.isAdmin && user) {
+                N.isAdmin().then(function (ok) { admin.hidden = !ok; }).catch(function () { admin.hidden = true; });
+            }
+        }
     }
 
     function renderAll() {
@@ -692,8 +939,20 @@
             setLang(btn.getAttribute('data-lang'));
         });
 
-        var fbBtn = document.getElementById('feedback-btn');
-        if (fbBtn) fbBtn.addEventListener('click', showFeedback);
+        var menuBtn = document.getElementById('menu-btn'); if (menuBtn) menuBtn.addEventListener('click', openDrawer);
+        var drawerClose = document.getElementById('drawer-close'); if (drawerClose) drawerClose.addEventListener('click', closeDrawer);
+        var drawerScrim = document.getElementById('drawer-scrim'); if (drawerScrim) drawerScrim.addEventListener('click', closeDrawer);
+        var drawerRec = document.getElementById('drawer-records'); if (drawerRec) drawerRec.addEventListener('click', showRecords);
+        var drawerFb = document.getElementById('drawer-feedback'); if (drawerFb) drawerFb.addEventListener('click', showFeedback);
+        var drawerAdmin = document.getElementById('drawer-feedback-admin'); if (drawerAdmin) drawerAdmin.addEventListener('click', showFeedbackAdmin);
+        var soundBtn = document.getElementById('sound-btn'); if (soundBtn) soundBtn.addEventListener('click', function () { setMuted(!isMuted()); });
+        document.addEventListener('keydown', function (ev) {
+            if (ev.key !== 'Escape') return;
+            if (document.querySelector('.wip-gate')) return;   // let an open dialog take Esc first
+            var dr = document.getElementById('drawer'); if (dr && dr.classList.contains('open')) closeDrawer();
+        });
+        window.addEventListener('storage', function (ev) { if (ev.key === MUTE_KEY) syncSound(); });
+        if (window.CloudSync && window.CloudSync.onApplied) window.CloudSync.onApplied(function () { renderAccount(accountUser); });
 
         var searchInput = document.getElementById('search-input');
         var searchClear = document.getElementById('search-clear');

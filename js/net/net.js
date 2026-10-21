@@ -35,7 +35,7 @@ function fail(err) {
         const {
             getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, onSnapshot,
             runTransaction, serverTimestamp, deleteField,
-            collection, query, where, getDocs,
+            collection, query, where, getDocs, orderBy, limit,
         } = fsMod;
         const {
             getDatabase, ref: dbRef, set: dbSet, update: dbUpdate, remove: dbRemove,
@@ -49,9 +49,10 @@ function fail(err) {
         try { if (window.FIREBASE_CONFIG.databaseURL) rdb = getDatabase(app); } catch (e) { rdb = null; }
 
         let user = undefined;                 // undefined = unknown yet, null = signed out
+        let adminPromise = null;              // cached read of config/admins (owner uid list)
         const authCbs = [];
         onAuthStateChanged(auth, (u) => {
-            user = u ? { uid: u.uid, name: u.displayName || null, photo: u.photoURL || null, anon: u.isAnonymous } : null;
+            user = u ? { uid: u.uid, name: u.displayName || null, email: u.email || null, photo: u.photoURL || null, anon: u.isAnonymous } : null;
             authCbs.forEach((fn) => { try { fn(user); } catch (e) { /* ignore */ } });
         });
 
@@ -258,7 +259,22 @@ function fail(err) {
             // reads it in the Firebase console (see firestore.rules). Auto-generated id.
             feedback(data) {
                 if (!user) return Promise.reject(new Error('not signed in'));
-                return setDoc(doc(collection(db, 'feedback')), Object.assign({ at: serverTimestamp(), uid: user.uid, name: user.name || null, anon: !!user.anon }, data || {}));
+                return setDoc(doc(collection(db, 'feedback')), Object.assign({ at: serverTimestamp(), uid: user.uid, name: user.name || null, email: user.email || null, anon: !!user.anon }, data || {}));
+            },
+            // Read recent feedback — only works for allow-listed owner emails (see
+            // firestore.rules); everyone else gets a permission error. Newest first.
+            feedbackList(max) {
+                return getDocs(query(collection(db, 'feedback'), orderBy('at', 'desc'), limit(max || 100)))
+                    .then((snap) => snap.docs.map((d) => Object.assign({ id: d.id }, d.data())));
+            },
+            feedbackDelete(id) { return deleteDoc(doc(db, 'feedback', id)); },
+            // Owner check — the allow-list is a locked config doc (config/admins =
+            // { uids:[...] }), so no identifiers live in source. Cached per load.
+            isAdmin() {
+                if (!user) return Promise.resolve(false);
+                const uid = user.uid;
+                if (!adminPromise) adminPromise = getDoc(doc(db, 'config', 'admins')).then((s) => (s.exists() ? (s.data().uids || []) : [])).catch(() => []);
+                return adminPromise.then((uids) => uids.indexOf(uid) !== -1);
             },
             // rooms (1v1 — used by Rune Stones)
             createRoom, joinRoom, leaveRoom, deleteRoom, cleanupStaleRooms,
