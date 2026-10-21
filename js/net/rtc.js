@@ -14,7 +14,18 @@
  */
 (function () {
     'use strict';
-    var STUN = [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' }];
+    // STUN discovers each peer's public address; TURN relays when a direct path can't be
+    // punched through (symmetric / carrier-grade NAT — common on mobile data, which is why
+    // LAN works but phone-vs-PC fails without it). The free openrelay TURN is best-effort;
+    // set window.ARCADE_ICE (array of RTCIceServer) to plug in your own (e.g. metered.ca,
+    // Cloudflare) for reliability. relay adds latency but "connects at all" beats "fast".
+    var DEFAULT_ICE = [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' },
+        { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
+        { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
+        { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' },
+    ];
 
     // Non-trickle: resolve once ICE gathering finishes (or a short fallback timeout),
     // so pc.localDescription already carries every candidate we found.
@@ -34,7 +45,7 @@
         var net = window.ArcadeNet, F = net && net.field;
         if (!net || !net.ok || !window.RTCPeerConnection) return Promise.reject(new Error('rtc unavailable'));
         var sid = String(opts.sid != null ? opts.sid : 1);
-        var pc = new RTCPeerConnection({ iceServers: opts.iceServers || STUN });
+        var pc = new RTCPeerConnection({ iceServers: opts.iceServers || window.ARCADE_ICE || DEFAULT_ICE });
         var unsub = null, settled = false;
         var conn = {
             pc: pc, dc: null, closed: false, remoteSet: false,
