@@ -174,8 +174,27 @@
 
     function aliveCount(w) { var n = 0; for (var i = 0; i < w.players.length; i++) if (w.players[i].alive) n++; return n; }
 
+    // Deep copy of the mutable state — the backbone of ROLLBACK netcode: snapshot a confirmed
+    // state, then re-simulate forward. Constants are copied too so the clone is self-contained.
+    function clone(w) {
+        var i, g = new Array(w.rows);
+        for (i = 0; i < w.rows; i++) g[i] = w.grid[i].slice();
+        var items = w.items.map(function (it) { return { x: it.x, y: it.y, type: it.type, hidden: it.hidden }; });
+        var bombs = w.bombs.map(function (b) { return { x: b.x, y: b.y, owner: b.owner, fuse: b.fuse, power: b.power }; });
+        var flames = w.flames.map(function (f) { return { x: f.x, y: f.y, until: f.until }; });
+        var players = w.players.map(function (p) { return { id: p.id, x: p.x, y: p.y, alive: p.alive, dir: p.dir, moving: p.moving, speed: p.speed, power: p.power, bombs: p.bombs, placed: p.placed, kick: p.kick }; });
+        return {
+            cols: w.cols, rows: w.rows, GRID: w.GRID, HALF: w.HALF,
+            fuse: w.fuse, flameTicks: w.flameTicks, hitR: w.hitR, centerTol: w.centerTol,
+            softRate: w.softRate, itemRate: w.itemRate, baseSpeed: w.baseSpeed, maxSpeed: w.maxSpeed,
+            powerStart: w.powerStart, bombStart: w.bombStart, seed: w.seed,
+            grid: g, items: items, bombs: bombs, flames: flames, players: players,
+            tick: w.tick, over: w.over, winner: w.winner, events: [],
+        };
+    }
+
     window.BombEngine = {
         GRID: GRID, HALF: HALF, DIRS: DIRS, ITEMS: ITEMS,
-        create: create, step: step, tileAt: tileAt, bombAt: bombAt, itemAt: itemAt, flameAt: flameAt, ptile: ptile, aliveCount: aliveCount,
+        create: create, step: step, clone: clone, tileAt: tileAt, bombAt: bombAt, itemAt: itemAt, flameAt: flameAt, ptile: ptile, aliveCount: aliveCount,
     };
 })();

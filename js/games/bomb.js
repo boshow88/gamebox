@@ -151,16 +151,19 @@
         return { dir: cs.dir == null ? -1 : cs.dir, bomb: bomb };
     }
 
-    // ================= ONLINE — deterministic lockstep over a Firebase RTDB relay =================
-    // Both peers run the SAME engine from the SAME seed. Each frame a peer samples its own
-    // input, tags it for tick (now + D) and writes it to the Realtime Database; a tick only
-    // advances once BOTH players' inputs for it are in hand. Symmetric input delay D ⇒ fair,
-    // no host advantage. Why RTDB (not WebRTC): it ALWAYS connects (no NAT/TURN headaches —
-    // phone-on-mobile ↔ PC just works) at the cost of a little relay latency. Firestore
-    // (bomb_rooms) stays the lobby (room code + presence); RTDB (bomb_live) carries inputs.
+    // ================= ONLINE — deterministic ROLLBACK over a Firebase RTDB relay =================
+    // Both peers run the SAME engine from the SAME seed, fully symmetric (no host authority).
+    // Rollback (GGPO-style) hides latency: your OWN input applies instantly, and the opponent's
+    // input is PREDICTED (repeat their last) until the real one arrives. Each frame we rebuild the
+    // shown "present" by re-simulating a short window from the last CONFIRMED state (only ticks for
+    // which both real inputs are known). When the opponent's real input lands it folds into the
+    // confirmed timeline — identical on both peers — so the official result never diverges; the only
+    // artifact is the opponent occasionally snapping to a correction. Transport is RTDB (bomb_live):
+    // it ALWAYS connects (no NAT/TURN), its relay latency only affects how big corrections get, not
+    // your own responsiveness. Firestore (bomb_rooms) stays the lobby (room code + presence).
     var GROUP = 'bomb_rooms';                   // Firestore lobby collection
     var LIVE = 'bomb_live';                     // Realtime Database relay root
-    var INPUT_DELAY = 10;                       // ~166ms buffer — covers a relay round-trip; stalls catch up gracefully
+    var MAX_PREDICT = 25;                       // cap the predicted window (~0.4s); beyond it we hold a frame to let the opponent catch up
     var NEUTRAL = { dir: -1, bomb: 0 };
     var netCtx = null;                          // { group, code, role, gen, conn, slot, seed, data, roomUnsub, _status }
 
@@ -310,35 +313,53 @@
         M = null; hideLobby(); shell.goIdle();
     }
 
-    // ----- the lockstep match itself -----
+    // ----- the rollback match -----
     function startOnlineMatch(seed) {
-        world = onlineWorld(seed);
-        M = { mode: 'online', slot: netCtx ? netCtx.slot : 0, D: INPUT_DELAY, simTick: 0, produceTick: INPUT_DELAY, remoteMax: INPUT_DELAY - 1, inbuf: [{}, {}], keyOrder: [], dpadDir: -1, bombQueued: false, started: true, over: false };
-        for (var k = 0; k < INPUT_DELAY; k++) { M.inbuf[0][k] = NEUTRAL; M.inbuf[1][k] = NEUTRAL; }   // first D ticks are a neutral "countdown" both agree on
+        var base = onlineWorld(seed);
+        M = {
+            mode: 'online', slot: netCtx ? netCtx.slot : 0,
+            cur: 0,                      // next live tick to simulate (advances ~1 per frame, holds when predicting too far)
+            confTick: 0,                 // every tick < confTick is CONFIRMED (both real inputs known) and folded into conf
+            conf: base,                  // authoritative state at confTick — only confirmed inputs, identical on both peers
+            local: {}, remote: {},       // input maps by tick
+            lastRemote: -1, predicted: NEUTRAL,   // predict the opponent by repeating their latest confirmed input
+            keyOrder: [], dpadDir: -1, bombQueued: false,
+            started: true, over: false,
+        };
+        world = E.clone(base);           // the shown (predicted) present; starts equal to conf
         hideLobby(); syncChips();
         if (!shell.isPlaying()) shell.start();
     }
     function onNetMessage(m) {                                         // m is a plain object delivered by the relay
         if (!m) return;
-        if (m.t === 'i') { if (!online()) return; M.inbuf[1 - M.slot][m.k] = { dir: m.d, bomb: m.b }; if (m.k > M.remoteMax) M.remoteMax = m.k; }
+        if (m.t === 'i') { if (!online()) return; M.remote[m.k] = { dir: m.d, bomb: m.b }; if (m.k > M.lastRemote) { M.lastRemote = m.k; M.predicted = M.remote[m.k]; } }
         else if (m.t === 'bye') { if (online() && !M.over) endOnline(M.slot, 'left'); }
+    }
+    function remoteInputAt(tk) { return M.remote[tk] || M.predicted; }   // real input if we have it, else our prediction
+    function orderedInputs(tk) {                                         // map local/remote onto player slots 0/1
+        var mine = M.local[tk] || NEUTRAL, theirs = remoteInputAt(tk);
+        return M.slot === 0 ? [mine, theirs] : [theirs, mine];
+    }
+    function confirmStep() {                                            // fold every tick with BOTH real inputs into the confirmed timeline
+        while (M.local[M.confTick] != null && M.remote[M.confTick] != null) {
+            var evs = E.step(M.conf, orderedInputs(M.confTick));
+            for (var j = 0; j < evs.length; j++) playEvent(evs[j]);     // audio fires on CONFIRMED events only (no dupes, no false sounds)
+            M.confTick++;
+            if (M.conf.over) { world = E.clone(M.conf); endOnline(M.conf.winner, 'normal'); return; }
+            delete M.local[M.confTick - 180]; delete M.remote[M.confTick - 180];   // prune long-consumed inputs
+        }
     }
     function updateOnline() {
         if (!M.started || M.over) return;
-        var inp = humanInput();                                        // sample my input, tag it D frames ahead, send it
-        M.inbuf[M.slot][M.produceTick] = inp;
-        netSend({ t: 'i', k: M.produceTick, d: inp.dir, b: inp.bomb });
-        M.produceTick++;
-        var canExec = Math.min(M.produceTick - 1, M.remoteMax);        // highest tick with BOTH players' inputs in hand
-        var ahead = canExec - M.simTick + 1;
-        var budget = ahead <= 0 ? 0 : (ahead > M.D + 3 ? 3 : (ahead > M.D ? 2 : 1));   // 1 tick/frame; gently catch up after a stall
-        while (budget-- > 0 && M.simTick <= canExec) {
-            var evs = E.step(world, [M.inbuf[0][M.simTick], M.inbuf[1][M.simTick]]);
-            for (var j = 0; j < evs.length; j++) playEvent(evs[j]);
-            delete M.inbuf[0][M.simTick - 2 * M.D]; delete M.inbuf[1][M.simTick - 2 * M.D];   // free consumed inputs
-            M.simTick++;
-            if (world.over) { endOnline(world.winner, 'normal'); break; }
+        confirmStep();                                                 // 1) advance the authoritative timeline (drives audio + result)
+        if (M.over) return;
+        if (M.cur - M.confTick < MAX_PREDICT) {                        // 2) advance one live tick (hold if too far ahead → let the opponent catch up)
+            M.local[M.cur] = humanInput();                             //    sample + send our input for this tick EXACTLY once
+            netSend({ t: 'i', k: M.cur, d: M.local[M.cur].dir, b: M.local[M.cur].bomb });
+            M.cur++;
         }
+        world = E.clone(M.conf);                                       // 3) rebuild the predicted present from the confirmed base
+        for (var tk = M.confTick; tk < M.cur; tk++) E.step(world, orderedInputs(tk));
         syncChips();
     }
     function endOnline(winnerSlot, reason) {
