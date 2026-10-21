@@ -17,6 +17,7 @@
             bombCodeLabel: 'Give this code to your opponent', bombWaiting: 'Waiting for an opponent\u2026',
             bombNetConnecting: 'Connecting\u2026', bombNetFailed: 'Connection failed. Try again.',
             bombNetNoRoom: 'Room not found.', bombNetErr: 'Network error.', bombRoomGone: 'Room closed.',
+            bombNetNoDb: 'Realtime DB not set up yet.',
             bombRematch: 'Rematch', bombWaitHost: 'Waiting for the host to restart\u2026', bombOppLeft: 'Opponent left.',
             bombHelp1Html: 'Move with <kbd>\u2191\u2193\u2190\u2192</kbd>/<kbd>WASD</kbd> (or the on-screen pad). Drop a bomb with <kbd>Space</kbd> / the <strong>BOMB</strong> button.',
             bombHelp2Html: 'Blasts break <strong>soft blocks</strong> (some drop power-ups: fire, extra bomb, speed, kick) and destroy players. Be the <strong>last one standing</strong>.',
@@ -30,6 +31,7 @@
             bombCodeLabel: '把房號給對手', bombWaiting: '等待對手加入\u2026',
             bombNetConnecting: '連線中\u2026', bombNetFailed: '連線失敗，請再試一次。',
             bombNetNoRoom: '找不到房間。', bombNetErr: '網路錯誤。', bombRoomGone: '房間已關閉。',
+            bombNetNoDb: '即時資料庫尚未設定。',
             bombRematch: '再來一場', bombWaitHost: '等待房主再來一場\u2026', bombOppLeft: '對手已離開。',
             bombHelp1Html: '用 <kbd>\u2191\u2193\u2190\u2192</kbd>/<kbd>WASD</kbd>（或螢幕方向鍵）移動。<kbd>空白鍵</kbd> / <strong>放炸彈</strong>鈕 放炸彈。',
             bombHelp2Html: '爆風會炸開<strong>軟磚</strong>（部分掉落道具：火力、炸彈數、速度、踢）並炸死玩家。當<strong>最後存活者</strong>。',
@@ -149,21 +151,24 @@
         return { dir: cs.dir == null ? -1 : cs.dir, bomb: bomb };
     }
 
-    // ================= ONLINE — deterministic lockstep over WebRTC =================
-    // Both peers run the SAME engine from the SAME seed. Each frame a peer samples its
-    // own input, tags it for tick (now + D) and sends it; a tick only advances once
-    // BOTH players' inputs for it are in hand. Symmetric input delay D ⇒ fair, no host
-    // advantage. Transport is a reliable+ordered DataChannel (ArcadeRTC); the Firestore
-    // room (bomb_rooms) is only the lobby + SDP signaling. No CPU runs online.
-    var GROUP = 'bomb_rooms';
-    var INPUT_DELAY = 4;                        // ~66ms of buffered input per side (absorbs typical P2P RTT + jitter)
+    // ================= ONLINE — deterministic lockstep over a Firebase RTDB relay =================
+    // Both peers run the SAME engine from the SAME seed. Each frame a peer samples its own
+    // input, tags it for tick (now + D) and writes it to the Realtime Database; a tick only
+    // advances once BOTH players' inputs for it are in hand. Symmetric input delay D ⇒ fair,
+    // no host advantage. Why RTDB (not WebRTC): it ALWAYS connects (no NAT/TURN headaches —
+    // phone-on-mobile ↔ PC just works) at the cost of a little relay latency. Firestore
+    // (bomb_rooms) stays the lobby (room code + presence); RTDB (bomb_live) carries inputs.
+    var GROUP = 'bomb_rooms';                   // Firestore lobby collection
+    var LIVE = 'bomb_live';                     // Realtime Database relay root
+    var INPUT_DELAY = 10;                       // ~166ms buffer — covers a relay round-trip; stalls catch up gracefully
     var NEUTRAL = { dir: -1, bomb: 0 };
     var netCtx = null;                          // { group, code, role, gen, conn, slot, seed, data, roomUnsub, _status }
 
     function online() { return !!(M && M.mode === 'online'); }
     function getNet() { return (window.ArcadeNet && window.ArcadeNet.ok) ? window.ArcadeNet : null; }
     function onlineWorld(seed) { return E.create(Object.assign({}, CFG, { players: 2 }), seed); }
-    function netSend(obj) { if (netCtx && netCtx.conn) netCtx.conn.send(JSON.stringify(obj)); }
+    function netSend(obj) { if (netCtx && netCtx.conn) netCtx.conn.send(obj); }
+    function relayPath(sub) { return LIVE + '/' + netCtx.code + (sub ? '/' + sub : ''); }
     function ensureAuth() {
         var N = getNet(); if (!N) return Promise.reject(new Error('no net'));
         if (N.currentUser()) return Promise.resolve();
@@ -222,7 +227,7 @@
         setStatus(t('bombNetConnecting'));
         ensureAuth().then(function () { return N.mp.create(GROUP, { maxPlayers: 2 }); }).then(function (code) {
             netCtx = { group: GROUP, code: code, role: 'host', gen: 1, conn: null, slot: 0, seed: (Math.random() * 1e9) >>> 0, _status: t('bombWaiting') };
-            watchRoom(); renderLobby(); beginConnect();
+            watchRoom(); renderLobby(); openRelay();
         }).catch(lobbyErr);
     }
     function doJoin(code) {
@@ -231,7 +236,7 @@
         setStatus(t('bombNetConnecting'));
         ensureAuth().then(function () { return N.mp.join(GROUP, code); }).then(function () {
             netCtx = { group: GROUP, code: code, role: 'guest', gen: 0, conn: null, slot: 1, seed: 0, _status: t('bombNetConnecting') };
-            watchRoom(); renderLobby();
+            watchRoom(); renderLobby(); openRelay();
         }).catch(function () { setStatus(t('bombNetNoRoom')); });
     }
     function watchRoom() {
@@ -244,27 +249,61 @@
         if (err) { setStatus(t('bombNetErr')); return; }
         if (!d) { if (AC.toast) AC.toast.show(t('bombRoomGone')); leaveOnline(); return; }   // room vanished
         netCtx.data = d;
-        if (netCtx.role === 'guest' && d.gen && d.gen !== netCtx.gen) { netCtx.gen = d.gen; beginConnect(); }   // host (re)started → (re)connect
-        if (netCtx.role === 'host' && !netCtx.conn) { var n = (d.order ? d.order.length : Object.keys(d.players || {}).length); if (n >= 2) setStatus(t('bombNetConnecting')); }
+        if (netCtx.role === 'host' && !online() && netCtx.conn) {        // guest arrived (and our relay is up) → publish + start
+            var n = (d.order ? d.order.length : Object.keys(d.players || {}).length);
+            if (n >= 2) hostBegin();
+        }
     }
-    function beginConnect() {
-        var N = getNet(); if (!N || !netCtx || !window.ArcadeRTC) return;
-        if (netCtx.conn) { try { netCtx.conn.close(); } catch (e) { } netCtx.conn = null; }
-        setStatus(t('bombNetConnecting'));
-        if (netCtx.role === 'host') N.mp.update(netCtx.group, netCtx.code, { gen: netCtx.gen }).catch(function () { });
-        window.ArcadeRTC.connect(netCtx.group, netCtx.code, netCtx.role === 'host', { sid: netCtx.gen, onMessage: onNetMessage, onClose: onNetClose })
-            .then(function (conn) {
-                if (!netCtx) { try { conn.close(); } catch (e) { } return; }
-                netCtx.conn = conn;
-                if (netCtx.role === 'host') { netSend({ t: 'start', seed: netCtx.seed }); startOnlineMatch(netCtx.seed); }
-            })
-            .catch(function () { setStatus(t('bombNetFailed')); });
+    // Wire up the RTDB relay listeners for this room. Host waits for the guest (onRoom) before
+    // publishing meta + starting; guest starts when it reads the host's meta (seed + generation).
+    function openRelay() {
+        var N = getNet(); if (!N || !netCtx) return;
+        if (!N.rtdb || !N.rtdb.ok) { setStatus(t('bombNetNoDb')); return; }
+        teardownRelay(); netCtx.unsubs = [];
+        var mySlot = netCtx.slot, otherSlot = 1 - mySlot;
+        var noop = function () { };
+        netCtx.conn = {
+            send: function (m) {
+                if (m.t === 'i') N.rtdb.set(relayPath('g' + netCtx.gen + '/in/' + mySlot + '/' + m.k), { d: m.d, b: m.b }).catch(noop);
+                else if (m.t === 'bye') N.rtdb.set(relayPath('bye/' + mySlot), true).catch(noop);
+            },
+            close: function () { teardownRelay(); },
+        };
+        N.rtdb.onDisconnectSet(relayPath('bye/' + mySlot), true);        // auto-forfeit if our tab vanishes
+        N.rtdb.set(relayPath('bye/' + mySlot), false).catch(function () { });   // clear any stale leave flag
+        netCtx.unsubs.push(N.rtdb.onValue(relayPath('bye/' + otherSlot), function (v) { if (v === true) onNetMessage({ t: 'bye' }); }));
+        bindInputs();
+        if (netCtx.role === 'guest') {                                   // follow the host's generation (first match + rematches)
+            netCtx.unsubs.push(N.rtdb.onValue(relayPath('meta'), function (meta) {
+                if (!meta || meta.gen == null) return;
+                if (meta.gen !== netCtx.gen || !online()) { netCtx.gen = meta.gen; netCtx.seed = meta.seed; bindInputs(); startOnlineMatch(meta.seed); }
+            }));
+        }
+    }
+    function hostBegin() {                                               // host: publish seed+gen, then start the match
+        var N = getNet(); if (!N || !netCtx || netCtx.role !== 'host') return;
+        N.rtdb.set(relayPath('meta'), { seed: netCtx.seed, gen: netCtx.gen }).catch(function () { });
+        bindInputs(); startOnlineMatch(netCtx.seed);
+    }
+    function bindInputs() {                                              // (re)subscribe to the opponent's inputs for the CURRENT generation
+        var N = getNet(); if (!N || !netCtx || !N.rtdb || !N.rtdb.ok) return;
+        if (netCtx.inUnsub) { try { netCtx.inUnsub(); } catch (e) { } }
+        var otherSlot = 1 - netCtx.slot;
+        netCtx.inUnsub = N.rtdb.onChild(relayPath('g' + netCtx.gen + '/in/' + otherSlot), function (key, val) {
+            if (val) onNetMessage({ t: 'i', k: Number(key), d: val.d, b: val.b });
+        });
+    }
+    function teardownRelay() {
+        if (!netCtx) return;
+        (netCtx.unsubs || []).forEach(function (u) { try { u(); } catch (e) { } });
+        netCtx.unsubs = [];
+        if (netCtx.inUnsub) { try { netCtx.inUnsub(); } catch (e) { } netCtx.inUnsub = null; }
     }
     function leaveOnline() {
         if (netCtx) {
             netSend({ t: 'bye' });
             if (netCtx.roomUnsub) { try { netCtx.roomUnsub(); } catch (e) { } }
-            if (netCtx.conn) { try { netCtx.conn.close(); } catch (e) { } }
+            teardownRelay();
             var N = getNet(); if (N) N.mp.leave(netCtx.group, netCtx.code).catch(function () { });
             netCtx = null;
         }
@@ -279,17 +318,10 @@
         hideLobby(); syncChips();
         if (!shell.isPlaying()) shell.start();
     }
-    function onNetMessage(data) {
-        var m; try { m = JSON.parse(data); } catch (e) { return; }
-        if (m.t === 'start') { if (!online() || M.over) startOnlineMatch(m.seed); return; }
-        if (!online()) return;
-        if (m.t === 'i') { M.inbuf[1 - M.slot][m.k] = { dir: m.d, bomb: m.b }; if (m.k > M.remoteMax) M.remoteMax = m.k; }
-        else if (m.t === 'bye') { endOnline(M.slot, 'left'); }
-    }
-    function onNetClose(conn) {
-        if (!netCtx || (conn && conn !== netCtx.conn)) return;        // ignore a superseded (rematch) connection
-        if (online() && !M.over) endOnline(M.slot, 'drop');
-        else if (!online()) setStatus(t('bombNetFailed'));
+    function onNetMessage(m) {                                         // m is a plain object delivered by the relay
+        if (!m) return;
+        if (m.t === 'i') { if (!online()) return; M.inbuf[1 - M.slot][m.k] = { dir: m.d, bomb: m.b }; if (m.k > M.remoteMax) M.remoteMax = m.k; }
+        else if (m.t === 'bye') { if (online() && !M.over) endOnline(M.slot, 'left'); }
     }
     function updateOnline() {
         if (!M.started || M.over) return;
@@ -330,9 +362,11 @@
     }
     function doRematch() {
         if (!netCtx || netCtx.role !== 'host') return;
-        netCtx.gen++; netCtx.seed = (Math.random() * 1e9) >>> 0;       // new generation (fresh SDP) + new map; keep M (online, over) so reset stays guarded
+        var N = getNet(); if (!N) return;
+        netCtx.gen++; netCtx.seed = (Math.random() * 1e9) >>> 0;       // new generation + new map; the guest follows the meta change
+        N.rtdb.set(relayPath('meta'), { seed: netCtx.seed, gen: netCtx.gen }).catch(function () { });
+        bindInputs(); startOnlineMatch(netCtx.seed);
         setStatus(t('bombNetConnecting')); renderLobby();
-        beginConnect();
     }
 
     // ---------------- loop ----------------

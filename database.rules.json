@@ -1,0 +1,10 @@
+{
+  "rules": {
+    "bomb_live": {
+      "$code": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      }
+    }
+  }
+}

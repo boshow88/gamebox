@@ -22,10 +22,11 @@ function fail(err) {
     try {
         if (!window.FIREBASE_READY || !window.FIREBASE_CONFIG) throw new Error('config not set');
 
-        const [{ initializeApp }, authMod, fsMod] = await Promise.all([
+        const [{ initializeApp }, authMod, fsMod, dbMod] = await Promise.all([
             import(`${BASE}/firebase-app.js`),
             import(`${BASE}/firebase-auth.js`),
             import(`${BASE}/firebase-firestore.js`),
+            import(`${BASE}/firebase-database.js`),
         ]);
         const {
             getAuth, onAuthStateChanged, signInAnonymously, signOut,
@@ -36,10 +37,16 @@ function fail(err) {
             runTransaction, serverTimestamp, deleteField,
             collection, query, where, getDocs,
         } = fsMod;
+        const {
+            getDatabase, ref: dbRef, set: dbSet, update: dbUpdate, remove: dbRemove,
+            onValue: dbOnValue, onChildAdded: dbOnChild, onDisconnect: dbOnDisconnect,
+        } = dbMod;
 
         const app = initializeApp(window.FIREBASE_CONFIG);
         const auth = getAuth(app);
         const db = getFirestore(app);
+        let rdb = null;   // Realtime Database — only if a databaseURL is configured (needs the RTDB instance created)
+        try { if (window.FIREBASE_CONFIG.databaseURL) rdb = getDatabase(app); } catch (e) { rdb = null; }
 
         let user = undefined;                 // undefined = unknown yet, null = signed out
         const authCbs = [];
@@ -275,6 +282,19 @@ function fail(err) {
                         return results.filter((r) => r.status === 'fulfilled').length;
                     } catch (e) { return 0; }
                 },
+            },
+            // Realtime Database relay — used by Bomber for 60Hz lockstep input exchange.
+            // Firestore is too slow/costly for per-tick traffic; RTDB is realtime and
+            // bandwidth-billed (tiny input messages are ~free). ok:false when no
+            // databaseURL is set (create the RTDB instance + add databaseURL to the config).
+            rtdb: {
+                ok: !!rdb,
+                set(path, val) { return rdb ? dbSet(dbRef(rdb, path), val) : Promise.reject(new Error('no rtdb')); },
+                update(path, val) { return rdb ? dbUpdate(dbRef(rdb, path), val) : Promise.reject(new Error('no rtdb')); },
+                remove(path) { return rdb ? dbRemove(dbRef(rdb, path)) : Promise.resolve(); },
+                onChild(path, cb) { return rdb ? dbOnChild(dbRef(rdb, path), (s) => cb(s.key, s.val())) : function () { }; },
+                onValue(path, cb) { return rdb ? dbOnValue(dbRef(rdb, path), (s) => cb(s.val())) : function () { }; },
+                onDisconnectSet(path, val) { if (rdb) { try { dbOnDisconnect(dbRef(rdb, path)).set(val); } catch (e) { } } },
             },
         };
         window.dispatchEvent(new CustomEvent('arcade-net-ready'));
