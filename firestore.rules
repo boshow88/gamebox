@@ -50,5 +50,17 @@ service cloud.firestore {
       allow update: if request.auth != null;
       allow delete: if request.auth != null;
     }
+
+    // ---- Feedback box (write-only drop box) ----
+    // Anyone signed in (incl. anonymous) may submit; nobody can read / edit / delete
+    // it from the client — the owner reads submissions in the Firebase console. The
+    // size cap keeps abuse in check.
+    match /feedback/{id} {
+      allow create: if request.auth != null
+                       && request.resource.data.text is string
+                       && request.resource.data.text.size() > 0
+                       && request.resource.data.text.size() <= 2000;
+      allow read, update, delete: if false;
+    }
   }
 }

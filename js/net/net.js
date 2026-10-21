@@ -247,6 +247,12 @@ function fail(err) {
                 get(uid) { return getDoc(doc(db, 'profiles', uid)).then((s) => (s.exists() ? s.data() : null)); },
                 save(uid, data) { return setDoc(doc(db, 'profiles', uid), Object.assign({ updatedAt: serverTimestamp() }, data), { merge: true }); },
             },
+            // write-only feedback drop box — anyone signed in may submit; only the owner
+            // reads it in the Firebase console (see firestore.rules). Auto-generated id.
+            feedback(data) {
+                if (!user) return Promise.reject(new Error('not signed in'));
+                return setDoc(doc(collection(db, 'feedback')), Object.assign({ at: serverTimestamp(), uid: user.uid, name: user.name || null, anon: !!user.anon }, data || {}));
+            },
             // rooms (1v1 — used by Rune Stones)
             createRoom, joinRoom, leaveRoom, deleteRoom, cleanupStaleRooms,
             watchRoom(code, cb) { return onSnapshot(roomRef(code), (s) => cb(s.exists() ? s.data() : null), (err) => cb(null, err)); },

@@ -412,6 +412,20 @@ button { font-family: inherit; cursor: pointer; }
     color: var(--text-muted);
 }
 
+/* Feedback box entry — a quiet accent link sitting after the footer tagline. */
+.footer-link {
+    appearance: none;
+    background: none;
+    border: 0;
+    padding: 0;
+    font: inherit;
+    color: var(--accent);
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+.footer-link:hover { color: var(--text-primary); }
+
 @media (max-width: 600px) {
     .app-shell { padding: var(--space-xl) var(--space-md) var(--space-lg); }
     .app-title { font-size: 2rem; }
@@ -528,6 +542,30 @@ button { font-family: inherit; cursor: pointer; }
 }
 .wip-gate-card.unlocked .wip-gate-btn.go { border-color: var(--accent-success); color: var(--accent-success); }
 .wip-gate-card.unlocked .wip-gate-btn.go:hover { background: var(--accent-success); color: var(--text-on-accent); }
+
+/* Feedback box form (reuses the dialog shell). */
+.feedback-hint {
+    color: var(--text-secondary);
+    font-size: 0.86rem;
+    line-height: 1.5;
+    text-align: left;
+    margin: calc(-1 * var(--space-sm)) 0 0;
+}
+.feedback-input {
+    width: 100%;
+    box-sizing: border-box;
+    resize: vertical;
+    min-height: 92px;
+    padding: 10px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: 0.95rem;
+    line-height: 1.5;
+}
+.feedback-input:focus { outline: none; border-color: var(--accent); }
 
 .wip-toast {
     position: fixed;

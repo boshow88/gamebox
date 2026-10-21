@@ -264,6 +264,22 @@ button { font-family: inherit; cursor: pointer; }
     touch-action: manipulation;
 }
 
+/* No accidental text selection / long-press callout anywhere on a game page: a
+   held finger during play must never start selecting HUD / caption / button text
+   (this bit games like Bullet Storm). Inputs (e.g. the room-code field) opt back
+   in so they stay editable. Only game pages carry .game-shell, so the launcher is
+   untouched. */
+.game-shell {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+}
+.game-shell input,
+.game-shell textarea {
+    -webkit-user-select: text;
+    user-select: text;
+}
+
 [data-theme="puzzle"] .toast {
     background: rgba(33, 37, 41, 0.92);
 }

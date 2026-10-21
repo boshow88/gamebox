@@ -133,6 +133,14 @@
             searchClear: 'Clear search',
             noResults: 'No games match your filters.',
             footer: 'A static site — works offline. ' + GAMES.length + ' games and counting.',
+            feedbackLink: 'Feedback',
+            feedbackTitle: 'Feedback box',
+            feedbackHint: 'Hit a bug or have an idea? Tell me — it comes straight to me.',
+            feedbackPlaceholder: 'Type your feedback…',
+            feedbackSend: 'Send',
+            feedbackCancel: 'Cancel',
+            feedbackThanks: 'Thanks — got it!',
+            feedbackError: 'Couldn\u2019t send — please try again later.',
 
             tag_puzzle: 'Puzzle',
             tag_action: 'Action',
@@ -207,6 +215,14 @@
             searchClear: '清除搜尋',
             noResults: '沒有符合條件的遊戲。',
             footer: '純靜態網站，可離線使用。目前收錄 ' + GAMES.length + ' 款，持續增加中。',
+            feedbackLink: '意見箱',
+            feedbackTitle: '意見箱',
+            feedbackHint: '遇到問題或有想法嗎？告訴我，會直接傳給我。',
+            feedbackPlaceholder: '寫下你的意見…',
+            feedbackSend: '送出',
+            feedbackCancel: '取消',
+            feedbackThanks: '收到了，謝謝！',
+            feedbackError: '送出失敗，請稍後再試。',
 
             tag_puzzle: '益智',
             tag_action: '動作',
@@ -367,7 +383,13 @@
     function renderChrome() {
         document.documentElement.lang = (lang === 'zh') ? 'zh-Hant' : 'en';
         document.getElementById('app-subtitle').textContent = t('subtitle');
-        document.getElementById('app-footer').textContent = t('footer');
+        var ft = document.getElementById('app-footer');
+        if (ft) {
+            ft.textContent = t('footer') + '  ';
+            var fb = document.createElement('button'); fb.type = 'button'; fb.className = 'footer-link'; fb.textContent = t('feedbackLink');
+            fb.addEventListener('click', showFeedback);
+            ft.appendChild(fb);
+        }
         var si = document.getElementById('search-input');
         if (si) { si.placeholder = t('searchPlaceholder'); si.setAttribute('aria-label', t('searchAria')); }
         var sc = document.getElementById('search-clear');
@@ -514,6 +536,41 @@
             el.classList.remove('show');
             setTimeout(function () { el.remove(); }, 300);
         }, 2600);
+    }
+
+    // Feedback box — a small form that writes to the Firestore 'feedback' collection
+    // (write-only; the owner reads submissions in the Firebase console). Reuses the
+    // dialog styling; works for any signed-in player (Google or anonymous).
+    function showFeedback() {
+        var ov = document.createElement('div'); ov.className = 'wip-gate';
+        var card = document.createElement('div'); card.className = 'wip-gate-card'; card.setAttribute('role', 'dialog'); card.setAttribute('aria-modal', 'true');
+        var msg = document.createElement('p'); msg.className = 'wip-gate-msg'; msg.textContent = t('feedbackTitle');
+        var hint = document.createElement('p'); hint.className = 'feedback-hint'; hint.textContent = t('feedbackHint');
+        var ta = document.createElement('textarea'); ta.className = 'feedback-input'; ta.maxLength = 2000; ta.rows = 4; ta.placeholder = t('feedbackPlaceholder');
+        var actions = document.createElement('div'); actions.className = 'wip-gate-actions';
+        var cancel = document.createElement('button'); cancel.type = 'button'; cancel.className = 'wip-gate-btn stay'; cancel.textContent = t('feedbackCancel');
+        var send = document.createElement('button'); send.type = 'button'; send.className = 'wip-gate-btn go'; send.textContent = t('feedbackSend');
+        actions.appendChild(cancel); actions.appendChild(send);
+        card.appendChild(msg); card.appendChild(hint); card.appendChild(ta); card.appendChild(actions); ov.appendChild(card);
+        function close() { ov.remove(); }
+        cancel.addEventListener('click', close);
+        ov.addEventListener('click', function (e) { if (e.target === ov) close(); });
+        send.addEventListener('click', function () {
+            var text = (ta.value || '').trim();
+            if (!text) { ta.focus(); return; }
+            send.disabled = true;
+            whenNet(function (N) {
+                if (!N || !N.ok || !N.feedback) { showToast(t('feedbackError')); send.disabled = false; return; }
+                // Feedback needs a signed-in user; fall back to a silent guest sign-in
+                // so visitors who never logged in can still send.
+                var ready = (N.currentUser && N.currentUser()) ? Promise.resolve() : Promise.resolve(N.signInGuest && N.signInGuest());
+                ready.then(function () { return N.feedback({ text: text, lang: lang }); })
+                    .then(function () { showToast(t('feedbackThanks')); close(); })
+                    .catch(function () { showToast(t('feedbackError')); send.disabled = false; });
+            });
+        });
+        document.body.appendChild(ov);
+        ta.focus();
     }
 
     // Wait for the async Firebase layer to report in, then run cb with ArcadeNet (or a
