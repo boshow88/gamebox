@@ -166,13 +166,6 @@
             adminNamePh: 'Name (optional)',
             adminAddBtn: 'Add',
             adminSelf: '(you)',
-            usageTitle: 'Usage',
-            usageReads: 'Reads',
-            usageWrites: 'Writes',
-            usageDeletes: 'Deletes',
-            usageEmpty: 'No data yet — the daily job hasn\u2019t run.',
-            usageError: 'Couldn\u2019t load usage.',
-            usageLegend: 'Latest day vs free daily cap. History shows reads · writes · deletes per day.',
             soundOn: 'Sound on',
             soundOff: 'Muted',
             close: 'Close',
@@ -285,13 +278,6 @@
             adminNamePh: '名稱（可選）',
             adminAddBtn: '新增',
             adminSelf: '（你）',
-            usageTitle: '用量',
-            usageReads: '讀取',
-            usageWrites: '寫入',
-            usageDeletes: '刪除',
-            usageEmpty: '尚無資料——每日排程還沒跑。',
-            usageError: '讀取用量失敗。',
-            usageLegend: '最新一天 vs 免費每日上限。歷史為每日 讀取 · 寫入 · 刪除。',
             soundOn: '音效開啟',
             soundOff: '已靜音',
             close: '關閉',
@@ -461,7 +447,6 @@
         idText('drawer-feedback', t('feedbackLink'));
         idText('drawer-feedback-admin', t('feedbackInbox'));
         idText('drawer-admins', t('adminsTitle'));
-        idText('drawer-usage', t('usageTitle'));
         var menuB = document.getElementById('menu-btn'); if (menuB) menuB.setAttribute('aria-label', t('menu'));
         var dClose = document.getElementById('drawer-close'); if (dClose) dClose.setAttribute('aria-label', t('close'));
         syncSound();
@@ -802,44 +787,6 @@
         });
     }
 
-    // Owner-only Firebase usage panel — reads the daily snapshot (stats/usage) written
-    // by the scheduled job and shows the latest day vs the free caps + a short history.
-    var USAGE_CAPS = { reads: 50000, writes: 20000, deletes: 20000 };   // Spark free daily caps
-    function showUsage() {
-        var m = openModal(t('usageTitle'));
-        var loading = document.createElement('p'); loading.className = 'records-empty'; loading.textContent = '…'; m.body.appendChild(loading);
-        whenNet(function (N) {
-            if (!N || !N.ok || !N.getStats) { loading.textContent = t('usageError'); return; }
-            N.getStats().then(function (data) {
-                m.body.innerHTML = '';
-                var days = (data && data.days) || {}, keys = Object.keys(days).sort();
-                if (!keys.length) { var e = document.createElement('p'); e.className = 'records-empty'; e.textContent = t('usageEmpty'); m.body.appendChild(e); return; }
-                var latest = days[keys[keys.length - 1]] || {};
-                [['reads', 'usageReads'], ['writes', 'usageWrites'], ['deletes', 'usageDeletes']].forEach(function (p) {
-                    var field = p[0], cap = USAGE_CAPS[field], val = latest[field] || 0, frac = Math.min(val / cap, 1);
-                    var row = document.createElement('div'); row.className = 'usage-metric';
-                    var head = document.createElement('div'); head.className = 'usage-metric-head';
-                    var lab = document.createElement('span'); lab.textContent = t(p[1]);
-                    var num = document.createElement('span'); num.className = 'usage-metric-val'; num.textContent = val.toLocaleString() + ' / ' + cap.toLocaleString();
-                    head.appendChild(lab); head.appendChild(num);
-                    var bar = document.createElement('div'); bar.className = 'usage-bar';
-                    var fill = document.createElement('div'); fill.className = 'usage-fill' + (frac >= 0.9 ? ' danger' : (frac >= 0.7 ? ' warn' : '')); fill.style.width = (frac * 100).toFixed(1) + '%';
-                    bar.appendChild(fill); row.appendChild(head); row.appendChild(bar); m.body.appendChild(row);
-                });
-                var hist = document.createElement('div'); hist.className = 'usage-hist';
-                keys.slice(-14).reverse().forEach(function (day) {
-                    var d = days[day] || {};
-                    var row = document.createElement('div'); row.className = 'usage-hist-row';
-                    var dt = document.createElement('span'); dt.className = 'usage-hist-day'; dt.textContent = day;
-                    var v = document.createElement('span'); v.className = 'usage-hist-val'; v.textContent = (d.reads || 0).toLocaleString() + ' · ' + (d.writes || 0).toLocaleString() + ' · ' + (d.deletes || 0).toLocaleString();
-                    row.appendChild(dt); row.appendChild(v); hist.appendChild(row);
-                });
-                m.body.appendChild(hist);
-                var note = document.createElement('p'); note.className = 'usage-note'; note.textContent = t('usageLegend'); m.body.appendChild(note);
-            }).catch(function () { m.body.innerHTML = ''; var e = document.createElement('p'); e.className = 'records-empty'; e.textContent = t('usageError'); m.body.appendChild(e); });
-        });
-    }
-
     // Owner-only admin roster — view / add / remove admins (email + name). Backed by
     // config/admins (admin-only read/write; see firestore.rules).
     function showAdminRoster() {
@@ -990,15 +937,12 @@
         // config/admins doc; no identifiers live in this code.
         var adminInbox = document.getElementById('drawer-feedback-admin');
         var adminRoster = document.getElementById('drawer-admins');
-        var adminUsage = document.getElementById('drawer-usage');
         if (adminInbox) adminInbox.hidden = true;
         if (adminRoster) adminRoster.hidden = true;
-        if (adminUsage) adminUsage.hidden = true;
         if (N && N.ok && N.isAdmin && user && !user.anon) {
             N.isAdmin().then(function (ok) {
                 if (adminInbox) adminInbox.hidden = !ok;
                 if (adminRoster) adminRoster.hidden = !ok;
-                if (adminUsage) adminUsage.hidden = !ok;
                 // Keep my own roster name in sync with my Google display name.
                 if (ok && user.email && user.name && N.getAdmins && N.adminAdd) {
                     N.getAdmins().then(function (m) {
@@ -1062,7 +1006,6 @@
         var drawerFb = document.getElementById('drawer-feedback'); if (drawerFb) drawerFb.addEventListener('click', showFeedback);
         var drawerAdmin = document.getElementById('drawer-feedback-admin'); if (drawerAdmin) drawerAdmin.addEventListener('click', showFeedbackAdmin);
         var drawerAdmins = document.getElementById('drawer-admins'); if (drawerAdmins) drawerAdmins.addEventListener('click', showAdminRoster);
-        var drawerUsage = document.getElementById('drawer-usage'); if (drawerUsage) drawerUsage.addEventListener('click', showUsage);
         var soundBtn = document.getElementById('sound-btn'); if (soundBtn) soundBtn.addEventListener('click', function () { setMuted(!isMuted()); });
         document.addEventListener('keydown', function (ev) {
             if (ev.key !== 'Escape') return;

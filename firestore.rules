@@ -67,13 +67,5 @@ service cloud.firestore {
       allow update: if false;
     }
 
-    // ---- Usage stats ----
-    // A daily Firebase-usage snapshot (stats/usage) written by a scheduled job using
-    // a service account (Admin SDK bypasses these rules). Admins read it in-app; no
-    // client may write it.
-    match /stats/{doc} {
-      allow read: if isOwner();
-      allow write: if false;
-    }
   }
 }
