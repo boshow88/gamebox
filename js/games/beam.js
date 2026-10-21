@@ -42,10 +42,12 @@
         beamOverTitle: 'Game Over',
         beamGetReady: 'Get ready!',
         beamSuddenDeath: 'SUDDEN DEATH!', beamSuddenDeathHint: 'A tie now costs a life',
-        beamSpectating: 'You\u2019re out — watching',
+        beamSpectating: 'Out — watching',
+        beamWatching: 'Watching',
         beamSpectate: 'Spectate',
         beamSpectatingRoom: 'Spectating — watching this match.',
         beamStopSpectating: 'Stop watching',
+        beamWatchers: function (n) { return n + ' watching'; },
         beamWaitNext: 'Waiting for next round…',
         // lobby (wording aligned with Rune Stones)
         beamLobbyTitle: 'Online match',
@@ -81,10 +83,12 @@
         beamOverTitle: '遊戲結束',
         beamGetReady: '準備好！',
         beamSuddenDeath: '驟死！', beamSuddenDeathHint: '平手也會扣血',
-        beamSpectating: '你已出局，觀戰中',
+        beamSpectating: '已出局，觀戰中',
+        beamWatching: '觀戰中',
         beamSpectate: '觀戰',
         beamSpectatingRoom: '觀戰中——正在看這場對戰。',
         beamStopSpectating: '停止觀戰',
+        beamWatchers: function (n) { return n + ' 人觀戰'; },
         beamWaitNext: '等待下一回合…',
         beamLobbyTitle: '線上對戰',
         beamClose: '關閉',
@@ -535,6 +539,7 @@
         var d = room.data, g = d.game || {}, now = Date.now();
         var watching = !(d.players && d.players[netUser.uid]);   // spectator: observe only, never write to the room
         if (!watching && (!beatT || now - beatT > BEAT_MS)) { beatT = now; beatN++; net.mp.update(GROUP, room.code, { ['game.beat.' + netUser.uid]: beatN }).catch(function () { }); }
+        if (watching && (!specBeatT || now - specBeatT > BEAT_MS)) { specBeatT = now; net.mp.update(GROUP, room.code, { ['spectators.' + netUser.uid]: now }).catch(function () { }); }   // watcher presence (top-level, so a game reset doesn't wipe it)
         if (effectiveHost(d) === netUser.uid && (!gcT || now - gcT > 15000)) { gcT = now; net.mp.cleanup(GROUP).catch(function () { }); }
         if (om && !om.local && g.status === 'playing' && effectiveHost(d) === om.myUid) { hostCheckForfeit(d, g); if (!om.host.over) hostDrive(d, g); }
     }
@@ -760,12 +765,12 @@
         if (ph === 'countdown') { caption(sd ? t('beamSuddenDeathHint') : t('beamGetReady'), sd ? '#f87171' : BEAM); bigCountdown(Math.ceil(info.remain)); return; }   // prep screen explains why
         var spec = !!(om && !om.alive);                        // out of the match → spectating
         // flash: everyone (incl. spectators) sees ONLY the mirrors — no laser yet
-        if (ph === 'memorize') { drawMirrors(p, 1); drawTimerBar(1 - info.ts / om.memo, false); caption(spec ? t('beamSpectating') : t('beamWatch'), spec ? '#94a3b8' : BEAM); return; }
+        if (ph === 'memorize') { drawMirrors(p, 1); drawTimerBar(1 - info.ts / om.memo, false); caption(spec ? watchCaption() : t('beamWatch'), spec ? '#94a3b8' : BEAM); return; }
         if (ph === 'answer') {
             var left = 1 - info.ts / om.answerSec;
             if (spec) {   // spectator: a muted "solution PREVIEW" (dashed path + dashed exit) + everyone's live picks
                 drawBeamPreview(p); drawMirrors(p, 1); drawEntry(p); previewExit(p); drawPicks(p);
-                drawTimerBar(left, false); caption(t('beamSpectating'), '#94a3b8'); return;
+                drawTimerBar(left, false); caption(watchCaption(), '#94a3b8'); return;
             }
             drawPorts(p); drawEntry(p); drawTimerBar(left, left < 0.25);
             if (om.choice) { var mc = colorForOrder((room.data && room.data.players && room.data.players[om.myUid]) ? room.data.players[om.myUid].order : 0); highlightCell(portRect(om.choice.r, om.choice.c, om.choice.side, p.N), mc); }
@@ -775,7 +780,7 @@
         if (ph === 'reveal') { drawBeamUpTo(p, info.ts / om.replay); drawMirrors(p, AC.math.clamp(info.ts / 0.25, 0, 1)); drawEntry(p); drawPicks(p); caption(t('beamReplay')); return; }
         if (ph === 'result') {
             drawBeamUpTo(p, 1); drawMirrors(p, 1); drawEntry(p); lightExit(p); drawPicks(p); outlineExit(p);
-            if (!om.alive) caption(t('beamSpectating'), '#94a3b8');
+            if (!om.alive) caption(watchCaption(), '#94a3b8');
             else caption(myCorrect() ? t('beamHit') : (om.choice ? t('beamMiss') : t('beamTimeUp')), myCorrect() ? '#34d399' : '#f87171');
             return;
         }
@@ -830,6 +835,8 @@
         if ((e = $('stat-best'))) e.style.display = (om && !om.local) ? 'none' : '';           // best = your best placement (solo)
     }
     function pname(uid, players) { var p = players && players[uid]; return (p && p.name) || t('beamGuest'); }
+    function watcherCount() { var s = room && room.data && room.data.spectators, now = Date.now(), n = 0; if (s) for (var k in s) if (now - (s[k] || 0) < STALL_MS) n++; return n; }   // live watchers = fresh heartbeats (leavers drop off automatically)
+    function watchCaption() { return (om && om.spectator) ? t('beamWatching') : t('beamSpectating'); }   // pure spectator vs eliminated player
     function renderPlayersBar(data) {
         var bar = $('players'); if (!bar) return;
         if (!om || !data) { bar.hidden = true; return; }
@@ -859,6 +866,8 @@
             }
             bar.appendChild(chip);
         });
+        var wc = watcherCount();
+        if (wc > 0) { var wch = document.createElement('div'); wch.className = 'pchip watchers'; var we = document.createElement('span'); we.textContent = t('beamWatchers', wc); wch.appendChild(we); bar.appendChild(wch); }
         syncHud();
     }
 
@@ -866,7 +875,7 @@
     // lobby (sign-in + room code; modeled on Rune Stones, N players)
     // ===============================================================
     var net = null, netUser = undefined, room = null, lobbyEl = null, lobbyRefs = null;
-    var pres = {}, beatN = 0, beatT = 0, gcT = 0;        // presence: who is still sending heartbeats
+    var pres = {}, beatN = 0, beatT = 0, gcT = 0, specBeatT = 0;        // presence: who is still sending heartbeats
     // track each player's beat; `at` is OUR local time it last changed (no cross-client clock needed)
     function updatePres(g) {
         var beats = (g && g.beat) || {}, now = Date.now();
@@ -971,6 +980,7 @@
                 li.appendChild(right); ul.appendChild(li);
             });
             rbox.appendChild(ul);
+            var wcL = watcherCount(); if (wcL > 0) rbox.appendChild(elc('div', 'lobby-note', t('beamWatchers', wcL)));
             // actions — invite + primary action share a row; Leave sits on its own row below
             if (!d.players[u.uid]) {                      // spectator: watching only — no ready/start, just stop watching
                 rbox.appendChild(elc('div', 'lobby-note', t('beamSpectatingRoom')));
