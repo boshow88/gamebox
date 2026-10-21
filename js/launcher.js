@@ -157,6 +157,7 @@
             diffEasy: 'Easy',
             diffNormal: 'Normal',
             diffHard: 'Hard',
+            diffInsane: 'Insane',
             feedbackInbox: 'Feedback inbox',
             feedbackInboxEmpty: 'No feedback yet.',
             feedbackInboxError: 'Couldn\u2019t load feedback.',
@@ -271,6 +272,7 @@
             diffEasy: '簡單',
             diffNormal: '普通',
             diffHard: '困難',
+            diffInsane: '瘋狂',
             feedbackInbox: '意見箱（管理）',
             feedbackInboxEmpty: '目前沒有留言。',
             feedbackInboxError: '讀取失敗。',
@@ -701,15 +703,15 @@
                 return { k: (m === 'default') ? t('recordScore') : diffLabel(m), v: best[m].toLocaleString() };
             }) });
         }
-        // (2) Beam — best finishing place per difficulty notch (lower is better).
+        // (2) Beam — best finishing place per difficulty notch (lower is better). Names
+        // mirror the in-game tier + numeral (4 notches per tier); wins/games aren't
+        // synced to the cloud, so we show the best place only.
+        var ROMAN = ['I', 'II', 'III', 'IV'], TIER_KEYS = ['diffEasy', 'diffNormal', 'diffHard', 'diffInsane'];
         var beamLines = [];
         for (i = 0; i < 32; i++) {
             var st = rdLocal(P + ':beam:solo:n' + i);
             if (!st || !st.best) continue;
-            beamLines.push({
-                k: (lang === 'zh' ? '難度 ' : 'Lv ') + (i + 1),
-                v: placeLabel(st.best) + '  ' + t('recWins') + ' ' + (st.wins || 0) + '/' + (st.played || 0),
-            });
+            beamLines.push({ k: t(TIER_KEYS[Math.min((i / 4) | 0, 3)]) + ' ' + ROMAN[i % 4], v: placeLabel(st.best) });
         }
         if (beamLines.length) blocks.push({ key: 'beam', lines: beamLines });
         // (3) Rune Stones — Sandbag bests per difficulty. Easy inflates totals, so we
