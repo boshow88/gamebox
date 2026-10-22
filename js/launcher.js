@@ -401,6 +401,7 @@
     var query = '';       // lower-cased search text; '' = no search
     var wipUnlocked = false;      // WIP games open directly on this device (set by the ?backstage link)
     var wipJustUnlocked = false;  // the ?backstage link was used on THIS load (→ confirm with a toast)
+    var adminUnlock = false;      // signed-in owner (config/admins) → WIP games open directly, no gate
     var accountUser = null;       // signed-in user (from ArcadeNet), or null
 
     function t(key) {
@@ -534,7 +535,7 @@
             // WIP games always open a confirm dialog first. On a locked device it's a
             // "not open yet" deterrent (insisting → a well-known video); once unlocked
             // via the ?backstage link it's a tester's "take a look?" that really enters.
-            if (g.wip) {
+            if (g.wip && !adminUnlock) {
                 card.addEventListener('click', function (ev) {
                     ev.preventDefault();
                     openWipGate(ev.currentTarget.getAttribute('href'));
@@ -939,10 +940,14 @@
         var adminRoster = document.getElementById('drawer-admins');
         if (adminInbox) adminInbox.hidden = true;
         if (adminRoster) adminRoster.hidden = true;
+        // Admins also unlock WIP games (play directly — no ?backstage needed). Re-render
+        // the grid when the status resolves so the gate is added/removed accordingly.
+        function setAdminUnlock(v) { if (adminUnlock === v) return; adminUnlock = v; renderGrid(); }
         if (N && N.ok && N.isAdmin && user && !user.anon) {
             N.isAdmin().then(function (ok) {
                 if (adminInbox) adminInbox.hidden = !ok;
                 if (adminRoster) adminRoster.hidden = !ok;
+                setAdminUnlock(!!ok);
                 // Keep my own roster name in sync with my Google display name.
                 if (ok && user.email && user.name && N.getAdmins && N.adminAdd) {
                     N.getAdmins().then(function (m) {
@@ -950,7 +955,9 @@
                         if (e && e.name !== user.name) N.adminAdd(user.email, user.name);
                     }).catch(function () { /* ignore */ });
                 }
-            }).catch(function () { /* ignore */ });
+            }).catch(function () { setAdminUnlock(false); });
+        } else {
+            setAdminUnlock(false);
         }
     }
 
