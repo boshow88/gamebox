@@ -1047,23 +1047,23 @@
                 'Four input modes: <span class="inline-icon nono-ico-cycle" data-icon="refresh-cw"></span> cycle, <span class="inline-icon nono-ico-fill" data-icon="square"></span> fill, <span class="inline-icon nono-ico-mark" data-icon="x"></span> mark, <span class="inline-icon nono-ico-erase" data-icon="eraser"></span> erase. Tap to apply, or drag to paint from the first cell.',
             nonogramHelp3Html:
                 'Solved when the <span class="inline-icon nono-ico-fill" data-icon="square"></span> cells match every row and column clue.',
-            lightupName: 'Guards',
-            lightupTagline: 'Watch every corridor.',
-            lightupCardBody:
+            guardsName: 'Guards',
+            guardsTagline: 'Watch every corridor.',
+            guardsCardBody:
                 'Post the right number of guards to watch the corridors — none may see another.',
-            lightupBoardAria: 'Guards puzzle board',
-            lightupToolsAria: 'Input mode',
-            lightupToolCycle: 'Cycle',
-            lightupToolBulb: 'Guard',
-            lightupToolMark: 'Mark',
-            lightupToolErase: 'Erase',
-            lightupHelp1Html:
+            guardsBoardAria: 'Guards puzzle board',
+            guardsToolsAria: 'Input mode',
+            guardsToolCycle: 'Cycle',
+            guardsToolBulb: 'Guard',
+            guardsToolMark: 'Mark',
+            guardsToolErase: 'Erase',
+            guardsHelp1Html:
                 'Post a <span class="inline-icon lu-ico-bulb" data-icon="user"></span> on a white <strong>floor</strong> cell to watch its whole row and column; its view runs until it meets a black <strong>pillar</strong> or the board edge.',
-            lightupHelp2Html:
+            guardsHelp2Html:
                 'No two <span class="inline-icon lu-ico-bulb" data-icon="user"></span> may see each other, and a numbered pillar must hold <strong>exactly that many</strong> <span class="inline-icon lu-ico-bulb" data-icon="user"></span> in the four cells next to it (up, down, left, right).',
-            lightupHelp3Html:
+            guardsHelp3Html:
                 'Four input modes: <span class="inline-icon lu-ico-cycle" data-icon="refresh-cw"></span> cycle, <span class="inline-icon lu-ico-bulb" data-icon="user"></span> guard, <span class="inline-icon lu-ico-mark" data-icon="x"></span> mark, <span class="inline-icon lu-ico-erase" data-icon="eraser"></span> erase. Tap to apply, or drag to paint from the first cell.',
-            lightupHelp4Html:
+            guardsHelp4Html:
                 'Solved when every floor cell is watched and no rule is broken.',
             hashiName: 'Hashi',
             hashiTagline: 'Bridge every island.',
@@ -1294,23 +1294,23 @@
                 '四種輸入模式：<span class="inline-icon nono-ico-cycle" data-icon="refresh-cw"></span> 循環、<span class="inline-icon nono-ico-fill" data-icon="square"></span> 填滿、<span class="inline-icon nono-ico-mark" data-icon="x"></span> 標記、<span class="inline-icon nono-ico-erase" data-icon="eraser"></span> 擦除。點一下套用，或從起點拖曳連續塗畫。',
             nonogramHelp3Html:
                 '當 <span class="inline-icon nono-ico-fill" data-icon="square"></span> 格子符合所有列與行的線索即過關。',
-            lightupName: 'Guards',
-            lightupTagline: '看守每一條走廊。',
-            lightupCardBody:
+            guardsName: 'Guards',
+            guardsTagline: '看守每一條走廊。',
+            guardsCardBody:
                 '部署符合數量的守衛看守走廊 — 彼此不能互相看到。',
-            lightupBoardAria: '守衛盤面',
-            lightupToolsAria: '輸入模式',
-            lightupToolCycle: '循環',
-            lightupToolBulb: '守衛',
-            lightupToolMark: '標記',
-            lightupToolErase: '擦除',
-            lightupHelp1Html:
+            guardsBoardAria: '守衛盤面',
+            guardsToolsAria: '輸入模式',
+            guardsToolCycle: '循環',
+            guardsToolBulb: '守衛',
+            guardsToolMark: '標記',
+            guardsToolErase: '擦除',
+            guardsHelp1Html:
                 '在白色的<strong>地板</strong>格上放一名 <span class="inline-icon lu-ico-bulb" data-icon="user"></span>，看守其整行與整列；視線會一直延伸，直到被黑色的<strong>柱子</strong>或邊界擋住。',
-            lightupHelp2Html:
+            guardsHelp2Html:
                 '任兩名 <span class="inline-icon lu-ico-bulb" data-icon="user"></span> <strong>不能</strong>互相看到；有數字的柱子，其上下左右緊鄰的 <span class="inline-icon lu-ico-bulb" data-icon="user"></span> 數必須<strong>剛好</strong>等於該數字。',
-            lightupHelp3Html:
+            guardsHelp3Html:
                 '四種輸入模式：<span class="inline-icon lu-ico-cycle" data-icon="refresh-cw"></span> 循環、<span class="inline-icon lu-ico-bulb" data-icon="user"></span> 守衛、<span class="inline-icon lu-ico-mark" data-icon="x"></span> 標記、<span class="inline-icon lu-ico-erase" data-icon="eraser"></span> 擦除。點一下套用，或從起點拖曳連續塗畫。',
-            lightupHelp4Html:
+            guardsHelp4Html:
                 '當每一格地板都被看守、且沒有違反任何規則時即過關。',
             hashiName: 'Hashi',
             hashiTagline: '把每座島連起來。',

@@ -322,11 +322,10 @@
             gameOver: 'Game Over',
             youWin: 'You Win!',
 
-            // In-game titles only. Keys keep the games' old names; renaming them
-            // would mean touching each game's HTML/JS too, so they stay as-is.
-            ladderConnectName: 'Colour Ladder',
-            dotDodgeName: 'Bullet Storm',
-            runeClashName: 'Rune Stones',
+            // In-game titles (keys match the games' current ids).
+            colourLadderName: 'Colour Ladder',
+            bulletStormName: 'Bullet Storm',
+            runeStonesName: 'Rune Stones',
         },
         zh: {
             menu: '選單',
@@ -350,9 +349,9 @@
             gameOver: '遊戲結束',
             youWin: '你贏了！',
 
-            ladderConnectName: '彩球梯',
-            dotDodgeName: '彈幕風暴',
-            runeClashName: '盧恩符石',
+            colourLadderName: '彩球梯',
+            bulletStormName: '彈幕風暴',
+            runeStonesName: '盧恩符石',
         },
     };
 
