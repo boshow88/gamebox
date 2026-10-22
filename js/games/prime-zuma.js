@@ -23,6 +23,7 @@
     var STRINGS = {
         en: {
             pzName: 'Prime Zuma', pzScore: 'Score',
+            pzDiff: 'Difficulty', pzEasy: 'Easy', pzNormal: 'Normal', pzHard: 'Hard',
             pzReady: 'Prime Zuma',
             pzIntro: 'Fire prime balls into the chain. A prime peels a factor off a matching run (3+) — balls that hit 1 pop. Clear the chain before it reaches the centre.',
             pzStartHintHtml: 'Aim with the mouse / your finger · tap or click to shoot.',
@@ -33,6 +34,7 @@
         },
         zh: {
             pzName: '質因數祖瑪', pzScore: '分數',
+            pzDiff: '難度', pzEasy: '簡單', pzNormal: '普通', pzHard: '困難',
             pzReady: '質因數祖瑪',
             pzIntro: '朝球鏈發射質數球。質數會把一段「可被它整除」的連續球鏈（3 顆以上）各除以它一次，變成 1 的球就消除。趕在球鏈抵達中心前清掉它。',
             pzStartHintHtml: '用滑鼠／手指瞄準 · 點擊或輕觸發射。',
@@ -49,14 +51,24 @@
     var CFG = {
         turns: 3, Rin: 50, Rout: 212,            // spiral: inner (death) and outer (source) radii, px from centre
         D: 27, rBall: 12.5,                       // chain spacing (arc px) + ball draw radius (px)
-        vFeed: 15, vRetreat: 180, impulse: 70, impDecay: 7,  // forward feed / magnet-retreat / inertia impulse + decay (/s)
+        vRetreat: 180, impulse: 70, impDecay: 7,  // magnet-retreat speed / inertia impulse + decay (/s) — feed speed is per-difficulty (R.feed)
         k: 3,                                     // run length (incl. shot) needed to eliminate
-        P: [2, 3, 5], maxFactors: 3, valCap: 30,  // prime palette + spawned chain values = product of 1..maxFactors primes (<= cap)
         shotSpeed: 480,                           // projectile speed (px/s)
         insertPush: 'front',                      // where insertion makes room: 'front' = shove the front toward death (back untouched)
         startLen: 5,                              // balls pre-seeded at the source
         smooth: 16,                               // render-easing rate (higher = snappier): balls lerp to logical spots for smooth slides/accel
         compositeColor: '#4b5a70',                // all composite (non-prime) balls share ONE calm colour; only PRIMES are colourful (less eye strain)
+    };
+
+    // Difficulty presets. cap/feed/bias ramp over `ramp` seconds; normal/hard also unlock one more
+    // prime every `unlockEvery`s (from 2,3,5) up to their full `primes` set — the "use up to 5 / 7 / 11".
+    // Chain values are drawn from the P-smooth numbers <= cap, weighted by bias^Ω(n): bias<1 favours
+    // simple numbers (more primes), =1 uniform, >1 favours complex — so time pushes bias up and the
+    // board gets gnarlier. Everything tunable lives here.
+    var DIFF = {
+        easy:   { primes: [2, 3, 5],         unlockEvery: Infinity, capA: 20, capB: 36,  feedA: 13, feedB: 19, biasA: 0.40, biasB: 0.78, ramp: 150 },
+        normal: { primes: [2, 3, 5, 7],      unlockEvery: 40,       capA: 28, capB: 64,  feedA: 16, feedB: 25, biasA: 0.45, biasB: 0.92, ramp: 130 },
+        hard:   { primes: [2, 3, 5, 7, 11],  unlockEvery: 30,       capA: 42, capB: 120, feedA: 20, feedB: 33, biasA: 0.52, biasB: 1.06, ramp: 110 },
     };
     var CW = 460, CH = 460, CX = CW / 2, CY = CH / 2, DPR = Math.min(window.devicePixelRatio || 1, 2);
 
@@ -91,14 +103,39 @@
     function randInt(n) { return (rng() * n) | 0; }
     function isPrime(v) { if (v < 2) return false; for (var i = 2; i * i <= v; i++) if (v % i === 0) return false; return true; }
     function gcd(a, b) { a = a < 0 ? -a : a; b = b < 0 ? -b : b; while (b) { var m = a % b; a = b; b = m; } return a; }
-    function randPrime() { return CFG.P[randInt(CFG.P.length)]; }
-    function spawnValue() { var n = 1, f = 1 + randInt(CFG.maxFactors); for (var i = 0; i < f; i++) { var p = randPrime(); if (n * p > CFG.valCap) break; n *= p; } return n === 1 ? randPrime() : n; }
+    function activePrimes() { return R.full.slice(0, R.activeN); }
+    function randPrime() { return R.full[randInt(R.activeN)]; }                    // the cannon offers only primes currently in play
+    function rebuildCandidates() {                                                 // every P-smooth number in [2, cap] + its Ω (prime-factor count)
+        var primes = activePrimes(), list = [];
+        for (var n = 2; n <= R.cap; n++) {
+            var m = n, omega = 0;
+            for (var i = 0; i < primes.length; i++) { var p = primes[i]; while (m % p === 0) { m /= p; omega++; } }
+            if (m === 1) list.push({ v: n, w: omega });
+        }
+        R.candidates = list.length ? list : [{ v: 2, w: 1 }];
+    }
+    function spawnValue() {                                                        // weighted pick: bias^Ω (bias<1 favours simple, 1 = uniform, >1 complex)
+        var list = R.candidates, bias = R.bias, sum = 0, i, wt;
+        for (i = 0; i < list.length; i++) sum += Math.pow(bias, list[i].w);
+        var r = rng() * sum;
+        for (i = 0; i < list.length; i++) { wt = Math.pow(bias, list[i].w); if ((r -= wt) <= 0) return list[i].v; }
+        return list[list.length - 1].v;
+    }
+    function updateProgression() {                                                 // elapsed time drives cap / feed / bias / prime-set
+        var d = R.d, T = frame / 60, prog = Math.min(1, T / d.ramp);
+        var activeN = Math.min(d.primes.length, 3 + (isFinite(d.unlockEvery) ? Math.floor(T / d.unlockEvery) : 0));
+        var cap = Math.round(d.capA + (d.capB - d.capA) * prog);
+        R.bias = d.biasA + (d.biasB - d.biasA) * prog;
+        R.feed = d.feedA + (d.feedB - d.feedA) * prog;
+        if (activeN !== R.activeN || cap !== R.cap) { R.activeN = activeN; R.cap = cap; rebuildCandidates(); }
+    }
 
     // ---------------- state ----------------
     // queues: [{ vals:[ball..], head:(s of front ball), imp:(inertia velocity) }] ordered front(small s) -> back(large s)
     // a ball is an OBJECT so it keeps identity across shifts/merges, letting the renderer ease its on-screen
     // position toward the logical one (smooth slides, insertion "make room", retreat ease-in — all for free).
-    var canvas, ctx, shell, queues, shots, cannon, score, over, fx, frame, combo, lastElimFrame;
+    var canvas, ctx, shell, queues, shots, cannon, score, over, fx, frame, combo, lastElimFrame, difficulty, R;
+    difficulty = 'easy';
     function makeBall(v, x, y) { return { v: v, rx: x, ry: y, pop: 0 }; }   // v=value · rx/ry=rendered pos · pop=divide pulse
 
     function $(id) { return document.getElementById(id); }
@@ -107,8 +144,11 @@
 
     function newGame() {
         rngState = (Date.now() >>> 0) || 1;
-        shots = []; fx = []; cannon = { aim: -Math.PI / 2, cur: randPrime(), next: randPrime() }; score = 0; over = false;
+        var d = DIFF[difficulty] || DIFF.easy;
+        R = { d: d, full: d.primes, activeN: 3, cap: 0, bias: d.biasA, feed: d.feedA, candidates: [] };   // capture the preset so a mid-game difficulty switch only applies next run
         frame = 0; combo = 0; lastElimFrame = -999;
+        updateProgression();                                      // build the initial candidate set for this difficulty
+        shots = []; fx = []; cannon = { aim: -Math.PI / 2, cur: randPrime(), next: randPrime() }; score = 0; over = false;
         var head = PATH.len - CFG.startLen * CFG.D, vals = [];
         for (var i = 0; i < CFG.startLen; i++) { var pos = posAt(head + i * CFG.D); vals.push(makeBall(spawnValue(), pos.x, pos.y)); }
         queues = [{ vals: vals, head: head, imp: 0 }];
@@ -191,8 +231,8 @@
 
     // ---------------- sound (Prime Zuma's own voice, built on the shared synth) ----------------
     function sfxShoot(v) {
-        var idx = CFG.P.indexOf(v); if (idx < 0) idx = 0;
-        var f = [466, 587, 698, 880][idx % 4];                           // an airy blip per prime so each shot reads by ear
+        var idx = R.full.indexOf(v); if (idx < 0) idx = 0;
+        var f = [466, 587, 698, 880, 1047][idx % 5];                     // an airy blip per prime so each shot reads by ear
         AC.audio.tone(f * 1.4, 0.07, { type: 'triangle', volume: 0.07, attack: 0.002, slideTo: f });
     }
     function sfxInsert() { AC.audio.tone(300, 0.05, { type: 'triangle', volume: 0.06, attack: 0.002, slideTo: 215 }); }   // soft "tuck" as it slots in
@@ -231,6 +271,7 @@
     function update() {
         if (over || !queues) return;
         frame++;
+        updateProgression();                       // ramp cap / feed / bias / prime-set with elapsed time
         // 1) feed ONE ball at the outer source when there's room. It must enter at the source and creep in —
         //    appending to wherever the backmost happened to be (even far forward) is what made a whole string
         //    flash in to refill the gap after a big clear. Near the source → extend; otherwise a fresh ball enters.
@@ -243,7 +284,7 @@
         // 2) velocities: backmost feeds forward; a queue whose back end matches the queue behind retreats; + decaying inertia
         for (i = 0; i < queues.length; i++) {
             q = queues[i]; var v = 0;
-            if (i === queues.length - 1) v = -CFG.vFeed;
+            if (i === queues.length - 1) v = -R.feed;
             else if (gcd(q.vals[q.vals.length - 1].v, queues[i + 1].vals[0].v) > 1) v = CFG.vRetreat;   // share a factor (not coprime) → attract & retreat
             q.vel = v + (q.imp || 0);
             q.imp = (q.imp || 0) * Math.max(0, 1 - CFG.impDecay * dt);
@@ -348,8 +389,11 @@
         canvas.addEventListener('pointerdown', function (e) { e.preventDefault(); AC.audio.unlock(); if (shell.isPlaying() && !over) { aimTo(e.clientX, e.clientY); shoot(); } }, { passive: false });
         window.addEventListener('keydown', function (e) { if ((e.key === ' ') && shell.isPlaying() && !over) { e.preventDefault(); shoot(); } });
 
+        try { var sv = AC.prefs && AC.prefs.get('prime-zuma'); if (sv && DIFF[sv.diff]) difficulty = sv.diff; } catch (e) { /* default easy */ }
+
         shell = AC.shell.create({
             gameId: 'prime-zuma', step: 1 / 60, preventKeys: ['Space'],
+            mode: function () { return difficulty; },   // high scores are per-difficulty
             update: update, render: render,
             reset: newGame,
             restartToReady: true,
@@ -359,8 +403,23 @@
                 return {};
             },
         });
+        var seg = $('difficulty-seg');
+        if (seg) seg.addEventListener('click', function (e) { var b = e.target.closest ? e.target.closest('button[data-diff]') : null; if (b) { AC.audio.unlock(); setDifficulty(b.getAttribute('data-diff')); } });
+        syncSeg();
+
         AC.i18n.subscribe(function () { if (!shell.isPlaying()) shell.refreshOverlay && shell.refreshOverlay(); });
         newGame(); shell.refreshBest && shell.refreshBest(); render();
+    }
+    function syncSeg() {
+        var seg = $('difficulty-seg'); if (!seg) return;
+        var bs = seg.querySelectorAll('button[data-diff]');
+        for (var i = 0; i < bs.length; i++) { var on = bs[i].getAttribute('data-diff') === difficulty; bs[i].classList.toggle('active', on); bs[i].setAttribute('aria-checked', on ? 'true' : 'false'); }
+    }
+    function setDifficulty(d) {
+        if (!DIFF[d]) return;
+        difficulty = d; try { if (AC.prefs) AC.prefs.set('prime-zuma', { diff: d }); } catch (e) { /* ignore */ }
+        syncSeg();
+        if (!shell.isPlaying()) { newGame(); shell.refreshBest && shell.refreshBest(); render(); shell.refreshOverlay && shell.refreshOverlay(); }
     }
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
 })();
