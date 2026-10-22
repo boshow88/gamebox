@@ -186,9 +186,14 @@
     // ---------------- main loop ----------------
     function update() {
         if (over || !queues) return;
-        // 1) feed the backmost sub-queue from the source
-        if (queues.length) { var bq = queues[queues.length - 1]; if (backEndS(bq) <= PATH.len - CFG.D) bq.vals.push(spawnValue()); }
-        else queues.push({ vals: [spawnValue()], head: PATH.len - CFG.D, imp: 0 });
+        // 1) feed ONE ball at the outer source when there's room. It must enter at the source and creep in —
+        //    appending to wherever the backmost happened to be (even far forward) is what made a whole string
+        //    flash in to refill the gap after a big clear. Near the source → extend; otherwise a fresh ball enters.
+        var lastQ = queues.length ? queues[queues.length - 1] : null;
+        if (!lastQ || backEndS(lastQ) <= PATH.len - CFG.D) {
+            if (lastQ && PATH.len - backEndS(lastQ) <= CFG.D + 0.5) lastQ.vals.push(spawnValue());
+            else queues.push({ vals: [spawnValue()], head: PATH.len, imp: 0 });
+        }
         var dt = 1 / 60, i, q;
         // 2) velocities: backmost feeds forward; a queue whose back end matches the queue behind retreats; + decaying inertia
         for (i = 0; i < queues.length; i++) {
