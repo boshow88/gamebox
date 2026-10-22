@@ -49,7 +49,7 @@
     var CFG = {
         turns: 3, Rin: 50, Rout: 212,            // spiral: inner (death) and outer (source) radii, px from centre
         D: 27, rBall: 12.5,                       // chain spacing (arc px) + ball draw radius (px)
-        vFeed: 15, vRetreat: 90, impulse: 70, impDecay: 7,  // forward feed / magnet-retreat / inertia impulse + decay (/s)
+        vFeed: 15, vRetreat: 180, impulse: 70, impDecay: 7,  // forward feed / magnet-retreat / inertia impulse + decay (/s)
         k: 3,                                     // run length (incl. shot) needed to eliminate
         P: [2, 3, 5], maxFactors: 3, valCap: 30,  // prime palette + spawned chain values = product of 1..maxFactors primes (<= cap)
         shotSpeed: 480,                           // projectile speed (px/s)
@@ -88,6 +88,7 @@
     function rng() { rngState = (rngState + 0x6D2B79F5) | 0; var x = Math.imul(rngState ^ (rngState >>> 15), 1 | rngState); x = (x + Math.imul(x ^ (x >>> 7), 61 | x)) ^ x; return ((x ^ (x >>> 14)) >>> 0) / 4294967296; }
     function randInt(n) { return (rng() * n) | 0; }
     function isPrime(v) { if (v < 2) return false; for (var i = 2; i * i <= v; i++) if (v % i === 0) return false; return true; }
+    function gcd(a, b) { a = a < 0 ? -a : a; b = b < 0 ? -b : b; while (b) { var m = a % b; a = b; b = m; } return a; }
     function randPrime() { return CFG.P[randInt(CFG.P.length)]; }
     function spawnValue() { var n = 1, f = 1 + randInt(CFG.maxFactors); for (var i = 0; i < f; i++) { var p = randPrime(); if (n * p > CFG.valCap) break; n *= p; } return n === 1 ? randPrime() : n; }
 
@@ -147,11 +148,12 @@
                     var a = f.vals[f.vals.length - 1], c = b.vals[0], junction = f.vals.length - 1;
                     // anchor the ball that was NOT moving into the other; keep the chain rigid at D spacing
                     var frontFed = (b.vel || 0) < 0 && (f.vel || 0) <= 0;   // backmost fed forward into a still front queue
+                    var retreating = (f.vel || 0) > 0;                      // this crash came from an attraction (retreat), not a plain feed catch-up
                     var mq = { vals: f.vals.concat(b.vals), head: frontFed ? f.head : (b.head - f.vals.length * CFG.D), imp: 0 };
                     queues.splice(i, 2, mq);
-                    if (a === c) {
-                        if (isPrime(a)) tryEliminate(mq, junction, a);          // matching primes → chain another peel
-                        else mq.imp = CFG.impulse;                              // matching composites → inertia nudge backward
+                    if (retreating) {
+                        if (a === c && isPrime(a)) tryEliminate(mq, junction, a);   // SAME PRIME → chain another peel
+                        else mq.imp = CFG.impulse;                                  // otherwise (shares a factor) → inertia nudge backward
                     }
                     merged = true;
                     break;
@@ -192,7 +194,7 @@
         for (i = 0; i < queues.length; i++) {
             q = queues[i]; var v = 0;
             if (i === queues.length - 1) v = -CFG.vFeed;
-            else if (q.vals[q.vals.length - 1] === queues[i + 1].vals[0]) v = CFG.vRetreat;
+            else if (gcd(q.vals[q.vals.length - 1], queues[i + 1].vals[0]) > 1) v = CFG.vRetreat;   // share a factor (not coprime) → attract & retreat
             q.vel = v + (q.imp || 0);
             q.imp = (q.imp || 0) * Math.max(0, 1 - CFG.impDecay * dt);
             if (Math.abs(q.imp) < 1) q.imp = 0;
