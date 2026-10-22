@@ -53,6 +53,7 @@
         D: 27, rBall: 12.5,                       // chain spacing (arc px) + ball draw radius (px)
         vRetreat: 180, impulse: 70, impDecay: 7,  // magnet-retreat speed / inertia impulse + decay (/s) — feed speed is per-difficulty (R.feed)
         k: 3,                                     // run length (incl. shot) needed to eliminate
+        cannonFloor: 1.5,                         // baseline weight every active prime keeps regardless of board demand (0 = strictly demand-driven)
         shotSpeed: 480,                           // projectile speed (px/s)
         insertPush: 'front',                      // where insertion makes room: 'front' = shove the front toward death (back untouched)
         startLen: 5,                              // balls pre-seeded at the source
@@ -100,11 +101,21 @@
     // ---------------- rng + number helpers ----------------
     var rngState = 1;
     function rng() { rngState = (rngState + 0x6D2B79F5) | 0; var x = Math.imul(rngState ^ (rngState >>> 15), 1 | rngState); x = (x + Math.imul(x ^ (x >>> 7), 61 | x)) ^ x; return ((x ^ (x >>> 14)) >>> 0) / 4294967296; }
-    function randInt(n) { return (rng() * n) | 0; }
     function isPrime(v) { if (v < 2) return false; for (var i = 2; i * i <= v; i++) if (v % i === 0) return false; return true; }
     function gcd(a, b) { a = a < 0 ? -a : a; b = b < 0 ? -b : b; while (b) { var m = a % b; a = b; b = m; } return a; }
     function activePrimes() { return R.full.slice(0, R.activeN); }
-    function randPrime() { return R.full[randInt(R.activeN)]; }                    // the cannon offers only primes currently in play
+    // The cannon's next prime is weighted by the factor DEMAND currently on the board (+ a small floor so
+    // every active prime stays possible, and the empty board stays uniform) — you're handed the primes the
+    // chain actually needs, so the two sides of the game "呼應".
+    function pickCannonPrime() {
+        var n = R.activeN, dem = [], i, j, pi, total = 0;
+        for (i = 0; i < n; i++) dem[i] = CFG.cannonFloor;
+        if (queues) for (i = 0; i < queues.length; i++) { var vals = queues[i].vals; for (j = 0; j < vals.length; j++) { var v = vals[j].v; for (pi = 0; pi < n; pi++) { var p = R.full[pi], m = v; while (m % p === 0) { m /= p; dem[pi]++; } } } }
+        for (i = 0; i < n; i++) total += dem[i];
+        var r = rng() * total;
+        for (i = 0; i < n; i++) if ((r -= dem[i]) <= 0) return R.full[i];
+        return R.full[n - 1];
+    }
     function rebuildCandidates() {                                                 // every P-smooth number in [2, cap] + its Ω (prime-factor count)
         var primes = activePrimes(), list = [];
         for (var n = 2; n <= R.cap; n++) {
@@ -148,10 +159,11 @@
         R = { d: d, full: d.primes, activeN: 3, cap: 0, bias: d.biasA, feed: d.feedA, candidates: [] };   // capture the preset so a mid-game difficulty switch only applies next run
         frame = 0; combo = 0; lastElimFrame = -999;
         updateProgression();                                      // build the initial candidate set for this difficulty
-        shots = []; fx = []; cannon = { aim: -Math.PI / 2, cur: randPrime(), next: randPrime() }; score = 0; over = false;
+        shots = []; fx = []; score = 0; over = false;
         var head = PATH.len - CFG.startLen * CFG.D, vals = [];
         for (var i = 0; i < CFG.startLen; i++) { var pos = posAt(head + i * CFG.D); vals.push(makeBall(spawnValue(), pos.x, pos.y)); }
         queues = [{ vals: vals, head: head, imp: 0 }];
+        cannon = { aim: -Math.PI / 2, cur: pickCannonPrime(), next: pickCannonPrime() };   // seed shots from the starting chain's demand
         syncHud();
     }
 
@@ -251,7 +263,7 @@
     function shoot() {
         var mx = CX + Math.cos(cannon.aim) * 24, my = CY + Math.sin(cannon.aim) * 24, fired = cannon.cur;
         shots.push({ x: mx, y: my, vx: Math.cos(cannon.aim) * CFG.shotSpeed, vy: Math.sin(cannon.aim) * CFG.shotSpeed, v: fired });
-        cannon.cur = cannon.next; cannon.next = randPrime();
+        cannon.cur = cannon.next; cannon.next = pickCannonPrime();
         sfxShoot(fired);
     }
     function nearestBall(x, y) {
