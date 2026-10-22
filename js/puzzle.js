@@ -915,9 +915,6 @@
 
             // Queens
             queensName: 'Queens',
-            queensTagline: 'Royal regions, one queen each.',
-            queensCardBody:
-                'Place N queens so that every row, column, color region and 8-neighborhood contains exactly one.',
             queensBoardAria: 'Queens puzzle board',
             queensHelp1Html:
                 'Click a cell to cycle through <strong>empty → <span class="inline-icon queen-x" data-icon="x"></span> → <span class="inline-icon queen" data-icon="crown"></span></strong> (the <span class="inline-icon queen-x" data-icon="x"></span> is just a personal "no" marker).',
@@ -950,9 +947,6 @@
 
             // Tango
             tangoName: 'Tango',
-            tangoTagline: 'Sun & moon balance.',
-            tangoCardBody:
-                'Fill the grid with suns and moons — half of each per row and column, no three in a row, respect the walls.',
             tangoBoardAria: 'Tango puzzle board',
             tangoHelp1Html:
                 'Click a cell to cycle through <strong>empty → <span class="inline-icon sun" data-icon="sun"></span> → <span class="inline-icon moon" data-icon="moon"></span></strong>. Pre-filled cells are locked.',
@@ -964,9 +958,6 @@
 
             // Sudoku
             sudokuName: 'Sudoku',
-            sudokuTagline: 'Classic number logic.',
-            sudokuCardBody:
-                'Fill the grid so every row, column and box contains each digit exactly once.',
             sudokuBoardAria: 'Sudoku puzzle board',
             sudokuNumPadAria: 'Number pad',
             sudokuNotes: 'Notes',
@@ -1027,14 +1018,8 @@
 
             // Zip
             zipName: 'Zip',
-            zipTagline: 'One path, every cell.',
-            zipCardBodyHtml:
-                'Drag from <strong>1</strong> to draw a single path covering every open cell, hitting checkpoints in numerical order.',
             zipBoardAria: 'Zip puzzle board',
             nonogramName: 'Nonogram',
-            nonogramTagline: 'Reveal the hidden picture.',
-            nonogramCardBody:
-                'Use the row and column number clues to fill the grid and reveal the picture.',
             nonogramBoardAria: 'Nonogram puzzle board',
             nonogramToolsAria: 'Input mode',
             nonogramToolCycle: 'Cycle',
@@ -1048,9 +1033,6 @@
             nonogramHelp3Html:
                 'Solved when the <span class="inline-icon nono-ico-fill" data-icon="square"></span> cells match every row and column clue.',
             guardsName: 'Guards',
-            guardsTagline: 'Watch every corridor.',
-            guardsCardBody:
-                'Post the right number of guards to watch the corridors — none may see another.',
             guardsBoardAria: 'Guards puzzle board',
             guardsToolsAria: 'Input mode',
             guardsToolCycle: 'Cycle',
@@ -1066,9 +1048,6 @@
             guardsHelp4Html:
                 'Solved when every floor cell is watched and no rule is broken.',
             hashiName: 'Hashi',
-            hashiTagline: 'Bridge every island.',
-            hashiCardBody:
-                'Link the numbered islands with the right number of bridges — no crossings, all connected.',
             hashiBoardAria: 'Hashi puzzle board',
             hashiCrossBlocked: 'A bridge there would cross an existing one.',
             hashiToolsAria: 'Input mode',
@@ -1099,9 +1078,6 @@
             zipHelp5:
                 'Solved when the path covers every white cell with checkpoints in the right order.',
             patchesName: 'Patches',
-            patchesTagline: 'Tile the grid with shapes.',
-            patchesCardBody:
-                'Split the grid into rectangles — one per clue — matching each clue\u2019s shape and size.',
             patchesBoardAria: 'Patches puzzle board',
             patchesHelp1:
                 'Divide the whole grid into rectangles so that every rectangle contains exactly one clue.',
@@ -1171,8 +1147,6 @@
             showSolutionPath: '顯示解答路徑',
 
             queensName: 'Queens',
-            queensTagline: '皇家領地，每區一后。',
-            queensCardBody: '在每個列、行、色塊區域與 8 鄰域中各放一個皇后。',
             queensBoardAria: 'Queens 盤面',
             queensHelp1Html:
                 '點擊格子在 <strong>空 → <span class="inline-icon queen-x" data-icon="x"></span> → <span class="inline-icon queen" data-icon="crown"></span></strong> 之間循環（<span class="inline-icon queen-x" data-icon="x"></span> 為個人「不放這」的標記）。',
@@ -1201,9 +1175,6 @@
                 '目前沒有更進一步可以推論的地方了，可能需要找更細微的線索。',
 
             tangoName: 'Tango',
-            tangoTagline: '太陽與月亮的平衡。',
-            tangoCardBody:
-                '用太陽和月亮填滿盤面 — 每列每行各半，不能連續三個相同，並遵循牆的限制。',
             tangoBoardAria: 'Tango 盤面',
             tangoHelp1Html:
                 '點擊格子在 <strong>空 → <span class="inline-icon sun" data-icon="sun"></span> → <span class="inline-icon moon" data-icon="moon"></span></strong> 之間循環。預填的格子是鎖定的。',
@@ -1214,9 +1185,6 @@
             tangoHelp4: '所有格子都填滿、且無違規時即過關。',
 
             sudokuName: 'Sudoku',
-            sudokuTagline: '經典數字邏輯。',
-            sudokuCardBody:
-                '填滿盤面，使每列、每行、每個區域都恰好包含 1 至 N 各一次。',
             sudokuBoardAria: 'Sudoku 盤面',
             sudokuNumPadAria: '數字鍵盤',
             sudokuNotes: '筆記',
@@ -1274,14 +1242,8 @@
             sudokuHintTierError: '錯誤',
 
             zipName: 'Zip',
-            zipTagline: '一條路徑，貫穿每格。',
-            zipCardBodyHtml:
-                '從 <strong>1</strong> 開始拖曳，畫出一條覆蓋每個白色格子的路徑，並依序通過編號的檢查點。',
             zipBoardAria: 'Zip 盤面',
             nonogramName: 'Nonogram',
-            nonogramTagline: '還原隱藏的圖案。',
-            nonogramCardBody:
-                '依每列與每行的數字線索把格子填滿，還原出圖案。',
             nonogramBoardAria: 'Nonogram 盤面',
             nonogramToolsAria: '輸入模式',
             nonogramToolCycle: '循環',
@@ -1295,9 +1257,6 @@
             nonogramHelp3Html:
                 '當 <span class="inline-icon nono-ico-fill" data-icon="square"></span> 格子符合所有列與行的線索即過關。',
             guardsName: 'Guards',
-            guardsTagline: '看守每一條走廊。',
-            guardsCardBody:
-                '部署符合數量的守衛看守走廊 — 彼此不能互相看到。',
             guardsBoardAria: '守衛盤面',
             guardsToolsAria: '輸入模式',
             guardsToolCycle: '循環',
@@ -1313,9 +1272,6 @@
             guardsHelp4Html:
                 '當每一格地板都被看守、且沒有違反任何規則時即過關。',
             hashiName: 'Hashi',
-            hashiTagline: '把每座島連起來。',
-            hashiCardBody:
-                '用正確數量的橋連接數字島 — 不可交叉，且全部連成一網。',
             hashiBoardAria: 'Hashi 盤面',
             hashiCrossBlocked: '這裡會和現有的橋交叉，不能架。',
             hashiToolsAria: '輸入模式',
@@ -1345,9 +1301,6 @@
                 '可以從路徑上任何一格重新拖曳 — 該格之後的部分都會被取消。',
             zipHelp5: '當路徑覆蓋每個白格，且檢查點都依序通過時即過關。',
             patchesName: 'Patches',
-            patchesTagline: '用形狀鋪滿整個盤面。',
-            patchesCardBody:
-                '把盤面切成一個個矩形 — 每個提示對應一個 — 並符合該提示的形狀與大小。',
             patchesBoardAria: 'Patches 盤面',
             patchesHelp1:
                 '把整個盤面切成數個矩形，使每個矩形內恰好包含一個提示。',
