@@ -55,6 +55,7 @@
         shotSpeed: 480,                           // projectile speed (px/s)
         insertPush: 'front',                      // where insertion makes room: 'front' = shove the front toward death (back untouched)
         startLen: 5,                              // balls pre-seeded at the source
+        smooth: 16,                               // render-easing rate (higher = snappier): balls lerp to logical spots for smooth slides/accel
     };
     var CW = 460, CH = 460, CX = CW / 2, CY = CH / 2, DPR = Math.min(window.devicePixelRatio || 1, 2);
 
@@ -93,8 +94,11 @@
     function spawnValue() { var n = 1, f = 1 + randInt(CFG.maxFactors); for (var i = 0; i < f; i++) { var p = randPrime(); if (n * p > CFG.valCap) break; n *= p; } return n === 1 ? randPrime() : n; }
 
     // ---------------- state ----------------
-    // queues: [{ vals:[front..back], head:(s of front ball), imp:(inertia velocity) }] ordered front(small s) -> back(large s)
-    var canvas, ctx, shell, queues, shots, cannon, score, over;
+    // queues: [{ vals:[ball..], head:(s of front ball), imp:(inertia velocity) }] ordered front(small s) -> back(large s)
+    // a ball is an OBJECT so it keeps identity across shifts/merges, letting the renderer ease its on-screen
+    // position toward the logical one (smooth slides, insertion "make room", retreat ease-in — all for free).
+    var canvas, ctx, shell, queues, shots, cannon, score, over, fx;
+    function makeBall(v, x, y) { return { v: v, rx: x, ry: y, pop: 0 }; }   // v=value · rx/ry=rendered pos · pop=divide pulse
 
     function $(id) { return document.getElementById(id); }
     function backEndS(q) { return q.head + (q.vals.length - 1) * CFG.D; }
@@ -102,39 +106,57 @@
 
     function newGame() {
         rngState = (Date.now() >>> 0) || 1;
-        shots = []; cannon = { aim: -Math.PI / 2, cur: randPrime(), next: randPrime() }; score = 0; over = false;
-        var vals = []; for (var i = 0; i < CFG.startLen; i++) vals.push(spawnValue());
-        queues = [{ vals: vals, head: PATH.len - CFG.startLen * CFG.D, imp: 0 }];
+        shots = []; fx = []; cannon = { aim: -Math.PI / 2, cur: randPrime(), next: randPrime() }; score = 0; over = false;
+        var head = PATH.len - CFG.startLen * CFG.D, vals = [];
+        for (var i = 0; i < CFG.startLen; i++) { var pos = posAt(head + i * CFG.D); vals.push(makeBall(spawnValue(), pos.x, pos.y)); }
+        queues = [{ vals: vals, head: head, imp: 0 }];
         syncHud();
     }
 
+    // ---------------- particles (explosion juice) ----------------
+    function burst(x, y, h) {
+        fx.push({ x: x, y: y, r0: CFG.rBall * 0.5, r1: CFG.rBall * 2.6, life: 0, max: 0.34, h: h, ring: true });
+        for (var i = 0; i < 7; i++) { var a = (i / 7) * Math.PI * 2 + rng() * 0.7, sp = 70 + rng() * 110; fx.push({ x: x, y: y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 0, max: 0.4 + rng() * 0.25, h: h }); }
+    }
+    function updateFx(dt) {
+        for (var i = fx.length - 1; i >= 0; i--) {
+            var f = fx[i]; f.life += dt;
+            if (!f.ring) { f.x += f.vx * dt; f.y += f.vy * dt; f.vx *= 0.88; f.vy *= 0.88; }
+            if (f.life >= f.max) fx.splice(i, 1);
+        }
+    }
+
     // ---------------- elimination ----------------
-    function regroup(balls) {   // balls: [{s,v}] sorted by s → contiguous runs become queues
+    function regroup(items) {   // items: [{s, b}] sorted by s → contiguous runs become queues (ball OBJECTS preserved)
         var out = [], cur = null;
-        for (var i = 0; i < balls.length; i++) {
-            if (cur && Math.abs(balls[i].s - (cur.head + cur.vals.length * CFG.D)) <= CFG.D * 0.5) cur.vals.push(balls[i].v);
-            else { if (cur) out.push(cur); cur = { vals: [balls[i].v], head: balls[i].s, imp: 0 }; }
+        for (var i = 0; i < items.length; i++) {
+            if (cur && Math.abs(items[i].s - (cur.head + cur.vals.length * CFG.D)) <= CFG.D * 0.5) cur.vals.push(items[i].b);
+            else { if (cur) out.push(cur); cur = { vals: [items[i].b], head: items[i].s, imp: 0 }; }
         }
         if (cur) out.push(cur);
         return out;
     }
     // Peel a factor of p off the contiguous divisible run around index `idx`. Returns true if it cleared.
     function tryEliminate(q, idx, p) {
-        if (!q || q.vals[idx] % p !== 0) return false;
+        if (!q || q.vals[idx].v % p !== 0) return false;
         var lo = idx, hi = idx;
-        while (lo - 1 >= 0 && q.vals[lo - 1] % p === 0) lo--;
-        while (hi + 1 < q.vals.length && q.vals[hi + 1] % p === 0) hi++;
+        while (lo - 1 >= 0 && q.vals[lo - 1].v % p === 0) lo--;
+        while (hi + 1 < q.vals.length && q.vals[hi + 1].v % p === 0) hi++;
         if (hi - lo + 1 < CFG.k) return false;
-        var balls = [], cleared = 0;
+        var items = [], cleared = 0;
         for (var j = 0; j < q.vals.length; j++) {
-            var v = q.vals[j];
-            if (j >= lo && j <= hi) { v = v / p; if (v === 1) { cleared++; continue; } }
-            balls.push({ s: q.head + j * CFG.D, v: v });
+            var b = q.vals[j], sPos = q.head + j * CFG.D;
+            if (j >= lo && j <= hi) {
+                b.v = b.v / p;
+                if (b.v === 1) { burst(b.rx, b.ry, hue(p)); cleared++; continue; }   // popped
+                b.pop = 1;                                                           // divided but survives → quick pulse
+            }
+            items.push({ s: sPos, b: b });
         }
         score += cleared * 10 + (hi - lo + 1);
         AC.audio.play('laser');
         var at = queues.indexOf(q);
-        if (at >= 0) { var groups = regroup(balls); queues.splice.apply(queues, [at, 1].concat(groups)); }
+        if (at >= 0) { var groups = regroup(items); queues.splice.apply(queues, [at, 1].concat(groups)); }
         return true;
     }
 
@@ -145,7 +167,7 @@
             for (var i = 0; i < queues.length - 1; i++) {
                 var f = queues[i], b = queues[i + 1];
                 if (gapBetween(f, b) < -0.01) {
-                    var a = f.vals[f.vals.length - 1], c = b.vals[0], junction = f.vals.length - 1;
+                    var a = f.vals[f.vals.length - 1].v, c = b.vals[0].v, junction = f.vals.length - 1;
                     // anchor the ball that was NOT moving into the other; keep the chain rigid at D spacing
                     var frontFed = (b.vel || 0) < 0 && (f.vel || 0) <= 0;   // backmost fed forward into a still front queue
                     var retreating = (f.vel || 0) > 0;                      // this crash came from an attraction (retreat), not a plain feed catch-up
@@ -172,14 +194,14 @@
     }
     function nearestBall(x, y) {
         var best = null, bd = Infinity;
-        for (var qi = 0; qi < queues.length; qi++) { var q = queues[qi]; for (var j = 0; j < q.vals.length; j++) { var pos = posAt(q.head + j * CFG.D), dx = pos.x - x, dy = pos.y - y, d = dx * dx + dy * dy; if (d < bd) { bd = d; best = { q: q, j: j, s: q.head + j * CFG.D }; } } }
+        for (var qi = 0; qi < queues.length; qi++) { var q = queues[qi]; for (var j = 0; j < q.vals.length; j++) { var b = q.vals[j], dx = b.rx - x, dy = b.ry - y, d = dx * dx + dy * dy; if (d < bd) { bd = d; best = { q: q, j: j, s: q.head + j * CFG.D }; } } }   // hit-test the RENDERED balls (what the player sees)
         if (best) best.dist = Math.sqrt(bd);
         return best;
     }
     function insertShot(shot, hit) {
         var q = hit.q, shotS = nearestS(shot.x, shot.y), j = shotS < hit.s ? hit.j : hit.j + 1;   // insert on the side the ball came from
-        q.vals.splice(j, 0, shot.v);
-        if (CFG.insertPush === 'front') q.head -= CFG.D;   // make room by shoving the FRONT toward death; the back is untouched
+        q.vals.splice(j, 0, makeBall(shot.v, shot.x, shot.y));   // starts at the projectile's spot → eases into its slot as neighbours make room
+        if (CFG.insertPush === 'front') q.head -= CFG.D;         // make room by shoving the FRONT toward death; the back is untouched
         tryEliminate(q, j, shot.v);
     }
 
@@ -191,15 +213,15 @@
         //    flash in to refill the gap after a big clear. Near the source → extend; otherwise a fresh ball enters.
         var lastQ = queues.length ? queues[queues.length - 1] : null;
         if (!lastQ || backEndS(lastQ) <= PATH.len - CFG.D) {
-            if (lastQ && PATH.len - backEndS(lastQ) <= CFG.D + 0.5) lastQ.vals.push(spawnValue());
-            else queues.push({ vals: [spawnValue()], head: PATH.len, imp: 0 });
+            if (lastQ && PATH.len - backEndS(lastQ) <= CFG.D + 0.5) { var pe = posAt(backEndS(lastQ) + CFG.D); lastQ.vals.push(makeBall(spawnValue(), pe.x, pe.y)); }
+            else { var ps = posAt(PATH.len); queues.push({ vals: [makeBall(spawnValue(), ps.x, ps.y)], head: PATH.len, imp: 0 }); }
         }
         var dt = 1 / 60, i, q;
         // 2) velocities: backmost feeds forward; a queue whose back end matches the queue behind retreats; + decaying inertia
         for (i = 0; i < queues.length; i++) {
             q = queues[i]; var v = 0;
             if (i === queues.length - 1) v = -CFG.vFeed;
-            else if (gcd(q.vals[q.vals.length - 1], queues[i + 1].vals[0]) > 1) v = CFG.vRetreat;   // share a factor (not coprime) → attract & retreat
+            else if (gcd(q.vals[q.vals.length - 1].v, queues[i + 1].vals[0].v) > 1) v = CFG.vRetreat;   // share a factor (not coprime) → attract & retreat
             q.vel = v + (q.imp || 0);
             q.imp = (q.imp || 0) * Math.max(0, 1 - CFG.impDecay * dt);
             if (Math.abs(q.imp) < 1) q.imp = 0;
@@ -215,38 +237,56 @@
             if (hit && hit.dist < CFG.rBall * 1.9) { insertShot(s, hit); shots.splice(i, 1); }
         }
         resolveCollisions();
-        // 4) prune empties, check death (front of the frontmost queue reached the core)
+        // 4) prune empties, decay per-ball pulses, step particles, check death
         for (i = queues.length - 1; i >= 0; i--) if (!queues[i].vals.length) queues.splice(i, 1);
+        for (i = 0; i < queues.length; i++) { var vv = queues[i].vals; for (var jj = 0; jj < vv.length; jj++) if (vv[jj].pop > 0) vv[jj].pop = Math.max(0, vv[jj].pop - dt * 6); }
+        updateFx(dt);
         if (queues.length && queues[0].head <= 0) { over = true; shell.gameOver({ score: score, win: false }); }
         syncHud();
     }
 
     // ---------------- render ----------------
     function hue(v) { return (v * 47) % 360; }
+    function drawBall(x, y, v, r) {
+        var prime = isPrime(v), h = hue(v);
+        if (prime) { ctx.save(); ctx.shadowColor = 'hsl(' + h + ',90%,65%)'; ctx.shadowBlur = 8; }
+        ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fillStyle = 'hsl(' + h + ',70%,' + (prime ? 56 : 42) + '%)'; ctx.fill();
+        if (prime) ctx.restore();
+        ctx.lineWidth = prime ? 3 : 1.5; ctx.strokeStyle = prime ? '#fff' : 'rgba(255,255,255,0.4)'; ctx.stroke();
+        ctx.fillStyle = '#0a1322'; ctx.font = 'bold ' + (v > 9 ? Math.round(r * 0.95) : Math.round(r * 1.2)) + 'px system-ui,sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(String(v), x, y + 0.5);
+    }
+    var lastT = 0;
     function render() {
         if (!ctx) return;
+        var now = performance.now() / 1000, dt = lastT ? Math.min(0.05, now - lastT) : 1 / 60; lastT = now;
+        var ease = 1 - Math.exp(-dt * CFG.smooth);
         ctx.clearRect(0, 0, CW, CH);
         // spiral guide
         ctx.strokeStyle = 'rgba(148,163,184,0.18)'; ctx.lineWidth = CFG.rBall * 2 + 3; ctx.lineCap = 'round'; ctx.beginPath();
         for (var p = 0; p < PATH.pts.length; p += 3) { var pt = PATH.pts[p]; if (p === 0) ctx.moveTo(pt.x, pt.y); else ctx.lineTo(pt.x, pt.y); }
         ctx.stroke();
-        // death core
-        var d0 = posAt(0);
-        ctx.fillStyle = 'rgba(239,68,68,0.9)'; ctx.beginPath(); ctx.arc(d0.x, d0.y, 7, 0, 7); ctx.fill();
-        // chain balls
+        // death core (soft pulse)
+        var d0 = posAt(0), pr = 7 + Math.sin(now * 4) * 1.5;
+        ctx.fillStyle = 'rgba(239,68,68,0.9)'; ctx.beginPath(); ctx.arc(d0.x, d0.y, pr, 0, 7); ctx.fill();
+        // chain balls — ease each ball's on-screen position toward its logical slot, then draw (with divide-pulse)
         for (var qi = 0; qi < queues.length; qi++) {
             var q = queues[qi];
             for (var j = 0; j < q.vals.length; j++) {
-                var v = q.vals[j], pos = posAt(q.head + j * CFG.D), prime = isPrime(v), h = hue(v);
-                ctx.beginPath(); ctx.arc(pos.x, pos.y, CFG.rBall, 0, 7);
-                ctx.fillStyle = 'hsl(' + h + ',70%,' + (prime ? 56 : 42) + '%)'; ctx.fill();
-                ctx.lineWidth = prime ? 3 : 1.5; ctx.strokeStyle = prime ? '#fff' : 'rgba(255,255,255,0.4)'; ctx.stroke();
-                ctx.fillStyle = '#0a1322'; ctx.font = 'bold ' + (v > 9 ? 12 : 15) + 'px system-ui,sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-                ctx.fillText(String(v), pos.x, pos.y + 0.5);
+                var b = q.vals[j], lp = posAt(q.head + j * CFG.D);
+                b.rx += (lp.x - b.rx) * ease; b.ry += (lp.y - b.ry) * ease;
+                drawBall(b.rx, b.ry, b.v, CFG.rBall * (1 + (b.pop || 0) * 0.35));
             }
         }
+        // explosion particles (rings + shards)
+        for (var fi = 0; fi < fx.length; fi++) {
+            var f = fx[fi], tt = f.life / f.max, al = 1 - tt; ctx.globalAlpha = al < 0 ? 0 : al;
+            if (f.ring) { ctx.lineWidth = 2 + 3 * al; ctx.strokeStyle = 'hsl(' + f.h + ',90%,66%)'; ctx.beginPath(); ctx.arc(f.x, f.y, f.r0 + (f.r1 - f.r0) * tt, 0, 7); ctx.stroke(); }
+            else { ctx.fillStyle = 'hsl(' + f.h + ',90%,66%)'; ctx.beginPath(); ctx.arc(f.x, f.y, 1 + 3 * al, 0, 7); ctx.fill(); }
+        }
+        ctx.globalAlpha = 1;
         // shots
-        for (var si = 0; si < shots.length; si++) { var s = shots[si]; ctx.beginPath(); ctx.arc(s.x, s.y, CFG.rBall * 0.9, 0, 7); ctx.fillStyle = 'hsl(' + hue(s.v) + ',75%,58%)'; ctx.fill(); ctx.lineWidth = 2.5; ctx.strokeStyle = '#fff'; ctx.stroke(); ctx.fillStyle = '#0a1322'; ctx.font = 'bold 14px system-ui,sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(String(s.v), s.x, s.y + 0.5); }
+        for (var si = 0; si < shots.length; si++) { var s = shots[si]; drawBall(s.x, s.y, s.v, CFG.rBall * 0.9); }
         // cannon barrel (rotates to aim), with the loaded ball at the muzzle
         ctx.save(); ctx.translate(CX, CY); ctx.rotate(cannon.aim);
         ctx.fillStyle = '#334155'; ctx.fillRect(0, -5, 30, 10);
