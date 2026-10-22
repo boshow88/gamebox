@@ -272,11 +272,11 @@
     function hue(v) { return (v * 47) % 360; }
     function drawBall(x, y, v, r) {
         var prime = isPrime(v);
-        if (prime) {                                    // primes: own hue + glow — these are what you aim/match, so they stand out
+        if (prime) {                                    // primes: own hue + a soft GLOW is what marks them (not a hard ring)
             var h = hue(v);
-            ctx.save(); ctx.shadowColor = 'hsl(' + h + ',90%,65%)'; ctx.shadowBlur = 8;
-            ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fillStyle = 'hsl(' + h + ',70%,56%)'; ctx.fill(); ctx.restore();
-            ctx.lineWidth = 3; ctx.strokeStyle = '#fff'; ctx.stroke();
+            ctx.save(); ctx.shadowColor = 'hsl(' + h + ',95%,62%)'; ctx.shadowBlur = 11;
+            ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fillStyle = 'hsl(' + h + ',72%,58%)'; ctx.fill(); ctx.restore();
+            ctx.lineWidth = 1.5; ctx.strokeStyle = 'hsl(' + h + ',100%,84%)'; ctx.stroke();   // thin ring in the ball's OWN light tint → soft edge, not shouty white
             ctx.fillStyle = '#0a1322';
         } else {                                        // composites: one calm shared colour (light text so the number still reads)
             ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fillStyle = CFG.compositeColor; ctx.fill();
