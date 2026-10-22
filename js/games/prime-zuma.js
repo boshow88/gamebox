@@ -98,7 +98,7 @@
     // queues: [{ vals:[ball..], head:(s of front ball), imp:(inertia velocity) }] ordered front(small s) -> back(large s)
     // a ball is an OBJECT so it keeps identity across shifts/merges, letting the renderer ease its on-screen
     // position toward the logical one (smooth slides, insertion "make room", retreat ease-in — all for free).
-    var canvas, ctx, shell, queues, shots, cannon, score, over, fx;
+    var canvas, ctx, shell, queues, shots, cannon, score, over, fx, frame, combo, lastElimFrame;
     function makeBall(v, x, y) { return { v: v, rx: x, ry: y, pop: 0 }; }   // v=value · rx/ry=rendered pos · pop=divide pulse
 
     function $(id) { return document.getElementById(id); }
@@ -108,6 +108,7 @@
     function newGame() {
         rngState = (Date.now() >>> 0) || 1;
         shots = []; fx = []; cannon = { aim: -Math.PI / 2, cur: randPrime(), next: randPrime() }; score = 0; over = false;
+        frame = 0; combo = 0; lastElimFrame = -999;
         var head = PATH.len - CFG.startLen * CFG.D, vals = [];
         for (var i = 0; i < CFG.startLen; i++) { var pos = posAt(head + i * CFG.D); vals.push(makeBall(spawnValue(), pos.x, pos.y)); }
         queues = [{ vals: vals, head: head, imp: 0 }];
@@ -155,7 +156,8 @@
             items.push({ s: sPos, b: b });
         }
         score += cleared * 10 + (hi - lo + 1);
-        AC.audio.play('laser');
+        combo = (frame - lastElimFrame <= 42) ? combo + 1 : 1; lastElimFrame = frame;   // chain within ~0.7s → climbing pitch
+        sfxPop(combo);
         var at = queues.indexOf(q);
         if (at >= 0) { var groups = regroup(items); queues.splice.apply(queues, [at, 1].concat(groups)); }
         return true;
@@ -163,6 +165,7 @@
 
     // ---------------- collisions (merge / chain / inertia) ----------------
     function resolveCollisions() {
+        var crashes = 0;
         for (var guard = 0; guard < 200; guard++) {
             var merged = false;
             for (var i = 0; i < queues.length - 1; i++) {
@@ -176,7 +179,7 @@
                     queues.splice(i, 2, mq);
                     if (retreating) {
                         if (a === c && isPrime(a)) tryEliminate(mq, junction, a);   // SAME PRIME → chain another peel
-                        else mq.imp = CFG.impulse;                                  // otherwise (shares a factor) → inertia nudge backward
+                        else { mq.imp = CFG.impulse; if (crashes < 2) { sfxCrash(); crashes++; } }   // shares a factor → inertia nudge + a soft thud
                     }
                     merged = true;
                     break;
@@ -186,12 +189,30 @@
         }
     }
 
+    // ---------------- sound (Prime Zuma's own voice, built on the shared synth) ----------------
+    function sfxShoot(v) {
+        var idx = CFG.P.indexOf(v); if (idx < 0) idx = 0;
+        var f = [466, 587, 698, 880][idx % 4];                           // an airy blip per prime so each shot reads by ear
+        AC.audio.tone(f * 1.4, 0.07, { type: 'triangle', volume: 0.07, attack: 0.002, slideTo: f });
+    }
+    function sfxInsert() { AC.audio.tone(300, 0.05, { type: 'triangle', volume: 0.06, attack: 0.002, slideTo: 215 }); }   // soft "tuck" as it slots in
+    function sfxCrash() {                                                 // retreat crash / merge — a soft low thud
+        AC.audio.tone(170, 0.09, { type: 'triangle', volume: 0.08, attack: 0.002, slideTo: 115 });
+        AC.audio.noise(0.05, { volume: 0.035, filter: { type: 'lowpass', freq: 760 } });
+    }
+    function sfxPop(n) {                                                  // elimination — a bright ding that climbs with the combo
+        var f = 523.25 * Math.pow(2, Math.min(n - 1, 12) / 12);
+        AC.audio.tone(f, 0.16, { type: 'sine', volume: 0.12, attack: 0.003, slideTo: f * 1.5 });
+        AC.audio.tone(f * 2, 0.11, { type: 'triangle', volume: 0.045, attack: 0.002 });
+        AC.audio.noise(0.06, { volume: 0.045, filter: { type: 'bandpass', freq: 2600 } });
+    }
+
     // ---------------- shooting / insertion ----------------
     function shoot() {
-        var mx = CX + Math.cos(cannon.aim) * 24, my = CY + Math.sin(cannon.aim) * 24;
-        shots.push({ x: mx, y: my, vx: Math.cos(cannon.aim) * CFG.shotSpeed, vy: Math.sin(cannon.aim) * CFG.shotSpeed, v: cannon.cur });
+        var mx = CX + Math.cos(cannon.aim) * 24, my = CY + Math.sin(cannon.aim) * 24, fired = cannon.cur;
+        shots.push({ x: mx, y: my, vx: Math.cos(cannon.aim) * CFG.shotSpeed, vy: Math.sin(cannon.aim) * CFG.shotSpeed, v: fired });
         cannon.cur = cannon.next; cannon.next = randPrime();
-        AC.audio.play('click');
+        sfxShoot(fired);
     }
     function nearestBall(x, y) {
         var best = null, bd = Infinity;
@@ -203,12 +224,13 @@
         var q = hit.q, shotS = nearestS(shot.x, shot.y), j = shotS < hit.s ? hit.j : hit.j + 1;   // insert on the side the ball came from
         q.vals.splice(j, 0, makeBall(shot.v, shot.x, shot.y));   // starts at the projectile's spot → eases into its slot as neighbours make room
         if (CFG.insertPush === 'front') q.head -= CFG.D;         // make room by shoving the FRONT toward death; the back is untouched
-        tryEliminate(q, j, shot.v);
+        if (!tryEliminate(q, j, shot.v)) sfxInsert();            // cleared → pop (inside tryEliminate); otherwise a soft landing tuck
     }
 
     // ---------------- main loop ----------------
     function update() {
         if (over || !queues) return;
+        frame++;
         // 1) feed ONE ball at the outer source when there's room. It must enter at the source and creep in —
         //    appending to wherever the backmost happened to be (even far forward) is what made a whole string
         //    flash in to refill the gap after a big clear. Near the source → extend; otherwise a fresh ball enters.
