@@ -56,6 +56,7 @@
         insertPush: 'front',                      // where insertion makes room: 'front' = shove the front toward death (back untouched)
         startLen: 5,                              // balls pre-seeded at the source
         smooth: 16,                               // render-easing rate (higher = snappier): balls lerp to logical spots for smooth slides/accel
+        compositeColor: '#4b5a70',                // all composite (non-prime) balls share ONE calm colour; only PRIMES are colourful (less eye strain)
     };
     var CW = 460, CH = 460, CX = CW / 2, CY = CH / 2, DPR = Math.min(window.devicePixelRatio || 1, 2);
 
@@ -248,12 +249,19 @@
     // ---------------- render ----------------
     function hue(v) { return (v * 47) % 360; }
     function drawBall(x, y, v, r) {
-        var prime = isPrime(v), h = hue(v);
-        if (prime) { ctx.save(); ctx.shadowColor = 'hsl(' + h + ',90%,65%)'; ctx.shadowBlur = 8; }
-        ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fillStyle = 'hsl(' + h + ',70%,' + (prime ? 56 : 42) + '%)'; ctx.fill();
-        if (prime) ctx.restore();
-        ctx.lineWidth = prime ? 3 : 1.5; ctx.strokeStyle = prime ? '#fff' : 'rgba(255,255,255,0.4)'; ctx.stroke();
-        ctx.fillStyle = '#0a1322'; ctx.font = 'bold ' + (v > 9 ? Math.round(r * 0.95) : Math.round(r * 1.2)) + 'px system-ui,sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        var prime = isPrime(v);
+        if (prime) {                                    // primes: own hue + glow — these are what you aim/match, so they stand out
+            var h = hue(v);
+            ctx.save(); ctx.shadowColor = 'hsl(' + h + ',90%,65%)'; ctx.shadowBlur = 8;
+            ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fillStyle = 'hsl(' + h + ',70%,56%)'; ctx.fill(); ctx.restore();
+            ctx.lineWidth = 3; ctx.strokeStyle = '#fff'; ctx.stroke();
+            ctx.fillStyle = '#0a1322';
+        } else {                                        // composites: one calm shared colour (light text so the number still reads)
+            ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fillStyle = CFG.compositeColor; ctx.fill();
+            ctx.lineWidth = 1.5; ctx.strokeStyle = 'rgba(255,255,255,0.3)'; ctx.stroke();
+            ctx.fillStyle = '#e8edf5';
+        }
+        ctx.font = 'bold ' + (v > 9 ? Math.round(r * 0.95) : Math.round(r * 1.2)) + 'px system-ui,sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
         ctx.fillText(String(v), x, y + 0.5);
     }
     var lastT = 0;
