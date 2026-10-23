@@ -12,11 +12,14 @@
  *   growth kept gentle) and unlocks more primes as time passes. Field is chosen separately.
  */
 window.PrimeZumaData = (function () {
+    // Each field has a `shape` the engine knows how to draw into a path (death end first, source last) plus a
+    // cannon position: 'spiral' & 'square' spiral inward to a centre cannon; 'snake' serpentines top→bottom with
+    // the cannon at the bottom. (More shapes — double-spiral, underground, star — are a later phase.)
     var FIELDS = [
-        { id: 'coil',   name: 'Coil',   turns: 3,   Rin: 50, Rout: 210, bg: '#0a1322', accent: '#f59e0b' },
-        { id: 'loop',   name: 'Loop',   turns: 2,   Rin: 70, Rout: 208, bg: '#0b1120', accent: '#38bdf8' },
-        { id: 'helix',  name: 'Helix',  turns: 4,   Rin: 40, Rout: 214, bg: '#140b1e', accent: '#a78bfa' },
-        { id: 'vortex', name: 'Vortex', turns: 3.5, Rin: 46, Rout: 214, bg: '#0a1410', accent: '#34d399' },
+        { id: 'coil',    name: 'Coil',    shape: 'spiral', turns: 3, Rin: 50, Rout: 210, bg: '#0a1322', accent: '#f59e0b' },
+        { id: 'box',     name: 'Box',     shape: 'square', turns: 3, Rin: 40, Rout: 148, bg: '#0b1120', accent: '#38bdf8' },
+        { id: 'serpent', name: 'Serpent', shape: 'snake',  rows: 7,                      bg: '#0a1410', accent: '#34d399' },
+        { id: 'vortex',  name: 'Vortex',  shape: 'spiral', turns: 4, Rin: 40, Rout: 214, bg: '#140b1e', accent: '#a78bfa' },
     ];
     var X = FIELDS.length;
 

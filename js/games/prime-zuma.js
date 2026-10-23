@@ -55,17 +55,36 @@
     };
     var CW = 460, CH = 460, CX = CW / 2, CY = CH / 2, DPR = Math.min(window.devicePixelRatio || 1, 2);
 
-    // ---------------- spiral path (arc-length table), rebuilt per field ----------------
-    var PATH = null;
-    function buildPath(field) {
-        var steps = 2400, thetaMax = field.turns * 2 * Math.PI, pts = [], arc = [0], total = 0, prev = null;
-        for (var i = 0; i <= steps; i++) {
-            var th = thetaMax * i / steps, r = field.Rin + (field.Rout - field.Rin) * (th / thetaMax);
-            var x = CX + r * Math.cos(th), y = CY + r * Math.sin(th);
-            if (prev) { total += Math.hypot(x - prev.x, y - prev.y); arc.push(total); }
-            pts.push({ x: x, y: y }); prev = { x: x, y: y };
+    // ---------------- path (arc-length table + cannon), rebuilt per field ----------------
+    // A field's `shape` generates a polyline from DEATH (pts[0]) to SOURCE (last) plus the cannon position.
+    // Everything else (movement, shooting, render) works off that polyline, so new shapes are just new generators.
+    var PATH = null, CAN = { x: CX, y: CY };
+    function genSpiral(f) {
+        var steps = 2400, thetaMax = f.turns * 2 * Math.PI, pts = [];
+        for (var i = 0; i <= steps; i++) { var th = thetaMax * i / steps, r = f.Rin + (f.Rout - f.Rin) * (th / thetaMax); pts.push({ x: CX + r * Math.cos(th), y: CY + r * Math.sin(th) }); }
+        return { pts: pts, cannon: { x: CX, y: CY } };   // pts[0] = innermost = death
+    }
+    function genSquare(f) {   // same spiral but each ring is a SQUARE (Chebyshev radius) → angular, boxy look
+        var steps = 2600, thetaMax = f.turns * 2 * Math.PI, pts = [];
+        for (var i = 0; i <= steps; i++) { var th = thetaMax * i / steps, r = f.Rin + (f.Rout - f.Rin) * (th / thetaMax), c = Math.cos(th), s = Math.sin(th), sq = 1 / Math.max(Math.abs(c), Math.abs(s), 1e-4); pts.push({ x: CX + r * c * sq, y: CY + r * s * sq }); }
+        return { pts: pts, cannon: { x: CX, y: CY } };
+    }
+    function genSnake(f) {   // horizontal serpentine, source at TOP, death at BOTTOM, cannon at bottom-centre
+        var m = 34, x0 = m, x1 = CW - m, yTop = m, yBot = CH - 66, rows = f.rows || 7, gap = (yBot - yTop) / (rows - 1), seg = 7, pts = [], r, k, steps;
+        for (r = 0; r < rows; r++) {                     // build source(top)→death(bottom), then reverse
+            var y = yTop + r * gap, ltr = (r % 2 === 0), xa = ltr ? x0 : x1, xb = ltr ? x1 : x0;
+            steps = Math.max(2, Math.round(Math.abs(xb - xa) / seg));
+            for (k = 0; k <= steps; k++) pts.push({ x: xa + (xb - xa) * k / steps, y: y });
+            if (r < rows - 1) { var ny = y + gap, vs = Math.max(2, Math.round(gap / seg)); for (k = 1; k <= vs; k++) pts.push({ x: xb, y: y + (ny - y) * k / vs }); }
         }
-        return { pts: pts, arc: arc, len: total };   // s = 0 at pts[0] (innermost = death), s = len at the outer source
+        pts.reverse();
+        return { pts: pts, cannon: { x: CX, y: Math.min(CH - 16, yBot + 40) } };
+    }
+    function buildPath(field) {
+        var raw = field.shape === 'square' ? genSquare(field) : field.shape === 'snake' ? genSnake(field) : genSpiral(field);
+        var pts = raw.pts, arc = [0], total = 0;
+        for (var i = 1; i < pts.length; i++) { total += Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y); arc.push(total); }
+        return { pts: pts, arc: arc, len: total, cannon: raw.cannon };
     }
     function posAt(s) {
         s = s < 0 ? 0 : s > PATH.len ? PATH.len : s;
@@ -143,7 +162,7 @@
             var e = DATA.ENDLESS[p.diff] || DATA.ENDLESS.easy; field = DATA.FIELDS[p.fieldIdx] || DATA.FIELDS[0];
             R = { isLevel: false, field: field, e: e, full: e.primes, activeN: 3, cap: e.capA, maxOmega: e.omegaA, bias: e.biasA, feed: e.feedA, quota: Infinity, spawned: 0, candidates: [] };
         }
-        PATH = buildPath(field);
+        PATH = buildPath(field); CAN = PATH.cannon;
         frame = 0; combo = 0; lastElimFrame = -999;
         rebuildCandidates();                                      // always build the initial candidate set (endless then ramps it in update)
         shots = []; fx = []; score = 0; over = false;
@@ -240,7 +259,7 @@
 
     // ---------------- shooting / insertion ----------------
     function shoot() {
-        var mx = CX + Math.cos(cannon.aim) * 24, my = CY + Math.sin(cannon.aim) * 24, fired = cannon.cur;
+        var mx = CAN.x + Math.cos(cannon.aim) * 24, my = CAN.y + Math.sin(cannon.aim) * 24, fired = cannon.cur;
         shots.push({ x: mx, y: my, vx: Math.cos(cannon.aim) * CFG.shotSpeed, vy: Math.sin(cannon.aim) * CFG.shotSpeed, v: fired });
         cannon.cur = cannon.next; cannon.next = pickCannonPrime();
         sfxShoot(fired);
@@ -286,8 +305,7 @@
         // 3) projectiles
         for (i = shots.length - 1; i >= 0; i--) {
             var s = shots[i]; s.x += s.vx * dt; s.y += s.vy * dt;
-            var rr = Math.hypot(s.x - CX, s.y - CY);
-            if (rr > (R.field.Rout) + 46 || rr < 6) { shots.splice(i, 1); continue; }
+            if (s.x < -30 || s.x > CW + 30 || s.y < -30 || s.y > CH + 30) { shots.splice(i, 1); continue; }   // left the field (works for any shape/cannon)
             var hit = nearestBall(s.x, s.y);
             if (hit && hit.dist < CFG.rBall * 1.9) { insertShot(s, hit); shots.splice(i, 1); }
         }
@@ -346,10 +364,10 @@
         }
         ctx.globalAlpha = 1;
         for (var si = 0; si < shots.length; si++) { var s = shots[si]; drawBall(s.x, s.y, s.v, CFG.rBall * 0.9); }
-        ctx.save(); ctx.translate(CX, CY); ctx.rotate(cannon.aim); ctx.fillStyle = '#334155'; ctx.fillRect(0, -5, 30, 10); ctx.restore();
-        drawChip(CX + Math.cos(cannon.aim) * 30, CY + Math.sin(cannon.aim) * 30, cannon.cur, 12);
-        ctx.beginPath(); ctx.arc(CX, CY, 17, 0, 7); ctx.fillStyle = '#1e293b'; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = '#64748b'; ctx.stroke();
-        drawChip(CX, CY, cannon.next, 10);
+        ctx.save(); ctx.translate(CAN.x, CAN.y); ctx.rotate(cannon.aim); ctx.fillStyle = '#334155'; ctx.fillRect(0, -5, 30, 10); ctx.restore();
+        drawChip(CAN.x + Math.cos(cannon.aim) * 30, CAN.y + Math.sin(cannon.aim) * 30, cannon.cur, 12);
+        ctx.beginPath(); ctx.arc(CAN.x, CAN.y, 17, 0, 7); ctx.fillStyle = '#1e293b'; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = '#64748b'; ctx.stroke();
+        drawChip(CAN.x, CAN.y, cannon.next, 10);
     }
     function drawChip(x, y, v, r) {
         ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fillStyle = 'hsl(' + hue(v) + ',75%,58%)'; ctx.fill();
@@ -362,7 +380,7 @@
     function aimTo(clientX, clientY) {
         var r = canvas.getBoundingClientRect();
         var x = (clientX - r.left) / r.width * CW, y = (clientY - r.top) / r.height * CH;
-        cannon.aim = Math.atan2(y - CY, x - CX);
+        cannon.aim = Math.atan2(y - CAN.y, x - CAN.x);
     }
 
     // ---------------- selection panel (modes / level grid / endless pickers) ----------------
