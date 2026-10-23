@@ -78,6 +78,7 @@
     let feedback = { key: 'unlockReady', args: [] };
     let lastTime = '';
     const history = PC.history.create({
+        limit: 32,
         snapshot: () => [...state.removed],
         restore: removed => {
             state.animation = null;

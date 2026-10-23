@@ -8,8 +8,9 @@
     'use strict';
     const E = global.UnshackleEngine, M = E.math;
     const VERSION = 1;
-    const SIZES = [6, 8, 10, 12];
+    const SIZES = [6, 8, 10, 12, 16, 20, 24];
     const COLORS = ['#43b9de', '#f4a34f', '#d86db1', '#69b77d', '#dbba46', '#a58adb', '#dd7e70', '#619bc4', '#a6ad58', '#b681a3', '#60aaa3', '#cc955c'];
+    const LARGE_COLORS = [...COLORS, '#5e85cc', '#cf6991', '#7bac56', '#ba8250', '#55aeba', '#aa75c4', '#dcaa3b', '#cf7659', '#728bc1', '#78a49b', '#bda052', '#b56a83'];
     const AXES = [[1, 0, 0], [0, 1, 0], [0, 0, 1]];
     function makeRng(seed) {
         let a = seed >>> 0;
@@ -27,6 +28,12 @@
         return a;
     }
     function band(size, difficulty) {
+        if (size > 12) {
+            const mediumMax = 6 + (size - 16) / 4;
+            if (difficulty === 'easy') return { min: 2, max: 4, minFree: 3, maxFree: size - 2 };
+            if (difficulty === 'medium') return { min: 5, max: mediumMax, minFree: 1, maxFree: Math.ceil(size * 0.45) };
+            return { min: mediumMax + 1, max: size - 1, minFree: 1, maxFree: Math.floor(size * 0.25) };
+        }
         const mediumMin = 4, mediumMax = Math.max(mediumMin, Math.floor(size / 2));
         if (difficulty === 'easy') return { min: 2, max: 3, minFree: 2, maxFree: size - 2 };
         if (difficulty === 'medium') return { min: mediumMin, max: mediumMax, minFree: 1, maxFree: Math.ceil(size * 0.45) };
@@ -62,15 +69,20 @@
 
     async function assemble(size, difficulty, rng, yieldWork) {
         const b = band(size, difficulty), target = difficulty === 'easy' ? b.max : b.min;
-        const rootLength = grid(rng, 3.0 + size * 0.42, 4.6 + size * 0.42);
+        const rootCount = Math.min(size, 12);
+        const rootLength = grid(rng, 3.0 + rootCount * 0.42, 4.6 + rootCount * 0.42);
         const pieces = [E.piece(1, COLORS[0], [0, 0, 0], AXES[0], AXES[2], rootLength, rng() < 0.5 ? -1 : 1)];
         let graph = [[]];
         for (let id = 2; id <= size; id++) {
             let accepted = false;
+            const stats = E.analyze(graph), downstreamCache = new Map();
+            const downstream = id => {
+                if (!downstreamCache.has(id)) downstreamCache.set(id, 1 + Math.max(0,
+                    ...pieces.filter((p, i) => graph[i].includes(id)).map(p => downstream(p.id))));
+                return downstreamCache.get(id);
+            };
             for (let attempt = 0; attempt < 180; attempt++) {
                 if ((attempt & 31) === 31) await yieldWork();
-                const stats = E.analyze(graph);
-                const downstream = id => 1 + Math.max(0, ...pieces.filter((p, i) => graph[i].includes(id)).map(p => downstream(p.id)));
                 const extend = stats.depth < target || stats.free >= b.maxFree || rng() < 0.3;
                 const hosts = pieces.filter((p, i) => extend ? graph[i].length === 0 && downstream(p.id) < b.max : graph[i].length > 0);
                 const ranked = hosts.slice().sort((a, b) => stats.depth < target ? downstream(b.id) - downstream(a.id) : downstream(a.id) - downstream(b.id));
@@ -79,7 +91,7 @@
                 const length = grid(rng, 3.2, 5.6);
                 const center = M.add(host.center, M.add(M.mul(host.u, grid(rng, -host.length / 2 + 0.8, host.length / 2 - 0.8)),
                     M.add(M.mul(host.v, grid(rng, -0.16, 0.16)), M.mul(u, grid(rng, -length / 2 + 0.8, length / 2 - 0.8)))));
-                const p = E.piece(id, COLORS[id - 1], center, u, v, length, rng() < 0.5 ? -1 : 1);
+                const p = E.piece(id, COLORS[(id - 1) % COLORS.length], center, u, v, length, rng() < 0.5 ? -1 : 1);
                 if (pieces.some(q => E.overlaps(p, q, 0.035))) continue;
                 if (pieces.some(q => E.sweptCollision(p, q))) continue;
                 const blocked = pieces.map(q => E.sweptCollision(q, p));
@@ -89,7 +101,7 @@
                 if (nextStats.depth > b.max) continue;
                 // Bound the cluster diameter so increasing count does not just
                 // produce a very long, sparse chain outside the playable view.
-                if (E.bounds([...pieces, p]).radius > 7.5) continue;
+                if (E.bounds([...pieces, p]).radius > 7.5 + Math.max(0, size - 12) * 0.15) continue;
                 pieces.push(p); graph = next; accepted = true; break;
             }
             if (!accepted) return null;
@@ -123,7 +135,8 @@
         pool.sort((a, b) => difficulty === 'easy' ? a.stats.score - b.stats.score : b.stats.score - a.stats.score);
         const chosen = pool[0];
         // IDs and colours are independently shuffled, hiding insertion order.
-        const order = shuffle(chosen.pieces.slice(), rng), colors = shuffle(COLORS.slice(), rng);
+        // Preserve version-1 outputs for the original sizes and shared seeds.
+        const order = shuffle(chosen.pieces.slice(), rng), colors = shuffle((size <= 12 ? COLORS : LARGE_COLORS).slice(), rng);
         const pieces = order.map((p, i) => E.piece(i + 1, colors[i], p.center, p.u, p.v, p.length, M.dot(p.u, p.dir) > 0 ? 1 : -1));
         const graph = E.blockingGraph(pieces), stats = E.analyze(graph);
         if (!qualifies(stats, size, difficulty)) throw new Error('Unshackle final verification failed');

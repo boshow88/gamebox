@@ -51,6 +51,19 @@ function checkEveryOrder(graph) {
     visit(0);
 }
 
+function checkLargeOrders(graph) {
+    // Do not enumerate exponentially many subsets on a 24-piece Easy board.
+    // Exercise 64 different legal choices, with the independent DAG proof above.
+    for (let trial = 0; trial < 64; trial++) {
+        const remaining = new Set(graph.map((_, i) => i + 1));
+        for (let step = 0; remaining.size; step++) {
+            const legal = [...remaining].filter(id => graph[id - 1].every(b => !remaining.has(b)));
+            assert(legal.length > 0, 'Large puzzle has a legal exit after each removal');
+            remaining.delete(legal[(trial * 7 + step * 11) % legal.length]);
+        }
+    }
+}
+
 (async () => {
     const G = globalThis.PuzzleGenerators.unshackle, I = globalThis.PuzzleGenerators.unshackleInternals;
     let generated = 0;
@@ -59,6 +72,7 @@ function checkEveryOrder(graph) {
         for (let seed = 0; seed < 40; seed++) {
             const started = Date.now(), p = await G(size, difficulty, seed); times.push(Date.now() - started); generated++;
             assert(p.pieces.length === size, 'Exact requested piece count');
+            assert(p.pieces.every(p => /^#[0-9a-f]{6}$/i.test(p.color)), 'Every piece has a renderable colour');
             assert(I.qualifies(p.stats, size, difficulty), 'Actual graph meets requested difficulty');
             assert(p.stats.solvable, 'Generated graph is acyclic');
             assert(!fingerprints.has(p.fingerprint), 'Fresh geometry across tested seeds');
@@ -71,7 +85,8 @@ function checkEveryOrder(graph) {
                 assert(JSON.stringify(p) === JSON.stringify(repeat), 'Seed replays exactly, independently of progress yields');
                 assert(JSON.stringify(E.blockingGraph(p.pieces)) === JSON.stringify(p.graph), 'Recomputed geometry matches the returned graph');
                 for (let i = 0; i < size; i++) for (let j = i + 1; j < size; j++) assert(!E.overlaps(p.pieces[i], p.pieces[j], 0.03), 'Positive initial clearance');
-                checkEveryOrder(p.graph);
+                if (size <= 12) checkEveryOrder(p.graph);
+                else checkLargeOrders(p.graph);
                 const transformed = p.pieces.slice().reverse().map(q => E.piece(q.id, '#000000',
                     [q.center[2]+7, -q.center[0]+4, q.center[1]-3], [q.u[2], -q.u[0], q.u[1]], [q.v[2], -q.v[0], q.v[1]], q.length, E.math.dot(q.u, q.dir)));
                 assert(I.fingerprint(transformed) === p.fingerprint, 'Duplicate identity ignores labels, colour, translation and axis rotations/reflections');

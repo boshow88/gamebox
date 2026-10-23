@@ -13,6 +13,7 @@
         .unlock-toolbar { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
         .unlock-toolbar .toolbar-action { grid-column: 1 / -1; }
         .unlock-toolbar .level-readout { grid-column: 1 / -1; }
+        #size-seg button { padding: 6px 8px; }
         .puzzle-code { font-size: 0.72rem; color: var(--text-muted); font-variant-numeric: tabular-nums; margin-left: auto; }
         .status-row { flex-wrap: wrap; gap: 8px; }
         .level-control { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
@@ -42,6 +43,9 @@
         .unlock-win h2 { font-size: 1.5rem; font-weight: 600; }
         .unlock-win p { font-size: 0.88rem; color: var(--text-secondary); }
         .unlock-error { padding: 60px 24px; text-align: center; }
+        @media (min-width: 481px) and (max-width: 560px) {
+            .unlock-toolbar .piece-settings { grid-column: 1 / -1; }
+        }
         @media (max-width: 480px) {
             .game-title { font-size: 1.05rem; gap: 5px; }
             .game-title .game-icon { display: none; }
@@ -49,7 +53,9 @@
             .game-topbar { gap: 6px; }
             .unlock-toolbar { gap: 10px; }
             .unlock-toolbar .toolbar-group { grid-column: 1 / -1; flex-direction: row; align-items: center; justify-content: space-between; }
+            .unlock-toolbar .piece-settings { flex-direction: column; align-items: stretch; }
             .unlock-toolbar .segmented button { padding: 6px 9px; font-size: 0.8rem; }
+            #size-seg button { flex: 1; }
             .level-control { gap: 5px; }
             .level-readout { font-size: 0.75rem; }
             .view-controls { top: 8px; right: 8px; }
@@ -83,13 +89,16 @@
                     </div>
                 </div>
             </div>
-            <div class="toolbar-group">
+            <div class="toolbar-group piece-settings">
                 <span class="toolbar-label" data-i18n="unlockCount">Pieces</span>
                 <div class="segmented" id="size-seg" role="radiogroup" data-i18n-aria-label="unlockCount">
                     <button type="button" data-value="6" role="radio" aria-checked="false">6</button>
                     <button type="button" data-value="8" role="radio" aria-checked="true">8</button>
                     <button type="button" data-value="10" role="radio" aria-checked="false">10</button>
                     <button type="button" data-value="12" role="radio" aria-checked="false">12</button>
+                    <button type="button" data-value="16" role="radio" aria-checked="false">16</button>
+                    <button type="button" data-value="20" role="radio" aria-checked="false">20</button>
+                    <button type="button" data-value="24" role="radio" aria-checked="false">24</button>
                 </div>
             </div>
             <span id="level-readout" class="level-readout" aria-live="polite"></span>

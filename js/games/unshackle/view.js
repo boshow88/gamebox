@@ -48,7 +48,15 @@
         const loc = {};
         ['uRotation', 'uOffset', 'uScale', 'uColor', 'uPicking'].forEach(n => { loc[n] = gl.getUniformLocation(program, n); });
         const position = gl.getAttribLocation(program, 'aPosition'), normal = gl.getAttribLocation(program, 'aNormal');
-        let meshes = [], pieces = [], yaw = -0.35, pitch = 0.28, zoom = 1;
+        // Accumulate rotations in screen space. Left-multiplying a unit
+        // quaternion keeps horizontal drags on the current screen-up axis,
+        // including after a vertical turn or an upside-down view.
+        const initialOrientation = () => {
+            const sx = Math.sin(0.28 / 2), cx = Math.cos(0.28 / 2);
+            const sy = Math.sin(-0.35 / 2), cy = Math.cos(-0.35 / 2);
+            return [sx * cy, cx * sy, sx * sy, cx * cy];
+        };
+        let meshes = [], pieces = [], orientation = initialOrientation(), zoom = 1;
         let center = [0, 0, 0], sceneRadius = 3.5;
         let rotation, scale, frame, depth, texture, frameWidth = 0, frameHeight = 0;
 
@@ -110,8 +118,10 @@
             const rect = canvas.getBoundingClientRect(), dpr = Math.min(window.devicePixelRatio || 1, 2);
             const w = Math.max(1, Math.round(rect.width * dpr)), h = Math.max(1, Math.round(rect.height * dpr));
             if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
-            const cy = Math.cos(yaw), sy = Math.sin(yaw), cp = Math.cos(pitch), sp = Math.sin(pitch);
-            rotation = [cy, sp*sy, -cp*sy, 0, cp, sp, sy, -sp*cy, cp*cy];
+            const [x, y, z, wq] = orientation;
+            rotation = [1-2*(y*y+z*z), 2*(x*y+wq*z), 2*(x*z-wq*y),
+                2*(x*y-wq*z), 1-2*(x*x+z*z), 2*(y*z+wq*x),
+                2*(x*z+wq*y), 2*(y*z-wq*x), 1-2*(x*x+y*y)];
             scale = [zoom * 0.95 / sceneRadius * Math.min(1, h/w), zoom * 0.95 / sceneRadius * Math.min(1, w/h)];
             gl.viewport(0, 0, w, h);
         }
@@ -179,10 +189,19 @@
         }
         return { setPieces, render, project, pickMany,
             pick(x, y, state) { return pickMany([{ x, y }], state)[0]; },
-            // Wrap rather than clamp: either drag direction can pass every pole.
-            rotate(dx, dy) { yaw = (yaw + dx) % (Math.PI * 2); pitch = (pitch + dy) % (Math.PI * 2); },
-            zoom(factor) { zoom = Math.max(0.7, Math.min(1.65, zoom * factor)); },
-            reset() { yaw = -0.35; pitch = 0.28; zoom = 1; } };
+            rotate(dx, dy) {
+                const angle = Math.hypot(dx, dy);
+                if (!angle) return;
+                const s = Math.sin(angle / 2) / angle;
+                const ax = dy * s, ay = dx * s, aw = Math.cos(angle / 2);
+                const [bx, by, bz, bw] = orientation;
+                const next = [aw*bx + ax*bw + ay*bz, aw*by - ax*bz + ay*bw,
+                    aw*bz + ax*by - ay*bx, aw*bw - ax*bx - ay*by];
+                const length = Math.hypot(...next);
+                orientation = next.map(v => v / length);
+            },
+            zoom(factor) { zoom = Math.max(0.7, Math.min(3, zoom * factor)); },
+            reset() { orientation = initialOrientation(); zoom = 1; } };
     }
     window.UnshackleView = { create };
 })();

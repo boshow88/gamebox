@@ -21,8 +21,10 @@ game-specific styles. New shared abstractions are unnecessary.
 ## Rules and camera
 
 Every piece translates along its long axis toward its white cap. Dragging rotates
-the view, never individual pieces. Both pitch and yaw wrap modulo a full turn;
-neither has an angular limit. Pinch/wheel zoom, directional camera buttons, view
+the view, never individual pieces. Unit quaternions accumulate incremental turns
+about the current screen axes: horizontal input uses screen-up, vertical input
+uses screen-right, even after tilting or turning upside down. Neither direction
+has an angular limit. Pinch/wheel zoom (up to 3x), directional camera buttons, view
 reset and keyboard controls are available. The camera fits a bounding sphere of
 the actual tube/cap geometry, keeping the original puzzle in view during rotation.
 
@@ -57,9 +59,13 @@ edge count and join count. A cyclic graph is rejected.
 
 Generator version 1 accepts `(size, difficulty, seed, onProgress)` and returns
 pieces, graph, solution, geometry fingerprint, structural signature and stats.
-Sizes are 6, 8, 10 and 12. A local Mulberry32 stream drives construction and
+Sizes are 6, 8, 10, 12, 16, 20 and 24. A local Mulberry32 stream drives construction and
 Fisher-Yates shuffles, including seed zero. IDs/colours are shuffled after assembly
 so they do not reveal construction order.
+The original 6-12-piece version-1 outputs remain unchanged, including colours,
+preserving existing shared links. Larger puzzles use an extended 24-colour
+palette, a bounded root length and a larger permitted cluster radius. Cached
+downstream graph depths avoid repeatedly traversing the same dependency paths.
 
 1. Start with one randomly sized ring.
 2. Propose rings on a perpendicular plane, with random offsets, length and pull sign.
@@ -89,8 +95,11 @@ their construction; independent mini-puzzles are not simply combined.
 | 8 | 2-3 | 4 | 5-7 |
 | 10 | 2-3 | 4-5 | 6-9 |
 | 12 | 2-3 | 4-6 | 7-11 |
+| 16 | 2-4 | 5-6 | 7-15 |
+| 20 | 2-4 | 5-7 | 8-19 |
+| 24 | 2-4 | 5-8 | 9-23 |
 
-Easy requires at least two opening exits. Medium permits at most `ceil(N*0.45)`;
+Easy requires at least two opening exits, or three above 12 pieces. Medium permits at most `ceil(N*0.45)`;
 Hard at most `max(2, floor(N*0.25))`. Medium/Hard require at least one multiply
 blocked piece, and Hard excludes a depth-N total chain. Among qualified candidates,
 the score combines depth, edges per piece, join count and opening-exit fraction;
@@ -118,14 +127,24 @@ Global or unlimited non-repetition is not promised.
 
 Run `node tools/unshackle-check.js` with no packages. It checks mid-motion contact,
 clearance, degenerate sweeps, distant obstacles, cycles, sampled-distance agreement,
-all 12 settings across 40 seeds, exact replay with/without progress callbacks,
+all 21 settings across 40 seeds, exact replay with/without progress callbacks,
 duplicate fingerprints, structural variation, independently recomputed graphs,
-positive starting clearance and every reachable play order for selected puzzles.
-The current run passed 480 generated puzzles and 9,745 assertions.
+positive starting clearance and every reachable play order for selected puzzles
+up to 12 pieces. Larger puzzles are checked through 64 legal removal walks,
+avoiding exponential enumeration. The current run passed 840 generated puzzles
+and 46,204 assertions. A separate comparison against the previous commit confirmed
+24 original shared puzzles are byte-for-byte unchanged.
 
 Browser QA passed 32 checks for generation, staged settings, applied-setting solve
 records, blocked pulls, hints, undo/reset/wins, new seeds, localization, camera
-full turns and a 320px viewport. Additional checks cover seed replay, direct
+full turns and a 320px viewport. The camera update additionally passed 36 checks
+for screen-relative axes at tilted/upside-down poses, reversibility, full turns,
+numerical stability after 3,000 mixed turns, reset and picking.
+The larger-board UI passed 20 checks covering 16/20/24-piece generation, staged
+settings, hints, a full 24-piece win and undo of every removal. Count controls
+were checked at widths 320, 390, 520, 600 and 1200 without clipping or overflow.
+Native pointer checks verified horizontal dragging and piece picking after a flip.
+Additional checks cover seed replay, direct
 picking and small viewports. WebGL is required; unavailable or lost contexts
 display localized feedback. Desktop Chromium and synthetic touch events do not
 establish physical iOS/Android behavior.
