@@ -99,6 +99,11 @@
             href: './games/queens.html',
             tags: ['puzzle', 'single'],
         },
+        {
+            id: 'unshackle', theme: 'puzzle', icon: 'unlink', color: '#298da5',
+            href: './games/unshackle.html',
+            tags: ['puzzle', 'casual', 'single'],
+        },
     ];
 
     // Default display order: a soft rainbow sorted by each game's theme-colour hue.
@@ -221,6 +226,9 @@
             'queens_name': 'Queens',
             'queens_tagline': 'Royal regions, one queen each.',
             'queens_body': 'Place N queens so that every row, column, colour region and 8-neighbourhood contains exactly one.',
+            'unshackle_name': 'Unshackle',
+            'unshackle_tagline': 'A different angle. A way out.',
+            'unshackle_body': 'Rotate the interlocking pieces and find the order to slide them free. Fresh 3D puzzles in three difficulties.',
         },
         zh: {
             subtitle: '一個小遊戲合輯。',
@@ -335,6 +343,9 @@
             'queens_name': 'Queens',
             'queens_tagline': '皇家領地，每區一后。',
             'queens_body': '在每個列、行、色塊區域與 8 鄰域中各放一個皇后。',
+            'unshackle_name': '解開枷鎖',
+            'unshackle_tagline': '轉個角度，找到出口。',
+            'unshackle_body': '旋轉交錯的零件，找出能依序抽出的方向。每次生成新題，提供三種難度。',
         },
     };
 
@@ -342,6 +353,8 @@
     // Icons — inline Lucide subset (same glyphs the collections use).
     // ---------------------------------------------------------------
     var ICONS = {
+        // custom: two rounded links separating along a diagonal.
+        unlink: '<path d="m9 15-2 2a3.5 3.5 0 0 1-5-5l4-4a3.5 3.5 0 0 1 5 0m2 8a3.5 3.5 0 0 0 5 0l4-4a3.5 3.5 0 0 0-5-5l-2 2M9 3v2m-6 0 2 2m14 10 2 2m-6 0v2"/>',
         ladder: '<path d="M8 3v18"/><path d="M16 3v18"/><path d="M8 8h8"/><path d="M8 13h8"/><path d="M8 18h8"/>',
         target: '<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>',
         stone: '<path d="M11.264 2.205A4 4 0 0 0 6.42 4.211l-4 8a4 4 0 0 0 1.359 5.117l6 4a4 4 0 0 0 4.438 0l6-4a4 4 0 0 0 1.576-4.592l-2-6a4 4 0 0 0-2.53-2.53z"/><path d="M11.99 22 14 12l7.822 3.184"/><path d="M14 12 8.47 2.302"/>',

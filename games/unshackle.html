@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="puzzle">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Unshackle · GameBox</title>
+    <link rel="icon" type="image/svg+xml" href="../favicon.svg">
+    <link rel="stylesheet" href="../css/common.css">
+    <link rel="stylesheet" href="../css/puzzle.css">
+    <style>
+        body { --game-color: #298da5; }
+        .prototype-badge { font-size: 0.66rem; font-weight: 500; color: var(--text-secondary); border: 1px solid var(--border-color); border-radius: var(--radius-pill); padding: 2px 7px; }
+        .unlock-toolbar { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+        .unlock-toolbar .toolbar-action { grid-column: 1 / -1; }
+        .unlock-toolbar .level-readout { grid-column: 1 / -1; }
+        .puzzle-code { font-size: 0.72rem; color: var(--text-muted); font-variant-numeric: tabular-nums; margin-left: auto; }
+        .status-row { flex-wrap: wrap; gap: 8px; }
+        .level-control { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+        .level-readout { font-size: 0.82rem; color: var(--text-secondary); }
+        .level-readout.pending { color: var(--game-color); }
+        .level-readout .readout-current { color: var(--text-secondary); }
+        .level-readout .readout-arrow { color: var(--text-muted); }
+        .unlock-board { position: relative; width: 100%; padding: 0; overflow: hidden; border: 1px solid var(--border-color); border-radius: var(--radius-md); background: #f9fafc; }
+        #board { display: block; width: 100%; height: clamp(320px, 65vw, 460px); touch-action: none; cursor: grab; outline-offset: -4px; }
+        #board:active { cursor: grabbing; }
+        #board.over-piece { cursor: pointer; }
+        .board-caption { position: absolute; left: 14px; bottom: 12px; pointer-events: none; font-size: 0.75rem; color: var(--text-muted); }
+        .view-controls { position: absolute; top: 12px; right: 12px; display: flex; gap: 4px; }
+        .view-controls .btn { min-width: 32px; width: 32px; height: 32px; padding: 0; font-size: 1rem; background: #ffffffed; }
+        .piece-markers { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+        .piece-marker { position: absolute; font-size: 10px; font-weight: 700; color: #4b5563; transform: translate(-50%, -50%); }
+        .piece-marker.hinted { color: var(--game-color); outline: 2px solid var(--game-color); outline-offset: 9px; border-radius: 50%; }
+        .piece-tray { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+        .piece-btn { min-width: 45px; border-radius: var(--radius-sm); gap: 7px; }
+        .piece-swatch { width: 9px; height: 9px; border-radius: 50%; background: var(--piece-color); }
+        .piece-btn.removed { opacity: 0.35; text-decoration: line-through; }
+        .piece-btn.hinted { border-color: var(--game-color); background: color-mix(in srgb, var(--game-color) 10%, white); }
+        .unlock-feedback { min-height: 2.8em; padding: 12px 4px 0; text-align: center; font-size: 0.85rem; color: var(--text-secondary); }
+        .unlock-feedback.blocked { color: var(--error, #c54040); }
+        .unlock-win { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; background: #f9fafcf5; text-align: center; padding: 24px; }
+        .unlock-win .win-symbol { color: var(--success, #2e7d32); font-size: 2rem; }
+        .unlock-win h2 { font-size: 1.5rem; font-weight: 600; }
+        .unlock-win p { font-size: 0.88rem; color: var(--text-secondary); }
+        .unlock-error { padding: 60px 24px; text-align: center; }
+        @media (max-width: 480px) {
+            .game-title { font-size: 1.05rem; gap: 5px; }
+            .game-title .game-icon { display: none; }
+            .prototype-badge { font-size: 0.58rem; padding: 2px 4px; }
+            .game-topbar { gap: 6px; }
+            .unlock-toolbar { gap: 10px; }
+            .unlock-toolbar .toolbar-group { grid-column: 1 / -1; flex-direction: row; align-items: center; justify-content: space-between; }
+            .unlock-toolbar .segmented button { padding: 6px 9px; font-size: 0.8rem; }
+            .level-control { gap: 5px; }
+            .level-readout { font-size: 0.75rem; }
+            .view-controls { top: 8px; right: 8px; }
+            .board-caption { font-size: 0.68rem; left: 10px; }
+        }
+        @media (max-width: 360px) {
+            .prototype-badge { display: none; }
+            .back-link { padding: 4px; font-size: 0.8rem; }
+            .game-title { font-size: 1rem; }
+            .topbar-actions { gap: 4px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="game-shell">
+        <header class="game-topbar">
+            <a class="back-link" href="../index.html"><span data-icon="arrow-left" aria-hidden="true"></span><span data-i18n="menu">Menu</span></a>
+            <div class="game-title"><span class="game-icon" data-icon="unlink" aria-hidden="true"></span><span data-i18n="unlockName">Unshackle</span><span class="prototype-badge" data-i18n="unlockPrototype">Prototype</span></div>
+            <div class="lang-toggle" id="lang-toggle" role="radiogroup" data-i18n-aria-label="language">
+                <button type="button" data-lang="en" role="radio" aria-checked="true">EN</button><button type="button" data-lang="zh" role="radio" aria-checked="false">中</button>
+            </div>
+        </header>
+        <section class="game-toolbar unlock-toolbar" data-i18n-aria-label="gameSettings">
+            <div class="toolbar-group">
+                <span class="toolbar-label" data-i18n="difficulty">Difficulty</span>
+                <div class="level-control">
+                    <div class="segmented" id="difficulty-seg" role="radiogroup" data-i18n-aria-label="difficulty">
+                        <button type="button" data-value="easy" role="radio" aria-checked="true" data-i18n="easy">Easy</button>
+                        <button type="button" data-value="medium" role="radio" aria-checked="false" data-i18n="medium">Medium</button>
+                        <button type="button" data-value="hard" role="radio" aria-checked="false" data-i18n="hard">Hard</button>
+                    </div>
+                </div>
+            </div>
+            <div class="toolbar-group">
+                <span class="toolbar-label" data-i18n="unlockCount">Pieces</span>
+                <div class="segmented" id="size-seg" role="radiogroup" data-i18n-aria-label="unlockCount">
+                    <button type="button" data-value="6" role="radio" aria-checked="false">6</button>
+                    <button type="button" data-value="8" role="radio" aria-checked="true">8</button>
+                    <button type="button" data-value="10" role="radio" aria-checked="false">10</button>
+                    <button type="button" data-value="12" role="radio" aria-checked="false">12</button>
+                </div>
+            </div>
+            <span id="level-readout" class="level-readout" aria-live="polite"></span>
+            <div class="toolbar-action">
+                <button class="btn" id="new-game-btn" type="button"><span data-icon="dices" aria-hidden="true"></span><span data-i18n="newGame">New Game</span></button>
+                <button class="btn" id="share-btn" type="button" data-i18n-title="shareTitle"><span data-icon="share" aria-hidden="true"></span><span data-i18n="share">Share</span></button>
+            </div>
+        </section>
+        <div class="action-row">
+            <button class="btn" id="undo-btn" type="button" disabled data-i18n-title="undoTitle"><span data-icon="undo-2" aria-hidden="true"></span><span data-i18n="undo">Undo</span></button>
+            <button class="btn" id="reset-btn" type="button"><span data-icon="rotate-ccw" aria-hidden="true"></span><span data-i18n="reset">Reset</span></button>
+            <button class="btn" id="hint-btn" type="button"><span data-icon="lightbulb" aria-hidden="true"></span><span data-i18n="hint">Hint</span></button>
+            <button class="btn" id="view-reset-btn" type="button"><span data-icon="eye" aria-hidden="true"></span><span data-i18n="unlockViewReset">Reset view</span></button>
+        </div>
+        <div class="status-row">
+            <span class="status-item timer" id="timer">00:00</span>
+            <span class="status-item" id="unlock-progress" aria-live="polite"></span>
+            <span class="puzzle-code" id="puzzle-code"></span>
+            <span class="status-item win-message" id="win-message" hidden><span data-icon="sparkles" aria-hidden="true"></span><span data-i18n="winMessage">You Win!</span></span>
+        </div>
+        <div class="board-wrap unlock-board">
+            <canvas id="board" width="688" height="460" tabindex="0" role="application" data-i18n-aria-label="unlockBoard" aria-describedby="unlock-feedback"></canvas>
+            <div id="piece-markers" class="piece-markers" aria-hidden="true"></div>
+            <span class="board-caption" data-i18n="unlockCaption">Drag to rotate · Tap to pull</span>
+            <div class="view-controls" role="group" data-i18n-aria-label="unlockCamera">
+                <button type="button" class="btn" data-turn="left" data-i18n-aria-label="unlockLeft">←</button>
+                <button type="button" class="btn" data-turn="right" data-i18n-aria-label="unlockRight">→</button>
+                <button type="button" class="btn" data-turn="up" data-i18n-aria-label="unlockUp">↑</button>
+                <button type="button" class="btn" data-turn="down" data-i18n-aria-label="unlockDown">↓</button>
+            </div>
+            <div id="unlock-win" class="unlock-win" hidden>
+                <span class="win-symbol" data-icon="sparkles" aria-hidden="true"></span>
+                <h2 data-i18n="unlockComplete">All clear.</h2>
+                <p id="unlock-win-detail"></p>
+                <button class="btn btn-primary" id="next-level-btn" type="button" data-i18n="unlockNext">Next puzzle</button>
+            </div>
+            <p class="unlock-error" id="unlock-error" hidden data-i18n="unlockWebGL">3D rendering is unavailable. Enable WebGL or try another browser.</p>
+        </div>
+        <div id="piece-tray" class="piece-tray" role="group" data-i18n-aria-label="unlockPieces"></div>
+        <p class="unlock-feedback" id="unlock-feedback" role="status" aria-live="polite"></p>
+        <section class="game-footer">
+            <h4 data-i18n="howToPlay">How to play</h4>
+            <ul>
+                <li data-i18n="unlockHelp1">Remove every piece. Each slides straight toward its white end cap.</li>
+                <li data-i18n="unlockHelp2">Drag to rotate the puzzle. Tap a piece or its numbered button to pull it out. A blocked piece stays in place; its blockers turn amber.</li>
+                <li data-i18n="unlockHelp3">Pinch or scroll to zoom. Keyboard: arrows to rotate, 1–9 to pull, Home to reset the view, Ctrl+Z to undo.</li>
+            </ul>
+        </section>
+    </div>
+    <script src="../js/puzzle.js"></script>
+    <script src="../js/games/unshackle/engine.js"></script>
+    <script src="../js/generators/unshackle.js"></script>
+    <script src="../js/games/unshackle/view.js"></script>
+    <script src="../js/games/unshackle/game.js"></script>
+</body>
+</html>

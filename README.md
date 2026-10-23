@@ -27,13 +27,15 @@ js/
   net/net.js          Firebase room layer (window.ArcadeNet)
   cloud-sync.js       Cross-device high-score sync (window.CloudSync)
   games/*.js          One module per game (logic + rendering)
+  games/unshackle/    Unshackle's isolated 3D engine, renderer and UI
   generators/*.js     Puzzle generators & solvers
-games/*.html          One page per game (all 13, each sets <body data-theme="…">)
+games/*.html          One page per game (all 14, each sets <body data-theme="…">)
 tools/*.html          Puzzle dev tools (generators/solvers test harnesses)
 docs/
   rules.md            Full player-facing rules for every game (merged)
   DEV.md              Arcade engine architecture & conventions
   DEBUG.md            Puzzle generator/solver debug notes
+  UNSHACKLE.md        3D disassembly prototype: assessment, geometry & checks
 ```
 
 ## Themes
