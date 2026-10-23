@@ -77,7 +77,7 @@
     }
     function pathOf(pts) { var arc = [0], total = 0; for (var i = 1; i < pts.length; i++) { total += Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y); arc.push(total); } return { pts: pts, arc: arc, len: total }; }
     function buildField(field) {   // → { paths:[{pts,arc,len}...], cannon }
-        if (field.shape === 'dual') return { paths: [pathOf(genSpiral(field, 0).pts), pathOf(genSpiral(field, Math.PI).pts)], cannon: { x: CX, y: CY } };
+        if (field.shape === 'dual') { var ph = field.phase != null ? field.phase : -Math.PI / 4; return { paths: [pathOf(genSpiral(field, ph).pts), pathOf(genSpiral(field, ph + Math.PI).pts)], cannon: { x: CX, y: CY } }; }   // sources at top-right / bottom-left (off the edges)
         var raw = field.shape === 'square' ? genSquare(field) : field.shape === 'snake' ? genSnake(field) : genSpiral(field, 0);
         return { paths: [pathOf(raw.pts)], cannon: raw.cannon };
     }
