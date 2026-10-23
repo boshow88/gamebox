@@ -66,10 +66,13 @@
     // Chain values are drawn from the P-smooth numbers <= cap, weighted by bias^Ω(n): bias<1 favours
     // simple numbers (more primes), =1 uniform, >1 favours complex — so time pushes bias up and the
     // board gets gnarlier. Everything tunable lives here.
+    // omegaA/omegaB = max prime-factor COUNT (with multiplicity, Ω) a chain ball may have, ramped over time
+    // (A=B → constant). This filters out "too many peels" values like 32=2^5 or 48=2^4·3 (Ω=5). Keep it ≤4
+    // to avoid those. cap still bounds the VALUE; Ω bounds the DIFFICULTY-PER-BALL.
     var DIFF = {
-        easy:   { primes: [2, 3, 5],         unlockEvery: Infinity, capA: 20, capB: 36,  feedA: 13, feedB: 19, biasA: 0.40, biasB: 0.78, ramp: 150 },
-        normal: { primes: [2, 3, 5, 7],      unlockEvery: 40,       capA: 28, capB: 64,  feedA: 16, feedB: 25, biasA: 0.45, biasB: 0.92, ramp: 130 },
-        hard:   { primes: [2, 3, 5, 7, 11],  unlockEvery: 30,       capA: 42, capB: 120, feedA: 20, feedB: 33, biasA: 0.52, biasB: 1.06, ramp: 110 },
+        easy:   { primes: [2, 3, 5],         unlockEvery: Infinity, capA: 20, capB: 36,  feedA: 13, feedB: 19, biasA: 0.40, biasB: 0.78, omegaA: 2, omegaB: 3, ramp: 150 },
+        normal: { primes: [2, 3, 5, 7],      unlockEvery: 40,       capA: 28, capB: 64,  feedA: 16, feedB: 25, biasA: 0.45, biasB: 0.92, omegaA: 3, omegaB: 4, ramp: 130 },
+        hard:   { primes: [2, 3, 5, 7, 11],  unlockEvery: 30,       capA: 42, capB: 120, feedA: 20, feedB: 33, biasA: 0.52, biasB: 1.06, omegaA: 3, omegaB: 4, ramp: 110 },
     };
     var CW = 460, CH = 460, CX = CW / 2, CY = CH / 2, DPR = Math.min(window.devicePixelRatio || 1, 2);
 
@@ -121,7 +124,7 @@
         for (var n = 2; n <= R.cap; n++) {
             var m = n, omega = 0;
             for (var i = 0; i < primes.length; i++) { var p = primes[i]; while (m % p === 0) { m /= p; omega++; } }
-            if (m === 1) list.push({ v: n, w: omega });
+            if (m === 1 && omega <= R.maxOmega) list.push({ v: n, w: omega });   // drop values needing too many peels (Ω > cap)
         }
         R.candidates = list.length ? list : [{ v: 2, w: 1 }];
     }
@@ -136,9 +139,10 @@
         var d = R.d, T = frame / 60, prog = Math.min(1, T / d.ramp);
         var activeN = Math.min(d.primes.length, 3 + (isFinite(d.unlockEvery) ? Math.floor(T / d.unlockEvery) : 0));
         var cap = Math.round(d.capA + (d.capB - d.capA) * prog);
+        var maxOmega = Math.round(d.omegaA + (d.omegaB - d.omegaA) * prog);
         R.bias = d.biasA + (d.biasB - d.biasA) * prog;
         R.feed = d.feedA + (d.feedB - d.feedA) * prog;
-        if (activeN !== R.activeN || cap !== R.cap) { R.activeN = activeN; R.cap = cap; rebuildCandidates(); }
+        if (activeN !== R.activeN || cap !== R.cap || maxOmega !== R.maxOmega) { R.activeN = activeN; R.cap = cap; R.maxOmega = maxOmega; rebuildCandidates(); }
     }
 
     // ---------------- state ----------------
@@ -156,7 +160,7 @@
     function newGame() {
         rngState = (Date.now() >>> 0) || 1;
         var d = DIFF[difficulty] || DIFF.easy;
-        R = { d: d, full: d.primes, activeN: 3, cap: 0, bias: d.biasA, feed: d.feedA, candidates: [] };   // capture the preset so a mid-game difficulty switch only applies next run
+        R = { d: d, full: d.primes, activeN: 3, cap: 0, maxOmega: 0, bias: d.biasA, feed: d.feedA, candidates: [] };   // capture the preset so a mid-game difficulty switch only applies next run
         frame = 0; combo = 0; lastElimFrame = -999;
         updateProgression();                                      // build the initial candidate set for this difficulty
         shots = []; fx = []; score = 0; over = false;
