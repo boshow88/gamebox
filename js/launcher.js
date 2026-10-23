@@ -42,12 +42,12 @@
         {
             id: 'colour-ladder', theme: 'arcade', icon: 'ladder', color: '#f472b6',
             href: './games/colour-ladder.html',
-            tags: ['action', 'single'],
+            tags: ['action', 'single'], modes: ['easy', 'normal', 'hard'],
         },
         {
             id: 'bullet-storm', theme: 'arcade', icon: 'target', color: '#a78bfa',
             href: './games/bullet-storm.html',
-            tags: ['action', 'single'],
+            tags: ['action', 'single'], modes: ['easy', 'normal', 'hard'],
         },
         {
             id: 'beam', theme: 'arcade', icon: 'zap', color: '#22d3ee',
@@ -55,9 +55,9 @@
             tags: ['timeattack', 'single', 'multi'],
         },
         {
-            id: 'bomb', theme: 'arcade', icon: 'bomb', color: '#f59e0b',
-            href: './games/bomb.html',
-            tags: ['action', 'single', 'multi'], wip: true,
+            id: 'prime-zuma', theme: 'arcade', icon: 'coins', color: '#f59e0b',
+            href: './games/prime-zuma.html',
+            tags: ['action', 'single'], wip: true, modes: ['easy', 'normal', 'hard'],
         },
         {
             id: 'patches', theme: 'puzzle', icon: 'layout-template-ccw', color: '#e5484d',
@@ -139,7 +139,7 @@
             noResults: 'No games match your filters.',
             feedbackLink: 'Feedback',
             feedbackTitle: 'Feedback box',
-            feedbackHint: 'Questions, suggestions, or ideas are all welcome.',
+            feedbackHint: 'Report an issue, suggestion, or idea.',
             feedbackPlaceholder: 'Type your feedback…',
             feedbackSend: 'Send',
             feedbackCancel: 'Cancel',
@@ -162,6 +162,7 @@
             diffEasy: 'Easy',
             diffNormal: 'Normal',
             diffHard: 'Hard',
+            diffInsane: 'Insane',
             feedbackInbox: 'Feedback inbox',
             feedbackInboxEmpty: 'No feedback yet.',
             feedbackInboxError: 'Couldn\u2019t load feedback.',
@@ -199,9 +200,9 @@
             'beam_name': 'Beam',
             'beam_tagline': 'Memorise the mirrors, trace the laser.',
             'beam_body': 'Mirrors appear then vanish; a laser fires in and you tap where it exits in time.',
-            'bomb_name': 'Bomber',
-            'bomb_tagline': 'Bomb the blocks, outlast your rival.',
-            'bomb_body': 'Drop bombs to blast blocks and grab power-ups. Solo vs CPU, or 1v1 online. Be the last one standing.',
+            'prime-zuma_name': 'Prime Zuma',
+            'prime-zuma_tagline': 'Factor the chain before it reaches the core.',
+            'prime-zuma_body': 'Fire prime balls into the inward-spiralling chain. A prime peels a factor off every ball in a matching run — clear them before the chain reaches the centre.',
             'patches_name': 'Patches',
             'patches_tagline': 'Tile the grid with shapes.',
             'patches_body': "Split the grid into rectangles \u2014 one per clue \u2014 matching each clue\u2019s shape and size.",
@@ -256,7 +257,7 @@
             noResults: '沒有符合條件的遊戲。',
             feedbackLink: '意見箱',
             feedbackTitle: '意見箱',
-            feedbackHint: '有任何問題、建議或想法，都歡迎留言。',
+            feedbackHint: '回報問題、建議或想法。',
             feedbackPlaceholder: '寫下你的意見…',
             feedbackSend: '送出',
             feedbackCancel: '取消',
@@ -279,6 +280,7 @@
             diffEasy: '簡單',
             diffNormal: '普通',
             diffHard: '困難',
+            diffInsane: '瘋狂',
             feedbackInbox: '意見箱（管理）',
             feedbackInboxEmpty: '目前沒有留言。',
             feedbackInboxError: '讀取失敗。',
@@ -316,9 +318,9 @@
             'beam_name': '追光',
             'beam_tagline': '記住鏡子，追蹤雷射。',
             'beam_body': '鏡子出現後消失，雷射射入，在時間內點出它射出的邊界位置。',
-            'bomb_name': '轟炸人',
-            'bomb_tagline': '炸開磚塊，撐到最後。',
-            'bomb_body': '放炸彈炸開磚塊、撿道具強化。單機對 CPU，或線上 1v1。成為最後存活者。',
+            'prime-zuma_name': '質因數祖瑪',
+            'prime-zuma_tagline': '在球鏈抵達核心前把它分解掉。',
+            'prime-zuma_body': '朝向內盤旋的球鏈發射質數球。質數會把一段可整除的球鏈各剝掉一個因數——趕在球鏈抵達中心前清除它們。',
             'patches_name': 'Patches',
             'patches_tagline': '用形狀鋪滿整個盤面。',
             'patches_body': '把盤面切成一個個矩形 \u2014 每個提示對應一個 \u2014 並符合該提示的形狀與大小。',
@@ -423,6 +425,7 @@
     var query = '';       // lower-cased search text; '' = no search
     var wipUnlocked = false;      // WIP games open directly on this device (set by the ?backstage link)
     var wipJustUnlocked = false;  // the ?backstage link was used on THIS load (→ confirm with a toast)
+    var adminUnlock = false;      // signed-in owner (config/admins) → WIP games open directly, no gate
     var accountUser = null;       // signed-in user (from ArcadeNet), or null
 
     function t(key) {
@@ -556,7 +559,7 @@
             // WIP games always open a confirm dialog first. On a locked device it's a
             // "not open yet" deterrent (insisting → a well-known video); once unlocked
             // via the ?backstage link it's a tester's "take a look?" that really enters.
-            if (g.wip) {
+            if (g.wip && !adminUnlock) {
                 card.addEventListener('click', function (ev) {
                     ev.preventDefault();
                     openWipGate(ev.currentTarget.getAttribute('href'));
@@ -695,48 +698,45 @@
     }
     var DIFF_ORDER = { easy: 0, normal: 1, hard: 2 };
     function byDiff(a, b) { var x = DIFF_ORDER[a], y = DIFF_ORDER[b]; x = (x == null) ? 9 : x; y = (y == null) ? 9 : y; return x - y; }
-    function collectRecords() {
-        var P = 'arcadeGames', blocks = [], i, k;
-        // (1) generic arcade high scores — a best map keyed by mode (usually difficulty).
-        var sp = P + ':scores:', seen = {};
-        for (i = 0; i < localStorage.length; i++) {
-            k = localStorage.key(i);
-            if (!k || k.indexOf(sp) !== 0) continue;
-            var g = k.slice(sp.length);
-            if (g === 'beam' || g === 'rune-stones' || seen[g]) continue;   // bespoke below
-            seen[g] = 1;
-            var d = rdLocal(k), best = d && d.best;
-            if (!best) continue;
-            var modes = Object.keys(best).filter(function (m) { return typeof best[m] === 'number'; });
-            if (!modes.length) continue;
-            modes.sort(byDiff);
-            blocks.push({ key: g, lines: modes.map(function (m) {
-                return { k: (m === 'default') ? t('recordScore') : diffLabel(m), v: best[m].toLocaleString() };
-            }) });
-        }
-        // (2) Beam — best finishing place per difficulty notch (lower is better).
-        var beamLines = [];
-        for (i = 0; i < 32; i++) {
-            var st = rdLocal(P + ':beam:solo:n' + i);
+    // Build one record block per game, in the SAME order as the launcher grid (GAMES
+    // is pre-sorted by hue at load, so just walk it). Stale non-GAMES score keys are
+    // ignored. Each game type reads its own storage shape.
+    function beamLines(P) {
+        var ROMAN = ['I', 'II', 'III', 'IV'], TIER_KEYS = ['diffEasy', 'diffNormal', 'diffHard', 'diffInsane'], lines = [];
+        for (var n = 0; n < 32; n++) {
+            var st = rdLocal(P + ':beam:solo:n' + n);
             if (!st || !st.best) continue;
-            beamLines.push({
-                k: (lang === 'zh' ? '難度 ' : 'Lv ') + (i + 1),
-                v: placeLabel(st.best) + '  ' + t('recWins') + ' ' + (st.wins || 0) + '/' + (st.played || 0),
-            });
+            lines.push({ k: t(TIER_KEYS[Math.min((n / 4) | 0, 3)]) + ' ' + ROMAN[n % 4], v: placeLabel(st.best) });
         }
-        if (beamLines.length) blocks.push({ key: 'beam', lines: beamLines });
-        // (3) Rune Stones — Sandbag bests per difficulty. Easy inflates totals, so we
-        // list each difficulty separately instead of one combined max.
-        var rp = rdLocal(P + ':prefs:rune-stones'), sb = rp && rp.sandbox;
-        if (sb) {
-            var runeLines = [];
-            Object.keys(sb).sort(byDiff).forEach(function (lv) {
-                var e = sb[lv] || {};
-                if (typeof e.bestTotal === 'number') runeLines.push({ k: diffLabel(lv) + ' · ' + t('recTotal'), v: e.bestTotal.toLocaleString() });
-                if (typeof e.bestSpin === 'number') runeLines.push({ k: diffLabel(lv) + ' · ' + t('recSpin'), v: e.bestSpin.toLocaleString() });
-            });
-            if (runeLines.length) blocks.push({ key: 'rune-stones', lines: runeLines });
-        }
+        return lines;
+    }
+    function runeLines(P) {
+        var rp = rdLocal(P + ':prefs:rune-stones'), sb = rp && rp.sandbox, lines = [];
+        if (sb) Object.keys(sb).sort(byDiff).forEach(function (lv) {
+            var e = sb[lv] || {};
+            if (typeof e.bestTotal === 'number') lines.push({ k: diffLabel(lv) + ' · ' + t('recTotal'), v: e.bestTotal.toLocaleString() });
+            if (typeof e.bestSpin === 'number') lines.push({ k: diffLabel(lv) + ' · ' + t('recSpin'), v: e.bestSpin.toLocaleString() });
+        });
+        return lines;
+    }
+    function scoreLines(P, g) {
+        var d = rdLocal(P + ':scores:' + g.id), best = d && d.best, lines = [];
+        if (!best) return lines;
+        var keys = Object.keys(best).filter(function (m) { return typeof best[m] === 'number'; });
+        if (g.modes) keys = keys.filter(function (m) { return g.modes.indexOf(m) !== -1; });   // hide renamed-away / stale modes
+        keys.sort(byDiff).forEach(function (m) {
+            lines.push({ k: (m === 'default') ? t('recordScore') : diffLabel(m), v: best[m].toLocaleString() });
+        });
+        return lines;
+    }
+    function collectRecords() {
+        var P = 'arcadeGames', blocks = [];
+        GAMES.forEach(function (g) {
+            var lines = (g.id === 'beam') ? beamLines(P)
+                : (g.id === 'rune-stones') ? runeLines(P)
+                : scoreLines(P, g);
+            if (lines.length) blocks.push({ key: g.id, lines: lines });
+        });
         return blocks;
     }
 
@@ -966,10 +966,14 @@
         var adminRoster = document.getElementById('drawer-admins');
         if (adminInbox) adminInbox.hidden = true;
         if (adminRoster) adminRoster.hidden = true;
+        // Admins also unlock WIP games (play directly — no ?backstage needed). Re-render
+        // the grid when the status resolves so the gate is added/removed accordingly.
+        function setAdminUnlock(v) { if (adminUnlock === v) return; adminUnlock = v; renderGrid(); }
         if (N && N.ok && N.isAdmin && user && !user.anon) {
             N.isAdmin().then(function (ok) {
                 if (adminInbox) adminInbox.hidden = !ok;
                 if (adminRoster) adminRoster.hidden = !ok;
+                setAdminUnlock(!!ok);
                 // Keep my own roster name in sync with my Google display name.
                 if (ok && user.email && user.name && N.getAdmins && N.adminAdd) {
                     N.getAdmins().then(function (m) {
@@ -977,7 +981,9 @@
                         if (e && e.name !== user.name) N.adminAdd(user.email, user.name);
                     }).catch(function () { /* ignore */ });
                 }
-            }).catch(function () { /* ignore */ });
+            }).catch(function () { setAdminUnlock(false); });
+        } else {
+            setAdminUnlock(false);
         }
     }
 

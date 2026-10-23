@@ -49,11 +49,10 @@ docs/DEV.md                  This file
 | --- | --- |
 | `storage` | `readJSON` / `writeJSON` / `storageKey` — namespaced `localStorage` (prefix `arcadeGames`). |
 | `prefs` | `get(game)` / `set(game, patch)` — per-game preferences. |
-| `scores` | `best(game, mode)` / `submit(game, mode, score, meta)` / `stats(game)` / `resetIfStale(game, epoch)` — per-(game, mode) high scores + a recent-runs ring buffer. |
+| `scores` | `best(game, mode)` / `submit(game, mode, score, meta)` / `resetIfStale(game, epoch)` — per-(game, mode) high scores + a recent-runs ring buffer. |
 | `rng` | `make(seed)` (mulberry32) + `int` / `float` / `one` / `shuffle`. |
-| `math` | `clamp` / `lerp` / `dist`. |
-| `format` | `score(n)` (thousands) / `clock(ms|sec, asSeconds)` (mm:ss). |
-| `el` / `svgEl` | Tiny DOM/SVG builders. |
+| `math` | `clamp`. |
+| `format` | `score(n)` (thousands). |
 | `icon(name)` / `icons.render(root)` | Inline Lucide-subset icons; fills every `[data-icon]` placeholder. |
 | `i18n` | EN/中 strings, `t(key, ...args)`, `setLocale`, `subscribe`, `translateNode`, and the mutable `STRINGS` table. |
 | `toast` | One shared bottom-centre notice: `toast.show(text, ms)`. |

@@ -4,10 +4,10 @@
  * Everything here is intentionally framework-free so it works on
  * GitHub Pages / file:// / `python -m http.server` with no build step.
  *
- * Sibling collection "Puzzle Games" exposes `window.PuzzleCommon`; this
- * one exposes `window.ArcadeCommon`. The two are independent, but the
- * shape (storage / i18n / icons / toast helpers) is deliberately
- * similar so a reader who knows one knows the other.
+ * Its sibling shell `js/puzzle.js` exposes `window.PuzzleCommon`; this one
+ * exposes `window.ArcadeCommon`. The two are independent, but the shape
+ * (storage / i18n / icons / toast helpers) is deliberately similar so a
+ * reader who knows one knows the other.
  *
  * The big difference: arcade games are real-time, so instead of the
  * puzzle "shell" (difficulty / size / reveal / hint) this file ships:
@@ -36,7 +36,7 @@
             if (raw == null) return fallback;
             return JSON.parse(raw);
         } catch (e) {
-            console.warn('[common] readJSON failed for', key, e);
+            console.warn('[arcade] readJSON failed for', key, e);
             return fallback;
         }
     }
@@ -45,7 +45,7 @@
         try {
             localStorage.setItem(key, JSON.stringify(value));
         } catch (e) {
-            console.warn('[common] writeJSON failed for', key, e);
+            console.warn('[arcade] writeJSON failed for', key, e);
         }
     }
 
@@ -98,10 +98,6 @@
         return { best: data.best[m] || 0, isNewBest, previous: prev };
     }
 
-    function getScoreStats(game) {
-        return readJSON(scoreKey(game), { best: {}, recent: [] });
-    }
-
     // One-time, cross-player score reset. A game declares a `scoreEpoch` integer
     // (via shell.create); each player's save stamps the epoch it was written
     // under. When the game bumps its epoch (because a mechanics change makes old
@@ -129,26 +125,9 @@
         return Math.min(max, Math.max(min, value));
     }
 
-    function lerp(a, b, t) {
-        return a + (b - a) * t;
-    }
-
-    function dist(ax, ay, bx, by) {
-        return Math.hypot(ax - bx, ay - by);
-    }
-
     // Format an integer with thousands separators, e.g. 12345 → "12,345".
     function formatScore(n) {
         return Math.round(n).toLocaleString('en-US');
-    }
-
-    // Format milliseconds (or a whole-second count) as mm:ss.
-    function formatClock(msOrSec, asSeconds) {
-        const totalSec = asSeconds ? Math.ceil(msOrSec) : Math.ceil(msOrSec / 1000);
-        const s = Math.max(0, totalSec);
-        const mm = String(Math.floor(s / 60)).padStart(2, '0');
-        const ss = String(s % 60).padStart(2, '0');
-        return `${mm}:${ss}`;
     }
 
     // -----------------------------------------------------------------
@@ -191,40 +170,6 @@
     }
 
     // -----------------------------------------------------------------
-    // DOM helpers
-    // -----------------------------------------------------------------
-
-    function el(tag, attrs, ...children) {
-        const node = document.createElement(tag);
-        if (attrs) {
-            for (const k in attrs) {
-                if (k === 'class') node.className = attrs[k];
-                else if (k === 'text') node.textContent = attrs[k];
-                else if (k.startsWith('on') && typeof attrs[k] === 'function') {
-                    node.addEventListener(k.slice(2).toLowerCase(), attrs[k]);
-                } else if (attrs[k] != null) {
-                    node.setAttribute(k, attrs[k]);
-                }
-            }
-        }
-        for (const c of children) {
-            if (c == null) continue;
-            node.appendChild(typeof c === 'string' ? document.createTextNode(c) : c);
-        }
-        return node;
-    }
-
-    function svgEl(tag, attrs) {
-        const node = document.createElementNS('http://www.w3.org/2000/svg', tag);
-        if (attrs) {
-            for (const k in attrs) {
-                if (attrs[k] != null) node.setAttribute(k, attrs[k]);
-            }
-        }
-        return node;
-    }
-
-    // -----------------------------------------------------------------
     // Icons — a tiny self-contained subset of Lucide (lucide.dev, ISC).
     // Kept inline so the site stays dependency-free / offline-capable.
     // Each entry is the inner markup of a 24×24 stroke icon; `icon(name)`
@@ -236,8 +181,6 @@
     const ICONS = {
         'arrow-left':
             '<path d="m12 19-7-7 7-7"/><path d="M19 12H5"/>',
-        play:
-            '<polygon points="6 3 20 12 6 21 6 3"/>',
         pause:
             '<rect x="14" y="4" width="4" height="16" rx="1"/>'
             + '<rect x="6" y="4" width="4" height="16" rx="1"/>',
@@ -271,19 +214,11 @@
             + '<path d="M18.09 10.37A6 6 0 1 1 10.34 18"/>'
             + '<path d="M7 6h1v4"/>'
             + '<path d="m16.71 13.88.7.71-2.82 2.82"/>',
-        bomb:
-            '<circle cx="11" cy="13" r="9"/>'
-            + '<path d="M14.35 4.65 16.3 2.7a2.41 2.41 0 0 1 3.4 0l1.6 1.6a2.4 2.4 0 0 1 0 3.4l-1.95 1.95"/>'
-            + '<path d="m22 2-1.5 1.5"/>',
         heart:
             '<path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>',
         ladder:
             '<path d="M8 3v18"/><path d="M16 3v18"/>'
             + '<path d="M8 8h8"/><path d="M8 13h8"/><path d="M8 18h8"/>',
-        gem:
-            '<path d="M6 3h12l4 6-10 13L2 9Z"/>'
-            + '<path d="M11 3 8 9l4 13 4-13-3-6"/>'
-            + '<path d="M2 9h20"/>',
         swords:
             '<path d="m13 19 6-6"/>'
             + '<path d="M14.5 17.5 3.586 6.586A2 2 0 0 1 3 5.172V3h2.172a2 2 0 0 1 1.414.586L17.5 14.5"/>'
@@ -306,14 +241,6 @@
             + '<circle cx="9" cy="7" r="4"/>'
             + '<path d="M22 21v-2a4 4 0 0 0-3-3.87"/>'
             + '<path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
-        // a carved rune-stone (gem outline + a Fehu-like rune) for Rune Stones
-        runestone:
-            '<path d="M6 3h12l4 6-10 13L2 9Z"/>'
-            + '<path d="M10 6.5v9"/>'
-            + '<path d="M10 8 14 6"/>'
-            + '<path d="M10 11 14 9"/>',
-        puzzle:
-            '<path d="M15.39 4.39a1 1 0 0 0 1.68-.474 2.5 2.5 0 1 1 3.014 3.015 1 1 0 0 0-.474 1.68l1.683 1.682a2.414 2.414 0 0 1 0 3.414L19.61 19.39a1 1 0 0 1-1.68-.474 2.5 2.5 0 1 0-3.014 3.015 1 1 0 0 1 .474 1.68l-1.683 1.682a2.414 2.414 0 0 1-3.414 0L8.61 19.61a1 1 0 0 0-1.68.474 2.5 2.5 0 1 1-3.014-3.015 1 1 0 0 0 .474-1.68l-1.683-1.682a2.414 2.414 0 0 1 0-3.414L4.39 8.61a1 1 0 0 1 1.68.474 2.5 2.5 0 1 0 3.014-3.015 1 1 0 0 1-.474-1.68l1.683-1.682a2.414 2.414 0 0 1 3.414 0z"/>',
         skull:
             '<circle cx="9" cy="12" r="1"/><circle cx="15" cy="12" r="1"/>'
             + '<path d="M8 20v2h8v-2"/>'
@@ -388,47 +315,17 @@
             score: 'Score',
             best: 'Best',
             time: 'Time',
-            level: 'Level',
-            goal: 'Goal',
-            combo: 'Combo',
             lives: 'Lives',
             difficulty: 'Difficulty',
             howToPlay: 'How to play',
             newBest: 'New best!',
             gameOver: 'Game Over',
             youWin: 'You Win!',
-            levelClear: 'Level Clear!',
 
-            // Launcher
-            appSubtitle: 'A collection of pick-up-and-play arcade games.',
-            visitLink: 'Visit \u2197',
-            puzzleGamesName: 'Puzzle Games',
-            puzzleGamesTagline: 'Logic puzzle games.',
-            puzzleGamesCardBody:
-                'A separate site with logic puzzles.',
-            playable: 'Playable',
-            wip: 'WIP',
-            tagReflex: 'Reflex',
-            tagScore: 'Score chase',
-            tagCombo: 'Combo',
-            tagEndless: 'Endless',
-            tagVersus: 'Versus',
-
-            // Colour Ladder card (real-time ghost-leg / amidakuji)
-            ladderConnectName: 'Colour Ladder',
-            ladderConnectTagline: 'Move the rungs, route the balls.',
-            ladderConnectCardBody:
-                'Balls rain down a ladder of lanes. Move the coloured rungs to steer each one into its matching-colour basket.',
-
-            // Bullet Storm card (omnidirectional bullet-dodge survival)
-            dotDodgeName: 'Bullet Storm',
-            dotDodgeTagline: 'Dodge the bullets, outlast the storm.',
-            dotDodgeCardBody:
-                'Bullets pour in from every side. Fly your dot, weave through the gaps, and last as long as you can.',
-
-            // Rune Stones — in-game title only (the launcher owns the card copy)
-            runeClashName: 'Rune Stones',
-
+            // In-game titles (keys match the games' current ids).
+            colourLadderName: 'Colour Ladder',
+            bulletStormName: 'Bullet Storm',
+            runeStonesName: 'Rune Stones',
         },
         zh: {
             menu: '選單',
@@ -445,46 +342,20 @@
             score: '分數',
             best: '最佳',
             time: '時間',
-            level: '關卡',
-            goal: '目標',
-            combo: '連擊',
             lives: '生命',
             difficulty: '難度',
             howToPlay: '遊玩方式',
             newBest: '新紀錄！',
             gameOver: '遊戲結束',
             youWin: '你贏了！',
-            levelClear: '過關！',
 
-            appSubtitle: '一組隨開隨玩的街機小遊戲。',
-            visitLink: '前往 \u2197',
-            puzzleGamesName: 'Puzzle Games',
-            puzzleGamesTagline: '邏輯解謎的遊戲。',
-            puzzleGamesCardBody:
-                '另一個網站，收錄邏輯謎題。',
-            playable: '可遊玩',
-            wip: '開發中',
-            tagReflex: '反應',
-            tagScore: '衝分',
-            tagCombo: '連擊',
-            tagEndless: '無盡',
-            tagVersus: '對戰',
-
-            ladderConnectName: '彩球梯',
-            ladderConnectTagline: '移動橫線，把球導到對的籃子。',
-            ladderConnectCardBody:
-                '球沿著一排排直線往下掉。移動彩色的橋，把每顆球導進同色的籃子。',
-
-            dotDodgeName: '彈幕風暴',
-            dotDodgeTagline: '閃避子彈，撐過風暴。',
-            dotDodgeCardBody:
-                '子彈從四面八方湧入。在縫隙間穿梭閃避，盡量撐久一點。',
-
-            runeClashName: '盧恩符石',
+            colourLadderName: '彩球梯',
+            bulletStormName: '彈幕風暴',
+            runeStonesName: '盧恩符石',
         },
     };
 
-    const LANG_KEY = 'gamebox:lang';   // shared with the GameBox launcher + sibling collection so the language carries across
+    const LANG_KEY = 'gamebox:lang';   // shared with the GameBox launcher + the puzzle shell so the language carries across
     const LANG_SUPPORTED = ['en', 'zh'];
     const localeSubscribers = new Set();
     let currentLocale = readJSON(LANG_KEY, 'en');
@@ -840,23 +711,14 @@
             src.start(now); src.stop(now + dur + 0.02);
         }
 
-        // A named palette of arcade blips. Games call play('coin') etc.
+        // A small palette of blips used by the shell itself (button click +
+        // end-of-run jingles). Per-game SFX use audio.tone/noise directly.
         const SFX = {
-            shoot:    () => tone(520, 0.12, { type: 'square', slideTo: 180, volume: 0.12 }),
-            grab:     () => tone(300, 0.10, { type: 'sawtooth', slideTo: 520, volume: 0.14 }),
-            coin:     () => { tone(880, 0.08, { type: 'square', volume: 0.14 });
-                              setTimeout(() => tone(1320, 0.12, { type: 'square', volume: 0.13 }), 70); },
-            gem:      () => { tone(1046, 0.09, { type: 'triangle', volume: 0.15 });
-                              setTimeout(() => tone(1568, 0.14, { type: 'triangle', volume: 0.14 }), 80); },
-            rock:     () => tone(140, 0.18, { type: 'sawtooth', slideTo: 90, volume: 0.16 }),
-            empty:    () => tone(200, 0.12, { type: 'sine', slideTo: 120, volume: 0.10 }),
-            explode:  () => tone(90, 0.32, { type: 'sawtooth', slideTo: 40, volume: 0.2 }),
             levelup:  () => { [523, 659, 784, 1046].forEach((f, i) =>
                               setTimeout(() => tone(f, 0.16, { type: 'square', volume: 0.14 }), i * 90)); },
             gameover: () => { [440, 330, 262].forEach((f, i) =>
                               setTimeout(() => tone(f, 0.28, { type: 'triangle', volume: 0.16 }), i * 160)); },
             click:    () => tone(660, 0.05, { type: 'square', volume: 0.10 }),
-            laser:    () => tone(1200, 0.16, { type: 'sawtooth', slideTo: 300, volume: 0.13 }),
         };
 
         return {
@@ -1267,12 +1129,10 @@
     global.ArcadeCommon = {
         storage: { readJSON, writeJSON, storageKey },
         prefs: { get: getPrefs, set: setPrefs },
-        scores: { best: getBest, submit: submitScore, stats: getScoreStats, resetIfStale: resetScoresIfStale },
+        scores: { best: getBest, submit: submitScore, resetIfStale: resetScoresIfStale },
         rng: { make: makeRng, int: pickInt, float: pickFloat, one: pickOne, shuffle: shuffleInPlace },
-        math: { clamp, lerp, dist },
-        format: { score: formatScore, clock: formatClock },
-        el,
-        svgEl,
+        math: { clamp },
+        format: { score: formatScore },
         icon,
         icons: { render: renderIcons },
         i18n: {

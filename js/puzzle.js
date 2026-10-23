@@ -23,7 +23,7 @@
             if (raw == null) return fallback;
             return JSON.parse(raw);
         } catch (e) {
-            console.warn('[common] readJSON failed for', key, e);
+            console.warn('[puzzle] readJSON failed for', key, e);
             return fallback;
         }
     }
@@ -32,7 +32,7 @@
         try {
             localStorage.setItem(key, JSON.stringify(value));
         } catch (e) {
-            console.warn('[common] writeJSON failed for', key, e);
+            console.warn('[puzzle] writeJSON failed for', key, e);
         }
     }
 
@@ -118,21 +118,6 @@
     })();
 
     // -----------------------------------------------------------------
-    // Per-game preferences (size, difficulty)
-    // -----------------------------------------------------------------
-
-    function getPrefs(game) {
-        return readJSON(storageKey('prefs', game), {});
-    }
-
-    function setPrefs(game, patch) {
-        const current = getPrefs(game);
-        const next = Object.assign({}, current, patch);
-        writeJSON(storageKey('prefs', game), next);
-        return next;
-    }
-
-    // -----------------------------------------------------------------
     // Solved-puzzle log
     //
     // We store the *count* of solves per (game,size,difficulty) plus a
@@ -153,10 +138,6 @@
         });
         data.recent = data.recent.slice(0, 25);
         writeJSON(key, data);
-    }
-
-    function getSolveStats(game) {
-        return readJSON(storageKey('solves', game), { byBucket: {}, recent: [] });
     }
 
     // -----------------------------------------------------------------
@@ -375,12 +356,6 @@
         user:
             '<path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/>'
             + '<circle cx="12" cy="7" r="4"/>',
-        'gamepad-2':
-            '<line x1="6" x2="10" y1="11" y2="11"/>'
-            + '<line x1="8" x2="8" y1="9" y2="13"/>'
-            + '<line x1="15" x2="15.01" y1="12" y2="12"/>'
-            + '<line x1="18" x2="18.01" y1="10" y2="10"/>'
-            + '<path d="M17.32 5H6.68a4 4 0 0 0-3.978 3.59c-.006.052-.01.101-.017.152C2.604 9.416 2 14.456 2 16a3 3 0 0 0 3 3c1 0 1.5-.5 2-1l1.414-1.414A2 2 0 0 1 9.828 16h4.344a2 2 0 0 1 1.414.586L17 18c.5.5 1 1 2 1a3 3 0 0 0 3-3c0-1.544-.604-6.584-.685-7.258-.007-.05-.011-.1-.017-.151A4 4 0 0 0 17.32 5z"/>',
         route:
             '<circle cx="6" cy="19" r="3"/>'
             + '<path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15"/>'
@@ -393,10 +368,6 @@
             + '<circle cx="19.5" cy="12" r="2.5"/>'
             + '<path d="m13.8 17.7 3.9-3.9"/>'
             + '<circle cx="12" cy="19.5" r="2.5"/>',
-        shapes:
-            '<path d="M8.3 10a.7.7 0 0 1-.626-1.079L11.4 3a.7.7 0 0 1 1.199 0l3.726 5.921A.7.7 0 0 1 15.7 10Z"/>'
-            + '<rect width="7" height="7" x="3" y="14" rx="1"/>'
-            + '<circle cx="17.5" cy="17.5" r="3.5"/>',
         // lucide: graph-star (Hashi brand)
         'graph-star':
             '<path d="m12.342 9.316 1.764-3.527"/>'
@@ -423,8 +394,6 @@
             + '<path d="M2 12h2"/><path d="M20 12h2"/>'
             + '<path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/>'
             + '<g transform="translate(6 6) scale(0.5)" stroke-width="4"><path d="M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803.401"/></g>',
-        check:
-            '<path d="M20 6 9 17l-5-5"/>',
         lock:
             '<rect width="18" height="11" x="3" y="11" rx="2" ry="2"/>'
             + '<path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
@@ -944,18 +913,8 @@
             showSolution: 'Show solution overlay',
             showSolutionPath: 'Show solution path',
 
-            // Index / launcher
-            appTitle: 'Puzzle Games',
-            appSubtitle: "A collection of logic puzzles inspired by LinkedIn's daily games.",
-            playable: 'Playable',
-            wip: 'WIP',
-            builtNote: 'Built as a static site — works offline, deployable on GitHub Pages.',
-
             // Queens
             queensName: 'Queens',
-            queensTagline: 'Royal regions, one queen each.',
-            queensCardBody:
-                'Place N queens so that every row, column, color region and 8-neighborhood contains exactly one.',
             queensBoardAria: 'Queens puzzle board',
             queensHelp1Html:
                 'Click a cell to cycle through <strong>empty → <span class="inline-icon queen-x" data-icon="x"></span> → <span class="inline-icon queen" data-icon="crown"></span></strong> (the <span class="inline-icon queen-x" data-icon="x"></span> is just a personal "no" marker).',
@@ -988,9 +947,6 @@
 
             // Tango
             tangoName: 'Tango',
-            tangoTagline: 'Sun & moon balance.',
-            tangoCardBody:
-                'Fill the grid with suns and moons — half of each per row and column, no three in a row, respect the walls.',
             tangoBoardAria: 'Tango puzzle board',
             tangoHelp1Html:
                 'Click a cell to cycle through <strong>empty → <span class="inline-icon sun" data-icon="sun"></span> → <span class="inline-icon moon" data-icon="moon"></span></strong>. Pre-filled cells are locked.',
@@ -1002,9 +958,6 @@
 
             // Sudoku
             sudokuName: 'Sudoku',
-            sudokuTagline: 'Classic number logic.',
-            sudokuCardBody:
-                'Fill the grid so every row, column and box contains each digit exactly once.',
             sudokuBoardAria: 'Sudoku puzzle board',
             sudokuNumPadAria: 'Number pad',
             sudokuNotes: 'Notes',
@@ -1065,20 +1018,8 @@
 
             // Zip
             zipName: 'Zip',
-            zipTagline: 'One path, every cell.',
-            zipCardBodyHtml:
-                'Drag from <strong>1</strong> to draw a single path covering every open cell, hitting checkpoints in numerical order.',
             zipBoardAria: 'Zip puzzle board',
             nonogramName: 'Nonogram',
-            nonogramTagline: 'Reveal the hidden picture.',
-            nonogramCardBody:
-                'Use the row and column number clues to fill the grid and reveal the picture.',
-            // Cross-link to the sibling Arcade Games site.
-            arcadeGamesName: 'Arcade Games',
-            arcadeGamesTagline: 'Arcade-style games.',
-            arcadeGamesCardBody:
-                'A separate site with arcade games.',
-            visitLink: 'Visit \u2197',
             nonogramBoardAria: 'Nonogram puzzle board',
             nonogramToolsAria: 'Input mode',
             nonogramToolCycle: 'Cycle',
@@ -1091,28 +1032,22 @@
                 'Four input modes: <span class="inline-icon nono-ico-cycle" data-icon="refresh-cw"></span> cycle, <span class="inline-icon nono-ico-fill" data-icon="square"></span> fill, <span class="inline-icon nono-ico-mark" data-icon="x"></span> mark, <span class="inline-icon nono-ico-erase" data-icon="eraser"></span> erase. Tap to apply, or drag to paint from the first cell.',
             nonogramHelp3Html:
                 'Solved when the <span class="inline-icon nono-ico-fill" data-icon="square"></span> cells match every row and column clue.',
-            lightupName: 'Guards',
-            lightupTagline: 'Watch every corridor.',
-            lightupCardBody:
-                'Post the right number of guards to watch the corridors — none may see another.',
-            lightupBoardAria: 'Guards puzzle board',
-            lightupToolsAria: 'Input mode',
-            lightupToolCycle: 'Cycle',
-            lightupToolBulb: 'Guard',
-            lightupToolMark: 'Mark',
-            lightupToolErase: 'Erase',
-            lightupHelp1Html:
+            guardsName: 'Guards',
+            guardsBoardAria: 'Guards puzzle board',
+            guardsToolsAria: 'Input mode',
+            guardsToolCycle: 'Cycle',
+            guardsToolBulb: 'Guard',
+            guardsToolMark: 'Mark',
+            guardsToolErase: 'Erase',
+            guardsHelp1Html:
                 'Post a <span class="inline-icon lu-ico-bulb" data-icon="user"></span> on a white <strong>floor</strong> cell to watch its whole row and column; its view runs until it meets a black <strong>pillar</strong> or the board edge.',
-            lightupHelp2Html:
+            guardsHelp2Html:
                 'No two <span class="inline-icon lu-ico-bulb" data-icon="user"></span> may see each other, and a numbered pillar must hold <strong>exactly that many</strong> <span class="inline-icon lu-ico-bulb" data-icon="user"></span> in the four cells next to it (up, down, left, right).',
-            lightupHelp3Html:
+            guardsHelp3Html:
                 'Four input modes: <span class="inline-icon lu-ico-cycle" data-icon="refresh-cw"></span> cycle, <span class="inline-icon lu-ico-bulb" data-icon="user"></span> guard, <span class="inline-icon lu-ico-mark" data-icon="x"></span> mark, <span class="inline-icon lu-ico-erase" data-icon="eraser"></span> erase. Tap to apply, or drag to paint from the first cell.',
-            lightupHelp4Html:
+            guardsHelp4Html:
                 'Solved when every floor cell is watched and no rule is broken.',
             hashiName: 'Hashi',
-            hashiTagline: 'Bridge every island.',
-            hashiCardBody:
-                'Link the numbered islands with the right number of bridges — no crossings, all connected.',
             hashiBoardAria: 'Hashi puzzle board',
             hashiCrossBlocked: 'A bridge there would cross an existing one.',
             hashiToolsAria: 'Input mode',
@@ -1143,9 +1078,6 @@
             zipHelp5:
                 'Solved when the path covers every white cell with checkpoints in the right order.',
             patchesName: 'Patches',
-            patchesTagline: 'Tile the grid with shapes.',
-            patchesCardBody:
-                'Split the grid into rectangles — one per clue — matching each clue\u2019s shape and size.',
             patchesBoardAria: 'Patches puzzle board',
             patchesHelp1:
                 'Divide the whole grid into rectangles so that every rectangle contains exactly one clue.',
@@ -1214,15 +1146,7 @@
             showSolution: '顯示解答',
             showSolutionPath: '顯示解答路徑',
 
-            appTitle: 'Puzzle Games',
-            appSubtitle: '一組受 LinkedIn 每日小遊戲啟發的邏輯謎題。',
-            playable: '可玩',
-            wip: '開發中',
-            builtNote: '純靜態網站 — 可離線使用，也可部署於 GitHub Pages。',
-
             queensName: 'Queens',
-            queensTagline: '皇家領地，每區一后。',
-            queensCardBody: '在每個列、行、色塊區域與 8 鄰域中各放一個皇后。',
             queensBoardAria: 'Queens 盤面',
             queensHelp1Html:
                 '點擊格子在 <strong>空 → <span class="inline-icon queen-x" data-icon="x"></span> → <span class="inline-icon queen" data-icon="crown"></span></strong> 之間循環（<span class="inline-icon queen-x" data-icon="x"></span> 為個人「不放這」的標記）。',
@@ -1251,9 +1175,6 @@
                 '目前沒有更進一步可以推論的地方了，可能需要找更細微的線索。',
 
             tangoName: 'Tango',
-            tangoTagline: '太陽與月亮的平衡。',
-            tangoCardBody:
-                '用太陽和月亮填滿盤面 — 每列每行各半，不能連續三個相同，並遵循牆的限制。',
             tangoBoardAria: 'Tango 盤面',
             tangoHelp1Html:
                 '點擊格子在 <strong>空 → <span class="inline-icon sun" data-icon="sun"></span> → <span class="inline-icon moon" data-icon="moon"></span></strong> 之間循環。預填的格子是鎖定的。',
@@ -1264,9 +1185,6 @@
             tangoHelp4: '所有格子都填滿、且無違規時即過關。',
 
             sudokuName: 'Sudoku',
-            sudokuTagline: '經典數字邏輯。',
-            sudokuCardBody:
-                '填滿盤面，使每列、每行、每個區域都恰好包含 1 至 N 各一次。',
             sudokuBoardAria: 'Sudoku 盤面',
             sudokuNumPadAria: '數字鍵盤',
             sudokuNotes: '筆記',
@@ -1324,20 +1242,8 @@
             sudokuHintTierError: '錯誤',
 
             zipName: 'Zip',
-            zipTagline: '一條路徑，貫穿每格。',
-            zipCardBodyHtml:
-                '從 <strong>1</strong> 開始拖曳，畫出一條覆蓋每個白色格子的路徑，並依序通過編號的檢查點。',
             zipBoardAria: 'Zip 盤面',
             nonogramName: 'Nonogram',
-            nonogramTagline: '還原隱藏的圖案。',
-            nonogramCardBody:
-                '依每列與每行的數字線索把格子填滿，還原出圖案。',
-            // Cross-link to the sibling Arcade Games site.
-            arcadeGamesName: 'Arcade Games',
-            arcadeGamesTagline: '街機風格的遊戲。',
-            arcadeGamesCardBody:
-                '另一個網站，收錄街機遊戲。',
-            visitLink: '前往 \u2197',
             nonogramBoardAria: 'Nonogram 盤面',
             nonogramToolsAria: '輸入模式',
             nonogramToolCycle: '循環',
@@ -1350,28 +1256,22 @@
                 '四種輸入模式：<span class="inline-icon nono-ico-cycle" data-icon="refresh-cw"></span> 循環、<span class="inline-icon nono-ico-fill" data-icon="square"></span> 填滿、<span class="inline-icon nono-ico-mark" data-icon="x"></span> 標記、<span class="inline-icon nono-ico-erase" data-icon="eraser"></span> 擦除。點一下套用，或從起點拖曳連續塗畫。',
             nonogramHelp3Html:
                 '當 <span class="inline-icon nono-ico-fill" data-icon="square"></span> 格子符合所有列與行的線索即過關。',
-            lightupName: 'Guards',
-            lightupTagline: '看守每一條走廊。',
-            lightupCardBody:
-                '部署符合數量的守衛看守走廊 — 彼此不能互相看到。',
-            lightupBoardAria: '守衛盤面',
-            lightupToolsAria: '輸入模式',
-            lightupToolCycle: '循環',
-            lightupToolBulb: '守衛',
-            lightupToolMark: '標記',
-            lightupToolErase: '擦除',
-            lightupHelp1Html:
+            guardsName: 'Guards',
+            guardsBoardAria: '守衛盤面',
+            guardsToolsAria: '輸入模式',
+            guardsToolCycle: '循環',
+            guardsToolBulb: '守衛',
+            guardsToolMark: '標記',
+            guardsToolErase: '擦除',
+            guardsHelp1Html:
                 '在白色的<strong>地板</strong>格上放一名 <span class="inline-icon lu-ico-bulb" data-icon="user"></span>，看守其整行與整列；視線會一直延伸，直到被黑色的<strong>柱子</strong>或邊界擋住。',
-            lightupHelp2Html:
+            guardsHelp2Html:
                 '任兩名 <span class="inline-icon lu-ico-bulb" data-icon="user"></span> <strong>不能</strong>互相看到；有數字的柱子，其上下左右緊鄰的 <span class="inline-icon lu-ico-bulb" data-icon="user"></span> 數必須<strong>剛好</strong>等於該數字。',
-            lightupHelp3Html:
+            guardsHelp3Html:
                 '四種輸入模式：<span class="inline-icon lu-ico-cycle" data-icon="refresh-cw"></span> 循環、<span class="inline-icon lu-ico-bulb" data-icon="user"></span> 守衛、<span class="inline-icon lu-ico-mark" data-icon="x"></span> 標記、<span class="inline-icon lu-ico-erase" data-icon="eraser"></span> 擦除。點一下套用，或從起點拖曳連續塗畫。',
-            lightupHelp4Html:
+            guardsHelp4Html:
                 '當每一格地板都被看守、且沒有違反任何規則時即過關。',
             hashiName: 'Hashi',
-            hashiTagline: '把每座島連起來。',
-            hashiCardBody:
-                '用正確數量的橋連接數字島 — 不可交叉，且全部連成一網。',
             hashiBoardAria: 'Hashi 盤面',
             hashiCrossBlocked: '這裡會和現有的橋交叉，不能架。',
             hashiToolsAria: '輸入模式',
@@ -1401,9 +1301,6 @@
                 '可以從路徑上任何一格重新拖曳 — 該格之後的部分都會被取消。',
             zipHelp5: '當路徑覆蓋每個白格，且檢查點都依序通過時即過關。',
             patchesName: 'Patches',
-            patchesTagline: '用形狀鋪滿整個盤面。',
-            patchesCardBody:
-                '把盤面切成一個個矩形 — 每個提示對應一個 — 並符合該提示的形狀與大小。',
             patchesBoardAria: 'Patches 盤面',
             patchesHelp1:
                 '把整個盤面切成數個矩形，使每個矩形內恰好包含一個提示。',
@@ -1438,7 +1335,7 @@
         },
     };
 
-    const LANG_KEY = 'gamebox:lang';   // shared with the GameBox launcher + sibling collection so the language carries across
+    const LANG_KEY = 'gamebox:lang';   // shared with the GameBox launcher + the arcade shell so the language carries across
     const LANG_SUPPORTED = ['en', 'zh'];
     const localeSubscribers = new Set();
     let currentLocale = readJSON(LANG_KEY, 'en');
@@ -1860,8 +1757,7 @@
 
     global.PuzzleCommon = {
         storage: { readJSON, writeJSON, storageKey },
-        prefs: { get: getPrefs, set: setPrefs },
-        solves: { log: logSolve, get: getSolveStats },
+        solves: { log: logSolve },
         timer: createTimer,
         shell: { create: createShell },
         audio,

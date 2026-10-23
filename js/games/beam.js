@@ -326,7 +326,9 @@
     // Solo = a LOCAL match vs 3 CPU bots (reuses the whole online match loop,
     // but writes apply instantly to a local room — no server).
     // ===============================================================
-    function loadSoloStats(notch) { try { return AC.storage.readJSON(AC.storage.storageKey('beam', 'solo', 'n' + notch), { played: 0, wins: 0, best: 0 }); } catch (e) { return { played: 0, wins: 0, best: 0 }; } }
+    // Solo only tracks the best finishing place per notch (we deliberately don't keep
+    // games-played / wins; add them back if we ever do proper per-game stats).
+    function loadSoloStats(notch) { try { return AC.storage.readJSON(AC.storage.storageKey('beam', 'solo', 'n' + notch), { best: 0 }); } catch (e) { return { best: 0 }; } }
     function saveSoloStats(notch, st) { try { AC.storage.writeJSON(AC.storage.storageKey('beam', 'solo', 'n' + notch), st); } catch (e) { } }
     // (Cloud sync of best finishing places is handled by the shared CloudSync engine —
     // see js/cloud-sync.js. This file just repaints on change and nudges a sync.)
@@ -365,7 +367,7 @@
         var g = data.game || {}, players = data.players || {}, order = data.order || [];
         var ranks = g.rankByUid || {}, fallback = order.length || 4;
         var rank = ranks[om.myUid] || fallback, notch = om.notch;
-        var st = loadSoloStats(notch); st.played++; if (rank === 1) st.wins++; st.best = st.best ? Math.min(st.best, rank) : rank; saveSoloStats(notch, st);
+        var best = loadSoloStats(notch).best; best = best ? Math.min(best, rank) : rank; saveSoloStats(notch, { best: best });
         if (window.CloudSync) window.CloudSync.sync();   // mirror the improved best place to the cloud profile
 
         var standings = order.filter(function (u) { return players[u]; }).map(function (u) {
@@ -374,7 +376,7 @@
         standings.sort(function (a, b) { return a.rank - b.rank; });
         om.over = true;
         setControlsForMatch();
-        shell.gameOver({ score: 0, win: rank === 1, meta: { rank: rank, tier: tierForNotch(notch), best: st.best, wins: st.wins, standings: standings } });
+        shell.gameOver({ score: 0, win: rank === 1, meta: { rank: rank, tier: tierForNotch(notch), best: best, standings: standings } });
     }
     // Bots "answer" DURING the window (just like real players) so their picks are already
     // there at the reveal. Correct-rate = logistic of their strength vs this round's level.
@@ -1116,7 +1118,7 @@
                         title: t('beamResultsTitle'),
                         message: '<div class="beam-finrank">' + list + '</div>',
                         button: t('restart'),
-                        hint: t('beamTierLabel') + '：' + t('beamTier' + capitalize(m.tier || 'normal')) + ' · ' + t('best') + ' ' + placeLabel(m.best || (m.rank || 4)) + ' · ' + t('beamWins', m.wins || 0),
+                        hint: t('beamTierLabel') + '：' + t('beamTier' + capitalize(m.tier || 'normal')) + ' · ' + t('best') + ' ' + placeLabel(m.best || (m.rank || 4)),
                     };
                 }
                 return {};

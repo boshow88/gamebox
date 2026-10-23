@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="arcade">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prime Zuma · GameBox</title>
+    <link rel="icon" type="image/svg+xml" href="../favicon.svg">
+    <link rel="stylesheet" href="../css/common.css">
+    <link rel="stylesheet" href="../css/arcade.css">
+    <style>
+        body { --game-color: #f59e0b; }
+        .stage-wrap { max-width: 480px; margin: 0 auto; }
+        /* A generous touch zone around the board so taps just outside the circle still aim+fire (no dead zone). */
+        .stage-pad { touch-action: none; padding: 12px 12px 24px; }
+        .stage-canvas { touch-action: none; width: 100%; height: auto; background: #0a1322; border-radius: 12px; }
+        /* selection panel (level grid / endless pickers / paused), layered over the board */
+        #pz-panel .overlay-card { gap: 8px; max-width: 420px; }
+        .pz-title { font-size: 18px; font-weight: 800; margin: 2px 0; }
+        .pz-result { font-size: 15px; font-weight: 700; color: #fca5a5; }
+        .pz-result.win { color: #86efac; }
+        .pz-row { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin: 2px 0; }
+        .pz-lvl { min-width: 52px; padding: 9px 8px; border-radius: 9px; border: 1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.07); color: #e2e8f0; font-weight: 700; }
+        .pz-opt { padding: 8px 12px; border-radius: 9px; border: 1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.07); color: #e2e8f0; }
+        .pz-lvl:hover, .pz-opt:hover { background: rgba(255,255,255,0.14); }
+        .pz-opt.active { background: var(--game-color); color: #0a1322; border-color: var(--game-color); font-weight: 700; }
+    </style>
+</head>
+
+<body>
+    <div class="game-shell">
+        <header class="game-topbar">
+            <a class="back-link" href="../index.html">
+                <span data-icon="arrow-left" aria-hidden="true"></span>
+                <span data-i18n="menu">Menu</span>
+            </a>
+            <div class="game-title">
+                <span class="game-icon" data-icon="coins" aria-hidden="true"></span>
+                <span data-i18n="pzName">Prime Zuma</span>
+            </div>
+            <div class="lang-toggle" id="lang-toggle" role="radiogroup" data-i18n-aria-label="language">
+                <button type="button" data-lang="en" role="radio" aria-checked="true">EN</button>
+                <button type="button" data-lang="zh" role="radio" aria-checked="false">中</button>
+            </div>
+        </header>
+
+        <div class="hud">
+            <div class="hud-stat accent">
+                <span class="hud-label"><span data-icon="coins" aria-hidden="true"></span><span data-i18n="pzScore">Score</span></span>
+                <span class="hud-value" id="score">0</span>
+            </div>
+            <div class="hud-stat">
+                <span class="hud-label"><span data-icon="trophy" aria-hidden="true"></span><span data-i18n="best">Best</span></span>
+                <span class="hud-value" id="best">0</span>
+            </div>
+        </div>
+
+        <div class="control-row">
+            <div class="seg" id="mode-seg" role="radiogroup" data-i18n-aria-label="pzName">
+                <button type="button" class="btn toggle" data-mode="level" data-i18n="pzLevelMode">Levels</button>
+                <button type="button" class="btn toggle" data-mode="endless" data-i18n="pzEndless">Endless</button>
+            </div>
+            <span class="spacer"></span>
+            <div class="control-actions">
+                <button class="btn" id="pause-btn" type="button" disabled>
+                    <span data-icon="pause" aria-hidden="true"></span>
+                    <span data-role="pause-label" data-i18n="pause">Pause</span>
+                </button>
+                <button class="btn" id="restart-btn" type="button" disabled>
+                    <span data-icon="rotate-ccw" aria-hidden="true"></span>
+                    <span data-i18n="restart">Restart</span>
+                </button>
+                <button class="btn btn-icon toggle" id="sound-btn" type="button" aria-pressed="true" data-i18n-title="sound" title="Sound">
+                    <span data-role="sound-icon" aria-hidden="true"></span>
+                </button>
+            </div>
+        </div>
+
+        <div class="stage-pad">
+            <div class="stage-wrap">
+                <canvas class="stage-canvas" id="stage" width="460" height="460" role="img" aria-label="Prime Zuma board"></canvas>
+                <div class="overlay" id="pz-panel" hidden>
+                    <div class="overlay-card" id="pz-card"></div>
+                </div>
+            </div>
+        </div>
+
+        <section class="game-footer">
+            <h4 data-i18n="howToPlay">How to play</h4>
+            <ul>
+                <li data-i18n="pzHelp1Html">A turret in the centre shoots <strong>prime</strong> balls; the chain spirals inward and you lose if it reaches the <strong>core</strong>.</li>
+                <li data-i18n="pzHelp2Html">A shot prime <strong>p</strong> divides every ball in a contiguous run divisible by p (length <strong>3+</strong>) by p — any that become 1 are removed.</li>
+                <li data-i18n="pzHelp3Html">Gaps split the chain; <strong>matching</strong> ends pull together and crash — primes can chain more clears. <kbd>P</kbd> pause · <kbd>R</kbd> restart.</li>
+            </ul>
+        </section>
+    </div>
+
+    <script src="../js/arcade.js"></script>
+    <script src="../js/firebase-config.js"></script>
+    <script type="module" src="../js/net/net.js"></script>
+    <script src="../js/cloud-sync.js"></script>
+    <script src="../js/games/prime-zuma-levels.js"></script>
+    <script src="../js/games/prime-zuma.js"></script>
+</body>
+
+</html>
