@@ -250,8 +250,11 @@
         sfxShoot(fired);
     }
     function nearestBall(x, y) {
-        var best = null, bd = Infinity;
-        for (var L = 0; L < lanes.length; L++) { var lane = lanes[L], qs = lane.qs; for (var qi = 0; qi < qs.length; qi++) { var q = qs[qi]; for (var j = 0; j < q.vals.length; j++) { var b = q.vals[j], dx = b.rx - x, dy = b.ry - y, d = dx * dx + dy * dy; if (d < bd) { bd = d; best = { lane: lane, q: q, j: j, s: q.head + j * CFG.D }; } } } }
+        var best = null, bd = Infinity, R0 = CFG.rBall;
+        for (var L = 0; L < lanes.length; L++) {
+            var lane = lanes[L], qs = lane.qs;
+            for (var qi = 0; qi < qs.length; qi++) { var q = qs[qi]; for (var j = 0; j < q.vals.length; j++) { var b = q.vals[j]; if (b.rx < -R0 || b.rx > CW + R0 || b.ry < -R0 || b.ry > CH + R0) continue; var dx = b.rx - x, dy = b.ry - y, d = dx * dx + dy * dy; if (d < bd) { bd = d; best = { lane: lane, q: q, j: j, s: q.head + j * CFG.D }; } } }
+        }
         if (best) best.dist = Math.sqrt(bd);
         return best;
     }
