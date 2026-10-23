@@ -14,6 +14,16 @@
         /* A generous touch zone around the board so taps just outside the circle still aim+fire (no dead zone). */
         .stage-pad { touch-action: none; padding: 12px 12px 24px; }
         .stage-canvas { touch-action: none; width: 100%; height: auto; background: #0a1322; border-radius: 12px; }
+        /* selection panel (level grid / endless pickers), layered over the board */
+        #pz-panel .overlay-card { gap: 8px; max-width: 420px; }
+        .pz-title { font-size: 18px; font-weight: 800; margin: 2px 0; }
+        .pz-result { font-size: 15px; font-weight: 700; color: #fca5a5; }
+        .pz-result.win { color: #86efac; }
+        .pz-row { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin: 2px 0; }
+        .pz-lvl { min-width: 52px; padding: 9px 8px; border-radius: 9px; border: 1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.07); color: #e2e8f0; font-weight: 700; }
+        .pz-opt { padding: 8px 12px; border-radius: 9px; border: 1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.07); color: #e2e8f0; }
+        .pz-lvl:hover, .pz-opt:hover { background: rgba(255,255,255,0.14); }
+        .pz-opt.active { background: var(--game-color); color: #0a1322; border-color: var(--game-color); font-weight: 700; }
     </style>
 </head>
 
@@ -46,10 +56,9 @@
         </div>
 
         <div class="control-row">
-            <div class="seg" id="difficulty-seg" role="radiogroup" data-i18n-aria-label="pzDiff">
-                <button type="button" class="btn toggle" data-diff="easy" data-i18n="pzEasy">Easy</button>
-                <button type="button" class="btn toggle" data-diff="normal" data-i18n="pzNormal">Normal</button>
-                <button type="button" class="btn toggle" data-diff="hard" data-i18n="pzHard">Hard</button>
+            <div class="seg" id="mode-seg" role="radiogroup" data-i18n-aria-label="pzName">
+                <button type="button" class="btn toggle" data-mode="level" data-i18n="pzLevelMode">Levels</button>
+                <button type="button" class="btn toggle" data-mode="endless" data-i18n="pzEndless">Endless</button>
             </div>
             <span class="spacer"></span>
             <div class="control-actions">
@@ -79,6 +88,9 @@
                         <p class="overlay-hint" id="overlay-hint"></p>
                     </div>
                 </div>
+                <div class="overlay" id="pz-panel" hidden>
+                    <div class="overlay-card" id="pz-card"></div>
+                </div>
             </div>
         </div>
 
@@ -96,6 +108,7 @@
     <script src="../js/firebase-config.js"></script>
     <script type="module" src="../js/net/net.js"></script>
     <script src="../js/cloud-sync.js"></script>
+    <script src="../js/games/prime-zuma-levels.js"></script>
     <script src="../js/games/prime-zuma.js"></script>
 </body>
 
