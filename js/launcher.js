@@ -102,7 +102,7 @@
         {
             id: 'unshackle', theme: 'puzzle', icon: 'unlink', color: '#298da5',
             href: './games/unshackle.html',
-            tags: ['puzzle', 'casual', 'single'],
+            tags: ['puzzle', 'casual', 'single'], wip: true,
         },
     ];
 
@@ -345,7 +345,7 @@
             'queens_name': 'Queens',
             'queens_tagline': '皇家領地，每區一后。',
             'queens_body': '在每個列、行、色塊區域與 8 鄰域中各放一個皇后。',
-            'unshackle_name': '解開枷鎖',
+            'unshackle_name': '枷鎖',
             'unshackle_tagline': '轉個角度，找到出口。',
             'unshackle_body': '旋轉交錯的零件，找出能依序抽出的方向。每次生成新題，提供三種難度。',
         },

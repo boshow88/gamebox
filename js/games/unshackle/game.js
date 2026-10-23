@@ -36,7 +36,7 @@
         unlockHelp3: 'Pinch or scroll to zoom. Keyboard: arrows to rotate, 1–9 to pull, Home to reset the view, Ctrl+Z to undo. New Game generates a fresh puzzle; Share copies this exact puzzle.',
     });
     Object.assign(PC.i18n.STRINGS.zh, {
-        unlockName: '解開枷鎖', unlockPrototype: '原型', unlockCount: '零件數',
+        unlockName: '枷鎖', unlockPrototype: '原型', unlockCount: '零件數',
         unlockSettings: (diff, count) => `${diff}・${count} 個零件`,
         unlockBoard: '立體解鎖盤面。拖曳或用方向鍵旋轉；按 1 至 9 抽出零件。',
         unlockCaption: '拖曳旋轉 · 點擊抽出', unlockViewReset: '視角歸位',
