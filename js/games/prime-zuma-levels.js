@@ -18,8 +18,8 @@ window.PrimeZumaData = (function () {
     // Rin is kept large so the inner (death) end clears the centre cannon + its muzzle ball. 'square' is a smooth
     // ROUNDED square (squircle, exponent n) — no hard 90° corners; 'snake' is a smooth sine weave (amp/waves).
     var FIELDS = [
-        { id: 'vortex',  name: 'Vortex',  shape: 'spiral', turns: 4, Rin: 70, Rout: 214,         bg: '#140b1e', accent: '#a78bfa' },
-        { id: 'box',     name: 'Box',     shape: 'square', turns: 4, Rin: 70, Rout: 200, n: 3.0, bg: '#0b1120', accent: '#38bdf8' },
+        { id: 'vortex',  name: 'Vortex',  shape: 'spiral', turns: 3, Rin: 70, Rout: 214,         bg: '#140b1e', accent: '#a78bfa' },
+        { id: 'box',     name: 'Box',     shape: 'square', turns: 3, Rin: 70, Rout: 200, n: 3.0, bg: '#0b1120', accent: '#38bdf8' },
         { id: 'serpent', name: 'Serpent', shape: 'snake',  rows: 4,                              bg: '#0a1410', accent: '#34d399' },
         { id: 'coil',    name: 'Coil',    shape: 'spiral', turns: 3, Rin: 74, Rout: 212,         bg: '#0a1322', accent: '#f59e0b' },
     ];
