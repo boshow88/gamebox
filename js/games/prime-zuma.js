@@ -64,21 +64,19 @@
         for (var i = 0; i <= steps; i++) { var th = thetaMax * i / steps, r = f.Rin + (f.Rout - f.Rin) * (th / thetaMax); pts.push({ x: CX + r * Math.cos(th), y: CY + r * Math.sin(th) }); }
         return { pts: pts, cannon: { x: CX, y: CY } };   // pts[0] = innermost = death
     }
-    function genSquare(f) {   // same spiral but each ring is a SQUARE (Chebyshev radius) → angular, boxy look
-        var steps = 2600, thetaMax = f.turns * 2 * Math.PI, pts = [];
-        for (var i = 0; i <= steps; i++) { var th = thetaMax * i / steps, r = f.Rin + (f.Rout - f.Rin) * (th / thetaMax), c = Math.cos(th), s = Math.sin(th), sq = 1 / Math.max(Math.abs(c), Math.abs(s), 1e-4); pts.push({ x: CX + r * c * sq, y: CY + r * s * sq }); }
-        return { pts: pts, cannon: { x: CX, y: CY } };
-    }
-    function genSnake(f) {   // horizontal serpentine, source at TOP, death at BOTTOM, cannon at bottom-centre
-        var m = 34, x0 = m, x1 = CW - m, yTop = m, yBot = CH - 66, rows = f.rows || 7, gap = (yBot - yTop) / (rows - 1), seg = 7, pts = [], r, k, steps;
-        for (r = 0; r < rows; r++) {                     // build source(top)→death(bottom), then reverse
-            var y = yTop + r * gap, ltr = (r % 2 === 0), xa = ltr ? x0 : x1, xb = ltr ? x1 : x0;
-            steps = Math.max(2, Math.round(Math.abs(xb - xa) / seg));
-            for (k = 0; k <= steps; k++) pts.push({ x: xa + (xb - xa) * k / steps, y: y });
-            if (r < rows - 1) { var ny = y + gap, vs = Math.max(2, Math.round(gap / seg)); for (k = 1; k <= vs; k++) pts.push({ x: xb, y: y + (ny - y) * k / vs }); }
+    function genSquare(f) {   // a smooth ROUNDED square (squircle, exponent n) spiralling in — boxy but no hard 90° corners
+        var steps = 2600, thetaMax = f.turns * 2 * Math.PI, e = 2 / (f.n || 3.2), pts = [];
+        for (var i = 0; i <= steps; i++) {
+            var th = thetaMax * i / steps, r = f.Rin + (f.Rout - f.Rin) * (th / thetaMax), c = Math.cos(th), s = Math.sin(th);
+            pts.push({ x: CX + r * (c < 0 ? -1 : 1) * Math.pow(Math.abs(c), e), y: CY + r * (s < 0 ? -1 : 1) * Math.pow(Math.abs(s), e) });
         }
-        pts.reverse();
-        return { pts: pts, cannon: { x: CX, y: Math.min(CH - 16, yBot + 40) } };
+        return { pts: pts, cannon: { x: CX, y: CY } };   // pts[0] = innermost = death
+    }
+    function genSnake(f) {   // a smooth sine weave descending from the TOP (source) to a centred DEATH well above the bottom cannon
+        var amp = f.amp || 150, waves = f.waves || 3, yTop = 44, yBot = CH * 0.62, steps = 1500, pts = [];
+        for (var i = 0; i <= steps; i++) { var frac = i / steps; pts.push({ x: CX + amp * Math.sin(frac * waves * Math.PI), y: yTop + frac * (yBot - yTop) }); }
+        pts.reverse();                                    // index 0 = bottom (death, centred under the chain)
+        return { pts: pts, cannon: { x: CX, y: CH - 26 } };
     }
     function buildPath(field) {
         var raw = field.shape === 'square' ? genSquare(field) : field.shape === 'snake' ? genSnake(field) : genSpiral(field);
@@ -350,11 +348,14 @@
         var d0 = posAt(0), pr = 7 + Math.sin(now * 4) * 1.5;
         ctx.fillStyle = 'rgba(239,68,68,0.9)'; ctx.beginPath(); ctx.arc(d0.x, d0.y, pr, 0, 7); ctx.fill();
         for (var qi = 0; qi < queues.length; qi++) {
-            var q = queues[qi];
+            var q = queues[qi], px2 = 0, py2 = 0, has = false;
             for (var j = 0; j < q.vals.length; j++) {
                 var b = q.vals[j], lp = posAt(q.head + j * CFG.D);
                 b.rx += (lp.x - b.rx) * ease; b.ry += (lp.y - b.ry) * ease;
-                drawBall(b.rx, b.ry, b.v, CFG.rBall * (1 + (b.pop || 0) * 0.35));
+                var dr = CFG.rBall * (1 + (b.pop || 0) * 0.35);
+                if (has) dr = Math.min(dr, 0.52 * Math.hypot(b.rx - px2, b.ry - py2));   // clamp to half the gap → never overlap the previous ball on a tight turn
+                drawBall(b.rx, b.ry, b.v, dr);
+                px2 = b.rx; py2 = b.ry; has = true;
             }
         }
         for (var fi = 0; fi < fx.length; fi++) {

@@ -15,11 +15,13 @@ window.PrimeZumaData = (function () {
     // Each field has a `shape` the engine knows how to draw into a path (death end first, source last) plus a
     // cannon position: 'spiral' & 'square' spiral inward to a centre cannon; 'snake' serpentines top→bottom with
     // the cannon at the bottom. (More shapes — double-spiral, underground, star — are a later phase.)
+    // Rin is kept large so the inner (death) end clears the centre cannon + its muzzle ball. 'square' is a smooth
+    // ROUNDED square (squircle, exponent n) — no hard 90° corners; 'snake' is a smooth sine weave (amp/waves).
     var FIELDS = [
-        { id: 'coil',    name: 'Coil',    shape: 'spiral', turns: 3, Rin: 50, Rout: 210, bg: '#0a1322', accent: '#f59e0b' },
-        { id: 'box',     name: 'Box',     shape: 'square', turns: 3, Rin: 40, Rout: 148, bg: '#0b1120', accent: '#38bdf8' },
-        { id: 'serpent', name: 'Serpent', shape: 'snake',  rows: 7,                      bg: '#0a1410', accent: '#34d399' },
-        { id: 'vortex',  name: 'Vortex',  shape: 'spiral', turns: 4, Rin: 40, Rout: 214, bg: '#140b1e', accent: '#a78bfa' },
+        { id: 'coil',    name: 'Coil',    shape: 'spiral', turns: 3, Rin: 74, Rout: 212,         bg: '#0a1322', accent: '#f59e0b' },
+        { id: 'box',     name: 'Box',     shape: 'square', turns: 3, Rin: 72, Rout: 196, n: 3.2, bg: '#0b1120', accent: '#38bdf8' },
+        { id: 'serpent', name: 'Serpent', shape: 'snake',  amp: 150, waves: 3,                   bg: '#0a1410', accent: '#34d399' },
+        { id: 'vortex',  name: 'Vortex',  shape: 'spiral', turns: 4, Rin: 70, Rout: 214,         bg: '#140b1e', accent: '#a78bfa' },
     ];
     var X = FIELDS.length;
 
