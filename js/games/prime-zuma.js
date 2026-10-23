@@ -72,10 +72,19 @@
         }
         return { pts: pts, cannon: { x: CX, y: CY } };   // pts[0] = innermost = death
     }
-    function genSnake(f) {   // a smooth sine weave descending from the TOP (source) to a centred DEATH well above the bottom cannon
-        var amp = f.amp || 150, waves = f.waves || 3, yTop = 44, yBot = CH * 0.62, steps = 1500, pts = [];
-        for (var i = 0; i <= steps; i++) { var frac = i / steps; pts.push({ x: CX + amp * Math.sin(frac * waves * Math.PI), y: yTop + frac * (yBot - yTop) }); }
-        pts.reverse();                                    // index 0 = bottom (death, centred under the chain)
+    function genSnake(f) {   // a real serpentine over a grid (rows left↔right) joined by ROUNDED U-turns; stops ~60% down, death at its end
+        var rows = f.rows || 4, m = 34, yTop = 48, yBot = CH * 0.60, gap = (yBot - yTop) / (rows - 1), R = gap / 2;
+        var xL = m + R, xR = CW - m - R, seg = 6, pts = [], r, k, steps;
+        for (r = 0; r < rows; r++) {                      // source(top) → death(bottom), then reverse
+            var y = yTop + r * gap, ltr = (r % 2 === 0), xa = ltr ? xL : xR, xb = ltr ? xR : xL;
+            steps = Math.max(2, Math.round(Math.abs(xb - xa) / seg));
+            for (k = 0; k <= steps; k++) pts.push({ x: xa + (xb - xa) * k / steps, y: y });
+            if (r < rows - 1) {                           // half-circle U-turn down to the next row, bulging outward
+                var dir = ltr ? 1 : -1, cx = xb, cy = y + R, aSteps = Math.max(6, Math.round(Math.PI * R / seg));
+                for (k = 1; k <= aSteps; k++) { var a = -Math.PI / 2 + Math.PI * k / aSteps; pts.push({ x: cx + dir * R * Math.cos(a), y: cy + R * Math.sin(a) }); }
+            }
+        }
+        pts.reverse();
         return { pts: pts, cannon: { x: CX, y: CH - 26 } };
     }
     function buildPath(field) {
@@ -348,14 +357,11 @@
         var d0 = posAt(0), pr = 7 + Math.sin(now * 4) * 1.5;
         ctx.fillStyle = 'rgba(239,68,68,0.9)'; ctx.beginPath(); ctx.arc(d0.x, d0.y, pr, 0, 7); ctx.fill();
         for (var qi = 0; qi < queues.length; qi++) {
-            var q = queues[qi], px2 = 0, py2 = 0, has = false;
+            var q = queues[qi];
             for (var j = 0; j < q.vals.length; j++) {
                 var b = q.vals[j], lp = posAt(q.head + j * CFG.D);
                 b.rx += (lp.x - b.rx) * ease; b.ry += (lp.y - b.ry) * ease;
-                var dr = CFG.rBall * (1 + (b.pop || 0) * 0.35);
-                if (has) dr = Math.min(dr, 0.52 * Math.hypot(b.rx - px2, b.ry - py2));   // clamp to half the gap → never overlap the previous ball on a tight turn
-                drawBall(b.rx, b.ry, b.v, dr);
-                px2 = b.rx; py2 = b.ry; has = true;
+                drawBall(b.rx, b.ry, b.v, CFG.rBall * (1 + (b.pop || 0) * 0.35));   // full size (smooth geometry keeps overlap away without the weird shrink)
             }
         }
         for (var fi = 0; fi < fx.length; fi++) {
