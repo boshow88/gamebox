@@ -49,7 +49,7 @@
     var CW = 460, CH = 460, CX = CW / 2, CY = CH / 2, DPR = Math.min(window.devicePixelRatio || 1, 2);
 
     // ---------------- path shapes → polyline + cannon (one path per call; a field can build several) ----------------
-    var SRC_EXT = 160;   // how far the source end is pushed OUTWARD past the field so balls enter from off-screen (spawn unseen)
+    var SRC_EXT = 44;    // how far the source end must sit BEYOND the screen edge so the spawn point is safely out of view
     function cen(f) { return { x: CX + (f.ox || 0), y: CY + (f.oy || 0) }; }   // field centre (optionally nudged off canvas-centre for visual balance)
     function genSpiral(f, phase) {
         phase = phase || 0;
@@ -78,10 +78,10 @@
         return { pts: pts, cannon: { x: CX, y: CH - 26 } };
     }
     function pathOf(pts) { var arc = [0], total = 0; for (var i = 1; i < pts.length; i++) { total += Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y); arc.push(total); } return { pts: pts, arc: arc, len: total }; }
-    function extendOut(pts) {   // continue the source end along its OWN TANGENT (smooth, no kink) off-screen → balls enter unseen along the natural direction
-        var a = pts[pts.length - 2], b = pts[pts.length - 1], dx = b.x - a.x, dy = b.y - a.y, m = Math.hypot(dx, dy) || 1;
-        var steps = Math.max(2, Math.round(SRC_EXT / 8));
-        for (var i = 1; i <= steps; i++) pts.push({ x: b.x + (dx / m) * SRC_EXT * i / steps, y: b.y + (dy / m) * SRC_EXT * i / steps });
+    function extendOut(pts) {   // continue the source end along its OWN TANGENT (smooth, no kink) until it's safely OFF-SCREEN → balls enter unseen
+        var a = pts[pts.length - 2], b = pts[pts.length - 1], dx = b.x - a.x, dy = b.y - a.y, m = Math.hypot(dx, dy) || 1, step = 8, x = b.x, y = b.y, g = 0;
+        dx /= m; dy /= m;
+        while (g++ < 200 && x >= -SRC_EXT && x <= CW + SRC_EXT && y >= -SRC_EXT && y <= CH + SRC_EXT) { x += dx * step; y += dy * step; pts.push({ x: x, y: y }); }
     }
     function buildField(field) {   // → { paths:[{pts,arc,len}...], cannon }
         var c0 = cen(field);
