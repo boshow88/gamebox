@@ -393,18 +393,9 @@
     }
 
     // ---------------- boot ----------------
-    function fitCanvas() {                                   // size the backing store to the displayed square (crisp at any scale)
-        if (!canvas || !ctx) return;
-        var cssW = canvas.clientWidth || CW, bs = Math.max(1, Math.round(cssW * DPR)), s = bs / CW;
-        canvas.width = bs; canvas.height = bs;
-        ctx.setTransform(s, 0, 0, s, 0, 0);                  // draw in logical 0..CW units regardless of display size
-        render();
-    }
     function boot() {
-        canvas = $('stage'); ctx = canvas.getContext('2d');
-        fitCanvas();
-        window.addEventListener('resize', fitCanvas);
-        window.addEventListener('orientationchange', function () { setTimeout(fitCanvas, 120); });
+        canvas = $('stage'); canvas.width = CW * DPR; canvas.height = CH * DPR;
+        ctx = canvas.getContext('2d'); ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
 
         // Aim tracks the pointer ANYWHERE (angle is all that matters); a press anywhere in the board zone fires —
         // so taps just outside the circle no longer whiff. Taps on the overlay / buttons / links are left alone.
@@ -436,7 +427,7 @@
         syncSeg();
 
         AC.i18n.subscribe(function () { if (!shell.isPlaying()) shell.refreshOverlay && shell.refreshOverlay(); });
-        newGame(); shell.refreshBest && shell.refreshBest(); fitCanvas();   // fit once layout is settled, then draw
+        newGame(); shell.refreshBest && shell.refreshBest(); render();
     }
     function syncSeg() {
         var seg = $('difficulty-seg'); if (!seg) return;

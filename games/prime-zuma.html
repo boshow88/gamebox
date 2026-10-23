@@ -10,11 +10,10 @@
     <link rel="stylesheet" href="../css/arcade.css">
     <style>
         body { --game-color: #f59e0b; }
-        /* Board = the largest square that fits the viewport (fills width on portrait, height on landscape). */
-        .stage-wrap { width: min(94vw, 70vh); max-width: 660px; margin: 0 auto; }
+        .stage-wrap { max-width: 480px; margin: 0 auto; }
         /* A generous touch zone around the board so taps just outside the circle still aim+fire (no dead zone). */
-        .stage-pad { touch-action: none; padding: 10px 10px 16px; }
-        .stage-canvas { touch-action: none; width: 100%; height: auto; display: block; background: #0a1322; border-radius: 12px; }
+        .stage-pad { touch-action: none; padding: 12px 12px 24px; }
+        .stage-canvas { touch-action: none; width: 100%; height: auto; background: #0a1322; border-radius: 12px; }
     </style>
 </head>
 
