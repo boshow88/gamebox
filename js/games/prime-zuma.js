@@ -92,48 +92,50 @@
         return null;
     }
     function revUnder(baseLen, ranges) { return ranges.map(function (r) { return [baseLen - r[1], baseLen - r[0]]; }); }   // flip arc-ranges when a path is reversed to death-first order
-    function genStar(f) {   // 5-point star (pentagram) in one stroke; each straight line meets 2 crossings — the FIRST (nearer entrance) stays above, the SECOND (nearer death) goes underground
-        var c0 = cen(f), mir = f.mirror ? -1 : 1, Rs = f.Rstar || 196, rot = (f.phase != null ? f.phase : -Math.PI / 2), rTip = f.tipR || 18, w = f.underW || CFG.D * 1.5;
+    function genStar(f) {   // 5-point star (pentagram) in one stroke. Each straight line meets 2 crossings — FIRST (nearer entrance) stays above, SECOND goes underground.
+        var c0 = cen(f), mir = f.mirror ? -1 : 1, Rs = f.Rstar || 214, rot = (f.phase != null ? f.phase : -Math.PI / 2), rFil = f.tipR || 30, w = f.underW || CFG.D * 1.3, seg = 6;
         var tip = [], i, j; for (i = 0; i < 5; i++) { var aa = rot + i * 2 * Math.PI / 5; tip.push({ x: c0.x + mir * Rs * Math.cos(aa), y: c0.y + Rs * Math.sin(aa) }); }
-        var order = [0, 2, 4, 1, 3], V = order.map(function (k) { return tip[k]; }), E = [];
-        for (i = 0; i < 5; i++) E.push([V[i], V[(i + 1) % 5]]);                 // E0..E4 traversed entrance→death: V0→V1→…→V4→V0
+        var order = [0, 2, 4, 1, 3], S = order.map(function (k) { return tip[k]; });   // tips in stroke order; traverse S0→S1→S2→S3→S4→S0 (entrance=death=S0 tip)
+        S.push(S[0]);
+        var E = [], dir = [], len = []; for (i = 0; i < 5; i++) { E.push([S[i], S[i + 1]]); var dx = S[i + 1].x - S[i].x, dy = S[i + 1].y - S[i].y, L = Math.hypot(dx, dy); len.push(L); dir.push({ x: dx / L, y: dy / L }); }
         var cross = []; for (i = 0; i < 5; i++) cross.push([]);
         for (i = 0; i < 5; i++) for (j = 0; j < 5; j++) { if (j === i) continue; var it = segInt(E[i][0], E[i][1], E[j][0], E[j][1]); if (it) cross[i].push(it.t); }
         for (i = 0; i < 5; i++) cross[i].sort(function (p, q) { return p - q; });
-        var pts = [], arc = 0, startArc = [], seg = 6, underE = [], k;
+        var cut = rFil / Math.tan(Math.PI / 10), dT = f.deathT != null ? f.deathT : 0.72;   // back-off along each edge so a radius-rFil arc is tangent (interior tip angle = 36° ⇒ half = 18°); deathT = where on the final edge the death core sits (1 = the tip, less = pulled inward toward the centre)
+        var pts = [], arc = 0, underE = [], k;
         function push(p) { if (pts.length) arc += Math.hypot(p.x - pts[pts.length - 1].x, p.y - pts[pts.length - 1].y); pts.push(p); }
         for (k = 0; k < 5; k++) {
-            var A = E[k][0], B = E[k][1], dx = B.x - A.x, dy = B.y - A.y, L = Math.hypot(dx, dy), ux = dx / L, uy = dy / L, cut = Math.min(rTip, 0.33 * L);
-            var t0 = (k === 0) ? 0 : cut / L, t1 = (k === 4) ? 1 - (CFG.D * 1.1) / L : 1 - cut / L, s1 = { x: A.x + ux * L * t1, y: A.y + uy * L * t1 };
+            var A = E[k][0], L = len[k], d = dir[k], t0 = (k === 0) ? 0 : cut / L, t1 = (k === 4) ? dT : 1 - cut / L;
             if (k === 0) push({ x: A.x, y: A.y });
-            startArc[k] = arc;
-            var nS = Math.max(2, Math.round(L * (t1 - t0) / seg));
-            for (var q = 1; q <= nS; q++) { var tt = t0 + (t1 - t0) * q / nS; push({ x: A.x + ux * L * tt, y: A.y + uy * L * tt }); }
-            if (cross[k].length) { var tc = cross[k][cross[k].length - 1], ca = startArc[k] + (tc - t0) * L; underE.push([ca - w, ca + w]); }   // SECOND crossing → underground
-            if (k < 4) {
-                var ndx = E[(k + 1) % 5][1].x - B.x, ndy = E[(k + 1) % 5][1].y - B.y, nL = Math.hypot(ndx, ndy), ncut = Math.min(rTip, 0.33 * nL), co = { x: B.x + ndx / nL * ncut, y: B.y + ndy / nL * ncut };
-                var nf = 8; for (var q2 = 1; q2 <= nf; q2++) { var tb = q2 / nf, mt = 1 - tb; push({ x: mt * mt * s1.x + 2 * mt * tb * B.x + tb * tb * co.x, y: mt * mt * s1.y + 2 * mt * tb * B.y + tb * tb * co.y }); }   // rounded tip fillet
+            var sStart = arc, nS = Math.max(2, Math.round(L * (t1 - t0) / seg)), tc = cross[k].length ? cross[k][cross[k].length - 1] : -1, got = false;
+            for (var q = 1; q <= nS; q++) { var tt = t0 + (t1 - t0) * q / nS; push({ x: A.x + d.x * L * tt, y: A.y + d.y * L * tt }); if (!got && tc >= 0 && tt >= tc) { var ca = sStart + (tc - t0) * L; underE.push([ca - w, ca + w]); got = true; } }   // SECOND crossing → under
+            if (k < 4) {   // round the interior tip S[k+1] with a 144° (2/5-circle) arc tangent to both edges
+                var W = S[k + 1], di = dir[k], dou = dir[k + 1], Ain = { x: W.x - di.x * cut, y: W.y - di.y * cut }, Aout = { x: W.x + dou.x * cut, y: W.y + dou.y * cut };
+                var turn = (di.x * dou.y - di.y * dou.x) < 0 ? -1 : 1, O = { x: Ain.x - di.y * turn * rFil, y: Ain.y + di.x * turn * rFil };
+                var a0 = Math.atan2(Ain.y - O.y, Ain.x - O.x), a1 = Math.atan2(Aout.y - O.y, Aout.x - O.x), da = a1 - a0;
+                if (turn > 0) { while (da <= 0) da += 2 * Math.PI; } else { while (da >= 0) da -= 2 * Math.PI; }
+                var nf = Math.max(5, Math.round(Math.abs(da) * rFil / seg)); for (var q2 = 1; q2 <= nf; q2++) { var aa2 = a0 + da * q2 / nf; push({ x: O.x + rFil * Math.cos(aa2), y: O.y + rFil * Math.sin(aa2) }); }
             }
         }
         var baseLen = arc; pts.reverse();
         return { pts: pts, cannon: c0, under: revUnder(baseLen, underE) };
     }
-    function genClover(f) {   // "井"/clover drawn in one stroke: 3 corners loop into leaves, the 4th corner is open (entrance = right vertical's foot, death = bottom horizontal's right end).
-        var c0 = cen(f), cx = c0.x, cy = c0.y, gx = f.gx || 50, gy = f.gy || 50, ext = f.ext || 60, leafR = f.leafR || 78, w = f.underW || CFG.D * 1.25, seg = 6;
-        var VRb = { x: cx + gx, y: cy + gy + ext }, VRt = { x: cx + gx, y: cy - gy - ext }, HTr = { x: cx + gx + ext, y: cy - gy }, HTl = { x: cx - gx - ext, y: cy - gy };
-        var VLt = { x: cx - gx, y: cy - gy - ext }, VLb = { x: cx - gx, y: cy + gy + ext }, HBl = { x: cx - gx - ext, y: cy + gy }, HBr = { x: cx + gx + ext, y: cy + gy };   // HBr = death
-        var pts = [], arc = 0, under = [];
+    function genClover(f) {   // "井"/clover in one stroke: 3 corners loop into big round leaves (270° = 3/4-circle arcs, tangent to both lines), the 4th corner open (entrance = right vertical's foot, death = bottom horizontal's right end).
+        var c0 = cen(f), cx = c0.x, cy = c0.y, gx = f.gx || 50, gy = f.gy || 50, leafR = f.leafR || 76, w = f.underW || CFG.D * 1.3, seg = 6;   // line overhang beyond the crossings = leafR ⇒ each 270° leaf is tangent to its two lines
+        var VRb = { x: cx + gx, y: cy + gy + leafR }, VRt = { x: cx + gx, y: cy - gy - leafR }, HTr = { x: cx + gx + leafR, y: cy - gy }, HTl = { x: cx - gx - leafR, y: cy - gy };
+        var VLt = { x: cx - gx, y: cy - gy - leafR }, VLb = { x: cx - gx, y: cy + gy + leafR }, HBl = { x: cx - gx - leafR, y: cy + gy }, HBr = { x: cx + gx + leafR, y: cy + gy };   // HBr = death
+        var pts = [], arc = 0, under = [], sw = 3 * Math.PI / 2;
         function push(p) { if (pts.length) arc += Math.hypot(p.x - pts[pts.length - 1].x, p.y - pts[pts.length - 1].y); pts.push(p); }
         function straight(a, b) { var L = Math.hypot(b.x - a.x, b.y - a.y), n = Math.max(2, Math.round(L / seg)); for (var q = 1; q <= n; q++) push({ x: a.x + (b.x - a.x) * q / n, y: a.y + (b.y - a.y) * q / n }); }
-        function leaf(p0, c1, c2, p3) { var n = 18; for (var q = 1; q <= n; q++) { var tb = q / n, mt = 1 - tb; push({ x: mt * mt * mt * p0.x + 3 * mt * mt * tb * c1.x + 3 * mt * tb * tb * c2.x + tb * tb * tb * p3.x, y: mt * mt * mt * p0.y + 3 * mt * mt * tb * c1.y + 3 * mt * tb * tb * c2.y + tb * tb * tb * p3.y }); } }
-        push(VRb);
-        var aB = arc; straight(VRb, VRt); under.push([aB + ext - w, aB + ext + w], [aB + 2 * gy + ext - w, aB + 2 * gy + ext + w]);   // right vertical: first passes of VR×HB and VR×HT → under
-        leaf(VRt, { x: VRt.x, y: VRt.y - leafR }, { x: HTr.x + leafR, y: HTr.y }, HTr);                                               // top-right leaf
-        var aD = arc; straight(HTr, HTl); under.push([aD + 2 * gx + ext - w, aD + 2 * gx + ext + w]);                                 // top horizontal: first pass of VL×HT → under
-        leaf(HTl, { x: HTl.x - leafR, y: HTl.y }, { x: VLt.x, y: VLt.y - leafR }, VLt);                                               // top-left leaf
-        var aF = arc; straight(VLt, VLb); under.push([aF + 2 * gy + ext - w, aF + 2 * gy + ext + w]);                                 // left vertical: first pass of VL×HB → under
-        leaf(VLb, { x: VLb.x, y: VLb.y + leafR }, { x: HBl.x - leafR, y: HBl.y }, HBl);                                               // bottom-left leaf
-        straight(HBl, HBr);                                                                                                           // bottom horizontal → death (its crossings are second passes → above)
+        function leaf(ox, oy, a0) { var n = Math.max(20, Math.round(sw * leafR / seg)); for (var q = 1; q <= n; q++) { var aa = a0 + sw * q / n; push({ x: ox + leafR * Math.cos(aa), y: oy + leafR * Math.sin(aa) }); } }   // +270° arc, centre (ox,oy)
+        push(VRb);   // which strand is UNDER at each of the 4 crossings (the other strand becomes the bridge on top):
+        var aB = arc; straight(VRb, VRt); under.push([aB + leafR - w, aB + leafR + w]);   // VR×HB → right-vertical UNDER
+        leaf(cx + gx + leafR, cy - gy - leafR, Math.PI);              // top-right leaf
+        var aD = arc; straight(HTr, HTl); under.push([aD + leafR - w, aD + leafR + w]);   // VR×HT → top-horizontal UNDER
+        leaf(cx - gx - leafR, cy - gy - leafR, Math.PI / 2);         // top-left leaf
+        var aF = arc; straight(VLt, VLb); under.push([aF + leafR - w, aF + leafR + w]);   // VL×HT → left-vertical UNDER
+        leaf(cx - gx - leafR, cy + gy + leafR, 0);                   // bottom-left leaf
+        var aH = arc; straight(HBl, HBr); under.push([aH + leafR - w, aH + leafR + w]);   // VL×HB → bottom-horizontal UNDER; death at HBr
         var baseLen = arc; pts.reverse();
         return { pts: pts, cannon: c0, under: revUnder(baseLen, under) };
     }
@@ -399,21 +401,61 @@
 
     // ---------------- render ----------------
     function hue(v) { return (v * 47) % 360; }
+    function ballSheen(x, y, r) {   // gentle sphere shading: a small top-left shine + a faint shade at the far edge (kept light so digits stay readable)
+        var gg = ctx.createRadialGradient(x - r * 0.34, y - r * 0.38, r * 0.1, x, y, r);
+        gg.addColorStop(0, 'rgba(255,255,255,0.22)'); gg.addColorStop(0.55, 'rgba(255,255,255,0.03)'); gg.addColorStop(1, 'rgba(0,0,0,0.12)');
+        ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fillStyle = gg; ctx.fill();
+    }
     function drawBall(x, y, v, r) {
-        var prime = isPrime(v);
+        var prime = isPrime(v), textCol;
         if (prime) {
             var h = hue(v);
             ctx.save(); ctx.shadowColor = 'hsl(' + h + ',95%,62%)'; ctx.shadowBlur = 11;
             ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fillStyle = 'hsl(' + h + ',72%,58%)'; ctx.fill(); ctx.restore();
             ctx.lineWidth = 1.5; ctx.strokeStyle = 'hsl(' + h + ',100%,84%)'; ctx.stroke();
-            ctx.fillStyle = '#0a1322';
+            textCol = '#0a1322';
         } else {
             ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fillStyle = CFG.compositeColor; ctx.fill();
             ctx.lineWidth = 1.5; ctx.strokeStyle = 'rgba(255,255,255,0.3)'; ctx.stroke();
-            ctx.fillStyle = '#e8edf5';
+            textCol = '#e8edf5';
         }
+        ballSheen(x, y, r);
+        ctx.fillStyle = textCol;
         ctx.font = 'bold ' + (v > 9 ? Math.round(r * 0.95) : Math.round(r * 1.2)) + 'px system-ui,sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
         ctx.fillText(String(v), x, y + 0.5);
+    }
+    function strokeArcRange(path, s0, s1) {   // stroke just the path points whose arc-length is within [s0,s1]
+        var on = false, p, pt; ctx.beginPath();
+        for (p = 0; p < path.pts.length; p++) { if (path.arc[p] >= s0 && path.arc[p] <= s1) { pt = path.pts[p]; if (!on) { ctx.moveTo(pt.x, pt.y); on = true; } else ctx.lineTo(pt.x, pt.y); } else on = false; }
+        ctx.stroke();
+    }
+    function strokeAll(path, width, style, alpha) {   // stroke the WHOLE road in one continuous stroke (no gaps, so no round seam at a crossing)
+        ctx.save(); ctx.globalAlpha = alpha == null ? 1 : alpha; ctx.strokeStyle = style; ctx.lineWidth = width; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+        ctx.beginPath(); for (var p = 0; p < path.pts.length; p++) { var pt = path.pts[p]; if (p === 0) ctx.moveTo(pt.x, pt.y); else ctx.lineTo(pt.x, pt.y); } ctx.stroke(); ctx.restore();
+    }
+    // thin material road: dark rim + slate body + lighter centre sheen + accent rail. ALL layers OPAQUE, so an overdraw lands on identical pixels (no brighten/darken). Bridge decks use BUTT caps so they're cut cleanly — never a round head.
+    var RIM_W = CFG.rBall * 2 + 9, BODY_W = CFG.rBall * 2 + 2, SHEEN_W = CFG.rBall * 2 - 7;
+    var RIM = '#0e131c', BODY = '#2a3340', SHEEN = '#3b4553', BODY_UNDER = '#161c25';
+    function roadLayers(stroke) { stroke(RIM_W, RIM); stroke(BODY_W, BODY); stroke(SHEEN_W, SHEEN); stroke(3, R.field.accent); }
+    function roadStroke(path) {   // the whole continuous road, drawn once as the base
+        roadLayers(function (w, st) { strokeAll(path, w, st, 1); });
+    }
+    function tintUnderground(path, s0, s1) {   // the UNDERGROUND stretch keeps a clear colour difference (darker body) so you can tell it's below-grade; the ball over it is drawn semi-transparent. BUTT caps = a clean "tunnel mouth".
+        ctx.save(); ctx.lineCap = 'butt'; ctx.lineJoin = 'round';
+        ctx.strokeStyle = BODY_UNDER; ctx.lineWidth = BODY_W; strokeArcRange(path, s0, s1);
+        ctx.strokeStyle = R.field.accent; ctx.lineWidth = 3; strokeArcRange(path, s0, s1);
+        ctx.restore();
+    }
+    function otherPassArc(path, P, cu) {   // at a self-crossing, find the OTHER pass's arc-length (the strand that shares point P but is far away in arc from cu)
+        var best = -1, bd = Infinity;
+        for (var p = 0; p < path.pts.length; p++) { if (Math.abs(path.arc[p] - cu) < CFG.D * 2) continue; var dx = path.pts[p].x - P.x, dy = path.pts[p].y - P.y, d = dx * dx + dy * dy; if (d < bd) { bd = d; best = path.arc[p]; } }
+        return bd < CFG.rBall * CFG.rBall ? best : -1;
+    }
+    function drawBridge(path, co, wb) {   // the UPPER strand laid across the crossing as a deck: EXACT same opaque layers/widths as the base road (⇒ invisible overdraw on the upper strand) with BUTT (cleanly-cut) ends. Only its coverage of the lower strand + the semi-transparent ball shows = the overpass; the ball is occluded exactly at the true road width (no faked widening).
+        var s0 = co - wb, s1 = co + wb;
+        ctx.save(); ctx.lineCap = 'butt'; ctx.lineJoin = 'round';
+        roadLayers(function (w, st) { ctx.strokeStyle = st; ctx.lineWidth = w; strokeArcRange(path, s0, s1); });
+        ctx.restore();
     }
     var lastT = 0;
     function render() {
@@ -422,18 +464,13 @@
         var ease = 1 - Math.exp(-dt * CFG.smooth), pr = 7 + Math.sin(now * 4) * 1.5, L, qi, j, p, pt;
         ctx.fillStyle = R.field.bg; ctx.fillRect(0, 0, CW, CH);
         for (L = 0; L < lanes.length; L++) {
-            var lane = lanes[L], path = lane.path;
-            ctx.save(); ctx.globalAlpha = 0.16; ctx.strokeStyle = R.field.accent; ctx.lineWidth = CFG.rBall * 2 + 3; ctx.lineCap = 'round'; ctx.beginPath();
-            for (p = 0; p < path.pts.length; p += 3) { pt = path.pts[p]; if (p === 0) ctx.moveTo(pt.x, pt.y); else ctx.lineTo(pt.x, pt.y); }
-            ctx.stroke(); ctx.restore();
-            var d0 = posAt(path, 0); ctx.fillStyle = 'rgba(239,68,68,0.9)'; ctx.beginPath(); ctx.arc(d0.x, d0.y, pr, 0, 7); ctx.fill();
-            if (path.under && path.under.length) {   // dark "ground" over buried segments (balls peek through, dimmed)
-                ctx.save(); ctx.strokeStyle = 'rgba(8,12,24,0.5)'; ctx.lineWidth = CFG.rBall * 2 + 7; ctx.lineCap = 'round';
-                for (var ui = 0; ui < path.under.length; ui++) { var s0 = path.under[ui][0], s1 = path.under[ui][1], on = false; ctx.beginPath(); for (p = 0; p < path.pts.length; p++) { if (path.arc[p] >= s0 && path.arc[p] <= s1) { pt = path.pts[p]; if (!on) { ctx.moveTo(pt.x, pt.y); on = true; } else ctx.lineTo(pt.x, pt.y); } } ctx.stroke(); }
-                ctx.restore();
-            }
-            var qs = lane.qs;
-            for (qi = 0; qi < qs.length; qi++) { var q = qs[qi]; for (j = 0; j < q.vals.length; j++) { var b = q.vals[j], sB = q.head + j * CFG.D, lp = posAt(path, sB), bur = buriedS(path, sB); b.rx += (lp.x - b.rx) * ease; b.ry += (lp.y - b.ry) * ease; if (bur) ctx.globalAlpha = 0.4; drawBall(b.rx, b.ry, b.v, CFG.rBall * (1 + (b.pop || 0) * 0.35)); if (bur) ctx.globalAlpha = 1; } }
+            var lane = lanes[L], path = lane.path, qs = lane.qs, hasU = path.under && path.under.length;
+            roadStroke(path);                                           // (1) continuous base road
+            if (hasU) for (var ut = 0; ut < path.under.length; ut++) tintUnderground(path, path.under[ut][0], path.under[ut][1]);   // (2) darken the underground stretches (clear colour difference)
+            for (qi = 0; qi < qs.length; qi++) { var q = qs[qi]; for (j = 0; j < q.vals.length; j++) { var b = q.vals[j], sB = q.head + j * CFG.D, lp = posAt(path, sB); b.rx += (lp.x - b.rx) * ease; b.ry += (lp.y - b.ry) * ease; if (buriedS(path, sB)) { ctx.globalAlpha = 0.42; drawBall(b.rx, b.ry, b.v, CFG.rBall * (1 + (b.pop || 0) * 0.35)); ctx.globalAlpha = 1; } } }   // (3) ease every ball; underground ones drawn semi-transparent (not hidden)
+            if (hasU) for (var ub = 0; ub < path.under.length; ub++) { var b0 = path.under[ub][0], b1 = path.under[ub][1]; if (b1 - b0 <= CFG.D * 3) { var cu = (b0 + b1) / 2, P = posAt(path, cu), co = otherPassArc(path, P, cu); if (co >= 0) drawBridge(path, co, CFG.D * 1.0); } }   // (4) crossings: deck the UPPER strand over → it partially covers the semi-transparent ball (tunnels get no deck, so their balls stay visible-but-dim)
+            var d0 = posAt(path, 0); ctx.fillStyle = 'rgba(239,68,68,0.9)'; ctx.beginPath(); ctx.arc(d0.x, d0.y, pr, 0, 7); ctx.fill();   // (5) death core
+            for (qi = 0; qi < qs.length; qi++) { var qB = qs[qi]; for (j = 0; j < qB.vals.length; j++) { var bb = qB.vals[j], sBB = qB.head + j * CFG.D; if (!buriedS(path, sBB)) drawBall(bb.rx, bb.ry, bb.v, CFG.rBall * (1 + (bb.pop || 0) * 0.35)); } }   // (6) surface balls — top
         }
         for (var fi = 0; fi < fx.length; fi++) {
             var f = fx[fi], tt = f.life / f.max, al = 1 - tt; ctx.globalAlpha = al < 0 ? 0 : al;
@@ -447,10 +484,13 @@
         ctx.beginPath(); ctx.arc(CAN.x, CAN.y, 17, 0, 7); ctx.fillStyle = '#1e293b'; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = '#64748b'; ctx.stroke();
         drawChip(CAN.x, CAN.y, cannon.next, 10);
     }
-    function drawChip(x, y, v, r) {
-        ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fillStyle = 'hsl(' + hue(v) + ',75%,58%)'; ctx.fill();
-        ctx.lineWidth = 2.5; ctx.strokeStyle = '#fff'; ctx.stroke();
-        ctx.fillStyle = '#0a1322'; ctx.font = 'bold 15px system-ui,sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(String(v), x, y + 0.5);
+    function drawChip(x, y, v, r) {   // cannon's loaded / next ball — same look as a queued prime ball (thin tinted rim + sheen), not a thick white ring
+        var h = hue(v);
+        ctx.save(); ctx.shadowColor = 'hsl(' + h + ',95%,62%)'; ctx.shadowBlur = 9;
+        ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fillStyle = 'hsl(' + h + ',72%,58%)'; ctx.fill(); ctx.restore();
+        ctx.lineWidth = 1.5; ctx.strokeStyle = 'hsl(' + h + ',100%,84%)'; ctx.stroke();
+        ballSheen(x, y, r);
+        ctx.fillStyle = '#0a1322'; ctx.font = 'bold ' + Math.round(r * 1.15) + 'px system-ui,sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(String(v), x, y + 0.5);
     }
     function syncHud() { var sc = $('score'); if (sc) sc.textContent = String(score); }
 
