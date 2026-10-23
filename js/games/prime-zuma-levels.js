@@ -23,6 +23,7 @@ window.PrimeZumaData = (function () {
         { id: 'serpent', name: 'Serpent', shape: 'snake',  rows: 4,                              bg: '#0a1410', accent: '#34d399' },
         { id: 'coil',    name: 'Coil',    shape: 'spiral', turns: 3, Rin: 74, Rout: 212,         bg: '#0a1322', accent: '#f59e0b' },
         { id: 'twin',    name: 'Twin',    shape: 'dual',   turns: 2, Rin: 70, Rout: 214,         bg: '#0a1322', accent: '#f472b6' },
+        { id: 'tunnel',  name: 'Tunnel',  shape: 'snake',  rows: 5, under: [[0.42, 0.60]],        bg: '#0c0a14', accent: '#f59e0b' },
     ];
     var X = FIELDS.length;
 

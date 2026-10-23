@@ -83,14 +83,21 @@
         dx /= m; dy /= m;
         while (g++ < 200 && x >= -SRC_EXT && x <= CW + SRC_EXT && y >= -SRC_EXT && y <= CH + SRC_EXT) { x += dx * step; y += dy * step; pts.push({ x: x, y: y }); }
     }
-    function buildField(field) {   // → { paths:[{pts,arc,len}...], cannon }
-        var c0 = cen(field);
-        function ext(pts) { extendOut(pts); return pathOf(pts); }
-        if (field.shape === 'dual') { var ph = field.phase != null ? field.phase : -Math.PI / 4; return { paths: [ext(genSpiral(field, ph).pts), ext(genSpiral(field, ph + Math.PI).pts)], cannon: c0 }; }
-        if (field.shape === 'square') return { paths: [ext(genSquare(field).pts)], cannon: c0 };
-        if (field.shape === 'snake') { var g = genSnake(field); return { paths: [ext(g.pts)], cannon: g.cannon }; }
-        return { paths: [ext(genSpiral(field, field.phase || 0).pts)], cannon: c0 };
+    function buildField(field) {   // → { paths:[{pts,arc,len,under}...], cannon }
+        var c0 = cen(field), under = field.under || [];
+        function make(pts) {
+            var baseLen = pathOf(pts).len;          // length BEFORE the off-screen lead-in (under ranges are fractions of THIS)
+            extendOut(pts);
+            var p = pathOf(pts);
+            p.under = under.map(function (u) { return [u[0] * baseLen, u[1] * baseLen]; });   // buried (unshootable) arc ranges
+            return p;
+        }
+        if (field.shape === 'dual') { var ph = field.phase != null ? field.phase : -Math.PI / 4; return { paths: [make(genSpiral(field, ph).pts), make(genSpiral(field, ph + Math.PI).pts)], cannon: c0 }; }
+        if (field.shape === 'square') return { paths: [make(genSquare(field).pts)], cannon: c0 };
+        if (field.shape === 'snake') { var g = genSnake(field); return { paths: [make(g.pts)], cannon: g.cannon }; }
+        return { paths: [make(genSpiral(field, field.phase || 0).pts)], cannon: c0 };
     }
+    function buriedS(path, s) { var u = path.under; if (u) for (var i = 0; i < u.length; i++) if (s >= u[i][0] && s <= u[i][1]) return true; return false; }   // ball at arc-length s is underground → unshootable + drawn dim
     function posAt(path, s) {
         s = s < 0 ? 0 : s > path.len ? path.len : s;
         var a = path.arc, lo = 0, hi = a.length - 1;
@@ -253,7 +260,7 @@
         var best = null, bd = Infinity, R0 = CFG.rBall;
         for (var L = 0; L < lanes.length; L++) {
             var lane = lanes[L], qs = lane.qs;
-            for (var qi = 0; qi < qs.length; qi++) { var q = qs[qi]; for (var j = 0; j < q.vals.length; j++) { var b = q.vals[j]; if (b.rx < -R0 || b.rx > CW + R0 || b.ry < -R0 || b.ry > CH + R0) continue; var dx = b.rx - x, dy = b.ry - y, d = dx * dx + dy * dy; if (d < bd) { bd = d; best = { lane: lane, q: q, j: j, s: q.head + j * CFG.D }; } } }
+            for (var qi = 0; qi < qs.length; qi++) { var q = qs[qi]; for (var j = 0; j < q.vals.length; j++) { var b = q.vals[j], sB = q.head + j * CFG.D; if (b.rx < -R0 || b.rx > CW + R0 || b.ry < -R0 || b.ry > CH + R0 || buriedS(lane.path, sB)) continue; var dx = b.rx - x, dy = b.ry - y, d = dx * dx + dy * dy; if (d < bd) { bd = d; best = { lane: lane, q: q, j: j, s: sB }; } } }
         }
         if (best) best.dist = Math.sqrt(bd);
         return best;
@@ -341,8 +348,13 @@
             for (p = 0; p < path.pts.length; p += 3) { pt = path.pts[p]; if (p === 0) ctx.moveTo(pt.x, pt.y); else ctx.lineTo(pt.x, pt.y); }
             ctx.stroke(); ctx.restore();
             var d0 = posAt(path, 0); ctx.fillStyle = 'rgba(239,68,68,0.9)'; ctx.beginPath(); ctx.arc(d0.x, d0.y, pr, 0, 7); ctx.fill();
+            if (path.under && path.under.length) {   // dark "ground" over buried segments (balls peek through, dimmed)
+                ctx.save(); ctx.strokeStyle = 'rgba(8,12,24,0.5)'; ctx.lineWidth = CFG.rBall * 2 + 7; ctx.lineCap = 'round';
+                for (var ui = 0; ui < path.under.length; ui++) { var s0 = path.under[ui][0], s1 = path.under[ui][1], on = false; ctx.beginPath(); for (p = 0; p < path.pts.length; p++) { if (path.arc[p] >= s0 && path.arc[p] <= s1) { pt = path.pts[p]; if (!on) { ctx.moveTo(pt.x, pt.y); on = true; } else ctx.lineTo(pt.x, pt.y); } } ctx.stroke(); }
+                ctx.restore();
+            }
             var qs = lane.qs;
-            for (qi = 0; qi < qs.length; qi++) { var q = qs[qi]; for (j = 0; j < q.vals.length; j++) { var b = q.vals[j], lp = posAt(path, q.head + j * CFG.D); b.rx += (lp.x - b.rx) * ease; b.ry += (lp.y - b.ry) * ease; drawBall(b.rx, b.ry, b.v, CFG.rBall * (1 + (b.pop || 0) * 0.35)); } }
+            for (qi = 0; qi < qs.length; qi++) { var q = qs[qi]; for (j = 0; j < q.vals.length; j++) { var b = q.vals[j], sB = q.head + j * CFG.D, lp = posAt(path, sB), bur = buriedS(path, sB); b.rx += (lp.x - b.rx) * ease; b.ry += (lp.y - b.ry) * ease; if (bur) ctx.globalAlpha = 0.4; drawBall(b.rx, b.ry, b.v, CFG.rBall * (1 + (b.pop || 0) * 0.35)); if (bur) ctx.globalAlpha = 1; } }
         }
         for (var fi = 0; fi < fx.length; fi++) {
             var f = fx[fi], tt = f.life / f.max, al = 1 - tt; ctx.globalAlpha = al < 0 ? 0 : al;
