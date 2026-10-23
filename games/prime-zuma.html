@@ -14,6 +14,8 @@
         /* A generous touch zone around the board so taps just outside the circle still aim+fire (no dead zone). */
         .stage-pad { touch-action: none; padding: 12px 12px 24px; }
         .stage-canvas { touch-action: none; width: 100%; height: auto; background: #0a1322; border-radius: 12px; }
+        /* the shell's built-in ready/over overlay is unused here — our #pz-panel drives selection — so hide it */
+        #overlay { display: none !important; }
         /* selection panel (level grid / endless pickers), layered over the board */
         #pz-panel .overlay-card { gap: 8px; max-width: 420px; }
         .pz-title { font-size: 18px; font-weight: 800; margin: 2px 0; }
@@ -62,10 +64,6 @@
             </div>
             <span class="spacer"></span>
             <div class="control-actions">
-                <button class="btn" id="pause-btn" type="button" disabled>
-                    <span data-icon="pause" aria-hidden="true"></span>
-                    <span data-role="pause-label" data-i18n="pause">Pause</span>
-                </button>
                 <button class="btn" id="restart-btn" type="button" disabled>
                     <span data-icon="rotate-ccw" aria-hidden="true"></span>
                     <span data-i18n="restart">Restart</span>

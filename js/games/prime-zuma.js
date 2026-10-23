@@ -444,6 +444,7 @@
             update: update, render: render,
             reset: newGame,
             restartToReady: true,
+            canPause: function () { return false; },     // no pause: the shell overlay it would use is hidden here
             onGameOver: function (result) { lastResult = { win: !!(result && result.win), score: result ? result.score : score }; showPanel(); },
             overlayContent: function (state) {
                 if (state === 'idle') return { badge: 'coins', title: t('pzReady'), message: t('pzIntro'), button: t('play'), hint: t('pzStartHintHtml') };
