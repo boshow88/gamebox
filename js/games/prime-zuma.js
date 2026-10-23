@@ -57,10 +57,11 @@
         for (var i = 0; i <= steps; i++) { var th = thetaMax * i / steps, r = f.Rin + (f.Rout - f.Rin) * (th / thetaMax); pts.push({ x: c0.x + mir * r * Math.cos(th + phase), y: c0.y + r * Math.sin(th + phase) }); }
         return { pts: pts, cannon: c0 };   // pts[0] = innermost = death
     }
-    function genSquare(f) {   // smooth rounded square (squircle, exponent n) — no hard 90° corners
+    function genSquare(f, phase) {   // smooth rounded square (squircle, exponent n) — no hard 90° corners; phase rotates the whole square (e.g. entrance to the top-right)
+        phase = phase || 0;
         var c0 = cen(f), mir = f.mirror ? -1 : 1, steps = 2600, thetaMax = f.turns * 2 * Math.PI, e = 2 / (f.n || 3.0), pts = [];
         for (var i = 0; i <= steps; i++) {
-            var th = thetaMax * i / steps, r = f.Rin + (f.Rout - f.Rin) * (th / thetaMax), c = Math.cos(th), s = Math.sin(th);
+            var tt = thetaMax * i / steps, th = tt + phase, r = f.Rin + (f.Rout - f.Rin) * (tt / thetaMax), c = Math.cos(th), s = Math.sin(th);
             pts.push({ x: c0.x + mir * r * (c < 0 ? -1 : 1) * Math.pow(Math.abs(c), e), y: c0.y + r * (s < 0 ? -1 : 1) * Math.pow(Math.abs(s), e) });
         }
         return { pts: pts, cannon: c0 };
@@ -83,6 +84,69 @@
         pts.reverse();
         return { pts: pts, cannon: { x: CX, y: CH - 26 } };
     }
+    function segInt(a, b, c, d) {   // intersection of segments a-b and c-d → {t,u,x,y} (t along a-b, u along c-d) or null
+        var rx = b.x - a.x, ry = b.y - a.y, sx = d.x - c.x, sy = d.y - c.y, den = rx * sy - ry * sx;
+        if (Math.abs(den) < 1e-9) return null;
+        var t = ((c.x - a.x) * sy - (c.y - a.y) * sx) / den, u = ((c.x - a.x) * ry - (c.y - a.y) * rx) / den;
+        if (t > 1e-4 && t < 1 - 1e-4 && u > 1e-4 && u < 1 - 1e-4) return { t: t, u: u, x: a.x + rx * t, y: a.y + ry * t };
+        return null;
+    }
+    function revUnder(baseLen, ranges) { return ranges.map(function (r) { return [baseLen - r[1], baseLen - r[0]]; }); }   // flip arc-ranges when a path is reversed to death-first order
+    function genStar(f) {   // 5-point star (pentagram) in one stroke; each straight line meets 2 crossings — the FIRST (nearer entrance) stays above, the SECOND (nearer death) goes underground
+        var c0 = cen(f), mir = f.mirror ? -1 : 1, Rs = f.Rstar || 196, rot = (f.phase != null ? f.phase : -Math.PI / 2), rTip = f.tipR || 18, w = f.underW || CFG.D * 1.5;
+        var tip = [], i, j; for (i = 0; i < 5; i++) { var aa = rot + i * 2 * Math.PI / 5; tip.push({ x: c0.x + mir * Rs * Math.cos(aa), y: c0.y + Rs * Math.sin(aa) }); }
+        var order = [0, 2, 4, 1, 3], V = order.map(function (k) { return tip[k]; }), E = [];
+        for (i = 0; i < 5; i++) E.push([V[i], V[(i + 1) % 5]]);                 // E0..E4 traversed entrance→death: V0→V1→…→V4→V0
+        var cross = []; for (i = 0; i < 5; i++) cross.push([]);
+        for (i = 0; i < 5; i++) for (j = 0; j < 5; j++) { if (j === i) continue; var it = segInt(E[i][0], E[i][1], E[j][0], E[j][1]); if (it) cross[i].push(it.t); }
+        for (i = 0; i < 5; i++) cross[i].sort(function (p, q) { return p - q; });
+        var pts = [], arc = 0, startArc = [], seg = 6, underE = [], k;
+        function push(p) { if (pts.length) arc += Math.hypot(p.x - pts[pts.length - 1].x, p.y - pts[pts.length - 1].y); pts.push(p); }
+        for (k = 0; k < 5; k++) {
+            var A = E[k][0], B = E[k][1], dx = B.x - A.x, dy = B.y - A.y, L = Math.hypot(dx, dy), ux = dx / L, uy = dy / L, cut = Math.min(rTip, 0.33 * L);
+            var t0 = (k === 0) ? 0 : cut / L, t1 = (k === 4) ? 1 - (CFG.D * 1.1) / L : 1 - cut / L, s1 = { x: A.x + ux * L * t1, y: A.y + uy * L * t1 };
+            if (k === 0) push({ x: A.x, y: A.y });
+            startArc[k] = arc;
+            var nS = Math.max(2, Math.round(L * (t1 - t0) / seg));
+            for (var q = 1; q <= nS; q++) { var tt = t0 + (t1 - t0) * q / nS; push({ x: A.x + ux * L * tt, y: A.y + uy * L * tt }); }
+            if (cross[k].length) { var tc = cross[k][cross[k].length - 1], ca = startArc[k] + (tc - t0) * L; underE.push([ca - w, ca + w]); }   // SECOND crossing → underground
+            if (k < 4) {
+                var ndx = E[(k + 1) % 5][1].x - B.x, ndy = E[(k + 1) % 5][1].y - B.y, nL = Math.hypot(ndx, ndy), ncut = Math.min(rTip, 0.33 * nL), co = { x: B.x + ndx / nL * ncut, y: B.y + ndy / nL * ncut };
+                var nf = 8; for (var q2 = 1; q2 <= nf; q2++) { var tb = q2 / nf, mt = 1 - tb; push({ x: mt * mt * s1.x + 2 * mt * tb * B.x + tb * tb * co.x, y: mt * mt * s1.y + 2 * mt * tb * B.y + tb * tb * co.y }); }   // rounded tip fillet
+            }
+        }
+        var baseLen = arc; pts.reverse();
+        return { pts: pts, cannon: c0, under: revUnder(baseLen, underE) };
+    }
+    function genClover(f) {   // "井"/clover drawn in one stroke: 3 corners loop into leaves, the 4th corner is open (entrance = right vertical's foot, death = bottom horizontal's right end).
+        var c0 = cen(f), cx = c0.x, cy = c0.y, gx = f.gx || 50, gy = f.gy || 50, ext = f.ext || 60, leafR = f.leafR || 78, w = f.underW || CFG.D * 1.25, seg = 6;
+        var VRb = { x: cx + gx, y: cy + gy + ext }, VRt = { x: cx + gx, y: cy - gy - ext }, HTr = { x: cx + gx + ext, y: cy - gy }, HTl = { x: cx - gx - ext, y: cy - gy };
+        var VLt = { x: cx - gx, y: cy - gy - ext }, VLb = { x: cx - gx, y: cy + gy + ext }, HBl = { x: cx - gx - ext, y: cy + gy }, HBr = { x: cx + gx + ext, y: cy + gy };   // HBr = death
+        var pts = [], arc = 0, under = [];
+        function push(p) { if (pts.length) arc += Math.hypot(p.x - pts[pts.length - 1].x, p.y - pts[pts.length - 1].y); pts.push(p); }
+        function straight(a, b) { var L = Math.hypot(b.x - a.x, b.y - a.y), n = Math.max(2, Math.round(L / seg)); for (var q = 1; q <= n; q++) push({ x: a.x + (b.x - a.x) * q / n, y: a.y + (b.y - a.y) * q / n }); }
+        function leaf(p0, c1, c2, p3) { var n = 18; for (var q = 1; q <= n; q++) { var tb = q / n, mt = 1 - tb; push({ x: mt * mt * mt * p0.x + 3 * mt * mt * tb * c1.x + 3 * mt * tb * tb * c2.x + tb * tb * tb * p3.x, y: mt * mt * mt * p0.y + 3 * mt * mt * tb * c1.y + 3 * mt * tb * tb * c2.y + tb * tb * tb * p3.y }); } }
+        push(VRb);
+        var aB = arc; straight(VRb, VRt); under.push([aB + ext - w, aB + ext + w], [aB + 2 * gy + ext - w, aB + 2 * gy + ext + w]);   // right vertical: first passes of VR×HB and VR×HT → under
+        leaf(VRt, { x: VRt.x, y: VRt.y - leafR }, { x: HTr.x + leafR, y: HTr.y }, HTr);                                               // top-right leaf
+        var aD = arc; straight(HTr, HTl); under.push([aD + 2 * gx + ext - w, aD + 2 * gx + ext + w]);                                 // top horizontal: first pass of VL×HT → under
+        leaf(HTl, { x: HTl.x - leafR, y: HTl.y }, { x: VLt.x, y: VLt.y - leafR }, VLt);                                               // top-left leaf
+        var aF = arc; straight(VLt, VLb); under.push([aF + 2 * gy + ext - w, aF + 2 * gy + ext + w]);                                 // left vertical: first pass of VL×HB → under
+        leaf(VLb, { x: VLb.x, y: VLb.y + leafR }, { x: HBl.x - leafR, y: HBl.y }, HBl);                                               // bottom-left leaf
+        straight(HBl, HBr);                                                                                                           // bottom horizontal → death (its crossings are second passes → above)
+        var baseLen = arc; pts.reverse();
+        return { pts: pts, cannon: c0, under: revUnder(baseLen, under) };
+    }
+    function buryHorizontalRanges(path) {   // arc-ranges where the path runs ~horizontally (|dy| small) — used to tuck the flat runs of a square underground
+        var res = [], pts = path.pts, arc = path.arc, inRun = false, s0 = 0, i;
+        for (i = 1; i < pts.length; i++) {
+            var dx = pts[i].x - pts[i - 1].x, dy = pts[i].y - pts[i - 1].y, horiz = (dx * dx + dy * dy) > 0 && Math.abs(dy) <= Math.abs(dx) * 0.42;
+            if (horiz && !inRun) { inRun = true; s0 = arc[i - 1]; }
+            else if (!horiz && inRun) { inRun = false; if (arc[i - 1] - s0 > CFG.D * 1.2) res.push([s0, arc[i - 1]]); }
+        }
+        if (inRun && arc[pts.length - 1] - s0 > CFG.D * 1.2) res.push([s0, arc[pts.length - 1]]);
+        return res;
+    }
     function pathOf(pts) { var arc = [0], total = 0; for (var i = 1; i < pts.length; i++) { total += Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y); arc.push(total); } return { pts: pts, arc: arc, len: total }; }
     function extendOut(pts, exitAng) {   // continue the source end OFF-SCREEN so balls enter unseen. Normally along its own tangent (smooth, no kink);
         var a = pts[pts.length - 2], b = pts[pts.length - 1], dx = b.x - a.x, dy = b.y - a.y, m = Math.hypot(dx, dy) || 1, step = 8, x = b.x, y = b.y, g = 0;
@@ -96,16 +160,19 @@
     }
     function buildField(field) {   // → { paths:[{pts,arc,len,under}...], cannon }
         var c0 = cen(field), under = field.under || [], can = { x: c0.x + (field.canDx || 0), y: c0.y + (field.canDy || 0) };   // cannon may be nudged independently of the field
-        function make(pts, exitAng) {
-            var baseLen = pathOf(pts).len;          // length BEFORE the off-screen lead-in (under ranges are fractions of THIS)
+        function make(pts, exitAng, underArc) {
+            var baseP = pathOf(pts), baseLen = baseP.len;          // length BEFORE the off-screen lead-in
+            if (underArc == null && field.buryHorizontal) underArc = buryHorizontalRanges(baseP);
             extendOut(pts, exitAng);
             var p = pathOf(pts);
-            p.under = under.map(function (u) { return [u[0] * baseLen, u[1] * baseLen]; });   // buried (unshootable) arc ranges
+            p.under = underArc ? underArc : under.map(function (u) { return [u[0] * baseLen, u[1] * baseLen]; });   // buried (unshootable) arc ranges — explicit arc-ranges, or field.under given as fractions
             return p;
         }
         if (field.shape === 'dual') { var ph = field.phase != null ? field.phase : -Math.PI / 4; return { paths: [make(genSpiral(field, ph).pts, field.exitAng), make(genSpiral(field, ph + Math.PI).pts, field.exitAng2)], cannon: can }; }
-        if (field.shape === 'square') return { paths: [make(genSquare(field).pts, field.exitAng)], cannon: can };
+        if (field.shape === 'square') return { paths: [make(genSquare(field, field.phase || 0).pts, field.exitAng)], cannon: can };
         if (field.shape === 'poly') return { paths: [make(genPoly(field, field.phase || 0).pts, field.exitAng)], cannon: can };
+        if (field.shape === 'star') { var gs = genStar(field); return { paths: [make(gs.pts, field.exitAng, gs.under)], cannon: can }; }
+        if (field.shape === 'clover') { var gc = genClover(field); return { paths: [make(gc.pts, field.exitAng, gc.under)], cannon: can }; }
         if (field.shape === 'snake') { var g = genSnake(field); return { paths: [make(g.pts)], cannon: g.cannon }; }
         return { paths: [make(genSpiral(field, field.phase || 0).pts, field.exitAng)], cannon: can };
     }

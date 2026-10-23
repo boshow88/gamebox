@@ -23,7 +23,10 @@ window.PrimeZumaData = (function () {
         { id: 'serpent', name: 'Serpent', shape: 'snake',  rows: 4,                              bg: '#0a1410', accent: '#34d399' },
         { id: 'tri',     name: 'Tri',     shape: 'poly',   sides: 3, polyAmp: 0.17, turns: 3, Rin: 70, Rout: 190, ox: -28, oy: 6, canDy: -12, exitAng: 0.52, bg: '#0a1322', accent: '#f59e0b' },
         { id: 'twin',    name: 'Twin',    shape: 'dual',   turns: 2, Rin: 70, Rout: 214,         bg: '#0a1322', accent: '#f472b6' },
-        { id: 'tunnel',  name: 'Tunnel',  shape: 'snake',  rows: 5, under: [[0.42, 0.60]],        bg: '#0c0a14', accent: '#f59e0b' },
+        { id: 'star',    name: 'Star',    shape: 'star',   Rstar: 196, phase: -1.5708,           bg: '#0b0a16', accent: '#fbbf24' },
+        { id: 'maze',    name: 'Maze',    shape: 'square', turns: 3, Rin: 70, Rout: 196, n: 3.2, phase: -0.7854, buryHorizontal: true, bg: '#0a0f14', accent: '#22d3ee' },
+        { id: 'clover',  name: 'Clover',  shape: 'clover', gx: 50, gy: 50, ext: 60, leafR: 78,   bg: '#0a140c', accent: '#4ade80' },
+        { id: 'helix',   name: 'Helix',   shape: 'spiral', turns: 3, Rin: 70, Rout: 214, phase: -0.7854, mirror: true, ox: -4, oy: 16, bg: '#120a1e', accent: '#c084fc' },
     ];
     var X = FIELDS.length;
 
