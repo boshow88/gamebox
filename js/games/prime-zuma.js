@@ -341,7 +341,7 @@
     }
     var lastT = 0;
     function render() {
-        if (!ctx) return;
+        if (!ctx || !queues || !cannon) return;
         var now = performance.now() / 1000, dt = lastT ? Math.min(0.05, now - lastT) : 1 / 60; lastT = now;
         var ease = 1 - Math.exp(-dt * CFG.smooth);
         ctx.clearRect(0, 0, CW, CH);
@@ -393,12 +393,28 @@
     }
 
     // ---------------- boot ----------------
+    function fitCanvas() {                                   // size the backing store to the displayed square (crisp at any scale)
+        if (!canvas || !ctx) return;
+        var cssW = canvas.clientWidth || CW, bs = Math.max(1, Math.round(cssW * DPR)), s = bs / CW;
+        canvas.width = bs; canvas.height = bs;
+        ctx.setTransform(s, 0, 0, s, 0, 0);                  // draw in logical 0..CW units regardless of display size
+        render();
+    }
     function boot() {
-        canvas = $('stage'); canvas.width = CW * DPR; canvas.height = CH * DPR;
-        ctx = canvas.getContext('2d'); ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+        canvas = $('stage'); ctx = canvas.getContext('2d');
+        fitCanvas();
+        window.addEventListener('resize', fitCanvas);
+        window.addEventListener('orientationchange', function () { setTimeout(fitCanvas, 120); });
 
-        canvas.addEventListener('pointermove', function (e) { if (!over) aimTo(e.clientX, e.clientY); });
-        canvas.addEventListener('pointerdown', function (e) { e.preventDefault(); AC.audio.unlock(); if (shell.isPlaying() && !over) { aimTo(e.clientX, e.clientY); shoot(); } }, { passive: false });
+        // Aim tracks the pointer ANYWHERE (angle is all that matters); a press anywhere in the board zone fires —
+        // so taps just outside the circle no longer whiff. Taps on the overlay / buttons / links are left alone.
+        var surface = document.querySelector('.stage-pad') || canvas;
+        window.addEventListener('pointermove', function (e) { if (!over && cannon) aimTo(e.clientX, e.clientY); });
+        surface.addEventListener('pointerdown', function (e) {
+            if (e.target && e.target.closest && e.target.closest('.overlay, button, a')) return;
+            e.preventDefault(); AC.audio.unlock();
+            if (shell.isPlaying() && !over) { aimTo(e.clientX, e.clientY); shoot(); }
+        }, { passive: false });
         window.addEventListener('keydown', function (e) { if ((e.key === ' ') && shell.isPlaying() && !over) { e.preventDefault(); shoot(); } });
 
         try { var sv = AC.prefs && AC.prefs.get('prime-zuma'); if (sv && DIFF[sv.diff]) difficulty = sv.diff; } catch (e) { /* default easy */ }
@@ -420,7 +436,7 @@
         syncSeg();
 
         AC.i18n.subscribe(function () { if (!shell.isPlaying()) shell.refreshOverlay && shell.refreshOverlay(); });
-        newGame(); shell.refreshBest && shell.refreshBest(); render();
+        newGame(); shell.refreshBest && shell.refreshBest(); fitCanvas();   // fit once layout is settled, then draw
     }
     function syncSeg() {
         var seg = $('difficulty-seg'); if (!seg) return;
