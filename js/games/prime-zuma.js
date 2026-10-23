@@ -1,13 +1,12 @@
 /* Prime Zuma — a prime-factorisation spin on Zuma (WIP).
  *
- * A turret in the CENTRE spits PRIME balls into a chain spiralling inward toward a death core.
- * A shot prime p peels one factor of p off every ball in a contiguous run divisible by p (run >= k);
- * balls that hit 1 pop. Gaps split the chain; facing ends that share a factor attract & crash
- * (same prime → chains another peel; otherwise merge with an inertia nudge).
+ * A turret spits PRIME balls into chains spiralling inward toward a death end. A shot prime p peels
+ * one factor of p off every ball in a contiguous run divisible by p (run >= k); balls that hit 1 pop.
+ * Gaps split a chain; facing ends that share a factor attract & crash (same prime → chains another peel).
  *
- * Modes: 一般/Levels (pick a level on a grid; clear a FINITE chain to win) and 無盡/Endless (survive;
- * everything ramps with time). Field (spiral geometry + theme) and per-level difficulty live in the
- * data file prime-zuma-levels.js. FEEL knobs live in CFG. */
+ * Fields are generalised to one OR MORE "lanes" (each lane = its own polyline path + chain) sharing a
+ * single cannon — so a 'dual' field is a double spiral with two death ends. Shapes/levels/difficulty live
+ * in prime-zuma-levels.js; FEEL knobs in CFG. Modes: Levels (clear a finite chain) and Endless. */
 (function () {
     'use strict';
     var AC = window.ArcadeCommon, DATA = window.PrimeZumaData;
@@ -19,10 +18,7 @@
             pzName: 'Prime Zuma', pzScore: 'Score',
             pzLevelMode: 'Levels', pzEndless: 'Endless', pzEasy: 'Easy', pzNormal: 'Normal', pzHard: 'Hard',
             pzPickLevel: 'Pick a level', pzClear: 'Cleared!', pzFailed: 'Failed',
-            pzReady: 'Prime Zuma',
-            pzIntro: 'Fire prime balls into the chain. A prime peels a factor off a matching run (3+) — balls that hit 1 pop.',
-            pzStartHintHtml: 'Aim with the mouse / your finger · tap or click to shoot.',
-            pzHelp1Html: 'A turret in the centre shoots <strong>prime</strong> balls; the chain spirals inward and you lose if it reaches the <strong>core</strong>.',
+            pzHelp1Html: 'A turret shoots <strong>prime</strong> balls; chains spiral inward and you lose if one reaches a <strong>core</strong>.',
             pzHelp2Html: 'A shot prime <strong>p</strong> divides every ball in a contiguous run divisible by p (length <strong>3+</strong>) by p — any that become 1 are removed.',
             pzHelp3Html: '<strong>Levels</strong>: clear a finite chain to win. <strong>Endless</strong>: survive as it ramps up. <kbd>P</kbd> pause · <kbd>R</kbd> restart.',
         },
@@ -30,80 +26,72 @@
             pzName: '質因數祖瑪', pzScore: '分數',
             pzLevelMode: '一般', pzEndless: '無盡', pzEasy: '簡單', pzNormal: '普通', pzHard: '困難',
             pzPickLevel: '選擇關卡', pzClear: '過關！', pzFailed: '失敗',
-            pzReady: '質因數祖瑪',
-            pzIntro: '朝球鏈發射質數球。質數會把一段「可被它整除」的連續球鏈（3 顆以上）各除以它一次，變成 1 的球就消除。',
-            pzStartHintHtml: '用滑鼠／手指瞄準 · 點擊或輕觸發射。',
-            pzHelp1Html: '中央砲台發射<strong>質數</strong>球；球鏈往內盤旋，抵達<strong>核心</strong>就輸了。',
-            pzHelp2Html: '射出的質數 <strong>p</strong> 會把一段可被 p 整除的連續球鏈（<strong>3 顆以上</strong>）全部除以 p，變成 1 的球消除。',
+            pzHelp1Html: '砲台發射<strong>質數</strong>球；球鏈往內盤旋,抵達<strong>核心</strong>就輸了。',
+            pzHelp2Html: '射出的質數 <strong>p</strong> 會把一段可被 p 整除的連續球鏈（<strong>3 顆以上</strong>）全部除以 p,變成 1 的球消除。',
             pzHelp3Html: '<strong>一般</strong>：清光有限球鏈即過關。<strong>無盡</strong>：撐著,難度隨時間升高。<kbd>P</kbd> 暫停 · <kbd>R</kbd> 重來。',
         },
     };
     Object.assign(AC.i18n.STRINGS.en, STRINGS.en);
     Object.assign(AC.i18n.STRINGS.zh, STRINGS.zh);
 
-    // ---------------- config (FEEL knobs; geometry/difficulty are in the data file) ----------------
+    // ---------------- config (FEEL knobs) ----------------
     var CFG = {
-        D: 27, rBall: 12.5,                       // chain spacing (arc px) + ball draw radius (px)
-        vRetreat: 180, impulse: 70, impDecay: 7,  // magnet-retreat speed / inertia impulse + decay (/s); feed speed comes from the level/endless
-        k: 3,                                     // run length (incl. shot) needed to eliminate
-        cannonFloor: 1.5,                         // baseline weight every active prime keeps regardless of board demand
-        shotSpeed: 480,                           // projectile speed (px/s)
-        insertPush: 'front',                      // insertion makes room by shoving the FRONT toward death (back untouched)
-        startLen: 5,                              // balls pre-seeded at the source
-        smooth: 16,                               // render-easing rate (balls lerp to logical spots → smooth slides/accel)
-        compositeColor: '#4b5a70',                // all composite balls share ONE calm colour; only primes are colourful
+        D: 27, rBall: 12.5,
+        vRetreat: 180, impulse: 70, impDecay: 7,
+        k: 3,
+        cannonFloor: 1.5,
+        shotSpeed: 480,
+        insertPush: 'front',
+        startLen: 5,
+        smooth: 16,
+        compositeColor: '#4b5a70',
     };
     var CW = 460, CH = 460, CX = CW / 2, CY = CH / 2, DPR = Math.min(window.devicePixelRatio || 1, 2);
 
-    // ---------------- path (arc-length table + cannon), rebuilt per field ----------------
-    // A field's `shape` generates a polyline from DEATH (pts[0]) to SOURCE (last) plus the cannon position.
-    // Everything else (movement, shooting, render) works off that polyline, so new shapes are just new generators.
-    var PATH = null, CAN = { x: CX, y: CY };
-    function genSpiral(f) {
+    // ---------------- path shapes → polyline + cannon (one path per call; a field can build several) ----------------
+    function genSpiral(f, phase) {
+        phase = phase || 0;
         var steps = 2400, thetaMax = f.turns * 2 * Math.PI, pts = [];
-        for (var i = 0; i <= steps; i++) { var th = thetaMax * i / steps, r = f.Rin + (f.Rout - f.Rin) * (th / thetaMax); pts.push({ x: CX + r * Math.cos(th), y: CY + r * Math.sin(th) }); }
+        for (var i = 0; i <= steps; i++) { var th = thetaMax * i / steps, r = f.Rin + (f.Rout - f.Rin) * (th / thetaMax); pts.push({ x: CX + r * Math.cos(th + phase), y: CY + r * Math.sin(th + phase) }); }
         return { pts: pts, cannon: { x: CX, y: CY } };   // pts[0] = innermost = death
     }
-    function genSquare(f) {   // a smooth ROUNDED square (squircle, exponent n) spiralling in — boxy but no hard 90° corners
-        var steps = 2600, thetaMax = f.turns * 2 * Math.PI, e = 2 / (f.n || 3.2), pts = [];
+    function genSquare(f) {   // smooth rounded square (squircle, exponent n) — no hard 90° corners
+        var steps = 2600, thetaMax = f.turns * 2 * Math.PI, e = 2 / (f.n || 3.0), pts = [];
         for (var i = 0; i <= steps; i++) {
             var th = thetaMax * i / steps, r = f.Rin + (f.Rout - f.Rin) * (th / thetaMax), c = Math.cos(th), s = Math.sin(th);
             pts.push({ x: CX + r * (c < 0 ? -1 : 1) * Math.pow(Math.abs(c), e), y: CY + r * (s < 0 ? -1 : 1) * Math.pow(Math.abs(s), e) });
         }
-        return { pts: pts, cannon: { x: CX, y: CY } };   // pts[0] = innermost = death
+        return { pts: pts, cannon: { x: CX, y: CY } };
     }
-    function genSnake(f) {   // a real serpentine over a grid (rows left↔right) joined by ROUNDED U-turns; stops ~60% down, death at its end
+    function genSnake(f) {   // serpentine over a grid, rows joined by rounded U-turns; stops ~60% down, cannon at bottom
         var rows = f.rows || 4, m = 34, yTop = 48, yBot = CH * 0.60, gap = (yBot - yTop) / (rows - 1), R = gap / 2;
         var xL = m + R, xR = CW - m - R, seg = 6, pts = [], r, k, steps;
-        for (r = 0; r < rows; r++) {                      // source(top) → death(bottom), then reverse
+        for (r = 0; r < rows; r++) {
             var y = yTop + r * gap, ltr = (r % 2 === 0), xa = ltr ? xL : xR, xb = ltr ? xR : xL;
             steps = Math.max(2, Math.round(Math.abs(xb - xa) / seg));
             for (k = 0; k <= steps; k++) pts.push({ x: xa + (xb - xa) * k / steps, y: y });
-            if (r < rows - 1) {                           // half-circle U-turn down to the next row, bulging outward
-                var dir = ltr ? 1 : -1, cx = xb, cy = y + R, aSteps = Math.max(6, Math.round(Math.PI * R / seg));
-                for (k = 1; k <= aSteps; k++) { var a = -Math.PI / 2 + Math.PI * k / aSteps; pts.push({ x: cx + dir * R * Math.cos(a), y: cy + R * Math.sin(a) }); }
-            }
+            if (r < rows - 1) { var dir = ltr ? 1 : -1, cx = xb, cy = y + R, aSteps = Math.max(6, Math.round(Math.PI * R / seg)); for (k = 1; k <= aSteps; k++) { var a = -Math.PI / 2 + Math.PI * k / aSteps; pts.push({ x: cx + dir * R * Math.cos(a), y: cy + R * Math.sin(a) }); } }
         }
         pts.reverse();
         return { pts: pts, cannon: { x: CX, y: CH - 26 } };
     }
-    function buildPath(field) {
-        var raw = field.shape === 'square' ? genSquare(field) : field.shape === 'snake' ? genSnake(field) : genSpiral(field);
-        var pts = raw.pts, arc = [0], total = 0;
-        for (var i = 1; i < pts.length; i++) { total += Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y); arc.push(total); }
-        return { pts: pts, arc: arc, len: total, cannon: raw.cannon };
+    function pathOf(pts) { var arc = [0], total = 0; for (var i = 1; i < pts.length; i++) { total += Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y); arc.push(total); } return { pts: pts, arc: arc, len: total }; }
+    function buildField(field) {   // → { paths:[{pts,arc,len}...], cannon }
+        if (field.shape === 'dual') return { paths: [pathOf(genSpiral(field, 0).pts), pathOf(genSpiral(field, Math.PI).pts)], cannon: { x: CX, y: CY } };
+        var raw = field.shape === 'square' ? genSquare(field) : field.shape === 'snake' ? genSnake(field) : genSpiral(field, 0);
+        return { paths: [pathOf(raw.pts)], cannon: raw.cannon };
     }
-    function posAt(s) {
-        s = s < 0 ? 0 : s > PATH.len ? PATH.len : s;
-        var a = PATH.arc, lo = 0, hi = a.length - 1;
+    function posAt(path, s) {
+        s = s < 0 ? 0 : s > path.len ? path.len : s;
+        var a = path.arc, lo = 0, hi = a.length - 1;
         while (lo < hi) { var mid = (lo + hi) >> 1; if (a[mid] < s) lo = mid + 1; else hi = mid; }
         var i = lo > 0 ? lo - 1 : 0, seg = (a[i + 1] - a[i]) || 1, f = (s - a[i]) / seg;
-        var p0 = PATH.pts[i], p1 = PATH.pts[i + 1] || p0;
+        var p0 = path.pts[i], p1 = path.pts[i + 1] || p0;
         return { x: p0.x + (p1.x - p0.x) * f, y: p0.y + (p1.y - p0.y) * f };
     }
-    function nearestS(x, y) {
+    function nearestS(path, x, y) {
         var best = 0, bd = Infinity;
-        for (var i = 0; i < PATH.pts.length; i += 2) { var p = PATH.pts[i], dx = p.x - x, dy = p.y - y, d = dx * dx + dy * dy; if (d < bd) { bd = d; best = PATH.arc[i]; } }
+        for (var i = 0; i < path.pts.length; i += 2) { var p = path.pts[i], dx = p.x - x, dy = p.y - y, d = dx * dx + dy * dy; if (d < bd) { bd = d; best = path.arc[i]; } }
         return best;
     }
 
@@ -113,34 +101,29 @@
     function isPrime(v) { if (v < 2) return false; for (var i = 2; i * i <= v; i++) if (v % i === 0) return false; return true; }
     function gcd(a, b) { a = a < 0 ? -a : a; b = b < 0 ? -b : b; while (b) { var m = a % b; a = b; b = m; } return a; }
     function activePrimes() { return R.full.slice(0, R.activeN); }
-    function pickCannonPrime() {   // next prime weighted by the board's live factor DEMAND (+ floor) → shots match what the chain needs
-        var n = R.activeN, dem = [], i, j, pi, total = 0;
+    function pickCannonPrime() {   // weighted by the live factor DEMAND across ALL lanes (+ floor)
+        var n = R.activeN, dem = [], i, L, qi, j, pi, total = 0;
         for (i = 0; i < n; i++) dem[i] = CFG.cannonFloor;
-        if (queues) for (i = 0; i < queues.length; i++) { var vals = queues[i].vals; for (j = 0; j < vals.length; j++) { var v = vals[j].v; for (pi = 0; pi < n; pi++) { var p = R.full[pi], m = v; while (m % p === 0) { m /= p; dem[pi]++; } } } }
+        if (lanes) for (L = 0; L < lanes.length; L++) { var qs = lanes[L].qs; for (qi = 0; qi < qs.length; qi++) { var vals = qs[qi].vals; for (j = 0; j < vals.length; j++) { var v = vals[j].v; for (pi = 0; pi < n; pi++) { var p = R.full[pi], m = v; while (m % p === 0) { m /= p; dem[pi]++; } } } } }
         for (i = 0; i < n; i++) total += dem[i];
         var r = rng() * total;
         for (i = 0; i < n; i++) if ((r -= dem[i]) <= 0) return R.full[i];
         return R.full[n - 1];
     }
-    function rebuildCandidates() {   // every P-smooth number in [2, cap] with Ω <= maxOmega, + its Ω
+    function rebuildCandidates() {
         var primes = activePrimes(), list = [];
-        for (var n = 2; n <= R.cap; n++) {
-            var m = n, omega = 0;
-            for (var i = 0; i < primes.length; i++) { var p = primes[i]; while (m % p === 0) { m /= p; omega++; } }
-            if (m === 1 && omega <= R.maxOmega) list.push({ v: n, w: omega });
-        }
+        for (var n = 2; n <= R.cap; n++) { var m = n, omega = 0; for (var i = 0; i < primes.length; i++) { var p = primes[i]; while (m % p === 0) { m /= p; omega++; } } if (m === 1 && omega <= R.maxOmega) list.push({ v: n, w: omega }); }
         R.candidates = list.length ? list : [{ v: 2, w: 1 }];
     }
-    function spawnValue() {   // weighted pick: bias^Ω (bias<1 favours simple, 1 = uniform, >1 complex)
+    function spawnValue() {
         var list = R.candidates, bias = R.bias, sum = 0, i, wt;
-        if (!list || !list.length) return 2;   // safety: never read an empty list
-
+        if (!list || !list.length) return 2;
         for (i = 0; i < list.length; i++) sum += Math.pow(bias, list[i].w);
         var r = rng() * sum;
         for (i = 0; i < list.length; i++) { wt = Math.pow(bias, list[i].w); if ((r -= wt) <= 0) return list[i].v; }
         return list[list.length - 1].v;
     }
-    function updateProgression() {   // ENDLESS only: elapsed time ramps cap / feed / bias / Ω / prime-set
+    function updateProgression() {   // ENDLESS only
         var d = R.e, T = frame / 60, prog = Math.min(1, T / d.ramp);
         var activeN = Math.min(d.primes.length, 3 + (isFinite(d.unlockEvery) ? Math.floor(T / d.unlockEvery) : 0));
         var cap = Math.round(d.capA + (d.capB - d.capA) * prog);
@@ -151,9 +134,10 @@
     }
 
     // ---------------- state ----------------
-    var canvas, ctx, shell, queues, shots, cannon, score, over, fx, frame, combo, lastElimFrame, R;
+    // lanes: [{ path:{pts,arc,len}, qs:[ {vals:[ball..], head, imp} ... ] }]  — each lane is an independent chain.
+    var canvas, ctx, shell, lanes, shots, cannon, score, over, fx, frame, combo, lastElimFrame, R, CAN = { x: CX, y: CY };
     var mode = 'level', sel = { world: 1, fieldIdx: 0 }, endlessSel = { diff: 'easy', fieldIdx: 0 }, pending = null, lastResult = null, paused = false;
-    function makeBall(v, x, y) { return { v: v, rx: x, ry: y, pop: 0 }; }   // v=value · rx/ry=rendered pos · pop=divide pulse
+    function makeBall(v, x, y) { return { v: v, rx: x, ry: y, pop: 0 }; }
 
     function $(id) { return document.getElementById(id); }
     function backEndS(q) { return q.head + (q.vals.length - 1) * CFG.D; }
@@ -169,14 +153,18 @@
             var e = DATA.ENDLESS[p.diff] || DATA.ENDLESS.easy; field = DATA.FIELDS[p.fieldIdx] || DATA.FIELDS[0];
             R = { isLevel: false, field: field, e: e, full: e.primes, activeN: 3, cap: e.capA, maxOmega: e.omegaA, bias: e.biasA, feed: e.feedA, quota: Infinity, spawned: 0, candidates: [] };
         }
-        PATH = buildPath(field); CAN = PATH.cannon;
+        var fb = buildField(field); CAN = fb.cannon;
         frame = 0; combo = 0; lastElimFrame = -999;
-        rebuildCandidates();                                      // always build the initial candidate set (endless then ramps it in update)
+        rebuildCandidates();
         shots = []; fx = []; score = 0; over = false;
-        var seedN = Math.min(CFG.startLen, R.quota), head = PATH.len - seedN * CFG.D, vals = [];
-        for (var i = 0; i < seedN; i++) { var pos = posAt(head + i * CFG.D); vals.push(makeBall(spawnValue(), pos.x, pos.y)); }
-        queues = seedN ? [{ vals: vals, head: head, imp: 0 }] : [];
-        R.spawned = seedN;
+        var nLanes = fb.paths.length, seedPer = Math.min(CFG.startLen, R.isLevel ? Math.max(1, Math.floor(R.quota / nLanes)) : CFG.startLen);
+        lanes = [];
+        for (var L = 0; L < nLanes; L++) {
+            var path = fb.paths[L], head = path.len - seedPer * CFG.D, vals = [];
+            for (var i = 0; i < seedPer; i++) { var pos = posAt(path, head + i * CFG.D); vals.push(makeBall(spawnValue(), pos.x, pos.y)); }
+            lanes.push({ path: path, qs: seedPer ? [{ vals: vals, head: head, imp: 0 }] : [] });
+        }
+        R.spawned = seedPer * nLanes;
         cannon = { aim: -Math.PI / 2, cur: pickCannonPrime(), next: pickCannonPrime() };
         syncHud();
     }
@@ -187,14 +175,10 @@
         for (var i = 0; i < 7; i++) { var a = (i / 7) * Math.PI * 2 + rng() * 0.7, sp = 70 + rng() * 110; fx.push({ x: x, y: y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 0, max: 0.4 + rng() * 0.25, h: h }); }
     }
     function updateFx(dt) {
-        for (var i = fx.length - 1; i >= 0; i--) {
-            var f = fx[i]; f.life += dt;
-            if (!f.ring) { f.x += f.vx * dt; f.y += f.vy * dt; f.vx *= 0.88; f.vy *= 0.88; }
-            if (f.life >= f.max) fx.splice(i, 1);
-        }
+        for (var i = fx.length - 1; i >= 0; i--) { var f = fx[i]; f.life += dt; if (!f.ring) { f.x += f.vx * dt; f.y += f.vy * dt; f.vx *= 0.88; f.vy *= 0.88; } if (f.life >= f.max) fx.splice(i, 1); }
     }
 
-    // ---------------- elimination ----------------
+    // ---------------- elimination (scoped to a lane's queues `qs`) ----------------
     function regroup(items) {
         var out = [], cur = null;
         for (var i = 0; i < items.length; i++) {
@@ -204,7 +188,7 @@
         if (cur) out.push(cur);
         return out;
     }
-    function tryEliminate(q, idx, p) {
+    function tryEliminate(qs, q, idx, p) {
         if (!q || q.vals[idx].v % p !== 0) return false;
         var lo = idx, hi = idx;
         while (lo - 1 >= 0 && q.vals[lo - 1].v % p === 0) lo--;
@@ -213,40 +197,29 @@
         var items = [], cleared = 0;
         for (var j = 0; j < q.vals.length; j++) {
             var b = q.vals[j], sPos = q.head + j * CFG.D;
-            if (j >= lo && j <= hi) {
-                b.v = b.v / p;
-                if (b.v === 1) { burst(b.rx, b.ry, hue(p)); cleared++; continue; }
-                b.pop = 1;
-            }
+            if (j >= lo && j <= hi) { b.v = b.v / p; if (b.v === 1) { burst(b.rx, b.ry, hue(p)); cleared++; continue; } b.pop = 1; }
             items.push({ s: sPos, b: b });
         }
         score += cleared * 10 + (hi - lo + 1);
         combo = (frame - lastElimFrame <= 42) ? combo + 1 : 1; lastElimFrame = frame;
         sfxPop(combo);
-        var at = queues.indexOf(q);
-        if (at >= 0) { var groups = regroup(items); queues.splice.apply(queues, [at, 1].concat(groups)); }
+        var at = qs.indexOf(q);
+        if (at >= 0) { var groups = regroup(items); qs.splice.apply(qs, [at, 1].concat(groups)); }
         return true;
     }
-
-    // ---------------- collisions ----------------
-    function resolveCollisions() {
+    function resolveCollisions(qs) {
         var crashes = 0;
         for (var guard = 0; guard < 200; guard++) {
             var merged = false;
-            for (var i = 0; i < queues.length - 1; i++) {
-                var f = queues[i], b = queues[i + 1];
+            for (var i = 0; i < qs.length - 1; i++) {
+                var f = qs[i], b = qs[i + 1];
                 if (gapBetween(f, b) < -0.01) {
                     var a = f.vals[f.vals.length - 1].v, c = b.vals[0].v, junction = f.vals.length - 1;
-                    var frontFed = (b.vel || 0) < 0 && (f.vel || 0) <= 0;
-                    var retreating = (f.vel || 0) > 0;
+                    var frontFed = (b.vel || 0) < 0 && (f.vel || 0) <= 0, retreating = (f.vel || 0) > 0;
                     var mq = { vals: f.vals.concat(b.vals), head: frontFed ? f.head : (b.head - f.vals.length * CFG.D), imp: 0 };
-                    queues.splice(i, 2, mq);
-                    if (retreating) {
-                        if (a === c && isPrime(a)) tryEliminate(mq, junction, a);
-                        else { mq.imp = CFG.impulse; if (crashes < 2) { sfxCrash(); crashes++; } }
-                    }
-                    merged = true;
-                    break;
+                    qs.splice(i, 2, mq);
+                    if (retreating) { if (a === c && isPrime(a)) tryEliminate(qs, mq, junction, a); else { mq.imp = CFG.impulse; if (crashes < 2) { sfxCrash(); crashes++; } } }
+                    merged = true; break;
                 }
             }
             if (!merged) break;
@@ -257,12 +230,7 @@
     function sfxShoot(v) { var idx = R.full.indexOf(v); if (idx < 0) idx = 0; var f = [466, 587, 698, 880, 1047][idx % 5]; AC.audio.tone(f * 1.4, 0.07, { type: 'triangle', volume: 0.07, attack: 0.002, slideTo: f }); }
     function sfxInsert() { AC.audio.tone(300, 0.05, { type: 'triangle', volume: 0.06, attack: 0.002, slideTo: 215 }); }
     function sfxCrash() { AC.audio.tone(170, 0.09, { type: 'triangle', volume: 0.08, attack: 0.002, slideTo: 115 }); AC.audio.noise(0.05, { volume: 0.035, filter: { type: 'lowpass', freq: 760 } }); }
-    function sfxPop(n) {
-        var f = 523.25 * Math.pow(2, Math.min(n - 1, 12) / 12);
-        AC.audio.tone(f, 0.16, { type: 'sine', volume: 0.12, attack: 0.003, slideTo: f * 1.5 });
-        AC.audio.tone(f * 2, 0.11, { type: 'triangle', volume: 0.045, attack: 0.002 });
-        AC.audio.noise(0.06, { volume: 0.045, filter: { type: 'bandpass', freq: 2600 } });
-    }
+    function sfxPop(n) { var f = 523.25 * Math.pow(2, Math.min(n - 1, 12) / 12); AC.audio.tone(f, 0.16, { type: 'sine', volume: 0.12, attack: 0.003, slideTo: f * 1.5 }); AC.audio.tone(f * 2, 0.11, { type: 'triangle', volume: 0.045, attack: 0.002 }); AC.audio.noise(0.06, { volume: 0.045, filter: { type: 'bandpass', freq: 2600 } }); }
 
     // ---------------- shooting / insertion ----------------
     function shoot() {
@@ -273,56 +241,60 @@
     }
     function nearestBall(x, y) {
         var best = null, bd = Infinity;
-        for (var qi = 0; qi < queues.length; qi++) { var q = queues[qi]; for (var j = 0; j < q.vals.length; j++) { var b = q.vals[j], dx = b.rx - x, dy = b.ry - y, d = dx * dx + dy * dy; if (d < bd) { bd = d; best = { q: q, j: j, s: q.head + j * CFG.D }; } } }
+        for (var L = 0; L < lanes.length; L++) { var lane = lanes[L], qs = lane.qs; for (var qi = 0; qi < qs.length; qi++) { var q = qs[qi]; for (var j = 0; j < q.vals.length; j++) { var b = q.vals[j], dx = b.rx - x, dy = b.ry - y, d = dx * dx + dy * dy; if (d < bd) { bd = d; best = { lane: lane, q: q, j: j, s: q.head + j * CFG.D }; } } } }
         if (best) best.dist = Math.sqrt(bd);
         return best;
     }
     function insertShot(shot, hit) {
-        var q = hit.q, shotS = nearestS(shot.x, shot.y), j = shotS < hit.s ? hit.j : hit.j + 1;
+        var lane = hit.lane, q = hit.q, shotS = nearestS(lane.path, shot.x, shot.y), j = shotS < hit.s ? hit.j : hit.j + 1;
         q.vals.splice(j, 0, makeBall(shot.v, shot.x, shot.y));
         if (CFG.insertPush === 'front') q.head -= CFG.D;
-        if (!tryEliminate(q, j, shot.v)) sfxInsert();
+        if (!tryEliminate(lane.qs, q, j, shot.v)) sfxInsert();
     }
 
     // ---------------- main loop ----------------
     function update() {
-        if (over || !queues) return;
+        if (over || !lanes) return;
         frame++;
         if (!R.isLevel) updateProgression();
-        // 1) feed one ball from the source (level mode stops once its quota is reached)
-        var lastQ = queues.length ? queues[queues.length - 1] : null;
-        var canFeed = R.isLevel ? (R.spawned < R.quota) : true;
-        if (canFeed && (!lastQ || backEndS(lastQ) <= PATH.len - CFG.D)) {
-            if (lastQ && PATH.len - backEndS(lastQ) <= CFG.D + 0.5) { var pe = posAt(backEndS(lastQ) + CFG.D); lastQ.vals.push(makeBall(spawnValue(), pe.x, pe.y)); }
-            else { var ps = posAt(PATH.len); queues.push({ vals: [makeBall(spawnValue(), ps.x, ps.y)], head: PATH.len, imp: 0 }); }
-            R.spawned++;
+        var dt = 1 / 60, i, L, qs;
+        // 1) feed each lane from its source (level stops once the TOTAL quota is reached)
+        for (L = 0; L < lanes.length; L++) {
+            qs = lanes[L].qs; var lastQ = qs.length ? qs[qs.length - 1] : null, path = lanes[L].path, canFeed = R.isLevel ? (R.spawned < R.quota) : true;
+            if (canFeed && (!lastQ || backEndS(lastQ) <= path.len - CFG.D)) {
+                if (lastQ && path.len - backEndS(lastQ) <= CFG.D + 0.5) { var pe = posAt(path, backEndS(lastQ) + CFG.D); lastQ.vals.push(makeBall(spawnValue(), pe.x, pe.y)); }
+                else { var ps = posAt(path, path.len); qs.push({ vals: [makeBall(spawnValue(), ps.x, ps.y)], head: path.len, imp: 0 }); }
+                R.spawned++;
+            }
         }
-        var dt = 1 / 60, i, q;
-        // 2) velocities + motion
-        for (i = 0; i < queues.length; i++) {
-            q = queues[i]; var v = 0;
-            if (i === queues.length - 1) v = -R.feed;
-            else if (gcd(q.vals[q.vals.length - 1].v, queues[i + 1].vals[0].v) > 1) v = CFG.vRetreat;
-            q.vel = v + (q.imp || 0);
-            q.imp = (q.imp || 0) * Math.max(0, 1 - CFG.impDecay * dt);
-            if (Math.abs(q.imp) < 1) q.imp = 0;
+        // 2) velocities + motion + collisions, per lane
+        for (L = 0; L < lanes.length; L++) {
+            qs = lanes[L].qs;
+            for (i = 0; i < qs.length; i++) { var q = qs[i], v = 0; if (i === qs.length - 1) v = -R.feed; else if (gcd(q.vals[q.vals.length - 1].v, qs[i + 1].vals[0].v) > 1) v = CFG.vRetreat; q.vel = v + (q.imp || 0); q.imp = (q.imp || 0) * Math.max(0, 1 - CFG.impDecay * dt); if (Math.abs(q.imp) < 1) q.imp = 0; }
+            for (i = 0; i < qs.length; i++) qs[i].head += qs[i].vel * dt;
+            resolveCollisions(qs);
         }
-        for (i = 0; i < queues.length; i++) queues[i].head += queues[i].vel * dt;
-        resolveCollisions();
-        // 3) projectiles
+        // 3) projectiles (hit the nearest ball across ALL lanes)
         for (i = shots.length - 1; i >= 0; i--) {
             var s = shots[i]; s.x += s.vx * dt; s.y += s.vy * dt;
-            if (s.x < -30 || s.x > CW + 30 || s.y < -30 || s.y > CH + 30) { shots.splice(i, 1); continue; }   // left the field (works for any shape/cannon)
+            if (s.x < -30 || s.x > CW + 30 || s.y < -30 || s.y > CH + 30) { shots.splice(i, 1); continue; }
             var hit = nearestBall(s.x, s.y);
             if (hit && hit.dist < CFG.rBall * 1.9) { insertShot(s, hit); shots.splice(i, 1); }
         }
-        resolveCollisions();
-        // 4) prune, pulses, particles, win/lose
-        for (i = queues.length - 1; i >= 0; i--) if (!queues[i].vals.length) queues.splice(i, 1);
-        for (i = 0; i < queues.length; i++) { var vv = queues[i].vals; for (var jj = 0; jj < vv.length; jj++) if (vv[jj].pop > 0) vv[jj].pop = Math.max(0, vv[jj].pop - dt * 6); }
+        for (L = 0; L < lanes.length; L++) resolveCollisions(lanes[L].qs);
+        // 4) prune, pulses, win/lose
+        var allEmpty = true, dead = false;
+        for (L = 0; L < lanes.length; L++) {
+            qs = lanes[L].qs;
+            for (i = qs.length - 1; i >= 0; i--) if (!qs[i].vals.length) qs.splice(i, 1);
+            for (i = 0; i < qs.length; i++) { var vv = qs[i].vals; for (var jj = 0; jj < vv.length; jj++) if (vv[jj].pop > 0) vv[jj].pop = Math.max(0, vv[jj].pop - dt * 6); }
+            if (qs.length) { allEmpty = false; if (qs[0].head <= 0) dead = true; }
+        }
         updateFx(dt);
-        if (!over && R.isLevel && R.spawned >= R.quota && queues.length === 0) { over = true; shell.gameOver({ score: score, win: true, meta: { level: sel.world + '-' + (sel.fieldIdx + 1) } }); }
-        else if (!over && queues.length && queues[0].head <= 0) { over = true; shell.gameOver({ score: score, win: false }); }
+        if (!over) {
+            if (dead) { over = true; shell.gameOver({ score: score, win: false }); }
+            else if (R.isLevel && R.spawned >= R.quota && allEmpty) { over = true; shell.gameOver({ score: score, win: true, meta: { level: sel.world + '-' + (sel.fieldIdx + 1) } }); }
+        }
         syncHud();
     }
 
@@ -346,23 +318,18 @@
     }
     var lastT = 0;
     function render() {
-        if (!ctx || !queues || !cannon || !R) return;
+        if (!ctx || !lanes || !cannon || !R) return;
         var now = performance.now() / 1000, dt = lastT ? Math.min(0.05, now - lastT) : 1 / 60; lastT = now;
-        var ease = 1 - Math.exp(-dt * CFG.smooth);
+        var ease = 1 - Math.exp(-dt * CFG.smooth), pr = 7 + Math.sin(now * 4) * 1.5, L, qi, j, p, pt;
         ctx.fillStyle = R.field.bg; ctx.fillRect(0, 0, CW, CH);
-        // spiral guide (tinted by the field accent)
-        ctx.save(); ctx.globalAlpha = 0.16; ctx.strokeStyle = R.field.accent; ctx.lineWidth = CFG.rBall * 2 + 3; ctx.lineCap = 'round'; ctx.beginPath();
-        for (var p = 0; p < PATH.pts.length; p += 3) { var pt = PATH.pts[p]; if (p === 0) ctx.moveTo(pt.x, pt.y); else ctx.lineTo(pt.x, pt.y); }
-        ctx.stroke(); ctx.restore();
-        var d0 = posAt(0), pr = 7 + Math.sin(now * 4) * 1.5;
-        ctx.fillStyle = 'rgba(239,68,68,0.9)'; ctx.beginPath(); ctx.arc(d0.x, d0.y, pr, 0, 7); ctx.fill();
-        for (var qi = 0; qi < queues.length; qi++) {
-            var q = queues[qi];
-            for (var j = 0; j < q.vals.length; j++) {
-                var b = q.vals[j], lp = posAt(q.head + j * CFG.D);
-                b.rx += (lp.x - b.rx) * ease; b.ry += (lp.y - b.ry) * ease;
-                drawBall(b.rx, b.ry, b.v, CFG.rBall * (1 + (b.pop || 0) * 0.35));   // full size (smooth geometry keeps overlap away without the weird shrink)
-            }
+        for (L = 0; L < lanes.length; L++) {
+            var lane = lanes[L], path = lane.path;
+            ctx.save(); ctx.globalAlpha = 0.16; ctx.strokeStyle = R.field.accent; ctx.lineWidth = CFG.rBall * 2 + 3; ctx.lineCap = 'round'; ctx.beginPath();
+            for (p = 0; p < path.pts.length; p += 3) { pt = path.pts[p]; if (p === 0) ctx.moveTo(pt.x, pt.y); else ctx.lineTo(pt.x, pt.y); }
+            ctx.stroke(); ctx.restore();
+            var d0 = posAt(path, 0); ctx.fillStyle = 'rgba(239,68,68,0.9)'; ctx.beginPath(); ctx.arc(d0.x, d0.y, pr, 0, 7); ctx.fill();
+            var qs = lane.qs;
+            for (qi = 0; qi < qs.length; qi++) { var q = qs[qi]; for (j = 0; j < q.vals.length; j++) { var b = q.vals[j], lp = posAt(path, q.head + j * CFG.D); b.rx += (lp.x - b.rx) * ease; b.ry += (lp.y - b.ry) * ease; drawBall(b.rx, b.ry, b.v, CFG.rBall * (1 + (b.pop || 0) * 0.35)); } }
         }
         for (var fi = 0; fi < fx.length; fi++) {
             var f = fx[fi], tt = f.life / f.max, al = 1 - tt; ctx.globalAlpha = al < 0 ? 0 : al;
@@ -370,7 +337,7 @@
             else { ctx.fillStyle = 'hsl(' + f.h + ',90%,66%)'; ctx.beginPath(); ctx.arc(f.x, f.y, 1 + 3 * al, 0, 7); ctx.fill(); }
         }
         ctx.globalAlpha = 1;
-        for (var si = 0; si < shots.length; si++) { var s = shots[si]; drawBall(s.x, s.y, s.v, CFG.rBall * 0.9); }
+        for (var si = 0; si < shots.length; si++) { var sh = shots[si]; drawBall(sh.x, sh.y, sh.v, CFG.rBall * 0.9); }
         ctx.save(); ctx.translate(CAN.x, CAN.y); ctx.rotate(cannon.aim); ctx.fillStyle = '#334155'; ctx.fillRect(0, -5, 30, 10); ctx.restore();
         drawChip(CAN.x + Math.cos(cannon.aim) * 30, CAN.y + Math.sin(cannon.aim) * 30, cannon.cur, 12);
         ctx.beginPath(); ctx.arc(CAN.x, CAN.y, 17, 0, 7); ctx.fillStyle = '#1e293b'; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = '#64748b'; ctx.stroke();
@@ -390,7 +357,7 @@
         cannon.aim = Math.atan2(y - CAN.y, x - CAN.x);
     }
 
-    // ---------------- selection panel (modes / level grid / endless pickers) ----------------
+    // ---------------- selection panel (modes / level grid / endless pickers / paused) ----------------
     function persist() { try { if (AC.prefs) AC.prefs.set('prime-zuma', { mode: mode, diff: endlessSel.diff, field: endlessSel.fieldIdx }); } catch (e) { /* ignore */ } }
     function showPanel() { var o = $('pz-panel'); if (o) { renderPanel(); o.hidden = false; } }
     function hidePanel() { var o = $('pz-panel'); if (o) o.hidden = true; }
@@ -398,21 +365,17 @@
     function renderPanel() {
         var card = $('pz-card'); if (!card) return;
         card.innerHTML = '';
-        if (paused) {   // paused view (replaces the removed shell overlay)
+        if (paused) {
             var ph = document.createElement('div'); ph.className = 'pz-title'; ph.textContent = t('paused'); card.appendChild(ph);
             var rb = document.createElement('button'); rb.type = 'button'; rb.className = 'btn btn-primary'; rb.textContent = t('resume'); rb.addEventListener('click', function () { shell.resume(); }); card.appendChild(rb);
             return;
         }
-        if (lastResult) { var rb = document.createElement('div'); rb.className = 'pz-result' + (lastResult.win ? ' win' : ''); rb.textContent = (lastResult.win ? t('pzClear') : t('pzFailed')) + '  ·  ' + t('pzScore') + ' ' + AC.format.score(lastResult.score); card.appendChild(rb); }
+        if (lastResult) { var r = document.createElement('div'); r.className = 'pz-result' + (lastResult.win ? ' win' : ''); r.textContent = (lastResult.win ? t('pzClear') : t('pzFailed')) + '  ·  ' + t('pzScore') + ' ' + AC.format.score(lastResult.score); card.appendChild(r); }
         var title = document.createElement('div'); title.className = 'pz-title'; title.textContent = mode === 'level' ? t('pzPickLevel') : t('pzEndless'); card.appendChild(title);
         if (mode === 'level') {
             for (var w = 1; w <= 4; w++) {
                 var row = document.createElement('div'); row.className = 'pz-row';
-                for (var f = 0; f < DATA.X; f++) (function (w, f) {
-                    var b = document.createElement('button'); b.type = 'button'; b.className = 'pz-lvl'; b.textContent = w + '-' + (f + 1);
-                    b.addEventListener('click', function () { AC.audio.unlock(); startLevel(w, f); });
-                    row.appendChild(b);
-                })(w, f);
+                for (var f = 0; f < DATA.X; f++) (function (w, f) { var b = document.createElement('button'); b.type = 'button'; b.className = 'pz-lvl'; b.textContent = w + '-' + (f + 1); b.addEventListener('click', function () { AC.audio.unlock(); startLevel(w, f); }); row.appendChild(b); })(w, f);
                 card.appendChild(row);
             }
         } else {
@@ -425,7 +388,6 @@
             var go = document.createElement('button'); go.type = 'button'; go.className = 'btn btn-primary'; go.textContent = t('play'); go.addEventListener('click', function () { AC.audio.unlock(); startEndless(); }); card.appendChild(go);
         }
     }
-    // build the chosen config NOW (restartToReady makes shell.start() from 'idle' skip reset, so we must), then play
     function startLevel(w, f) { sel = { world: w, fieldIdx: f }; pending = { kind: 'level', world: w, fieldIdx: f }; lastResult = null; paused = false; newGame(); hidePanel(); shell.start(); }
     function startEndless() { pending = { kind: 'endless', diff: endlessSel.diff, fieldIdx: endlessSel.fieldIdx }; lastResult = null; paused = false; newGame(); hidePanel(); shell.start(); }
     function syncModeSeg() {
@@ -456,7 +418,7 @@
             update: update, render: render,
             reset: newGame,
             restartToReady: true,
-            onPause: function () { paused = true; showPanel(); },       // pause uses OUR panel (the shell overlay was removed)
+            onPause: function () { paused = true; showPanel(); },
             onResume: function () { paused = false; hidePanel(); },
             onGameOver: function (result) { paused = false; lastResult = { win: !!(result && result.win), score: result ? result.score : score }; showPanel(); },
         });
