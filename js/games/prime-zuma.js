@@ -84,25 +84,30 @@
         return { pts: pts, cannon: { x: CX, y: CH - 26 } };
     }
     function pathOf(pts) { var arc = [0], total = 0; for (var i = 1; i < pts.length; i++) { total += Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y); arc.push(total); } return { pts: pts, arc: arc, len: total }; }
-    function extendOut(pts) {   // continue the source end along its OWN TANGENT (smooth, no kink) until it's safely OFF-SCREEN → balls enter unseen
+    function extendOut(pts, exitAng) {   // continue the source end OFF-SCREEN so balls enter unseen. Normally along its own tangent (smooth, no kink);
         var a = pts[pts.length - 2], b = pts[pts.length - 1], dx = b.x - a.x, dy = b.y - a.y, m = Math.hypot(dx, dy) || 1, step = 8, x = b.x, y = b.y, g = 0;
         dx /= m; dy /= m;
-        while (g++ < 200 && x >= -SRC_EXT && x <= CW + SRC_EXT && y >= -SRC_EXT && y <= CH + SRC_EXT) { x += dx * step; y += dy * step; pts.push({ x: x, y: y }); }
+        var tx = dx, ty = dy, bend = 0;             // if exitAng given, gently curve from the tangent toward that fixed heading (e.g. 4 o'clock) over `bend` steps — no kink at the join
+        if (exitAng != null) { tx = Math.cos(exitAng); ty = Math.sin(exitAng); bend = 46; }
+        while (g++ < 240 && x >= -SRC_EXT && x <= CW + SRC_EXT && y >= -SRC_EXT && y <= CH + SRC_EXT) {
+            var t = bend > 0 ? Math.min(1, g / bend) : 1, ux = dx + (tx - dx) * t, uy = dy + (ty - dy) * t, um = Math.hypot(ux, uy) || 1;
+            x += ux / um * step; y += uy / um * step; pts.push({ x: x, y: y });
+        }
     }
     function buildField(field) {   // → { paths:[{pts,arc,len,under}...], cannon }
-        var c0 = cen(field), under = field.under || [];
-        function make(pts) {
+        var c0 = cen(field), under = field.under || [], can = { x: c0.x + (field.canDx || 0), y: c0.y + (field.canDy || 0) };   // cannon may be nudged independently of the field
+        function make(pts, exitAng) {
             var baseLen = pathOf(pts).len;          // length BEFORE the off-screen lead-in (under ranges are fractions of THIS)
-            extendOut(pts);
+            extendOut(pts, exitAng);
             var p = pathOf(pts);
             p.under = under.map(function (u) { return [u[0] * baseLen, u[1] * baseLen]; });   // buried (unshootable) arc ranges
             return p;
         }
-        if (field.shape === 'dual') { var ph = field.phase != null ? field.phase : -Math.PI / 4; return { paths: [make(genSpiral(field, ph).pts), make(genSpiral(field, ph + Math.PI).pts)], cannon: c0 }; }
-        if (field.shape === 'square') return { paths: [make(genSquare(field).pts)], cannon: c0 };
-        if (field.shape === 'poly') return { paths: [make(genPoly(field, field.phase || 0).pts)], cannon: c0 };
+        if (field.shape === 'dual') { var ph = field.phase != null ? field.phase : -Math.PI / 4; return { paths: [make(genSpiral(field, ph).pts, field.exitAng), make(genSpiral(field, ph + Math.PI).pts, field.exitAng2)], cannon: can }; }
+        if (field.shape === 'square') return { paths: [make(genSquare(field).pts, field.exitAng)], cannon: can };
+        if (field.shape === 'poly') return { paths: [make(genPoly(field, field.phase || 0).pts, field.exitAng)], cannon: can };
         if (field.shape === 'snake') { var g = genSnake(field); return { paths: [make(g.pts)], cannon: g.cannon }; }
-        return { paths: [make(genSpiral(field, field.phase || 0).pts)], cannon: c0 };
+        return { paths: [make(genSpiral(field, field.phase || 0).pts, field.exitAng)], cannon: can };
     }
     function buriedS(path, s) { var u = path.under; if (u) for (var i = 0; i < u.length; i++) if (s >= u[i][0] && s <= u[i][1]) return true; return false; }   // ball at arc-length s is underground → unshootable + drawn dim
     function posAt(path, s) {
