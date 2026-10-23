@@ -49,19 +49,21 @@
     var CW = 460, CH = 460, CX = CW / 2, CY = CH / 2, DPR = Math.min(window.devicePixelRatio || 1, 2);
 
     // ---------------- path shapes → polyline + cannon (one path per call; a field can build several) ----------------
+    var SRC_EXT = 160;   // how far the source end is pushed OUTWARD past the field so balls enter from off-screen (spawn unseen)
+    function cen(f) { return { x: CX + (f.ox || 0), y: CY + (f.oy || 0) }; }   // field centre (optionally nudged off canvas-centre for visual balance)
     function genSpiral(f, phase) {
         phase = phase || 0;
-        var steps = 2400, thetaMax = f.turns * 2 * Math.PI, pts = [];
-        for (var i = 0; i <= steps; i++) { var th = thetaMax * i / steps, r = f.Rin + (f.Rout - f.Rin) * (th / thetaMax); pts.push({ x: CX + r * Math.cos(th + phase), y: CY + r * Math.sin(th + phase) }); }
-        return { pts: pts, cannon: { x: CX, y: CY } };   // pts[0] = innermost = death
+        var c0 = cen(f), steps = 2400, thetaMax = f.turns * 2 * Math.PI, pts = [];
+        for (var i = 0; i <= steps; i++) { var th = thetaMax * i / steps, r = f.Rin + (f.Rout - f.Rin) * (th / thetaMax); pts.push({ x: c0.x + r * Math.cos(th + phase), y: c0.y + r * Math.sin(th + phase) }); }
+        return { pts: pts, cannon: c0 };   // pts[0] = innermost = death
     }
     function genSquare(f) {   // smooth rounded square (squircle, exponent n) — no hard 90° corners
-        var steps = 2600, thetaMax = f.turns * 2 * Math.PI, e = 2 / (f.n || 3.0), pts = [];
+        var c0 = cen(f), steps = 2600, thetaMax = f.turns * 2 * Math.PI, e = 2 / (f.n || 3.0), pts = [];
         for (var i = 0; i <= steps; i++) {
             var th = thetaMax * i / steps, r = f.Rin + (f.Rout - f.Rin) * (th / thetaMax), c = Math.cos(th), s = Math.sin(th);
-            pts.push({ x: CX + r * (c < 0 ? -1 : 1) * Math.pow(Math.abs(c), e), y: CY + r * (s < 0 ? -1 : 1) * Math.pow(Math.abs(s), e) });
+            pts.push({ x: c0.x + r * (c < 0 ? -1 : 1) * Math.pow(Math.abs(c), e), y: c0.y + r * (s < 0 ? -1 : 1) * Math.pow(Math.abs(s), e) });
         }
-        return { pts: pts, cannon: { x: CX, y: CY } };
+        return { pts: pts, cannon: c0 };
     }
     function genSnake(f) {   // serpentine over a grid, rows joined by rounded U-turns; stops ~60% down, cannon at bottom
         var rows = f.rows || 4, m = 34, yTop = 48, yBot = CH * 0.60, gap = (yBot - yTop) / (rows - 1), R = gap / 2;
@@ -76,10 +78,22 @@
         return { pts: pts, cannon: { x: CX, y: CH - 26 } };
     }
     function pathOf(pts) { var arc = [0], total = 0; for (var i = 1; i < pts.length; i++) { total += Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y); arc.push(total); } return { pts: pts, arc: arc, len: total }; }
+    function extendOut(pts, dir) {   // append a straight run past the source end so it leaves the screen
+        var src = pts[pts.length - 1], steps = Math.max(2, Math.round(SRC_EXT / 8));
+        for (var i = 1; i <= steps; i++) pts.push({ x: src.x + dir.x * SRC_EXT * i / steps, y: src.y + dir.y * SRC_EXT * i / steps });
+    }
     function buildField(field) {   // → { paths:[{pts,arc,len}...], cannon }
-        if (field.shape === 'dual') { var ph = field.phase != null ? field.phase : -Math.PI / 4; return { paths: [pathOf(genSpiral(field, ph).pts), pathOf(genSpiral(field, ph + Math.PI).pts)], cannon: { x: CX, y: CY } }; }   // sources at top-right / bottom-left (off the edges)
-        var raw = field.shape === 'square' ? genSquare(field) : field.shape === 'snake' ? genSnake(field) : genSpiral(field, 0);
-        return { paths: [pathOf(raw.pts)], cannon: raw.cannon };
+        var c0 = cen(field);
+        function ext(pts, snake) {   // push the source end off-screen (radially outward, or straight up for a snake) so balls enter unseen
+            var src = pts[pts.length - 1], dir;
+            if (snake) dir = { x: 0, y: -1 };
+            else { var dx = src.x - c0.x, dy = src.y - c0.y, m = Math.hypot(dx, dy) || 1; dir = { x: dx / m, y: dy / m }; }
+            extendOut(pts, dir); return pathOf(pts);
+        }
+        if (field.shape === 'dual') { var ph = field.phase != null ? field.phase : -Math.PI / 4; return { paths: [ext(genSpiral(field, ph).pts), ext(genSpiral(field, ph + Math.PI).pts)], cannon: c0 }; }   // sources at top-right / bottom-left
+        if (field.shape === 'square') return { paths: [ext(genSquare(field).pts)], cannon: c0 };
+        if (field.shape === 'snake') { var g = genSnake(field); return { paths: [ext(g.pts, true)], cannon: g.cannon }; }
+        return { paths: [ext(genSpiral(field, field.phase || 0).pts)], cannon: c0 };
     }
     function posAt(path, s) {
         s = s < 0 ? 0 : s > path.len ? path.len : s;
