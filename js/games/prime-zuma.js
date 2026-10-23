@@ -145,7 +145,7 @@
 
     // ---------------- state ----------------
     var canvas, ctx, shell, queues, shots, cannon, score, over, fx, frame, combo, lastElimFrame, R;
-    var mode = 'level', sel = { world: 1, fieldIdx: 0 }, endlessSel = { diff: 'easy', fieldIdx: 0 }, pending = null, lastResult = null;
+    var mode = 'level', sel = { world: 1, fieldIdx: 0 }, endlessSel = { diff: 'easy', fieldIdx: 0 }, pending = null, lastResult = null, paused = false;
     function makeBall(v, x, y) { return { v: v, rx: x, ry: y, pop: 0 }; }   // v=value · rx/ry=rendered pos · pop=divide pulse
 
     function $(id) { return document.getElementById(id); }
@@ -391,6 +391,11 @@
     function renderPanel() {
         var card = $('pz-card'); if (!card) return;
         card.innerHTML = '';
+        if (paused) {   // paused view (replaces the removed shell overlay)
+            var ph = document.createElement('div'); ph.className = 'pz-title'; ph.textContent = t('paused'); card.appendChild(ph);
+            var rb = document.createElement('button'); rb.type = 'button'; rb.className = 'btn btn-primary'; rb.textContent = t('resume'); rb.addEventListener('click', function () { shell.resume(); }); card.appendChild(rb);
+            return;
+        }
         if (lastResult) { var rb = document.createElement('div'); rb.className = 'pz-result' + (lastResult.win ? ' win' : ''); rb.textContent = (lastResult.win ? t('pzClear') : t('pzFailed')) + '  ·  ' + t('pzScore') + ' ' + AC.format.score(lastResult.score); card.appendChild(rb); }
         var title = document.createElement('div'); title.className = 'pz-title'; title.textContent = mode === 'level' ? t('pzPickLevel') : t('pzEndless'); card.appendChild(title);
         if (mode === 'level') {
@@ -414,8 +419,8 @@
         }
     }
     // build the chosen config NOW (restartToReady makes shell.start() from 'idle' skip reset, so we must), then play
-    function startLevel(w, f) { sel = { world: w, fieldIdx: f }; pending = { kind: 'level', world: w, fieldIdx: f }; lastResult = null; newGame(); hidePanel(); shell.start(); }
-    function startEndless() { pending = { kind: 'endless', diff: endlessSel.diff, fieldIdx: endlessSel.fieldIdx }; lastResult = null; newGame(); hidePanel(); shell.start(); }
+    function startLevel(w, f) { sel = { world: w, fieldIdx: f }; pending = { kind: 'level', world: w, fieldIdx: f }; lastResult = null; paused = false; newGame(); hidePanel(); shell.start(); }
+    function startEndless() { pending = { kind: 'endless', diff: endlessSel.diff, fieldIdx: endlessSel.fieldIdx }; lastResult = null; paused = false; newGame(); hidePanel(); shell.start(); }
     function syncModeSeg() {
         var seg = $('mode-seg'); if (!seg) return;
         var bs = seg.querySelectorAll('button[data-mode]');
@@ -444,18 +449,15 @@
             update: update, render: render,
             reset: newGame,
             restartToReady: true,
-            canPause: function () { return false; },     // no pause: the shell overlay it would use is hidden here
-            onGameOver: function (result) { lastResult = { win: !!(result && result.win), score: result ? result.score : score }; showPanel(); },
-            overlayContent: function (state) {
-                if (state === 'idle') return { badge: 'coins', title: t('pzReady'), message: t('pzIntro'), button: t('play'), hint: t('pzStartHintHtml') };
-                return { badge: 'coins', title: t('pzName'), message: '', button: t('restart') };
-            },
+            onPause: function () { paused = true; showPanel(); },       // pause uses OUR panel (the shell overlay was removed)
+            onResume: function () { paused = false; hidePanel(); },
+            onGameOver: function (result) { paused = false; lastResult = { win: !!(result && result.win), score: result ? result.score : score }; showPanel(); },
         });
 
         var seg = $('mode-seg');
         if (seg) seg.addEventListener('click', function (e) { var b = e.target.closest ? e.target.closest('button[data-mode]') : null; if (b) { AC.audio.unlock(); mode = b.getAttribute('data-mode'); persist(); syncModeSeg(); if (!shell.isPlaying()) showPanel(); } });
         syncModeSeg();
-        var rb = $('restart-btn'); if (rb) rb.addEventListener('click', function () { setTimeout(function () { if (!shell.isPlaying()) showPanel(); }, 0); });
+        var rb = $('restart-btn'); if (rb) rb.addEventListener('click', function () { paused = false; setTimeout(function () { if (!shell.isPlaying()) showPanel(); }, 0); });
 
         AC.i18n.subscribe(function () { if (!shell.isPlaying()) { renderPanel(); shell.refreshOverlay && shell.refreshOverlay(); } });
         pending = mode === 'level' ? { kind: 'level', world: 1, fieldIdx: 0 } : { kind: 'endless', diff: endlessSel.diff, fieldIdx: endlessSel.fieldIdx };
