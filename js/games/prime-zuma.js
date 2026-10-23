@@ -401,6 +401,11 @@
 
     // ---------------- render ----------------
     function hue(v) { return (v * 47) % 360; }
+    function hslLum(h, s, l) {   // perceived luminance (0..1) of an hsl colour → lets us pick black vs white text for best contrast on each ball
+        s /= 100; l /= 100; var c = (1 - Math.abs(2 * l - 1)) * s, hh = (((h % 360) + 360) % 360) / 60, x = c * (1 - Math.abs(hh % 2 - 1)), m = l - c / 2, r = 0, g = 0, b = 0;
+        if (hh < 1) { r = c; g = x; } else if (hh < 2) { r = x; g = c; } else if (hh < 3) { g = c; b = x; } else if (hh < 4) { g = x; b = c; } else if (hh < 5) { r = x; b = c; } else { r = c; b = x; }
+        return 0.299 * (r + m) + 0.587 * (g + m) + 0.114 * (b + m);
+    }
     function ballSheen(x, y, r) {   // gentle sphere shading: a small top-left shine + a faint shade at the far edge (kept light so digits stay readable)
         var gg = ctx.createRadialGradient(x - r * 0.34, y - r * 0.38, r * 0.1, x, y, r);
         gg.addColorStop(0, 'rgba(255,255,255,0.22)'); gg.addColorStop(0.55, 'rgba(255,255,255,0.03)'); gg.addColorStop(1, 'rgba(0,0,0,0.12)');
@@ -413,11 +418,11 @@
             ctx.save(); ctx.shadowColor = 'hsl(' + h + ',95%,62%)'; ctx.shadowBlur = 11;
             ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fillStyle = 'hsl(' + h + ',72%,58%)'; ctx.fill(); ctx.restore();
             ctx.lineWidth = 1.5; ctx.strokeStyle = 'hsl(' + h + ',100%,84%)'; ctx.stroke();
-            textCol = '#0a1322';
+            textCol = hslLum(h, 72, 58) > 0.55 ? '#0a1322' : '#ffffff';   // dark text on light fills (yellow/green), white on dark fills (blue/purple)
         } else {
             ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fillStyle = CFG.compositeColor; ctx.fill();
             ctx.lineWidth = 1.5; ctx.strokeStyle = 'rgba(255,255,255,0.3)'; ctx.stroke();
-            textCol = '#e8edf5';
+            textCol = '#ffffff';
         }
         ballSheen(x, y, r);
         ctx.fillStyle = textCol;
@@ -436,14 +441,14 @@
     // thin material road: dark rim + slate body + lighter centre sheen + accent rail. ALL layers OPAQUE, so an overdraw lands on identical pixels (no brighten/darken). Bridge decks use BUTT caps so they're cut cleanly — never a round head.
     var RIM_W = CFG.rBall * 2 + 9, BODY_W = CFG.rBall * 2 + 2, SHEEN_W = CFG.rBall * 2 - 7;
     var RIM = '#0e131c', BODY = '#2a3340', SHEEN = '#3b4553', BODY_UNDER = '#161c25';
-    function roadLayers(stroke) { stroke(RIM_W, RIM); stroke(BODY_W, BODY); stroke(SHEEN_W, SHEEN); stroke(3, R.field.accent); }
-    function roadStroke(path) {   // the whole continuous road, drawn once as the base
-        roadLayers(function (w, st) { strokeAll(path, w, st, 1); });
+    function roadLayers(stroke, accent) { stroke(RIM_W, RIM); stroke(BODY_W, BODY); stroke(SHEEN_W, SHEEN); stroke(3, accent); }
+    function roadStroke(path, accent) {   // the whole continuous road, drawn once as the base
+        roadLayers(function (w, st) { strokeAll(path, w, st, 1); }, accent);
     }
-    function tintUnderground(path, s0, s1) {   // the UNDERGROUND stretch keeps a clear colour difference (darker body) so you can tell it's below-grade; the ball over it is drawn semi-transparent. BUTT caps = a clean "tunnel mouth".
+    function tintUnderground(path, s0, s1, accent) {   // the UNDERGROUND stretch keeps a clear colour difference (darker body) so you can tell it's below-grade; the ball over it is drawn semi-transparent. BUTT caps = a clean "tunnel mouth".
         ctx.save(); ctx.lineCap = 'butt'; ctx.lineJoin = 'round';
         ctx.strokeStyle = BODY_UNDER; ctx.lineWidth = BODY_W; strokeArcRange(path, s0, s1);
-        ctx.strokeStyle = R.field.accent; ctx.lineWidth = 3; strokeArcRange(path, s0, s1);
+        ctx.strokeStyle = accent; ctx.lineWidth = 3; strokeArcRange(path, s0, s1);
         ctx.restore();
     }
     function otherPassArc(path, P, cu) {   // at a self-crossing, find the OTHER pass's arc-length (the strand that shares point P but is far away in arc from cu)
@@ -451,10 +456,10 @@
         for (var p = 0; p < path.pts.length; p++) { if (Math.abs(path.arc[p] - cu) < CFG.D * 2) continue; var dx = path.pts[p].x - P.x, dy = path.pts[p].y - P.y, d = dx * dx + dy * dy; if (d < bd) { bd = d; best = path.arc[p]; } }
         return bd < CFG.rBall * CFG.rBall ? best : -1;
     }
-    function drawBridge(path, co, wb) {   // the UPPER strand laid across the crossing as a deck: EXACT same opaque layers/widths as the base road (⇒ invisible overdraw on the upper strand) with BUTT (cleanly-cut) ends. Only its coverage of the lower strand + the semi-transparent ball shows = the overpass; the ball is occluded exactly at the true road width (no faked widening).
+    function drawBridge(path, co, wb, accent) {   // the UPPER strand laid across the crossing as a deck: EXACT same opaque layers/widths as the base road (⇒ invisible overdraw on the upper strand) with BUTT (cleanly-cut) ends. Only its coverage of the lower strand + the semi-transparent ball shows = the overpass; the ball is occluded exactly at the true road width (no faked widening).
         var s0 = co - wb, s1 = co + wb;
         ctx.save(); ctx.lineCap = 'butt'; ctx.lineJoin = 'round';
-        roadLayers(function (w, st) { ctx.strokeStyle = st; ctx.lineWidth = w; strokeArcRange(path, s0, s1); });
+        roadLayers(function (w, st) { ctx.strokeStyle = st; ctx.lineWidth = w; strokeArcRange(path, s0, s1); }, accent);
         ctx.restore();
     }
     var lastT = 0;
@@ -464,11 +469,11 @@
         var ease = 1 - Math.exp(-dt * CFG.smooth), pr = 7 + Math.sin(now * 4) * 1.5, L, qi, j, p, pt;
         ctx.fillStyle = R.field.bg; ctx.fillRect(0, 0, CW, CH);
         for (L = 0; L < lanes.length; L++) {
-            var lane = lanes[L], path = lane.path, qs = lane.qs, hasU = path.under && path.under.length;
-            roadStroke(path);                                           // (1) continuous base road
-            if (hasU) for (var ut = 0; ut < path.under.length; ut++) tintUnderground(path, path.under[ut][0], path.under[ut][1]);   // (2) darken the underground stretches (clear colour difference)
+            var lane = lanes[L], path = lane.path, qs = lane.qs, hasU = path.under && path.under.length, accent = (R.field.accent2 && L > 0) ? R.field.accent2 : R.field.accent;   // a multi-lane field (Twin) can tint its arms differently
+            roadStroke(path, accent);                                   // (1) continuous base road
+            if (hasU) for (var ut = 0; ut < path.under.length; ut++) tintUnderground(path, path.under[ut][0], path.under[ut][1], accent);   // (2) darken the underground stretches (clear colour difference)
             for (qi = 0; qi < qs.length; qi++) { var q = qs[qi]; for (j = 0; j < q.vals.length; j++) { var b = q.vals[j], sB = q.head + j * CFG.D, lp = posAt(path, sB); b.rx += (lp.x - b.rx) * ease; b.ry += (lp.y - b.ry) * ease; if (buriedS(path, sB)) { ctx.globalAlpha = 0.42; drawBall(b.rx, b.ry, b.v, CFG.rBall * (1 + (b.pop || 0) * 0.35)); ctx.globalAlpha = 1; } } }   // (3) ease every ball; underground ones drawn semi-transparent (not hidden)
-            if (hasU) for (var ub = 0; ub < path.under.length; ub++) { var b0 = path.under[ub][0], b1 = path.under[ub][1]; if (b1 - b0 <= CFG.D * 3) { var cu = (b0 + b1) / 2, P = posAt(path, cu), co = otherPassArc(path, P, cu); if (co >= 0) drawBridge(path, co, CFG.D * 1.0); } }   // (4) crossings: deck the UPPER strand over → it partially covers the semi-transparent ball (tunnels get no deck, so their balls stay visible-but-dim)
+            if (hasU) for (var ub = 0; ub < path.under.length; ub++) { var b0 = path.under[ub][0], b1 = path.under[ub][1]; if (b1 - b0 <= CFG.D * 3) { var cu = (b0 + b1) / 2, P = posAt(path, cu), co = otherPassArc(path, P, cu); if (co >= 0) drawBridge(path, co, CFG.D * 1.0, accent); } }   // (4) crossings: deck the UPPER strand over → it partially covers the semi-transparent ball (tunnels get no deck, so their balls stay visible-but-dim)
             var d0 = posAt(path, 0); ctx.fillStyle = 'rgba(239,68,68,0.9)'; ctx.beginPath(); ctx.arc(d0.x, d0.y, pr, 0, 7); ctx.fill();   // (5) death core
             for (qi = 0; qi < qs.length; qi++) { var qB = qs[qi]; for (j = 0; j < qB.vals.length; j++) { var bb = qB.vals[j], sBB = qB.head + j * CFG.D; if (!buriedS(path, sBB)) drawBall(bb.rx, bb.ry, bb.v, CFG.rBall * (1 + (bb.pop || 0) * 0.35)); } }   // (6) surface balls — top
         }
@@ -478,21 +483,14 @@
             else { ctx.fillStyle = 'hsl(' + f.h + ',90%,66%)'; ctx.beginPath(); ctx.arc(f.x, f.y, 1 + 3 * al, 0, 7); ctx.fill(); }
         }
         ctx.globalAlpha = 1;
-        for (var si = 0; si < shots.length; si++) { var sh = shots[si]; drawBall(sh.x, sh.y, sh.v, CFG.rBall * 0.9); }
+        for (var si = 0; si < shots.length; si++) { var sh = shots[si]; drawBall(sh.x, sh.y, sh.v, CFG.rBall); }   // shot/loaded/next balls all use the same size as the queued balls
         ctx.save(); ctx.translate(CAN.x, CAN.y); ctx.rotate(cannon.aim); ctx.fillStyle = '#334155'; ctx.fillRect(0, -5, 30, 10); ctx.restore();
-        drawChip(CAN.x + Math.cos(cannon.aim) * 30, CAN.y + Math.sin(cannon.aim) * 30, cannon.cur, 12);
-        ctx.beginPath(); ctx.arc(CAN.x, CAN.y, 17, 0, 7); ctx.fillStyle = '#1e293b'; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = '#64748b'; ctx.stroke();
-        drawChip(CAN.x, CAN.y, cannon.next, 10);
+        drawChip(CAN.x + Math.cos(cannon.aim) * 30, CAN.y + Math.sin(cannon.aim) * 30, cannon.cur, CFG.rBall);   // loaded ball = full size
+        ctx.beginPath(); ctx.arc(CAN.x, CAN.y, CFG.rBall * 0.8 + 5, 0, 7); ctx.fillStyle = '#1e293b'; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = '#64748b'; ctx.stroke();
+        drawChip(CAN.x, CAN.y, cannon.next, CFG.rBall * 0.8);   // next ball a bit smaller → reads as a preview
     }
-    function drawChip(x, y, v, r) {   // cannon's loaded / next ball — same look as a queued prime ball (thin tinted rim + sheen), not a thick white ring
-        var h = hue(v);
-        ctx.save(); ctx.shadowColor = 'hsl(' + h + ',95%,62%)'; ctx.shadowBlur = 9;
-        ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fillStyle = 'hsl(' + h + ',72%,58%)'; ctx.fill(); ctx.restore();
-        ctx.lineWidth = 1.5; ctx.strokeStyle = 'hsl(' + h + ',100%,84%)'; ctx.stroke();
-        ballSheen(x, y, r);
-        ctx.fillStyle = '#0a1322'; ctx.font = 'bold ' + Math.round(r * 1.15) + 'px system-ui,sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(String(v), x, y + 0.5);
-    }
-    function syncHud() { var sc = $('score'); if (sc) sc.textContent = String(score); }
+    function drawChip(x, y, v, r) { drawBall(x, y, v, r); }   // cannon's loaded / next ball — identical to a queued ball
+    function syncHud() { var sc = $('score'); if (sc) sc.textContent = AC.format.score(score); }
 
     // ---------------- input ----------------
     function aimTo(clientX, clientY) {
