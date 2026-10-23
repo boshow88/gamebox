@@ -51,18 +51,24 @@
     // ---------------- path shapes → polyline + cannon (one path per call; a field can build several) ----------------
     var SRC_EXT = 44;    // how far the source end must sit BEYOND the screen edge so the spawn point is safely out of view
     function cen(f) { return { x: CX + (f.ox || 0), y: CY + (f.oy || 0) }; }   // field centre (optionally nudged off canvas-centre for visual balance)
-    function genSpiral(f, phase) {
+    function genSpiral(f, phase) {   // mirror:true flips left↔right (⇒ reverses the winding handedness, CCW↔CW)
         phase = phase || 0;
-        var c0 = cen(f), steps = 2400, thetaMax = f.turns * 2 * Math.PI, pts = [];
-        for (var i = 0; i <= steps; i++) { var th = thetaMax * i / steps, r = f.Rin + (f.Rout - f.Rin) * (th / thetaMax); pts.push({ x: c0.x + r * Math.cos(th + phase), y: c0.y + r * Math.sin(th + phase) }); }
+        var c0 = cen(f), mir = f.mirror ? -1 : 1, steps = 2400, thetaMax = f.turns * 2 * Math.PI, pts = [];
+        for (var i = 0; i <= steps; i++) { var th = thetaMax * i / steps, r = f.Rin + (f.Rout - f.Rin) * (th / thetaMax); pts.push({ x: c0.x + mir * r * Math.cos(th + phase), y: c0.y + r * Math.sin(th + phase) }); }
         return { pts: pts, cannon: c0 };   // pts[0] = innermost = death
     }
     function genSquare(f) {   // smooth rounded square (squircle, exponent n) — no hard 90° corners
-        var c0 = cen(f), steps = 2600, thetaMax = f.turns * 2 * Math.PI, e = 2 / (f.n || 3.0), pts = [];
+        var c0 = cen(f), mir = f.mirror ? -1 : 1, steps = 2600, thetaMax = f.turns * 2 * Math.PI, e = 2 / (f.n || 3.0), pts = [];
         for (var i = 0; i <= steps; i++) {
             var th = thetaMax * i / steps, r = f.Rin + (f.Rout - f.Rin) * (th / thetaMax), c = Math.cos(th), s = Math.sin(th);
-            pts.push({ x: c0.x + r * (c < 0 ? -1 : 1) * Math.pow(Math.abs(c), e), y: c0.y + r * (s < 0 ? -1 : 1) * Math.pow(Math.abs(s), e) });
+            pts.push({ x: c0.x + mir * r * (c < 0 ? -1 : 1) * Math.pow(Math.abs(c), e), y: c0.y + r * (s < 0 ? -1 : 1) * Math.pow(Math.abs(s), e) });
         }
+        return { pts: pts, cannon: c0 };
+    }
+    function genPoly(f, phase) {   // a smooth n-sided (rounded) spiral via an n-fold radius modulation; sides:3 → triangle style
+        phase = phase || 0;
+        var c0 = cen(f), mir = f.mirror ? -1 : 1, sides = f.sides || 3, amp = f.polyAmp != null ? f.polyAmp : 0.17, steps = 2600, thetaMax = f.turns * 2 * Math.PI, pts = [];
+        for (var i = 0; i <= steps; i++) { var th = thetaMax * i / steps, rb = f.Rin + (f.Rout - f.Rin) * (th / thetaMax), r = rb * (1 + amp * Math.cos(sides * (th + phase))); pts.push({ x: c0.x + mir * r * Math.cos(th + phase), y: c0.y + r * Math.sin(th + phase) }); }
         return { pts: pts, cannon: c0 };
     }
     function genSnake(f) {   // serpentine over a grid, rows joined by rounded U-turns; stops ~60% down, cannon at bottom
@@ -94,6 +100,7 @@
         }
         if (field.shape === 'dual') { var ph = field.phase != null ? field.phase : -Math.PI / 4; return { paths: [make(genSpiral(field, ph).pts), make(genSpiral(field, ph + Math.PI).pts)], cannon: c0 }; }
         if (field.shape === 'square') return { paths: [make(genSquare(field).pts)], cannon: c0 };
+        if (field.shape === 'poly') return { paths: [make(genPoly(field, field.phase || 0).pts)], cannon: c0 };
         if (field.shape === 'snake') { var g = genSnake(field); return { paths: [make(g.pts)], cannon: g.cannon }; }
         return { paths: [make(genSpiral(field, field.phase || 0).pts)], cannon: c0 };
     }

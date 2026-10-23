@@ -18,10 +18,10 @@ window.PrimeZumaData = (function () {
     // Rin is kept large so the inner (death) end clears the centre cannon + its muzzle ball. 'square' is a smooth
     // ROUNDED square (squircle, exponent n) — no hard 90° corners; 'snake' is a smooth sine weave (amp/waves).
     var FIELDS = [
-        { id: 'vortex',  name: 'Vortex',  shape: 'spiral', turns: 3, Rin: 70, Rout: 214, phase: -0.7854, ox: -16, oy: 16, bg: '#140b1e', accent: '#a78bfa' },
-        { id: 'box',     name: 'Box',     shape: 'square', turns: 3, Rin: 70, Rout: 200, n: 3.0, ox: -16, oy: 16,         bg: '#0b1120', accent: '#38bdf8' },
+        { id: 'vortex',  name: 'Vortex',  shape: 'spiral', turns: 3, Rin: 70, Rout: 214, phase: -0.7854, ox: 4, oy: 16, bg: '#140b1e', accent: '#a78bfa' },
+        { id: 'box',     name: 'Box',     shape: 'square', turns: 3, Rin: 70, Rout: 200, n: 3.0, ox: -16, oy: 16, mirror: true, bg: '#0b1120', accent: '#38bdf8' },
         { id: 'serpent', name: 'Serpent', shape: 'snake',  rows: 4,                              bg: '#0a1410', accent: '#34d399' },
-        { id: 'coil',    name: 'Coil',    shape: 'spiral', turns: 3, Rin: 74, Rout: 212,         bg: '#0a1322', accent: '#f59e0b' },
+        { id: 'tri',     name: 'Tri',     shape: 'poly',   sides: 3, polyAmp: 0.17, turns: 3, Rin: 70, Rout: 190, bg: '#0a1322', accent: '#f59e0b' },
         { id: 'twin',    name: 'Twin',    shape: 'dual',   turns: 2, Rin: 70, Rout: 214,         bg: '#0a1322', accent: '#f472b6' },
         { id: 'tunnel',  name: 'Tunnel',  shape: 'snake',  rows: 5, under: [[0.42, 0.60]],        bg: '#0c0a14', accent: '#f59e0b' },
     ];
