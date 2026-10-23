@@ -107,6 +107,8 @@
     }
     function spawnValue() {   // weighted pick: bias^Ω (bias<1 favours simple, 1 = uniform, >1 complex)
         var list = R.candidates, bias = R.bias, sum = 0, i, wt;
+        if (!list || !list.length) return 2;   // safety: never read an empty list
+
         for (i = 0; i < list.length; i++) sum += Math.pow(bias, list[i].w);
         var r = rng() * sum;
         for (i = 0; i < list.length; i++) { wt = Math.pow(bias, list[i].w); if ((r -= wt) <= 0) return list[i].v; }
@@ -143,7 +145,7 @@
         }
         PATH = buildPath(field);
         frame = 0; combo = 0; lastElimFrame = -999;
-        if (R.isLevel) rebuildCandidates(); else updateProgression();
+        rebuildCandidates();                                      // always build the initial candidate set (endless then ramps it in update)
         shots = []; fx = []; score = 0; over = false;
         var seedN = Math.min(CFG.startLen, R.quota), head = PATH.len - seedN * CFG.D, vals = [];
         for (var i = 0; i < seedN; i++) { var pos = posAt(head + i * CFG.D); vals.push(makeBall(spawnValue(), pos.x, pos.y)); }
