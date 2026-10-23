@@ -42,12 +42,12 @@
         {
             id: 'colour-ladder', theme: 'arcade', icon: 'ladder', color: '#f472b6',
             href: './games/colour-ladder.html',
-            tags: ['action', 'single'],
+            tags: ['action', 'single'], modes: ['easy', 'normal', 'hard'],
         },
         {
             id: 'bullet-storm', theme: 'arcade', icon: 'target', color: '#a78bfa',
             href: './games/bullet-storm.html',
-            tags: ['action', 'single'],
+            tags: ['action', 'single'], modes: ['easy', 'normal', 'hard'],
         },
         {
             id: 'beam', theme: 'arcade', icon: 'zap', color: '#22d3ee',
@@ -57,7 +57,7 @@
         {
             id: 'prime-zuma', theme: 'arcade', icon: 'coins', color: '#f59e0b',
             href: './games/prime-zuma.html',
-            tags: ['action', 'single'], wip: true,
+            tags: ['action', 'single'], wip: true, modes: ['easy', 'normal', 'hard'],
         },
         {
             id: 'patches', theme: 'puzzle', icon: 'layout-template-ccw', color: '#e5484d',
@@ -706,10 +706,12 @@
         });
         return lines;
     }
-    function scoreLines(P, id) {
-        var d = rdLocal(P + ':scores:' + id), best = d && d.best, lines = [];
+    function scoreLines(P, g) {
+        var d = rdLocal(P + ':scores:' + g.id), best = d && d.best, lines = [];
         if (!best) return lines;
-        Object.keys(best).filter(function (m) { return typeof best[m] === 'number'; }).sort(byDiff).forEach(function (m) {
+        var keys = Object.keys(best).filter(function (m) { return typeof best[m] === 'number'; });
+        if (g.modes) keys = keys.filter(function (m) { return g.modes.indexOf(m) !== -1; });   // hide renamed-away / stale modes
+        keys.sort(byDiff).forEach(function (m) {
             lines.push({ k: (m === 'default') ? t('recordScore') : diffLabel(m), v: best[m].toLocaleString() });
         });
         return lines;
@@ -719,7 +721,7 @@
         GAMES.forEach(function (g) {
             var lines = (g.id === 'beam') ? beamLines(P)
                 : (g.id === 'rune-stones') ? runeLines(P)
-                : scoreLines(P, g.id);
+                : scoreLines(P, g);
             if (lines.length) blocks.push({ key: g.id, lines: lines });
         });
         return blocks;
