@@ -78,21 +78,17 @@
         return { pts: pts, cannon: { x: CX, y: CH - 26 } };
     }
     function pathOf(pts) { var arc = [0], total = 0; for (var i = 1; i < pts.length; i++) { total += Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y); arc.push(total); } return { pts: pts, arc: arc, len: total }; }
-    function extendOut(pts, dir) {   // append a straight run past the source end so it leaves the screen
-        var src = pts[pts.length - 1], steps = Math.max(2, Math.round(SRC_EXT / 8));
-        for (var i = 1; i <= steps; i++) pts.push({ x: src.x + dir.x * SRC_EXT * i / steps, y: src.y + dir.y * SRC_EXT * i / steps });
+    function extendOut(pts) {   // continue the source end along its OWN TANGENT (smooth, no kink) off-screen → balls enter unseen along the natural direction
+        var a = pts[pts.length - 2], b = pts[pts.length - 1], dx = b.x - a.x, dy = b.y - a.y, m = Math.hypot(dx, dy) || 1;
+        var steps = Math.max(2, Math.round(SRC_EXT / 8));
+        for (var i = 1; i <= steps; i++) pts.push({ x: b.x + (dx / m) * SRC_EXT * i / steps, y: b.y + (dy / m) * SRC_EXT * i / steps });
     }
     function buildField(field) {   // → { paths:[{pts,arc,len}...], cannon }
         var c0 = cen(field);
-        function ext(pts, snake) {   // push the source end off-screen (radially outward, or straight up for a snake) so balls enter unseen
-            var src = pts[pts.length - 1], dir;
-            if (snake) dir = { x: 0, y: -1 };
-            else { var dx = src.x - c0.x, dy = src.y - c0.y, m = Math.hypot(dx, dy) || 1; dir = { x: dx / m, y: dy / m }; }
-            extendOut(pts, dir); return pathOf(pts);
-        }
-        if (field.shape === 'dual') { var ph = field.phase != null ? field.phase : -Math.PI / 4; return { paths: [ext(genSpiral(field, ph).pts), ext(genSpiral(field, ph + Math.PI).pts)], cannon: c0 }; }   // sources at top-right / bottom-left
+        function ext(pts) { extendOut(pts); return pathOf(pts); }
+        if (field.shape === 'dual') { var ph = field.phase != null ? field.phase : -Math.PI / 4; return { paths: [ext(genSpiral(field, ph).pts), ext(genSpiral(field, ph + Math.PI).pts)], cannon: c0 }; }
         if (field.shape === 'square') return { paths: [ext(genSquare(field).pts)], cannon: c0 };
-        if (field.shape === 'snake') { var g = genSnake(field); return { paths: [ext(g.pts, true)], cannon: g.cannon }; }
+        if (field.shape === 'snake') { var g = genSnake(field); return { paths: [ext(g.pts)], cannon: g.cannon }; }
         return { paths: [ext(genSpiral(field, field.phase || 0).pts)], cannon: c0 };
     }
     function posAt(path, s) {
