@@ -13,6 +13,8 @@
         .unlock-toolbar { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
         .unlock-toolbar .toolbar-action { grid-column: 1 / -1; }
         .unlock-toolbar .level-readout { grid-column: 1 / -1; }
+        .unlock-toolbar .mode-settings { grid-column: 1 / -1; }
+        #mode-seg, #size-seg { align-self: flex-start; width: max-content; max-width: 100%; }
         #size-seg button { padding: 6px 8px; }
         .puzzle-code { font-size: 0.72rem; color: var(--text-muted); font-variant-numeric: tabular-nums; margin-left: auto; }
         .status-row { flex-wrap: wrap; gap: 8px; }
@@ -38,6 +40,39 @@
         .piece-btn.hinted { border-color: var(--game-color); background: color-mix(in srgb, var(--game-color) 10%, white); }
         .unlock-feedback { min-height: 2.8em; padding: 12px 4px 0; text-align: center; font-size: 0.85rem; color: var(--text-secondary); }
         .unlock-feedback.blocked { color: var(--error, #c54040); }
+        .match-waiting { position: absolute; top: 62px; right: 12px; bottom: 96px; width: clamp(64px, 22%, 82px); display: flex; flex-direction: column; align-items: center; gap: 6px; pointer-events: none; }
+        #match-used { font-size: 0.68rem; line-height: 1.2; color: var(--text-muted); text-align: center; }
+        .match-slots { display: grid; grid-template-rows: repeat(5, minmax(22px, 1fr)); flex: 0 1 216px; gap: 4px; width: 100%; min-height: 140px; padding: 6px 5px; border: 1px solid #ccd8d1; border-radius: 40px; background: #edf2ed; box-shadow: inset 0 0 0 3px #fafcf8, inset 0 0 0 4px #dce5dc, 0 2px 3px #556f5c0a; pointer-events: auto; touch-action: manipulation; }
+        .match-place { position: relative; display: flex; align-items: center; justify-content: center; min-width: 0; min-height: 0; border-radius: 50%; background: #dfe8df70; box-shadow: inset 0 1px 2px #66806b14; }
+        .match-place.occupied { background: #ffffff70; }
+        .match-empty { font-size: 0.64rem; color: #8a9b8b; opacity: 0.65; }
+        .match-slot { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; width: 100%; height: 100%; padding: 0; border: 0; border-radius: 50%; background: transparent; font-family: inherit; font-size: 0.62rem; color: var(--text-secondary); cursor: pointer; touch-action: manipulation; pointer-events: auto; }
+        .match-slot:hover:not(:disabled) { background: color-mix(in srgb, var(--piece-color) 10%, transparent); }
+        .match-slot:focus-visible { outline: 2px solid var(--game-color); outline-offset: 1px; }
+        .match-slot.returning, .match-slot.feeding { opacity: 0.25; }
+        .match-slot.docking-target { position: absolute; inset: 0; opacity: 0; pointer-events: none; }
+        .match-place.arriving .match-empty { visibility: hidden; }
+        /* custom: miniature loop and white cap, identifying each waiting piece. */
+        .match-link { position: relative; display: block; width: clamp(26px, var(--link-length), 42px); height: 10px; border: 2px solid var(--piece-color); border-radius: 7px; }
+        .match-link::after { content: ''; position: absolute; right: -5px; top: 1px; width: 6px; height: 6px; border: 1px solid var(--piece-color); border-radius: 50%; background: white; }
+        .match-label { display: flex; align-items: center; gap: 3px; line-height: 1; }
+        .match-label .match-token { font-size: 0.62rem; }
+        .piece-flight { position: fixed; inset: 0; width: 100%; height: 100%; overflow: hidden; pointer-events: none; z-index: 1000; }
+        .match-token { color: var(--piece-color); font-size: 1rem; }
+        .match-waiting.full #match-used { color: var(--game-color); }
+        .match-waiting.full .match-slots { border-color: #83a8a3; }
+        .piece-swatch.match-token { width: auto; height: auto; background: none; }
+        .match-symbols { display: flex; align-items: center; gap: 7px; width: fit-content; margin: 8px 0 12px; font-size: 0.8rem; color: var(--text-secondary); cursor: pointer; }
+        .match-symbols input { accent-color: var(--game-color); }
+        .match-monster { position: absolute; right: 17px; bottom: 24px; width: 64px; height: 64px; pointer-events: none; }
+        .match-monster svg { display: block; width: 100%; height: 100%; overflow: visible; }
+        .monster-mouth { transform-box: fill-box; transform-origin: center; transition: transform 130ms ease; }
+        .match-monster.feeding .monster-mouth { transform: scale(1.15, 3.5); }
+        .match-monster.chewing svg { animation: monster-chew 200ms ease-in-out 2; transform-origin: center bottom; }
+        .monster-eyes { transform-box: fill-box; transform-origin: center; animation: monster-blink 7s infinite; }
+        @keyframes monster-chew { 50% { transform: scale(1.06, 0.92) translateY(2px); } }
+        @keyframes monster-blink { 0%, 94%, 98%, 100% { transform: scaleY(1); } 96% { transform: scaleY(0.12); } }
+        @media (prefers-reduced-motion: reduce) { .monster-eyes, .match-monster.chewing svg { animation: none; } }
         .unlock-win { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; background: #f9fafcf5; text-align: center; padding: 24px; }
         .unlock-win .win-symbol { color: var(--success, #2e7d32); font-size: 2rem; }
         .unlock-win h2 { font-size: 1.5rem; font-weight: 600; }
@@ -55,10 +90,12 @@
             .unlock-toolbar .toolbar-group { grid-column: 1 / -1; flex-direction: row; align-items: center; justify-content: space-between; }
             .unlock-toolbar .piece-settings { flex-direction: column; align-items: stretch; }
             .unlock-toolbar .segmented button { padding: 6px 9px; font-size: 0.8rem; }
-            #size-seg button { flex: 1; }
+            #size-seg button { flex: none; }
             .level-control { gap: 5px; }
             .level-readout { font-size: 0.75rem; }
             .view-controls { top: 8px; right: 8px; }
+            .match-waiting { right: 8px; top: 54px; }
+            .match-monster { right: 12px; width: 54px; height: 54px; }
             .board-caption { font-size: 0.68rem; left: 10px; }
         }
         @media (max-width: 360px) {
@@ -79,6 +116,13 @@
             </div>
         </header>
         <section class="game-toolbar unlock-toolbar" data-i18n-aria-label="gameSettings">
+            <div class="toolbar-group mode-settings">
+                <span class="toolbar-label" data-i18n="unlockMode">Mode</span>
+                <div class="segmented" id="mode-seg" role="radiogroup" data-i18n-aria-label="unlockMode">
+                    <button type="button" data-mode="classic" role="radio" aria-checked="true" data-i18n="unlockClassic">Classic</button>
+                    <button type="button" data-mode="match" role="radio" aria-checked="false" data-i18n="unlockMatch">Triple match</button>
+                </div>
+            </div>
             <div class="toolbar-group">
                 <span class="toolbar-label" data-i18n="difficulty">Difficulty</span>
                 <div class="level-control">
@@ -116,6 +160,7 @@
         <div class="status-row">
             <span class="status-item timer" id="timer">00:00</span>
             <span class="status-item" id="unlock-progress" aria-live="polite"></span>
+            <span class="status-item" id="match-shipped" hidden aria-live="polite"></span>
             <span class="puzzle-code" id="puzzle-code"></span>
             <span class="status-item win-message" id="win-message" hidden><span data-icon="sparkles" aria-hidden="true"></span><span data-i18n="winMessage">You Win!</span></span>
         </div>
@@ -129,6 +174,22 @@
                 <button type="button" class="btn" data-turn="up" data-i18n-aria-label="unlockUp">↑</button>
                 <button type="button" class="btn" data-turn="down" data-i18n-aria-label="unlockDown">↓</button>
             </div>
+            <div id="match-panel" class="match-waiting" hidden data-i18n-aria-label="unlockBuffer">
+                <span id="match-used"></span>
+                <div id="match-slots" class="match-slots" role="list" data-i18n-aria-label="unlockBuffer"></div>
+            </div>
+            <div id="match-monster" class="match-monster" role="img" hidden data-i18n-aria-label="unlockMonster">
+                <!-- custom: a small, round creature that eats matching metal loops. -->
+                <svg viewBox="0 0 96 92" aria-hidden="true">
+                    <ellipse cx="48" cy="80" rx="29" ry="4" fill="#dde5e2" opacity="0.55"/>
+                    <path d="M21 64Q8 47 20 29L17 14Q27 11 34 22Q47 17 61 22Q70 11 79 16L75 32Q86 52 73 68Q49 82 21 64Z" fill="#dcece7" stroke="#71988e" stroke-width="2.5" stroke-linejoin="round"/>
+                    <path d="M25 70Q24 79 35 77M62 75Q73 79 74 69" fill="#dcece7" stroke="#71988e" stroke-width="2.5" stroke-linecap="round"/>
+                    <g class="monster-eyes" fill="#486c64"><circle cx="34" cy="40" r="3"/><circle cx="62" cy="40" r="3"/></g>
+                    <ellipse cx="25" cy="48" rx="5" ry="2.5" fill="#e3b9ae" opacity="0.65"/>
+                    <ellipse cx="72" cy="48" rx="5" ry="2.5" fill="#e3b9ae" opacity="0.65"/>
+                    <ellipse id="monster-mouth" class="monster-mouth" cx="48" cy="54" rx="10" ry="3" fill="#577d72"/>
+                </svg>
+            </div>
             <div id="unlock-win" class="unlock-win" hidden>
                 <span class="win-symbol" data-icon="sparkles" aria-hidden="true"></span>
                 <h2 data-i18n="unlockComplete">All clear.</h2>
@@ -141,17 +202,20 @@
         <p class="unlock-feedback" id="unlock-feedback" role="status" aria-live="polite"></p>
         <section class="game-footer">
             <h4 data-i18n="howToPlay">How to play</h4>
+            <label id="match-symbols-control" class="match-symbols" hidden><input id="match-symbols" type="checkbox"><span data-i18n="unlockSymbols">Colour symbols</span></label>
             <ul>
                 <li data-i18n="unlockHelp1">Remove every piece. Each slides straight toward its white end cap.</li>
                 <li data-i18n="unlockHelp2">Drag to rotate the puzzle. Tap a piece or its numbered button to pull it out. A blocked piece stays in place; its blockers turn amber.</li>
                 <li data-i18n="unlockHelp3">Pinch or scroll to zoom. Keyboard: arrows to rotate, 1–9 to pull, Home to reset the view, Ctrl+Z to undo.</li>
+                <li id="match-rule" hidden data-i18n="unlockMatchRule">Three of one colour fuse into one star treat. The plate holds five pieces; a completing third piece goes directly to fusion.</li>
+                <li id="match-help" hidden data-i18n="unlockMatchHelp">Tap a waiting piece to slide it back along its original path. Make room by matching or returning pieces. Optional colour symbols help identify matching groups.</li>
             </ul>
         </section>
     </div>
     <script src="../js/puzzle.js"></script>
-    <script src="../js/games/unshackle/engine.js"></script>
-    <script src="../js/generators/unshackle.js"></script>
-    <script src="../js/games/unshackle/view.js"></script>
-    <script src="../js/games/unshackle/game.js"></script>
+    <script src="../js/games/unshackle/engine.js?v=match-6"></script>
+    <script src="../js/generators/unshackle.js?v=match-6"></script>
+    <script src="../js/games/unshackle/view.js?v=match-6"></script>
+    <script src="../js/games/unshackle/game.js?v=match-6"></script>
 </body>
 </html>

@@ -123,6 +123,109 @@ and bypass history filtering, preserving exact replay on another device. New Gam
 changes the puzzle, Reset keeps it, and Share always identifies the running puzzle.
 Global or unlimited non-repetition is not promised.
 
+## Optional triple-match mode
+
+The mode selector stages Classic / Triple match until New Game, just like size
+and difficulty. Classic remains the default; old links without `mode` still load
+Classic. A match share link includes `mode=match`, size, difficulty and seed.
+Sharing always identifies the running puzzle, even with another mode staged.
+The selectors remember each mode's size while switching within the page.
+
+Triple match currently offers 12 and 24 pieces, using six colours from the
+existing Classic palette. Colour group assignments, geometry and seeded choices
+are unchanged by this visual update. Group symbols are off by default; an optional
+local preference enables them on cap labels, piece buttons and waiting loops.
+Every colour count is divisible by three.
+
+At most five pieces can wait. `unshackleMatch.pullPlan` checks capacity before an
+extraction: an unmatched sixth piece is refused without movement, history, timer
+penalty or a losing state. A completing third piece is always allowed. After it
+clears the structure, the two matching waiting loops and the third piece gather
+above the serving plate. They spiral together and fuse into one same-colour star
+treat, with a small pulse and glint. Only that single treat travels to the creature's
+mouth; no sixth waiting position is created. The creature receives it and chews.
+Logical state
+and history commit when feeding finishes, before a possible win overlay. Undo
+restores the pre-feed pair and puts the third piece back on the board. Solves
+remain separate from Classic in `solves:unshackle-match`, once per attempt.
+
+Waiting loops sit on a small ceramic-style serving plate inside the existing white
+board, above the original SVG creature. Five recessed places are always visible;
+empty places carry faint position numbers and occupied places contain return
+buttons. The plate count and a full-plate accent reinforce its five-piece capacity.
+The plate intercepts clicks on empty places so they cannot pull a 3D piece behind
+it. There is no external column or legend. Both modes retain the shared page width.
+A match-only projection inset makes room inside the board;
+rendering, cap labels and picking use the same inset. Classic camera behavior,
+mesh geometry and palette are unchanged. Mode and size controls use content width.
+
+Match extraction has a continuous board-to-plate presentation. Full swept-path
+legality is still checked first. A view-only axial preview stops before the piece
+would leave the visible board or pass behind the plate. Its exact projected loop
+then shrinks and morphs into the plate miniature while moving to the destination.
+An invisible preview in the next empty place supplies the actual CSS geometry;
+the moving loop is replaced only on arrival. Three-dimensional rendering/picking
+of that piece is hidden during the overlay handoff, without duplicate meshes.
+The miniature overlay is clipped to the board and follows current projection and
+destination layout. This does not introduce partially extracted gameplay states.
+
+A matching third piece transfers to the visible fusion area instead of reserving
+a sixth plate place. Feeding starts from that actual arrival position, replacing
+the former offscreen exit and clamped edge spawn. Classic retains its original
+exit animation. Cancellation and effect errors leave no partially committed move.
+
+Each waiting loop can return independently, leaving completed feedings intact.
+Its original continuous swept path must be clear. For an A-blocks-B pair extracted
+A then B, returning B then A is possible; returning A first blocks B's return.
+Other active obstacles can also prevent insertion. The existing physical blocking
+graph checks the exact reverse path.
+
+Return animation has two phases: a projected miniature transfers to the clear
+outer end of the original pull axis, then the actual full-size WebGL mesh slides
+in along that axis with monotonically decreasing offset. Geometry is visible and
+pickable during insertion even though the removed set commits only on arrival.
+Both match pulls and returns record undo snapshots only on successful completion.
+Reset, generation and context loss cancel active overlays and effects without
+partial logical changes. Effect factory/drawing failures unlock controls and add
+no empty history snapshot. The four Unshackle scripts share an asset revision in
+the page; bump it together when their interfaces change to avoid mixed cached APIs.
+
+Match rules and generation are one optional IIFE appended to the existing generator
+file, exposed as `PuzzleGenerators.unshackleMatch`. The Classic generator above that
+block and the geometry engine are unchanged. UI, effects and rendering stay in
+the original three runtime modules; no additional module or shared shell change
+is required. Creature artwork is inline SVG, with no image or network dependency.
+
+Generation reuses Classic geometry (Easy geometry for Easy/Medium match, Medium
+geometry for Hard match), then deterministically searches up to 128 colour
+assignments. A memoized subset solver verifies a complete capacity-constrained
+solution. Every accepted puzzle also has a witnessed extraction sequence whose
+last move would exceed capacity; the UI rejects that last move, so order matters.
+Required peak waiting occupancy grades Easy at 2–3, Medium at 4 and Hard at 5.
+All tiers provide five places. These structural grades measure extraction-only
+solutions; optional returns add recovery choices and need playtest calibration.
+
+Immediate matching makes residual colour counts depend only on the removed subset.
+The solver has a deterministic 60,000-visit budget; exhaustion returns `budget`,
+not `unsolvable`. Generation rejects unverified assignments. Hints search for a
+complete safe continuation; an extraction dead end suggests returning, undoing or
+resetting. Reset replays the exact puzzle, and Share identifies the running mode,
+size, difficulty and seed even when different settings are staged.
+
+Run `node tools/unshackle-match-check.js`. It checks 120 puzzles across all six
+settings, verified solution prefixes, rejected capacity moves, direct matching
+at capacity, exact replay, geometric graph agreement and continuation hints.
+An independent exhaustive dynamic program checks minimum capacity for all 60
+12-piece puzzles. Existing Classic tests are unchanged.
+Browser checks cover five visible plate places, return and empty-place restoration,
+three-to-one fusion with only one delivered treat, actual two-phase axis insertion,
+A/B return order, feeding at full capacity, feeding undo, complete wins, optional symbols, record separation,
+effect failure recovery, reset cancellation and responsive layout. Camera checks
+cover the original 36 rotations and picking with the match projection inset.
+Transfer checks additionally verify in-view previews across rotated/upside-down
+poses, exact projected start and plate landing coordinates, continuous entry into
+fusion, capacity, cancellation, and full 24-piece solves.
+
 ## Checks
 
 Run `node tools/unshackle-check.js` with no packages. It checks mid-motion contact,

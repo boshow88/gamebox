@@ -156,3 +156,127 @@
     global.PuzzleGenerators.unshackle = generate;
     global.PuzzleGenerators.unshackleInternals = { band, qualifies, fingerprint, structureKey, SIZES, VERSION };
 })(typeof window === 'undefined' ? globalThis : window);
+
+/** Optional match-three mode. Classic generation above is deliberately unchanged. */
+(function (global) {
+    'use strict';
+    const SIZES = [12, 24], CAPACITY = 5;
+    const GROUPS = [
+        // Existing Classic colours; group identities and seeded choices stay intact.
+        { color: '#dd7e70', symbol: '●' }, { color: '#619bc4', symbol: '▲' },
+        { color: '#dbba46', symbol: '■' }, { color: '#69b77d', symbol: '◆' },
+        { color: '#a58adb', symbol: '✚' }, { color: '#f4a34f', symbol: '✦' },
+    ];
+    function rngFor(seed) {
+        let a = (seed ^ 0x47ad31b9) >>> 0;
+        return () => {
+            a = (a + 0x6d2b79f5) | 0;
+            let t = Math.imul(a ^ a >>> 15, a | 1);
+            t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+            return ((t ^ t >>> 14) >>> 0) / 4294967296;
+        };
+    }
+    function shuffle(a, rng) {
+        for (let i = a.length - 1; i > 0; i--) {
+            const j = Math.floor(rng() * (i + 1)); [a[i], a[j]] = [a[j], a[i]];
+        }
+        return a;
+    }
+    // Preserve arrival order for display; a completed triple leaves immediately.
+    function trayAfter(puzzle, removed) {
+        let tray = [];
+        for (const id of removed) {
+            const group = puzzle.pieces[id - 1].group;
+            tray.push(id);
+            if (tray.filter(n => puzzle.pieces[n - 1].group === group).length === 3)
+                tray = tray.filter(n => puzzle.pieces[n - 1].group !== group);
+        }
+        return tray;
+    }
+    function pullPlan(puzzle, removed, id) {
+        const tray = trayAfter(puzzle, removed), piece = puzzle.pieces[id - 1];
+        if (!piece || [...removed].includes(id)) return { allowed: false, matching: false, consumed: [], tray };
+        const same = tray.filter(n => puzzle.pieces[n - 1].group === piece.group);
+        const matching = same.length === 2;
+        const allowed = matching || tray.length < CAPACITY;
+        return { allowed, matching,
+            consumed: matching ? [...same, id] : [],
+            tray: !allowed ? tray : matching ? tray.filter(n => !same.includes(n)) : [...tray, id] };
+    }
+    // With immediate triples, residual colour counts depend only on the removed
+    // subset. A memoized subset search is exact; exhausting its budget is unknown,
+    // never evidence that a position is unsolvable.
+    function solve(puzzle, removed = [], capacity = CAPACITY, budget = 60000) {
+        const n = puzzle.pieces.length, full = (1 << n) - 1;
+        const needs = puzzle.graph.map(bs => bs.reduce((m, id) => m | (1 << (id - 1)), 0));
+        const groups = puzzle.pieces.map(p => p.group), counts = GROUPS.map(() => 0);
+        let initial = 0;
+        for (const id of removed) initial |= 1 << (id - 1);
+        for (let i = 0; i < n; i++) if (initial & (1 << i)) counts[groups[i]]++;
+        for (let i = 0; i < counts.length; i++) counts[i] %= 3;
+        const occupied = counts.reduce((a, b) => a + b, 0), dead = new Set(), path = [];
+        let visited = 0, exhausted = false;
+        function visit(mask, used) {
+            if (used > capacity) return false;
+            if (mask === full) return used === 0;
+            if (dead.has(mask)) return false;
+            if (++visited > budget) { exhausted = true; return false; }
+            const legal = [];
+            for (let i = 0; i < n; i++) {
+                if ((mask & (1 << i)) || (mask & needs[i]) !== needs[i]) continue;
+                const next = used + (counts[groups[i]] === 2 ? -2 : 1);
+                if (next <= capacity) legal.push({ i, next });
+            }
+            legal.sort((a, b) => a.next - b.next || a.i - b.i);
+            for (const { i, next } of legal) {
+                const g = groups[i], before = counts[g];
+                counts[g] = (before + 1) % 3; path.push(i + 1);
+                if (visit(mask | (1 << i), next)) return true;
+                path.pop(); counts[g] = before;
+                if (exhausted) return false;
+            }
+            dead.add(mask); return false;
+        }
+        const solved = visit(initial, occupied);
+        return { status: solved ? 'solved' : exhausted ? 'budget' : 'unsolvable',
+            solution: solved ? path.slice() : [], visited };
+    }
+    function findTrap(puzzle, rng) {
+        for (let trial = 0; trial < 24; trial++) {
+            const removed = new Set(), path = [];
+            while (removed.size < puzzle.size) {
+                const legal = puzzle.pieces.filter(p => !removed.has(p.id) && puzzle.graph[p.id - 1].every(id => removed.has(id)));
+                const p = legal[Math.floor(rng() * legal.length)];
+                removed.add(p.id); path.push(p.id);
+                if (trayAfter(puzzle, removed).length > CAPACITY) return path;
+            }
+        }
+        return null;
+    }
+    async function generate(size, difficulty, seed, onProgress) {
+        if (!SIZES.includes(size) || !['easy', 'medium', 'hard'].includes(difficulty)) throw new Error('Invalid match settings');
+        // Broad geometric openings leave room for meaningful colour decisions.
+        const base = await global.PuzzleGenerators.unshackle(size, difficulty === 'hard' ? 'medium' : 'easy', seed,
+            onProgress ? fraction => onProgress(fraction * 0.55) : undefined);
+        const rng = rngFor(seed), target = { easy: 3, medium: 4, hard: 5 }[difficulty];
+        for (let attempt = 0; attempt < 128; attempt++) {
+            const palette = shuffle(GROUPS.map((_, i) => i), rng).slice(0, Math.min(size / 3, GROUPS.length));
+            const labels = shuffle(Array.from({ length: size / 3 }, (_, i) => Array(3).fill(palette[i % palette.length])).flat(), rng);
+            const pieces = base.pieces.map((p, i) => ({ ...p, group: labels[i], ...GROUPS[labels[i]] }));
+            const puzzle = { ...base, id: `unshackle-match-v1-${size}-${difficulty}-${(seed >>> 0).toString(36)}`,
+                mode: 'match', difficulty, pieces, capacity: CAPACITY };
+            const upper = solve(puzzle, [], target);
+            if (upper.status === 'solved') {
+                const lower = solve(puzzle, [], target - 1);
+                if (lower.status === 'unsolvable' || (difficulty === 'easy' && lower.status === 'solved')) {
+                    const trap = findTrap(puzzle, rng);
+                    if (trap) return { ...puzzle, solution: upper.solution, trap,
+                        matchStats: { requiredSlots: lower.status === 'solved' ? 2 : target, assignments: attempt + 1 } };
+                }
+            }
+            if (onProgress) await onProgress(0.55 + 0.44 * (attempt + 1) / 128);
+        }
+        throw new Error('No verified match puzzle met the requested difficulty');
+    }
+    global.PuzzleGenerators.unshackleMatch = { generate, solve, trayAfter, pullPlan, SIZES, CAPACITY, GROUPS };
+})(typeof window === 'undefined' ? globalThis : window);
