@@ -16,7 +16,8 @@ The three game modules are grouped under `js/games/unshackle/`, as requested:
 
 `js/generators/unshackle.js` contains generation and grading, following the existing
 one-generator-file-per-game convention. `games/unshackle.html` owns the page and
-game-specific styles. New shared abstractions are unnecessary.
+game-specific styles. Its accent is copper red (`#b5684e`), matching the launcher
+card; the in-game title has no prototype badge. New shared abstractions are unnecessary.
 
 ## Rules and camera
 
@@ -59,12 +60,14 @@ edge count and join count. A cyclic graph is rejected.
 
 Generator version 1 accepts `(size, difficulty, seed, onProgress)` and returns
 pieces, graph, solution, geometry fingerprint, structural signature and stats.
-Sizes are 6, 8, 10, 12, 16, 20 and 24. A local Mulberry32 stream drives construction and
-Fisher-Yates shuffles, including seed zero. IDs/colours are shuffled after assembly
+Classic offers 6, 12, 18, 24 and 30 pieces, defaulting to 12. The generator also
+accepts 36/48 for Triple match, plus legacy 8/10/16/20 shared links. A local
+Mulberry32 stream drives construction and Fisher-Yates shuffles, including seed
+zero. IDs/colours are shuffled after assembly
 so they do not reveal construction order.
-The original 6-12-piece version-1 outputs remain unchanged, including colours,
-preserving existing shared links. Larger puzzles use an extended 24-colour
-palette, a bounded root length and a larger permitted cluster radius. Cached
+Existing version-1 outputs through 24 pieces remain unchanged, including colours,
+preserving existing shared links. New larger puzzles use an extended 48-colour
+palette, a longer root and a larger permitted cluster radius. Cached
 downstream graph depths avoid repeatedly traversing the same dependency paths.
 
 1. Start with one randomly sized ring.
@@ -88,6 +91,7 @@ existing puzzle on failure.
 
 Chain depth includes both end pieces. All delivered puzzles are connected through
 their construction; independent mini-puzzles are not simply combined.
+Legacy counts remain in the table for shared-link compatibility.
 
 | Count | Easy depth | Medium depth | Hard depth |
 | --- | --- | --- | --- |
@@ -96,8 +100,12 @@ their construction; independent mini-puzzles are not simply combined.
 | 10 | 2-3 | 4-5 | 6-9 |
 | 12 | 2-3 | 4-6 | 7-11 |
 | 16 | 2-4 | 5-6 | 7-15 |
+| 18 | 2-4 | 5-6 | 7-17 |
 | 20 | 2-4 | 5-7 | 8-19 |
 | 24 | 2-4 | 5-8 | 9-23 |
+| 30 | 2-4 | 5-9 | 10-29 |
+| 36 (match geometry) | 2-5 | 6-11 | 12-35 |
+| 48 (match geometry) | 2-6 | 7-14 | 15-47 |
 
 Easy requires at least two opening exits, or three above 12 pieces. Medium permits at most `ceil(N*0.45)`;
 Hard at most `max(2, floor(N*0.25))`. Medium/Hard require at least one multiply
@@ -127,13 +135,17 @@ Global or unlimited non-repetition is not promised.
 
 The mode selector stages Classic / Triple match until New Game, just like size
 and difficulty. Classic remains the default; old links without `mode` still load
-Classic. A match share link includes `mode=match`, size, difficulty and seed.
+Classic. A new match share link includes `mode=match&mv=2`, size, difficulty and
+seed. Match links without `mv` use `generateLegacy` and retain their original
+six-colour generation. New Game always creates the current version; Classic
+links carry neither match parameter.
 Sharing always identifies the running puzzle, even with another mode staged.
 The selectors remember each mode's size while switching within the page.
 
-Triple match currently offers 12 and 24 pieces, using six colours from the
-existing Classic palette. Colour group assignments, geometry and seeded choices
-are unchanged by this visual update. Group symbols are off by default; an optional
+Triple match offers 12, 24, 36 and 48 pieces. New 24/36/48-piece boards use all
+eight colours; 12 pieces can contain only four complete triples, so use four
+colours selected from the palette. Every colour also has a unique symbol.
+Group symbols are off by default; an optional
 local preference enables them on cap labels, piece buttons and waiting loops.
 Every colour count is divisible by three.
 
@@ -196,27 +208,61 @@ block and the geometry engine are unchanged. UI, effects and rendering stay in
 the original three runtime modules; no additional module or shared shell change
 is required. Creature artwork is inline SVG, with no image or network dependency.
 
-Generation reuses Classic geometry (Easy geometry for Easy/Medium match, Medium
-geometry for Hard match), then deterministically searches up to 128 colour
-assignments. A memoized subset solver verifies a complete capacity-constrained
-solution. Every accepted puzzle also has a witnessed extraction sequence whose
-last move would exceed capacity; the UI rejects that last move, so order matters.
+Version 2 reuses Classic Easy geometry for Easy, and Medium geometry for both
+Medium and Hard. Colour/geometry coupling and actual choices determine the match
+grade; a longer forced chain alone is not sufficient. Generation tries up to six
+deterministically salted geometries and 64 balanced colour assignments each.
+Returned puzzles retain the original public seed for exact replay. A memoized
+subset solver verifies a complete capacity-constrained solution. Every accepted
+puzzle also has a witnessed extraction sequence whose last move would exceed
+capacity; the UI rejects that last move.
 Required peak waiting occupancy grades Easy at 2–3, Medium at 4 and Hard at 5.
-All tiers provide five places. These structural grades measure extraction-only
-solutions; optional returns add recovery choices and need playtest calibration.
+All tiers provide five places. Additional requirements measure planning:
+
+- A triple-only simulation repeatedly clears a fully accessible same-colour triple
+  with no leftovers. Medium permits this to clear at most half of the board; Hard
+  permits at most a quarter and no more than one initial complete triple.
+- Four deterministic greedy players prioritize completing triples, then tray
+  pairs and accessible same-colour pieces, with ID/unblocking tie-break variants.
+  Easy requires at least two to finish; Hard requires all four to stall.
+- Along the verified route, every third prefix is inspected for an alternative
+  physically legal extraction. A 10,000-visit exact search must prove that this
+  alternative prevents completion at the tier's target capacity. Medium requires
+  one such fork at four places, retaining the fifth place as error tolerance.
+  Hard requires two forks with different bad piece IDs at the actual five-place
+  capacity (one fork for the small 12-piece introductory board).
+
+`matchStats` records colour count, greedy results, triple-only removals and the
+verified forks, including their prefix, good/bad choices and tested capacity.
+Budget exhaustion never counts as a bad choice. These grades measure
+extraction-only planning; returns remain available for recovery. Greedy failure
+does not prove a particular level of subjective human difficulty.
 
 Immediate matching makes residual colour counts depend only on the removed subset.
-The solver has a deterministic 60,000-visit budget; exhaustion returns `budget`,
-not `unsolvable`. Generation rejects unverified assignments. Hints search for a
+The solver uses BigInt masks so pieces beyond bit 31 remain distinct. On boards
+above 24 pieces, available pieces of the same colour use an exact dominance
+reduction: prefer a piece whose remaining dependents include all of the other's,
+breaking equivalent ties by ID. Either choice has the same tray effect; delaying
+the preferred piece cannot unlock anything blocked by the other first.
+Hint and solution searches have a deterministic 60,000-visit budget. Version-2
+lower-capacity grading permits 250,000 visits. Legacy grading retains its original
+budgets and seeded behaviour;
+exhaustion returns `budget`, not `unsolvable`. Generation rejects unverified
+assignments. Hints search for a
 complete safe continuation; an extraction dead end suggests returning, undoing or
 resetting. Reset replays the exact puzzle, and Share identifies the running mode,
-size, difficulty and seed even when different settings are staged.
+size, difficulty and seed even when different settings are staged. Undo retains
+64 actions so a complete 48-piece removal sequence can be reversed.
 
-Run `node tools/unshackle-match-check.js`. It checks 120 puzzles across all six
+Run `node tools/unshackle-match-check.js`. It checks 240 puzzles across all twelve
 settings, verified solution prefixes, rejected capacity moves, direct matching
 at capacity, exact replay, geometric graph agreement and continuation hints.
-An independent exhaustive dynamic program checks minimum capacity for all 60
-12-piece puzzles. Existing Classic tests are unchanged.
+An independent exhaustive dynamic program checks minimum capacity and decision
+forks for 12-piece puzzles, including padded versions exercising large-mask dominance.
+Forced 36/48-piece chains independently check capacity, high-numbered pieces and
+continuations after piece 32. Existing Classic checks use the updated count list.
+Replay checks also require monotonic progress. Optional size/difficulty/sample
+arguments can target a setting; `all all 4` samples all twelve settings.
 Browser checks cover five visible plate places, return and empty-place restoration,
 three-to-one fusion with only one delivered treat, actual two-phase axis insertion,
 A/B return order, feeding at full capacity, feeding undo, complete wins, optional symbols, record separation,
@@ -226,17 +272,31 @@ Transfer checks additionally verify in-view previews across rotated/upside-down
 poses, exact projected start and plate landing coordinates, continuous entry into
 fusion, capacity, cancellation, and full 24-piece solves.
 
+The eight-colour update sampled four seeds in all twelve settings: 48 puzzles and
+1,884 verified solution-prefix steps passed. Twelve small boards were cross-checked
+with the independent capacity/decision oracle. All twelve legacy settings at seed
+zero remained byte-for-byte identical. Browser checks cover both new symbols,
+a verified bad move and return recovery, a full eight-colour win, complete undo,
+versioned URLs and the transition from a legacy link to a new game.
+
 ## Checks
 
 Run `node tools/unshackle-check.js` with no packages. It checks mid-motion contact,
 clearance, degenerate sweeps, distant obstacles, cycles, sampled-distance agreement,
-all 21 settings across 40 seeds, exact replay with/without progress callbacks,
+all 15 Classic settings across 40 seeds, exact replay with/without progress callbacks,
 duplicate fingerprints, structural variation, independently recomputed graphs,
 positive starting clearance and every reachable play order for selected puzzles
 up to 12 pieces. Larger puzzles are checked through 64 legal removal walks,
-avoiding exponential enumeration. The current run passed 840 generated puzzles
-and 46,204 assertions. A separate comparison against the previous commit confirmed
-24 original shared puzzles are byte-for-byte unchanged.
+avoiding exponential enumeration. The count expansion passed 600 Classic puzzles
+and 49,158 assertions, and additionally compared 27 original Classic/match shared
+puzzles against the prior generator byte for byte.
+
+Expansion browser checks cover complete 30-piece Classic and 48-piece match wins,
+undo of every extraction, high-numbered piece picking, staged mode/count changes,
+correct played-setting solve records, mode-specific count memory, legacy shared
+links, copper accents and both title translations. The updated controls fit
+320px, 390px and 1200px viewports without horizontal overflow. Large boards take
+longer to generate because collision and exact capacity verification both grow.
 
 Browser QA passed 32 checks for generation, staged settings, applied-setting solve
 records, blocked pulls, hints, undo/reset/wins, new seeds, localization, camera

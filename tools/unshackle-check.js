@@ -52,7 +52,7 @@ function checkEveryOrder(graph) {
 }
 
 function checkLargeOrders(graph) {
-    // Do not enumerate exponentially many subsets on a 24-piece Easy board.
+    // Do not enumerate exponentially many subsets on a 30-piece Easy board.
     // Exercise 64 different legal choices, with the independent DAG proof above.
     for (let trial = 0; trial < 64; trial++) {
         const remaining = new Set(graph.map((_, i) => i + 1));

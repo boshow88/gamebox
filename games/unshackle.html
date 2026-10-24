@@ -8,8 +8,7 @@
     <link rel="stylesheet" href="../css/common.css">
     <link rel="stylesheet" href="../css/puzzle.css">
     <style>
-        body { --game-color: #298da5; }
-        .prototype-badge { font-size: 0.66rem; font-weight: 500; color: var(--text-secondary); border: 1px solid var(--border-color); border-radius: var(--radius-pill); padding: 2px 7px; }
+        body { --game-color: #b5684e; }
         .unlock-toolbar .level-readout { grid-column: 1 / -1; }
         .unlock-toolbar .piece-settings { grid-column: 1 / -1; }
         #mode-seg, #size-seg { align-self: flex-start; width: max-content; max-width: 100%; }
@@ -62,7 +61,7 @@
         .piece-flight { position: fixed; inset: 0; width: 100%; height: 100%; overflow: hidden; pointer-events: none; z-index: 1000; }
         .match-token { color: var(--piece-color); font-size: 1rem; }
         .match-waiting.full #match-used { color: var(--game-color); }
-        .match-waiting.full .match-slots { border-color: #83a8a3; }
+        .match-waiting.full .match-slots { border-color: var(--game-color); }
         .match-waiting.rejected #match-used { color: var(--error, #c54040); font-weight: 700; }
         .match-waiting.rejected .match-slots { border-color: var(--error, #c54040); background: #fce9e5; }
         .match-waiting.shaking { animation: plate-reject 420ms ease-in-out; }
@@ -87,7 +86,6 @@
         @media (max-width: 480px) {
             .game-title { font-size: 1.05rem; gap: 5px; }
             .game-title .game-icon { display: none; }
-            .prototype-badge { font-size: 0.58rem; padding: 2px 4px; }
             .game-topbar { gap: 6px; }
             .unlock-board { --monster-size: 54px; --match-footer: 92px; }
             .match-dock { gap: 8px; padding: 22px 10px 14px; }
@@ -98,7 +96,6 @@
             .board-caption { font-size: 0.68rem; left: 10px; }
         }
         @media (max-width: 360px) {
-            .prototype-badge { display: none; }
             .back-link { padding: 4px; font-size: 0.8rem; }
             .game-title { font-size: 1rem; }
             .topbar-actions { gap: 4px; }
@@ -109,7 +106,7 @@
     <div class="game-shell">
         <header class="game-topbar">
             <a class="back-link" href="../index.html"><span data-icon="arrow-left" aria-hidden="true"></span><span data-i18n="menu">Menu</span></a>
-            <div class="game-title"><span class="game-icon" data-icon="unlink" aria-hidden="true"></span><span data-i18n="unlockName">Unshackle</span><span class="prototype-badge" data-i18n="unlockPrototype">Prototype</span></div>
+            <div class="game-title"><span class="game-icon" data-icon="unlink" aria-hidden="true"></span><span data-i18n="unlockName">Unshackle</span></div>
             <div class="lang-toggle" id="lang-toggle" role="radiogroup" data-i18n-aria-label="language">
                 <button type="button" data-lang="en" role="radio" aria-checked="true">EN</button><button type="button" data-lang="zh" role="radio" aria-checked="false">中</button>
             </div>
@@ -136,12 +133,16 @@
                 <span class="toolbar-label" data-i18n="unlockCount">Pieces</span>
                 <div class="segmented" id="size-seg" role="radiogroup" data-i18n-aria-label="unlockCount">
                     <button type="button" data-value="6" role="radio" aria-checked="false">6</button>
-                    <button type="button" data-value="8" role="radio" aria-checked="true">8</button>
-                    <button type="button" data-value="10" role="radio" aria-checked="false">10</button>
-                    <button type="button" data-value="12" role="radio" aria-checked="false">12</button>
-                    <button type="button" data-value="16" role="radio" aria-checked="false">16</button>
-                    <button type="button" data-value="20" role="radio" aria-checked="false">20</button>
+                    <button type="button" data-value="8" role="radio" aria-checked="false" hidden>8</button>
+                    <button type="button" data-value="10" role="radio" aria-checked="false" hidden>10</button>
+                    <button type="button" data-value="12" role="radio" aria-checked="true">12</button>
+                    <button type="button" data-value="16" role="radio" aria-checked="false" hidden>16</button>
+                    <button type="button" data-value="18" role="radio" aria-checked="false">18</button>
+                    <button type="button" data-value="20" role="radio" aria-checked="false" hidden>20</button>
                     <button type="button" data-value="24" role="radio" aria-checked="false">24</button>
+                    <button type="button" data-value="30" role="radio" aria-checked="false">30</button>
+                    <button type="button" data-value="36" role="radio" aria-checked="false" hidden>36</button>
+                    <button type="button" data-value="48" role="radio" aria-checked="false" hidden>48</button>
                 </div>
             </div>
             <span id="level-readout" class="level-readout" aria-live="polite"></span>
@@ -216,9 +217,9 @@
         </section>
     </div>
     <script src="../js/puzzle.js"></script>
-    <script src="../js/games/unshackle/engine.js?v=match-6"></script>
-    <script src="../js/generators/unshackle.js?v=match-6"></script>
-    <script src="../js/games/unshackle/view.js?v=match-8"></script>
-    <script src="../js/games/unshackle/game.js?v=match-9"></script>
+    <script src="../js/games/unshackle/engine.js?v=match-eight-2"></script>
+    <script src="../js/generators/unshackle.js?v=match-eight-2"></script>
+    <script src="../js/games/unshackle/view.js?v=match-eight-2"></script>
+    <script src="../js/games/unshackle/game.js?v=match-eight-2"></script>
 </body>
 </html>

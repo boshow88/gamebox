@@ -36,7 +36,7 @@ docs/
   rules.md            Full player-facing rules for every game (merged)
   DEV.md              Arcade engine architecture & conventions
   DEBUG.md            Puzzle generator/solver debug notes
-  UNSHACKLE.md        3D disassembly prototype: assessment, geometry & checks
+  UNSHACKLE.md        3D disassembly: generation, geometry & checks
 ```
 
 ## Themes

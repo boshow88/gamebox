@@ -7,8 +7,9 @@
     const GI = window.PuzzleGenerators.unshackleInternals;
     const Match = window.PuzzleGenerators.unshackleMatch;
     const initialMode = new URL(location.href).searchParams.get('mode') === 'match' ? 'match' : 'classic';
+    const initialMatchVersion = new URL(location.href).searchParams.get('mv') === '2' ? 2 : 1;
     const rawInitial = PC.share.readParams();
-    const urlInitial = (initialMode === 'match' ? Match.SIZES : GI.SIZES).includes(rawInitial.size) && DIFFICULTIES.includes(rawInitial.difficulty)
+    const urlInitial = (initialMode === 'match' ? Match.SIZES : GI.SHARE_SIZES).includes(rawInitial.size) && DIFFICULTIES.includes(rawInitial.difficulty)
         && Number.isInteger(rawInitial.seed) ? rawInitial : null;
     let pendingSeed = urlInitial ? urlInitial.seed : null;
     const RECENT_KEY = PC.storage.storageKey('recent:unshackle:v1');
@@ -17,7 +18,7 @@
     const storedRecent = PC.storage.readJSON(RECENT_KEY, []);
     let recent = Array.isArray(storedRecent) ? storedRecent.filter(p => p && typeof p.fingerprint === 'string' && typeof p.structure === 'string').slice(-24) : [];
     Object.assign(PC.i18n.STRINGS.en, {
-        unlockName: 'Unshackle', unlockPrototype: 'Prototype', unlockCount: 'Pieces',
+        unlockName: 'Unshackle', unlockCount: 'Pieces',
         unlockMode: 'Mode', unlockClassic: 'Classic', unlockMatch: 'Triple match',
         unlockBuffer: 'Five-place serving plate', unlockUsed: n => `${n} / 5`, unlockShipped: n => `${n} treats eaten`,
         unlockEmptyPlace: n => `Empty plate place ${n}`,
@@ -60,7 +61,7 @@
         unlockHelp3: 'Pinch or scroll to zoom. Keyboard: arrows to rotate, 1–9 to pull, Home to reset the view, Ctrl+Z to undo. New Game generates a fresh puzzle; Share copies this exact puzzle.',
     });
     Object.assign(PC.i18n.STRINGS.zh, {
-        unlockName: '枷鎖', unlockPrototype: '原型', unlockCount: '零件數',
+        unlockName: '枷鎖', unlockCount: '零件數',
         unlockMode: '模式', unlockClassic: '經典拆解', unlockMatch: '三消暫存',
         unlockBuffer: '五格餐盤', unlockUsed: n => `${n} / 5`, unlockShipped: n => `已餵食 ${n} 顆`,
         unlockEmptyPlace: n => `餐盤空位 ${n}`,
@@ -115,7 +116,7 @@
         return;
     }
 
-    const state = { mode: initialMode, difficulty: urlInitial ? urlInitial.difficulty : 'easy', size: urlInitial ? urlInitial.size : initialMode === 'match' ? 24 : 8,
+    const state = { mode: initialMode, difficulty: urlInitial ? urlInitial.difficulty : 'easy', size: urlInitial ? urlInitial.size : initialMode === 'match' ? 24 : 12,
         puzzle: null, pieces: [], graph: [], removed: new Set(), won: false,
         animation: null, blocked: null, blockers: [], highlight: null, hover: null };
     let shell, frame = 0, hintOn = false, contextLost = false, generating = false;
@@ -123,9 +124,9 @@
     let feedback = { key: 'unlockReady', args: [] };
     let lastTime = '';
     let stagedMode = initialMode, matchSolveLogged = false;
-    const modeSizes = { classic: initialMode === 'classic' ? state.size : 8, match: initialMode === 'match' ? state.size : 24 };
+    const modeSizes = { classic: initialMode === 'classic' ? state.size : 12, match: initialMode === 'match' ? state.size : 24 };
     const history = PC.history.create({
-        limit: 32,
+        limit: 64,
         snapshot: () => [...state.removed],
         restore: removed => {
             cancelAnimation();
@@ -241,7 +242,11 @@
             b.classList.toggle('committed', b.dataset.mode === state.mode);
             b.setAttribute('aria-checked', String(b.dataset.mode === stagedMode));
         });
-        $('size-seg').querySelectorAll('button').forEach(b => { b.hidden = stagedMode === 'match' && !Match.SIZES.includes(Number(b.dataset.value)); });
+        const sizes = stagedMode === 'match' ? Match.SIZES : GI.SIZES;
+        $('size-seg').querySelectorAll('button').forEach(b => {
+            const size = Number(b.dataset.value);
+            b.hidden = !sizes.includes(size) && !(stagedMode === 'classic' && size === modeSizes.classic && GI.SHARE_SIZES.includes(size));
+        });
     }
     function syncUI() {
         $('unlock-progress').textContent = t('unlockProgress', state.removed.size, state.pieces.length);
@@ -468,7 +473,8 @@
             const seed = sharedSeed !== null ? sharedSeed : randomSeed();
             let candidate;
             try {
-                candidate = await (mode === 'match' ? Match.generate : Generator)(size, difficulty, seed, async fraction => {
+                const generate = mode === 'match' ? (sharedSeed !== null && initialMatchVersion === 1 ? Match.generateLegacy : Match.generate) : Generator;
+                candidate = await generate(size, difficulty, seed, async fraction => {
                     PC.progress.setFraction(fraction); await PC.progress.waitNextPaint();
                 });
             } catch (error) {
@@ -502,7 +508,10 @@
         recent = recent.slice(-24); PC.storage.writeJSON(RECENT_KEY, recent);
         PC.share.replaceUrl({ size, difficulty, seed: puzzle.seed });
         const url = new URL(location.href);
-        if (mode === 'match') url.searchParams.set('mode', 'match'); else url.searchParams.delete('mode');
+        if (mode === 'match') {
+            url.searchParams.set('mode', 'match');
+            if (puzzle.matchVersion === 2) url.searchParams.set('mv', '2'); else url.searchParams.delete('mv');
+        } else { url.searchParams.delete('mode'); url.searchParams.delete('mv'); }
         window.history.replaceState(null, '', url);
         say(readyMessage()); syncUI(); invalidate();
     }

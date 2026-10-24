@@ -8,9 +8,14 @@
     'use strict';
     const E = global.UnshackleEngine, M = E.math;
     const VERSION = 1;
-    const SIZES = [6, 8, 10, 12, 16, 20, 24];
+    const SIZES = [6, 12, 18, 24, 30];
+    const SHARE_SIZES = [...SIZES, 8, 10, 16, 20];
+    const GENERATION_SIZES = [...SHARE_SIZES, 36, 48];
     const COLORS = ['#43b9de', '#f4a34f', '#d86db1', '#69b77d', '#dbba46', '#a58adb', '#dd7e70', '#619bc4', '#a6ad58', '#b681a3', '#60aaa3', '#cc955c'];
     const LARGE_COLORS = [...COLORS, '#5e85cc', '#cf6991', '#7bac56', '#ba8250', '#55aeba', '#aa75c4', '#dcaa3b', '#cf7659', '#728bc1', '#78a49b', '#bda052', '#b56a83'];
+    const EXTENDED_COLORS = [...LARGE_COLORS, '#b35f45', '#4c9f88', '#7d71c5', '#d48c3e', '#bd619a', '#669a47',
+        '#4e81aa', '#bd5960', '#9a8c43', '#846aad', '#47a3b1', '#a87955', '#c58e9b', '#65816a', '#a76fca',
+        '#d3916d', '#599ecb', '#a4b96b', '#bb7786', '#7998ad', '#c8a667', '#6eac94', '#9679a0', '#a56a5b'];
     const AXES = [[1, 0, 0], [0, 1, 0], [0, 0, 1]];
     function makeRng(seed) {
         let a = seed >>> 0;
@@ -29,9 +34,10 @@
     }
     function band(size, difficulty) {
         if (size > 12) {
-            const mediumMax = 6 + (size - 16) / 4;
-            if (difficulty === 'easy') return { min: 2, max: 4, minFree: 3, maxFree: size - 2 };
-            if (difficulty === 'medium') return { min: 5, max: mediumMax, minFree: 1, maxFree: Math.ceil(size * 0.45) };
+            const easyMax = Math.max(4, Math.ceil(size / 8));
+            const mediumMax = Math.floor(6 + (size - 16) / 4);
+            if (difficulty === 'easy') return { min: 2, max: easyMax, minFree: 3, maxFree: size - 2 };
+            if (difficulty === 'medium') return { min: easyMax + 1, max: mediumMax, minFree: 1, maxFree: Math.ceil(size * 0.45) };
             return { min: mediumMax + 1, max: size - 1, minFree: 1, maxFree: Math.floor(size * 0.25) };
         }
         const mediumMin = 4, mediumMax = Math.max(mediumMin, Math.floor(size / 2));
@@ -69,7 +75,7 @@
 
     async function assemble(size, difficulty, rng, yieldWork) {
         const b = band(size, difficulty), target = difficulty === 'easy' ? b.max : b.min;
-        const rootCount = Math.min(size, 12);
+        const rootCount = Math.min(size, size > 24 ? 24 : 12);
         const rootLength = grid(rng, 3.0 + rootCount * 0.42, 4.6 + rootCount * 0.42);
         const pieces = [E.piece(1, COLORS[0], [0, 0, 0], AXES[0], AXES[2], rootLength, rng() < 0.5 ? -1 : 1)];
         let graph = [[]];
@@ -113,7 +119,7 @@
     }
 
     async function generate(size, difficulty, seed, onProgress) {
-        if (!SIZES.includes(size) || !['easy', 'medium', 'hard'].includes(difficulty)) throw new Error('Invalid Unshackle settings');
+        if (!GENERATION_SIZES.includes(size) || !['easy', 'medium', 'hard'].includes(difficulty)) throw new Error('Invalid Unshackle settings');
         const rng = makeRng(seed), pool = [];
         const poolTarget = difficulty === 'easy' ? 2 : 4, budget = 48;
         let lastYield = Date.now(), attempts = 0;
@@ -136,7 +142,7 @@
         const chosen = pool[0];
         // IDs and colours are independently shuffled, hiding insertion order.
         // Preserve version-1 outputs for the original sizes and shared seeds.
-        const order = shuffle(chosen.pieces.slice(), rng), colors = shuffle((size <= 12 ? COLORS : LARGE_COLORS).slice(), rng);
+        const order = shuffle(chosen.pieces.slice(), rng), colors = shuffle((size <= 12 ? COLORS : size <= 24 ? LARGE_COLORS : EXTENDED_COLORS).slice(), rng);
         const pieces = order.map((p, i) => E.piece(i + 1, colors[i], p.center, p.u, p.v, p.length, M.dot(p.u, p.dir) > 0 ? 1 : -1));
         const graph = E.blockingGraph(pieces), stats = E.analyze(graph);
         if (!qualifies(stats, size, difficulty)) throw new Error('Unshackle final verification failed');
@@ -154,18 +160,19 @@
     }
     global.PuzzleGenerators = global.PuzzleGenerators || {};
     global.PuzzleGenerators.unshackle = generate;
-    global.PuzzleGenerators.unshackleInternals = { band, qualifies, fingerprint, structureKey, SIZES, VERSION };
+    global.PuzzleGenerators.unshackleInternals = { band, qualifies, fingerprint, structureKey, SIZES, SHARE_SIZES, VERSION };
 })(typeof window === 'undefined' ? globalThis : window);
 
-/** Optional match-three mode. Classic generation above is deliberately unchanged. */
+/** Optional match-three mode, using the same physical geometry as Classic. */
 (function (global) {
     'use strict';
-    const SIZES = [12, 24], CAPACITY = 5;
+    const SIZES = [12, 24, 36, 48], CAPACITY = 5;
     const GROUPS = [
-        // Existing Classic colours; group identities and seeded choices stay intact.
+        // Keep the first six entries stable for legacy shared puzzles.
         { color: '#dd7e70', symbol: '●' }, { color: '#619bc4', symbol: '▲' },
         { color: '#dbba46', symbol: '■' }, { color: '#69b77d', symbol: '◆' },
         { color: '#a58adb', symbol: '✚' }, { color: '#f4a34f', symbol: '✦' },
+        { color: '#cf6d9e', symbol: '★' }, { color: '#4a9e9b', symbol: '⬟' },
     ];
     function rngFor(seed) {
         let a = (seed ^ 0x47ad31b9) >>> 0;
@@ -207,12 +214,14 @@
     // subset. A memoized subset search is exact; exhausting its budget is unknown,
     // never evidence that a position is unsolvable.
     function solve(puzzle, removed = [], capacity = CAPACITY, budget = 60000) {
-        const n = puzzle.pieces.length, full = (1 << n) - 1;
-        const needs = puzzle.graph.map(bs => bs.reduce((m, id) => m | (1 << (id - 1)), 0));
+        const n = puzzle.pieces.length, bits = Array.from({ length: n }, (_, i) => 1n << BigInt(i));
+        const full = (1n << BigInt(n)) - 1n;
+        const needs = puzzle.graph.map(bs => bs.reduce((m, id) => m | bits[id - 1], 0n));
+        const dependents = n > 24 ? bits.map(bit => needs.reduce((m, blockers, i) => blockers & bit ? m | bits[i] : m, 0n)) : null;
         const groups = puzzle.pieces.map(p => p.group), counts = GROUPS.map(() => 0);
-        let initial = 0;
-        for (const id of removed) initial |= 1 << (id - 1);
-        for (let i = 0; i < n; i++) if (initial & (1 << i)) counts[groups[i]]++;
+        let initial = 0n;
+        for (const id of removed) initial |= bits[id - 1];
+        for (let i = 0; i < n; i++) if (initial & bits[i]) counts[groups[i]]++;
         for (let i = 0; i < counts.length; i++) counts[i] %= 3;
         const occupied = counts.reduce((a, b) => a + b, 0), dead = new Set(), path = [];
         let visited = 0, exhausted = false;
@@ -223,15 +232,25 @@
             if (++visited > budget) { exhausted = true; return false; }
             const legal = [];
             for (let i = 0; i < n; i++) {
-                if ((mask & (1 << i)) || (mask & needs[i]) !== needs[i]) continue;
+                if ((mask & bits[i]) || (mask & needs[i]) !== needs[i]) continue;
                 const next = used + (counts[groups[i]] === 2 ? -2 : 1);
                 if (next <= capacity) legal.push({ i, next });
             }
             legal.sort((a, b) => a.next - b.next || a.i - b.i);
             for (const { i, next } of legal) {
+                // Available pieces of one colour are interchangeable when one
+                // blocks every remaining dependent of the other (and more).
+                // Prefer that piece; break exact ties by ID. This is an exact
+                // dominance reduction, not a heuristic claim of unsolvability.
+                if (dependents) {
+                    const blocked = dependents[i] & (full ^ mask);
+                    if (legal.some(({ i: j }) => j !== i && groups[j] === groups[i]
+                        && (blocked & dependents[j]) === blocked
+                        && ((dependents[j] & (full ^ mask)) !== blocked || j < i))) continue;
+                }
                 const g = groups[i], before = counts[g];
                 counts[g] = (before + 1) % 3; path.push(i + 1);
-                if (visit(mask | (1 << i), next)) return true;
+                if (visit(mask | bits[i], next)) return true;
                 path.pop(); counts[g] = before;
                 if (exhausted) return false;
             }
@@ -253,30 +272,150 @@
         }
         return null;
     }
-    async function generate(size, difficulty, seed, onProgress) {
+    async function generateLegacy(size, difficulty, seed, onProgress) {
         if (!SIZES.includes(size) || !['easy', 'medium', 'hard'].includes(difficulty)) throw new Error('Invalid match settings');
-        // Broad geometric openings leave room for meaningful colour decisions.
-        const base = await global.PuzzleGenerators.unshackle(size, difficulty === 'hard' ? 'medium' : 'easy', seed,
-            onProgress ? fraction => onProgress(fraction * 0.55) : undefined);
-        const rng = rngFor(seed), target = { easy: 3, medium: 4, hard: 5 }[difficulty];
-        for (let attempt = 0; attempt < 128; attempt++) {
-            const palette = shuffle(GROUPS.map((_, i) => i), rng).slice(0, Math.min(size / 3, GROUPS.length));
-            const labels = shuffle(Array.from({ length: size / 3 }, (_, i) => Array(3).fill(palette[i % palette.length])).flat(), rng);
-            const pieces = base.pieces.map((p, i) => ({ ...p, group: labels[i], ...GROUPS[labels[i]] }));
-            const puzzle = { ...base, id: `unshackle-match-v1-${size}-${difficulty}-${(seed >>> 0).toString(36)}`,
-                mode: 'match', difficulty, pieces, capacity: CAPACITY };
-            const upper = solve(puzzle, [], target);
-            if (upper.status === 'solved') {
-                const lower = solve(puzzle, [], target - 1);
-                if (lower.status === 'unsolvable' || (difficulty === 'easy' && lower.status === 'solved')) {
-                    const trap = findTrap(puzzle, rng);
-                    if (trap) return { ...puzzle, solution: upper.solution, trap,
-                        matchStats: { requiredSlots: lower.status === 'solved' ? 2 : target, assignments: attempt + 1 } };
-                }
+        // Larger colour pools need deeper blockers to retain capacity pressure.
+        // Keep the original 12/24-piece geometry and seed replay unchanged.
+        const geometryDifficulty = size > 24 ? difficulty : difficulty === 'hard' ? 'medium' : 'easy';
+        const geometryBudget = size > 24 ? 4 : 1, assignmentBudget = size > 24 ? 32 : 128;
+        const target = { easy: 3, medium: 4, hard: 5 }[difficulty];
+        for (let geometry = 0; geometry < geometryBudget; geometry++) {
+            const geometrySeed = (seed + Math.imul(geometry, 0x9e3779b9)) >>> 0;
+            const report = onProgress ? fraction => onProgress((geometry + fraction) / geometryBudget) : undefined;
+            const tier = size > 24 && difficulty === 'medium' && geometry % 2 ? 'hard' : geometryDifficulty;
+            let base;
+            try {
+                base = await global.PuzzleGenerators.unshackle(size, tier, geometrySeed,
+                    report ? fraction => report(fraction * 0.55) : undefined);
+            } catch (error) {
+                if (geometryBudget === 1) throw error;
+                continue;
             }
-            if (onProgress) await onProgress(0.55 + 0.44 * (attempt + 1) / 128);
+            const rng = rngFor(geometrySeed);
+            let proofVisits = 0;
+            for (let attempt = 0; attempt < assignmentBudget; attempt++) {
+                const palette = shuffle(GROUPS.slice(0, 6).map((_, i) => i), rng).slice(0, Math.min(size / 3, 6));
+                const labels = shuffle(Array.from({ length: size / 3 }, (_, i) => Array(3).fill(palette[i % palette.length])).flat(), rng);
+                const pieces = base.pieces.map((p, i) => ({ ...p, group: labels[i], ...GROUPS[labels[i]] }));
+                const puzzle = { ...base, id: `unshackle-match-v1-${size}-${difficulty}-${(seed >>> 0).toString(36)}`,
+                    mode: 'match', seed: seed >>> 0, difficulty, pieces, capacity: CAPACITY };
+                const upper = solve(puzzle, [], target);
+                if (upper.status === 'solved') {
+                    // Proving that a large board needs the extra place can visit
+                    // far more states than finding one valid route. Hint searches
+                    // keep their smaller default budget; exhausted proofs reject.
+                    const lower = solve(puzzle, [], target - 1, size > 24 ? 1000000 : 60000);
+                    proofVisits += lower.visited;
+                    if (lower.status === 'unsolvable' || (difficulty === 'easy' && lower.status === 'solved')) {
+                        const trap = findTrap(puzzle, rng);
+                        if (trap) return { ...puzzle, solution: upper.solution, trap,
+                            matchStats: { requiredSlots: lower.status === 'solved' ? 2 : target, assignments: attempt + 1,
+                                ...(size > 24 ? { geometryAttempts: geometry + 1 } : {}) } };
+                    }
+                }
+                if (report) await report(0.55 + 0.44 * (attempt + 1) / assignmentBudget);
+                // A broad graph can make an exact lower-bound proof too expensive.
+                // Try another seeded geometry instead of exhausting colour variants.
+                if (size > 24 && proofVisits >= 3000000) break;
+            }
         }
         throw new Error('No verified match puzzle met the requested difficulty');
     }
-    global.PuzzleGenerators.unshackleMatch = { generate, solve, trayAfter, pullPlan, SIZES, CAPACITY, GROUPS };
+    function available(puzzle, removed) {
+        return puzzle.pieces.filter(p => !removed.has(p.id) && puzzle.graph[p.id - 1].every(id => removed.has(id)));
+    }
+    function strategy(puzzle) {
+        const removed = new Set();
+        let openingTriples = 0;
+        while (removed.size < puzzle.size) {
+            const free = available(puzzle, removed);
+            const triple = GROUPS.map((_, g) => free.filter(p => p.group === g)).find(ps => ps.length >= 3);
+            if (!triple) break;
+            if (!removed.size) openingTriples = GROUPS.reduce((n, _, g) => n + Math.floor(free.filter(p => p.group === g).length / 3), 0);
+            triple.slice(0, 3).forEach(p => removed.add(p.id));
+        }
+        const tripleOnlyRemoved = removed.size, greedyCleared = [];
+        for (let trial = 0; trial < 4; trial++) {
+            const taken = new Set();
+            while (taken.size < puzzle.size) {
+                const tray = trayAfter(puzzle, taken), free = available(puzzle, taken);
+                const counts = GROUPS.map((_, g) => tray.filter(id => puzzle.pieces[id - 1].group === g).length);
+                const score = p => (counts[p.group] === 2 ? 1000 : counts[p.group] * 100)
+                    + free.filter(q => q.group === p.group).length * 10
+                    + (trial < 2 ? 0 : puzzle.graph.filter(bs => bs.includes(p.id)).length);
+                const legal = free.filter(p => counts[p.group] === 2 || tray.length < CAPACITY);
+                legal.sort((a, b) => score(b) - score(a) || (trial % 2 ? b.id - a.id : a.id - b.id));
+                if (!legal.length) break;
+                taken.add(legal[0].id);
+            }
+            greedyCleared.push(taken.size);
+        }
+        return { openingTriples, tripleOnlyRemoved, greedyWins: greedyCleared.filter(n => n === puzzle.size).length,
+            greedyTrials: greedyCleared.length, greedyCleared };
+    }
+    function auditDecisions(puzzle, solution, wanted, capacity = CAPACITY) {
+        const removed = new Set(), decisions = [];
+        for (let step = 0; step < solution.length - 3 && decisions.length < wanted; step++) {
+            if (step % 3 === 0) {
+                for (const p of available(puzzle, removed)) {
+                    if (p.id === solution[step] || decisions.some(d => d.bad === p.id)) continue;
+                    const plan = pullPlan(puzzle, removed, p.id);
+                    if (!plan.allowed || plan.tray.length > capacity) continue;
+                    const result = solve(puzzle, [...removed, p.id], capacity, 10000);
+                    if (result.status === 'unsolvable') {
+                        decisions.push({ removed: [...removed], good: solution[step], bad: p.id, capacity });
+                        break;
+                    }
+                }
+            }
+            removed.add(solution[step]);
+        }
+        return decisions;
+    }
+    async function generate(size, difficulty, seed, onProgress) {
+        if (!SIZES.includes(size) || !['easy', 'medium', 'hard'].includes(difficulty)) throw new Error('Invalid match settings');
+        const target = { easy: 3, medium: 4, hard: 5 }[difficulty];
+        const geometryBudget = 6, assignmentBudget = 64;
+        const wantedDecisions = difficulty === 'hard' ? (size === 12 ? 1 : 2) : difficulty === 'medium' ? 1 : 0;
+        for (let geometry = 0; geometry < geometryBudget; geometry++) {
+            const geometrySeed = (seed + Math.imul(geometry, 0x9e3779b9)) >>> 0;
+            const report = onProgress ? fraction => onProgress((geometry + fraction) / geometryBudget) : undefined;
+            const tier = difficulty === 'easy' ? 'easy' : 'medium';
+            let base;
+            try {
+                base = await global.PuzzleGenerators.unshackle(size, tier, geometrySeed,
+                    report ? fraction => report(fraction * 0.5) : undefined);
+            } catch (_) { continue; }
+            const rng = rngFor(geometrySeed ^ 0x8243a719);
+            for (let attempt = 0; attempt < assignmentBudget; attempt++) {
+                if (report) await report(0.5 + 0.49 * attempt / assignmentBudget);
+                const palette = shuffle(GROUPS.map((_, i) => i), rng).slice(0, Math.min(size / 3, GROUPS.length));
+                const labels = shuffle(Array.from({ length: size / 3 }, (_, i) => Array(3).fill(palette[i % palette.length])).flat(), rng);
+                const pieces = base.pieces.map((p, i) => ({ ...p, group: labels[i], ...GROUPS[labels[i]] }));
+                const puzzle = { ...base, id: `unshackle-match-v2-${size}-${difficulty}-${(seed >>> 0).toString(36)}`,
+                    mode: 'match', matchVersion: 2, seed: seed >>> 0, difficulty, pieces, capacity: CAPACITY };
+                const measured = strategy(puzzle);
+                const allowedGreedyWins = difficulty === 'hard' ? 0 : 4;
+                const allowedTriples = difficulty === 'hard' ? 0.25 : difficulty === 'medium' ? 0.5 : 1;
+                if (measured.greedyWins > allowedGreedyWins || measured.tripleOnlyRemoved > size * allowedTriples) continue;
+                if (difficulty === 'easy' && measured.greedyWins < 2) continue;
+                if (difficulty === 'hard' && measured.openingTriples > 1) continue;
+                const upper = solve(puzzle, [], target);
+                if (upper.status === 'solved') {
+                    const lower = solve(puzzle, [], target - 1, 250000);
+                    if (lower.status === 'unsolvable' || (difficulty === 'easy' && lower.status === 'solved')) {
+                        const decisions = auditDecisions(puzzle, upper.solution, wantedDecisions, target);
+                        if (decisions.length >= wantedDecisions) {
+                            const trap = findTrap(puzzle, rng);
+                            if (trap) return { ...puzzle, solution: lower.status === 'solved' ? lower.solution : upper.solution, trap,
+                                matchStats: { requiredSlots: lower.status === 'solved' ? 2 : target, assignments: attempt + 1,
+                                    geometryAttempts: geometry + 1, colours: palette.length, ...measured, decisions } };
+                        }
+                    }
+                }
+            }
+        }
+        throw new Error('No verified strategic match puzzle met the requested difficulty');
+    }
+    global.PuzzleGenerators.unshackleMatch = { generate, generateLegacy, solve, trayAfter, pullPlan, strategy, auditDecisions, SIZES, CAPACITY, GROUPS };
 })(typeof window === 'undefined' ? globalThis : window);
