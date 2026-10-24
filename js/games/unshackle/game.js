@@ -56,7 +56,7 @@
         unlockWebGL: '3D rendering is unavailable. Enable WebGL or try another browser.',
         unlockContextLost: '3D rendering was interrupted. Waiting for the browser to restore it…',
         unlockHelp1: 'Remove every piece. Each slides straight toward its white end cap.',
-        unlockHelp2: 'Drag to rotate the puzzle. Tap a piece or its numbered button to pull it out. A blocked piece stays in place; its blockers turn amber.',
+        unlockHelp2: 'Drag to rotate the puzzle. Tap a piece or its numbered button to pull it out. A blocked piece stays in place; its blockers briefly flash amber.',
         unlockHelp3: 'Pinch or scroll to zoom. Keyboard: arrows to rotate, 1–9 to pull, Home to reset the view, Ctrl+Z to undo. New Game generates a fresh puzzle; Share copies this exact puzzle.',
     });
     Object.assign(PC.i18n.STRINGS.zh, {
@@ -99,7 +99,7 @@
         unlockWebGL: '目前無法顯示 3D 畫面，請啟用 WebGL 或換個瀏覽器。',
         unlockContextLost: '3D 畫面暫時中斷，等待瀏覽器恢復中…',
         unlockHelp1: '抽出所有零件即過關。每個零件只能朝白色端點的方向直線移動。',
-        unlockHelp2: '拖曳旋轉整組枷鎖，點擊零件或下方編號即可抽出。被擋住的零件會留在原位，阻擋它的零件會亮成琥珀色。',
+        unlockHelp2: '拖曳旋轉整組枷鎖，點擊零件或下方編號即可抽出。被擋住的零件會留在原位，阻擋它的零件會短暫亮成琥珀色。',
         unlockHelp3: '雙指縮放或滾輪調整遠近。鍵盤：方向鍵旋轉、1–9 抽出、Home 視角歸位、Ctrl+Z 復原。「新局」產生新題；「分享」複製相同題目的連結。',
     });
     // custom: two rounded links separating along a diagonal.
@@ -119,6 +119,7 @@
         puzzle: null, pieces: [], graph: [], removed: new Set(), won: false,
         animation: null, blocked: null, blockers: [], highlight: null, hover: null };
     let shell, frame = 0, hintOn = false, contextLost = false, generating = false;
+    let blockedFeedbackTimer = 0;
     let feedback = { key: 'unlockReady', args: [] };
     let lastTime = '';
     let stagedMode = initialMode, matchSolveLogged = false;
@@ -142,8 +143,20 @@
         $('match-panel').classList.toggle('rejected', trayFull);
     }
     function clearFeedback() {
+        clearTimeout(blockedFeedbackTimer); blockedFeedbackTimer = 0;
         state.blocked = null; state.blockers = []; state.highlight = null; hintOn = false;
         $('match-panel').classList.remove('rejected', 'shaking');
+    }
+    function flashBlocked(id, blockers = []) {
+        clearTimeout(blockedFeedbackTimer);
+        state.blocked = id; state.blockers = blockers;
+        // Warning colours must not outlive the feedback and masquerade as a
+        // piece's matching group. Leave the hint and message state untouched.
+        blockedFeedbackTimer = setTimeout(() => {
+            blockedFeedbackTimer = 0;
+            state.blocked = null; state.blockers = [];
+            invalidate();
+        }, 850);
     }
     function blockersFor(p) {
         return state.graph[state.pieces.indexOf(p)].filter(id => !state.removed.has(id));
@@ -373,13 +386,13 @@
         PC.audio.unlock(); clearFeedback();
         const blockers = blockersFor(p);
         if (blockers.length) {
-            state.blocked = id; state.blockers = blockers;
+            flashBlocked(id, blockers);
             state.animation = { id, start: performance.now(), offset: 0, blocked: true };
             say('unlockBlocked', id, blockers);
         } else {
             const plan = state.mode === 'match' ? Match.pullPlan(state.puzzle, state.removed, id) : null;
             if (plan && !plan.allowed) {
-                state.blocked = id;
+                flashBlocked(id);
                 state.animation = { id, start: performance.now(), offset: 0, blocked: true, trayFull: true,
                     reducedMotion: window.matchMedia('(prefers-reduced-motion: reduce)').matches };
                 say('unlockTrayFull');
@@ -406,7 +419,7 @@
         // Returning is the reverse of a full pull. The same swept-path blockers
         // apply, including obstacles reintroduced by earlier returns.
         if (blockers.length) {
-            state.blockers = blockers; say('unlockReturnBlocked', id, blockers);
+            flashBlocked(null, blockers); say('unlockReturnBlocked', id, blockers);
         } else {
             // Creating or drawing a flight must not add an unchanged snapshot or
             // strand the UI. Commit the return and its history only on arrival.
