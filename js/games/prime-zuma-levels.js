@@ -28,11 +28,13 @@ window.PrimeZumaData = (function () {
         { id: 'clover',  name: 'Clover',  shape: 'clover', gx: 70, gy: 70, leafR: 64, deathExt: 44, bg: '#0c1407', accent: '#a3e635' },
         { id: 'helix',   name: 'Helix',   shape: 'spiral', turns: 3, Rin: 70, Rout: 214, phase: -0.7854, mirror: true, ox: -4, oy: 16, bg: '#170a1a', accent: '#d946ef' },
         { id: 'duo',     name: 'Duo',     shape: 'duo',    half: 156, cr: 24, gap: 44, sep: 36, bg: '#140a0f', accent: '#fb7185', accent2: '#38bdf8' },
+        { id: 'trine',   name: 'Trine',   shape: 'triple', turns: 1.4, Rin: 70, Rout: 214,       bg: '#0b0e14', accents: ['#f43f5e', '#22c55e', '#3b82f6'] },
+        { id: 'eight',   name: 'Eight',   shape: 'infinity', aw: 190, bh: 108, voff: 116,        bg: '#0c0a16', accents: ['#facc15', '#818cf8'] },
     ];
     var X = FIELDS.length;
 
     // ---- PER-LEVEL tuning table. LEVELS[world-1][fieldIndex] — hand-edit every value freely. ----
-    //   field columns 0..9 match the FIELDS order above: vortex, box, serpent, star, twin, maze, tri, clover, helix, duo
+    //   field columns 0..11 match the FIELDS order above: vortex, box, serpent, star, twin, maze, tri, clover, helix, duo, trine, eight
     //   per level: primes (available prime balls) · cap (max ball value) · omega (max prime-factor count Ω) ·
     //              feed (queue creep speed, px/s) · bias (<1 favours simple/primes, 1 even, >1 complex) · quota (balls to clear = win)
     var P1 = [2, 3, 5], P2 = [2, 3, 5, 7], P3 = [2, 3, 5, 7, 11];
@@ -48,6 +50,8 @@ window.PrimeZumaData = (function () {
             { primes: P1, cap: 31, omega: 3, feed: 12, bias: 0.47, quota: 55 },
             { primes: P1, cap: 33, omega: 3, feed: 12, bias: 0.49, quota: 60 },
             { primes: P1, cap: 35, omega: 3, feed: 13, bias: 0.50, quota: 65 },
+            { primes: P1, cap: 36, omega: 3, feed: 13, bias: 0.52, quota: 70 },
+            { primes: P1, cap: 38, omega: 3, feed: 13, bias: 0.54, quota: 75 },
         ],
         [ // World 2
             { primes: P2, cap: 36, omega: 3, feed: 13, bias: 0.51, quota: 70 },
@@ -60,6 +64,8 @@ window.PrimeZumaData = (function () {
             { primes: P2, cap: 49, omega: 3, feed: 14, bias: 0.61, quota: 105 },
             { primes: P2, cap: 51, omega: 3, feed: 14, bias: 0.62, quota: 110 },
             { primes: P2, cap: 53, omega: 3, feed: 14, bias: 0.63, quota: 115 },
+            { primes: P2, cap: 54, omega: 3, feed: 14, bias: 0.64, quota: 120 },
+            { primes: P2, cap: 56, omega: 3, feed: 14, bias: 0.66, quota: 125 },
         ],
         [ // World 3
             { primes: P2, cap: 55, omega: 4, feed: 15, bias: 0.65, quota: 120 },
@@ -72,6 +78,8 @@ window.PrimeZumaData = (function () {
             { primes: P2, cap: 68, omega: 4, feed: 16, bias: 0.74, quota: 155 },
             { primes: P2, cap: 70, omega: 4, feed: 16, bias: 0.75, quota: 160 },
             { primes: P2, cap: 72, omega: 4, feed: 16, bias: 0.77, quota: 165 },
+            { primes: P2, cap: 73, omega: 4, feed: 16, bias: 0.78, quota: 170 },
+            { primes: P2, cap: 74, omega: 4, feed: 16, bias: 0.79, quota: 175 },
         ],
         [ // World 4
             { primes: P3, cap: 73, omega: 4, feed: 16, bias: 0.78, quota: 170 },
@@ -84,6 +92,8 @@ window.PrimeZumaData = (function () {
             { primes: P3, cap: 86, omega: 4, feed: 18, bias: 0.87, quota: 205 },
             { primes: P3, cap: 88, omega: 4, feed: 18, bias: 0.89, quota: 210 },
             { primes: P3, cap: 90, omega: 4, feed: 18, bias: 0.90, quota: 215 },
+            { primes: P3, cap: 91, omega: 4, feed: 18, bias: 0.91, quota: 220 },
+            { primes: P3, cap: 92, omega: 4, feed: 18, bias: 0.92, quota: 225 },
         ],
     ];
     function level(world, fieldIdx) {

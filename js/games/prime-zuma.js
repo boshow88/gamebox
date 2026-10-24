@@ -139,6 +139,23 @@
         var baseLen = arc; pts.reverse();
         return { pts: pts, cannon: c0, under: revUnder(baseLen, under) };
     }
+    function genLem(cx, cy, a, b, d0) {   // Gerono figure-8 (lemniscate), opened at the right lobe tip (d0 = how wide the open gap is → pushes death clear of the incoming entrance). pts[0] = death, pts[last] = entrance. Crosses itself once at the centre (cx,cy).
+        var pts = [], N = 320, i;
+        for (i = 0; i <= N; i++) { var t = d0 + (2 * Math.PI - 2 * d0) * i / N; pts.push({ x: cx + a * Math.cos(t), y: cy + b * Math.sin(t) * Math.cos(t) }); }
+        return pts;
+    }
+    function passArc2(pts, cx, cy) {   // arc-length of the SECOND pass through (cx,cy) (the later of the two crossing passes)
+        var best = 0, bd = Infinity, acc = 0, start = Math.floor(pts.length * 0.5), i;
+        for (i = 0; i < pts.length; i++) { if (i > 0) acc += Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y); if (i >= start) { var dx = pts[i].x - cx, dy = pts[i].y - cy, d = dx * dx + dy * dy; if (d < bd) { bd = d; best = acc; } } }
+        return best;
+    }
+    function genDualLem(f) {   // two figure-8s: the bottom one is the TOP one's 180° point-reflection (so the whole field is point-symmetric). Both flattened (b<a) to leave the centre cannon room.
+        var o = cen(f), a = f.aw || 190, b = f.bh || 108, voff = f.voff || 116, w = f.underW || CFG.D * 1.2, d0 = f.gap != null ? f.gap : 0.3;
+        var top = genLem(o.x, o.y - voff, a, b, d0);
+        var bot = top.map(function (p) { return { x: 2 * o.x - p.x, y: 2 * o.y - p.y }; });   // point-reflection through the centre
+        var ut = passArc2(top, o.x, o.y - voff), ub = passArc2(bot, o.x, o.y + voff);
+        return { loops: [top, bot], under: [[[ut - w, ut + w]], [[ub - w, ub + w]]] };
+    }
     function polyRound(wp, r, seg) {   // polyline through waypoints; interior corners rounded (radius r) with a quadratic fillet, straight runs sampled ~every seg px. pts[0] = death, pts[last] = entrance.
         var pts = [], i;
         function push(p) { pts.push(p); }
@@ -197,6 +214,8 @@
             return p;
         }
         if (field.shape === 'dual') { var ph = field.phase != null ? field.phase : -Math.PI / 4; return { paths: [make(genSpiral(field, ph).pts, field.exitAng), make(genSpiral(field, ph + Math.PI).pts, field.exitAng2)], cannon: can }; }
+        if (field.shape === 'triple') { var pt3 = field.phase != null ? field.phase : -Math.PI / 2; return { paths: [0, 1, 2].map(function (k) { return make(genSpiral(field, pt3 + k * 2 * Math.PI / 3).pts, field.exitAng); }), cannon: can }; }
+        if (field.shape === 'infinity') { var gl = genDualLem(field); return { paths: [make(gl.loops[0], 0, gl.under[0]), make(gl.loops[1], Math.PI, gl.under[1])], cannon: can }; }
         if (field.shape === 'square') return { paths: [make(genSquare(field, field.phase || 0).pts, field.exitAng)], cannon: can };
         if (field.shape === 'poly') return { paths: [make(genPoly(field, field.phase || 0).pts, field.exitAng)], cannon: can };
         if (field.shape === 'star') { var gs = genStar(field); return { paths: [make(gs.pts, field.exitAng, gs.under)], cannon: can }; }
@@ -496,7 +515,7 @@
         var ease = 1 - Math.exp(-dt * CFG.smooth), pr = 7 + Math.sin(now * 4) * 1.5, L, qi, j, p, pt;
         ctx.fillStyle = R.field.bg; ctx.fillRect(0, 0, CW, CH);
         for (L = 0; L < lanes.length; L++) {
-            var lane = lanes[L], path = lane.path, qs = lane.qs, hasU = path.under && path.under.length, accent = (R.field.accent2 && L > 0) ? R.field.accent2 : R.field.accent;   // a multi-lane field (Twin) can tint its arms differently
+            var lane = lanes[L], path = lane.path, qs = lane.qs, hasU = path.under && path.under.length, accent = R.field.accents ? R.field.accents[L % R.field.accents.length] : ((R.field.accent2 && L > 0) ? R.field.accent2 : R.field.accent);   // multi-lane fields tint each lane (accents[] array, or accent/accent2)
             roadStroke(path, accent);                                   // (1) continuous base road
             if (hasU) for (var ut = 0; ut < path.under.length; ut++) tintUnderground(path, path.under[ut][0], path.under[ut][1], accent);   // (2) darken the underground stretches (clear colour difference)
             for (qi = 0; qi < qs.length; qi++) { var q = qs[qi]; for (j = 0; j < q.vals.length; j++) { var b = q.vals[j], sB = q.head + j * CFG.D, lp = posAt(path, sB); b.rx += (lp.x - b.rx) * ease; b.ry += (lp.y - b.ry) * ease; if (buriedS(path, sB)) { ctx.globalAlpha = 0.42; drawBall(b.rx, b.ry, b.v, CFG.rBall * (1 + (b.pop || 0) * 0.35)); ctx.globalAlpha = 1; } } }   // (3) ease every ball; underground ones drawn semi-transparent (not hidden)
@@ -545,7 +564,7 @@
         g.fillStyle = f.bg; g.fillRect(0, 0, size, size);
         var sc = size / CW; g.lineCap = 'round'; g.lineJoin = 'round';
         for (var L = 0; L < built.paths.length; L++) {
-            var path = built.paths[L], acc = (f.accent2 && L > 0) ? f.accent2 : f.accent;
+            var path = built.paths[L], acc = f.accents ? f.accents[L % f.accents.length] : ((f.accent2 && L > 0) ? f.accent2 : f.accent);
             g.strokeStyle = acc; g.lineWidth = Math.max(2.5, (CFG.rBall * 2 + 9) * sc);
             g.beginPath(); for (var p = 0; p < path.pts.length; p++) { var pt = path.pts[p]; if (p === 0) g.moveTo(pt.x * sc, pt.y * sc); else g.lineTo(pt.x * sc, pt.y * sc); } g.stroke();
         }
