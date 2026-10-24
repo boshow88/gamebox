@@ -18,7 +18,7 @@
             pzName: 'Prime Zuma', pzScore: 'Score',
             pzLevelMode: 'Levels', pzEndless: 'Endless', pzEasy: 'Easy', pzNormal: 'Normal', pzHard: 'Hard',
             pzBalanced: 'Balanced', pzDiverse: 'Diverse', pzGnarly: 'Heavy', pzBlitz: 'Blitz', pzHardPrimes: 'Tricky',
-            pzPickLevel: 'Pick a level', pzClear: 'Cleared!', pzFailed: 'Failed',
+            pzPickLevel: 'Pick a level', pzClear: 'Cleared!', pzFailed: 'Failed', pzOk: 'OK', pzGameOver: 'Game Over',
             pzHelp1Html: 'A turret shoots <strong>prime</strong> balls; chains spiral inward and you lose if one reaches a <strong>core</strong>.',
             pzHelp2Html: 'A shot prime <strong>p</strong> divides every ball in a contiguous run divisible by p (length <strong>3+</strong>) by p — any that become 1 are removed.',
             pzHelp3Html: '<strong>Levels</strong>: clear a finite chain to win. <strong>Endless</strong>: survive as it ramps up. <kbd>P</kbd> pause · <kbd>R</kbd> restart.',
@@ -27,7 +27,7 @@
             pzName: '質因數祖瑪', pzScore: '分數',
             pzLevelMode: '一般', pzEndless: '無盡', pzEasy: '簡單', pzNormal: '普通', pzHard: '困難',
             pzBalanced: '均衡', pzDiverse: '多元', pzGnarly: '難消', pzBlitz: '反應', pzHardPrimes: '刁鑽',
-            pzPickLevel: '選擇關卡', pzClear: '過關！', pzFailed: '失敗',
+            pzPickLevel: '選擇關卡', pzClear: '過關！', pzFailed: '失敗', pzOk: '確定', pzGameOver: '遊戲結束',
             pzHelp1Html: '砲台發射<strong>質數</strong>球；球鏈往內盤旋,抵達<strong>核心</strong>就輸了。',
             pzHelp2Html: '射出的質數 <strong>p</strong> 會把一段可被 p 整除的連續球鏈（<strong>3 顆以上</strong>）全部除以 p,變成 1 的球消除。',
             pzHelp3Html: '<strong>一般</strong>：清光有限球鏈即過關。<strong>無盡</strong>：撐著,難度隨時間升高。<kbd>P</kbd> 暫停 · <kbd>R</kbd> 重來。',
@@ -45,6 +45,9 @@
         shotSpeed: 480,
         insertPush: 'front',
         startLen: 5,
+        startBurst: 10,         // default # of balls fast-fed at the start (a field can override via startBurst)
+        startBurstTime: 2,      // the start-burst pours its balls out over THIS many seconds (count ÷ time = balls/sec)
+        startCountdown: 3,      // "get ready" countdown (seconds) before the player may shoot; the burst pours out during it
         smooth: 16,
         compositeColor: '#4b5a70',
     };
@@ -289,7 +292,7 @@
     // ---------------- state ----------------
     // lanes: [{ path:{pts,arc,len}, qs:[ {vals:[ball..], head, imp} ... ] }]  — each lane is an independent chain.
     var canvas, ctx, shell, lanes, shots, cannon, score, over, fx, frame, combo, lastElimFrame, R, CAN = { x: CX, y: CY };
-    var mode = 'level', sel = { world: 1, fieldIdx: 0 }, endlessSel = { diff: 'balanced', fieldIdx: 0 }, pending = null, lastResult = null, paused = false;
+    var mode = 'level', sel = { world: 1, fieldIdx: 0 }, endlessSel = { diff: 'balanced', fieldIdx: 0 }, pending = null, lastResult = null, paused = false, countdown = 0, resultView = false, gameOverAt = 0;
     function makeBall(v, x, y) { return { v: v, rx: x, ry: y, pop: 0 }; }
 
     function $(id) { return document.getElementById(id); }
@@ -307,11 +310,14 @@
             var stages = style.build ? style.build() : style.stages, s0 = stages[0]; field = DATA.FIELDS[p.fieldIdx] || DATA.FIELDS[0];   // build() lets a style randomise its stages once per run
             R = { isLevel: false, field: field, e: { stages: stages }, full: s0.primes, activeN: s0.primes.length, cap: s0.cap, maxOmega: s0.omega, bias: s0.bias, feed: s0.feed, quota: Infinity, spawned: 0, candidates: [] };
         }
+        R.burst = field.startBurst != null ? field.startBurst : CFG.startBurst;   // fast-feed this many balls (TOTAL) at the start so there's instantly something to shoot
+        countdown = CFG.startCountdown;
         var fb = buildField(field); CAN = fb.cannon;
         frame = 0; combo = 0; lastElimFrame = -999;
         rebuildCandidates();
         shots = []; fx = []; score = 0; over = false;
         var nLanes = fb.paths.length, seedPer = Math.min(CFG.startLen, R.isLevel ? Math.max(1, Math.floor(R.quota / nLanes)) : CFG.startLen);
+        R.burstV = R.burst > 0 ? (R.burst / CFG.startBurstTime / nLanes) * CFG.D : 0;   // per-lane creep speed; divided by lane count so the TOTAL burst still pours over startBurstTime regardless of how many lanes
         lanes = [];
         for (var L = 0; L < nLanes; L++) {
             var path = fb.paths[L], head = path.len - seedPer * CFG.D, vals = [];
@@ -388,6 +394,7 @@
 
     // ---------------- shooting / insertion ----------------
     function shoot() {
+        if (countdown > 0) return;   // can't fire until the get-ready countdown ends
         var mx = CAN.x + Math.cos(cannon.aim) * 24, my = CAN.y + Math.sin(cannon.aim) * 24, fired = cannon.cur;
         shots.push({ x: mx, y: my, vx: Math.cos(cannon.aim) * CFG.shotSpeed, vy: Math.sin(cannon.aim) * CFG.shotSpeed, v: fired });
         cannon.cur = cannon.next; cannon.next = pickCannonPrime();
@@ -414,20 +421,21 @@
         if (over || !lanes) return;
         frame++;
         if (!R.isLevel) updateProgression();
-        var dt = 1 / 60, i, L, qs;
+        var dt = 1 / 60, i, L, qs, feedV = (R.burst > 0) ? R.burstV : R.feed;   // while the start-burst is active, creep at the fixed-time burst speed so balls pour out quickly
+        if (countdown > 0) countdown = Math.max(0, countdown - dt);
         // 1) feed each lane from its source (level stops once the TOTAL quota is reached)
         for (L = 0; L < lanes.length; L++) {
             qs = lanes[L].qs; var lastQ = qs.length ? qs[qs.length - 1] : null, path = lanes[L].path, canFeed = R.isLevel ? (R.spawned < R.quota) : true;
             if (canFeed && (!lastQ || backEndS(lastQ) <= path.len - CFG.D)) {
-                if (lastQ && path.len - backEndS(lastQ) <= CFG.D + 0.5) { var pe = posAt(path, backEndS(lastQ) + CFG.D); lastQ.vals.push(makeBall(spawnValue(), pe.x, pe.y)); }
+                if (lastQ && path.len - backEndS(lastQ) <= CFG.D + feedV / 60 + 2) { var pe = posAt(path, backEndS(lastQ) + CFG.D); lastQ.vals.push(makeBall(spawnValue(), pe.x, pe.y)); }   // tolerate one frame of creep so fast feed keeps appending to the chain instead of fragmenting it
                 else { var ps = posAt(path, path.len); qs.push({ vals: [makeBall(spawnValue(), ps.x, ps.y)], head: path.len, imp: 0 }); }
-                R.spawned++;
+                R.spawned++; if (R.burst > 0) R.burst--;
             }
         }
         // 2) velocities + motion + collisions, per lane
         for (L = 0; L < lanes.length; L++) {
             qs = lanes[L].qs;
-            for (i = 0; i < qs.length; i++) { var q = qs[i], v = 0; if (i === qs.length - 1) v = -R.feed; else if (gcd(q.vals[q.vals.length - 1].v, qs[i + 1].vals[0].v) > 1) v = CFG.vRetreat; q.vel = v + (q.imp || 0); q.imp = (q.imp || 0) * Math.max(0, 1 - CFG.impDecay * dt); if (Math.abs(q.imp) < 1) q.imp = 0; }
+            for (i = 0; i < qs.length; i++) { var q = qs[i], v = 0; if (i === qs.length - 1) v = -feedV; else if (gcd(q.vals[q.vals.length - 1].v, qs[i + 1].vals[0].v) > 1) v = CFG.vRetreat; q.vel = v + (q.imp || 0); q.imp = (q.imp || 0) * Math.max(0, 1 - CFG.impDecay * dt); if (Math.abs(q.imp) < 1) q.imp = 0; }
             for (i = 0; i < qs.length; i++) qs[i].head += qs[i].vel * dt;
             resolveCollisions(qs);
         }
@@ -552,6 +560,13 @@
         drawChip(CAN.x + Math.cos(cannon.aim) * 30, CAN.y + Math.sin(cannon.aim) * 30, cannon.cur, CFG.rBall);   // loaded ball = full size
         ctx.beginPath(); ctx.arc(CAN.x, CAN.y, CFG.rBall * 0.8 + 5, 0, 7); ctx.fillStyle = '#1e293b'; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = '#64748b'; ctx.stroke();
         drawChip(CAN.x, CAN.y, cannon.next, CFG.rBall * 0.8);   // next ball a bit smaller → reads as a preview
+        if (countdown > 0) {   // "get ready" countdown — balls pour out, but the player can't fire yet
+            ctx.save(); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.beginPath(); ctx.arc(CX, CY, 52, 0, 7); ctx.fill();
+            ctx.fillStyle = '#fff'; ctx.shadowColor = 'rgba(0,0,0,0.6)'; ctx.shadowBlur = 10; ctx.font = 'bold 72px system-ui,sans-serif';
+            ctx.fillText(String(Math.ceil(countdown)), CX, CY + 2);
+            ctx.restore();
+        }
     }
     function drawChip(x, y, v, r) { drawBall(x, y, v, r); }   // cannon's loaded / next ball — identical to a queued ball
     function syncHud() { var sc = $('score'); if (sc) sc.textContent = AC.format.score(score); }
@@ -597,7 +612,15 @@
             var rb = document.createElement('button'); rb.type = 'button'; rb.className = 'btn btn-primary'; rb.textContent = t('resume'); rb.addEventListener('click', function () { shell.resume(); }); card.appendChild(rb);
             return;
         }
-        if (lastResult) { var r = document.createElement('div'); r.className = 'pz-result' + (lastResult.win ? ' win' : ''); r.textContent = (lastResult.win ? t('pzClear') : t('pzFailed')) + '  ·  ' + t('pzScore') + ' ' + AC.format.score(lastResult.score); card.appendChild(r); }
+        if (resultView && lastResult) {   // dedicated end-of-game screen; its OK button stays dimmed for 1s so a panicked click can't skip it
+            var rr = document.createElement('div'); rr.className = 'pz-result' + (lastResult.win ? ' win' : ''); rr.textContent = lastResult.win ? t('pzClear') : t('pzGameOver'); card.appendChild(rr);
+            var scr = document.createElement('div'); scr.className = 'pz-title'; scr.textContent = t('pzScore') + ' ' + AC.format.score(lastResult.score); card.appendChild(scr);
+            var ok = document.createElement('button'); ok.type = 'button'; ok.className = 'btn btn-primary'; ok.textContent = t('pzOk');
+            var rem = Math.max(0, 1000 - (Date.now() - gameOverAt)); ok.disabled = rem > 0; if (rem > 0) setTimeout(function () { if (ok) ok.disabled = false; }, rem);
+            ok.addEventListener('click', function () { resultView = false; lastResult = null; renderPanel(); });
+            card.appendChild(ok);
+            return;
+        }
         var title = document.createElement('div'); title.className = 'pz-title'; title.textContent = mode === 'level' ? t('pzPickLevel') : t('pzEndless'); card.appendChild(title);
         if (mode === 'level') {
             for (var w = 1; w <= 4; w++) {
@@ -615,8 +638,8 @@
             var go = document.createElement('button'); go.type = 'button'; go.className = 'btn btn-primary'; go.textContent = t('play'); go.addEventListener('click', function () { AC.audio.unlock(); startEndless(); }); card.appendChild(go);
         }
     }
-    function startLevel(w, f) { sel = { world: w, fieldIdx: f }; pending = { kind: 'level', world: w, fieldIdx: f }; lastResult = null; paused = false; newGame(); hidePanel(); shell.start(); }
-    function startEndless() { pending = { kind: 'endless', diff: endlessSel.diff, fieldIdx: endlessSel.fieldIdx }; lastResult = null; paused = false; newGame(); hidePanel(); shell.start(); }
+    function startLevel(w, f) { sel = { world: w, fieldIdx: f }; pending = { kind: 'level', world: w, fieldIdx: f }; lastResult = null; resultView = false; paused = false; newGame(); hidePanel(); shell.start(); }
+    function startEndless() { pending = { kind: 'endless', diff: endlessSel.diff, fieldIdx: endlessSel.fieldIdx }; lastResult = null; resultView = false; paused = false; newGame(); hidePanel(); shell.start(); }
     function syncModeSeg() {
         var seg = $('mode-seg'); if (!seg) return;
         var bs = seg.querySelectorAll('button[data-mode]');
@@ -645,9 +668,10 @@
             update: update, render: render,
             reset: newGame,
             restartToReady: true,
+            canRestart: function () { return (shell ? shell.isPlaying() : false) || paused; },   // Restart is only usable WHILE playing (or paused) — never on the level/field select or the result screen
             onPause: function () { paused = true; showPanel(); },
             onResume: function () { paused = false; hidePanel(); },
-            onGameOver: function (result) { paused = false; lastResult = { win: !!(result && result.win), score: result ? result.score : score }; showPanel(); },
+            onGameOver: function (result) { paused = false; lastResult = { win: !!(result && result.win), score: result ? result.score : score }; resultView = true; gameOverAt = Date.now(); showPanel(); },
         });
 
         var seg = $('mode-seg');
