@@ -136,11 +136,14 @@
 
     function say(key, ...args) {
         feedback = { key, args };
-        $('unlock-feedback').textContent = t(key, ...args);
+        $('unlock-feedback').textContent = key === 'unlockTrayFull' ? '' : t(key, ...args);
         $('unlock-feedback').classList.toggle('blocked', ['unlockBlocked', 'unlockReturnBlocked', 'unlockTrayFull', 'unlockMatchDead'].includes(key));
+        const trayFull = key === 'unlockTrayFull';
+        $('match-panel').classList.toggle('rejected', trayFull);
     }
     function clearFeedback() {
         state.blocked = null; state.blockers = []; state.highlight = null; hintOn = false;
+        $('match-panel').classList.remove('rejected', 'shaking');
     }
     function blockersFor(p) {
         return state.graph[state.pieces.indexOf(p)].filter(id => !state.removed.has(id));
@@ -151,6 +154,7 @@
         if (state.animation && state.animation.flight) state.animation.flight.remove();
         state.animation = null;
         $('match-monster').classList.remove('feeding', 'chewing');
+        $('match-panel').classList.remove('shaking');
     }
     function plateToken(p, interactive) {
         const slot = document.createElement(interactive ? 'button' : 'span'); slot.className = 'match-slot';
@@ -292,11 +296,11 @@
         const anim = state.animation;
         if (anim) {
             const duration = anim.feeding ? 1100 : anim.docking ? 460 : anim.returning ? (anim.phase === 'lift' ? 260 : 680)
-                : anim.blocked ? 340 : anim.shortPull ? Math.max(80, 320*Math.min(1,anim.distance/0.6)) : 680;
+                : anim.trayFull ? 420 : anim.blocked ? 340 : anim.shortPull ? Math.max(80, 320*Math.min(1,anim.distance/0.6)) : 680;
             const progress = Math.min(1, (now - anim.start) / duration), ease = progress*progress*(3-2*progress);
             anim.progress = progress;
             if (anim.returning) anim.offset = anim.phase === 'lift' ? anim.distance : anim.distance * (1 - ease);
-            else anim.offset = anim.docking ? anim.distance : anim.blocked ? Math.sin(progress * Math.PI)*0.025
+            else anim.offset = anim.docking ? anim.distance : anim.blocked ? Math.sin(progress * Math.PI)*(anim.reducedMotion ? 0 : anim.trayFull ? 0.12 : 0.025)
                 : anim.distance * (anim.shortPull ? 1-(1-progress)**3 : progress*progress);
             if (progress === 1) {
                 if (anim.returning && anim.phase === 'lift') {
@@ -372,7 +376,14 @@
             say('unlockBlocked', id, blockers);
         } else {
             const plan = state.mode === 'match' ? Match.pullPlan(state.puzzle, state.removed, id) : null;
-            if (plan && !plan.allowed) { say('unlockTrayFull'); syncUI(); invalidate(); return; }
+            if (plan && !plan.allowed) {
+                state.blocked = id;
+                state.animation = { id, start: performance.now(), offset: 0, blocked: true, trayFull: true,
+                    reducedMotion: window.matchMedia('(prefers-reduced-motion: reduce)').matches };
+                say('unlockTrayFull');
+                $('match-panel').classList.add('shaking');
+                syncUI(); invalidate(); return;
+            }
             if (state.mode !== 'match') history.push();
             const travel = Engine.exitDistance(p, state.pieces), rect = canvas.getBoundingClientRect();
             const distance = state.mode === 'match'

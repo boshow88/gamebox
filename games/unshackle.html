@@ -10,20 +10,18 @@
     <style>
         body { --game-color: #298da5; }
         .prototype-badge { font-size: 0.66rem; font-weight: 500; color: var(--text-secondary); border: 1px solid var(--border-color); border-radius: var(--radius-pill); padding: 2px 7px; }
-        .unlock-toolbar { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
-        .unlock-toolbar .toolbar-action { grid-column: 1 / -1; }
         .unlock-toolbar .level-readout { grid-column: 1 / -1; }
-        .unlock-toolbar .mode-settings { grid-column: 1 / -1; }
+        .unlock-toolbar .piece-settings { grid-column: 1 / -1; }
         #mode-seg, #size-seg { align-self: flex-start; width: max-content; max-width: 100%; }
-        #size-seg button { padding: 6px 8px; }
+        #size-seg { display: flex; width: 100%; max-width: 320px; }
+        #size-seg button { flex: 1; min-width: 0; padding: 6px 8px; }
         .puzzle-code { font-size: 0.72rem; color: var(--text-muted); font-variant-numeric: tabular-nums; margin-left: auto; }
         .status-row { flex-wrap: wrap; gap: 8px; }
-        .level-control { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
         .level-readout { font-size: 0.82rem; color: var(--text-secondary); }
         .level-readout.pending { color: var(--game-color); }
         .level-readout .readout-current { color: var(--text-secondary); }
         .level-readout .readout-arrow { color: var(--text-muted); }
-        .unlock-board { position: relative; width: 100%; padding: 0; overflow: hidden; border: 1px solid var(--border-color); border-radius: var(--radius-md); background: #f9fafc; }
+        .unlock-board { --match-gutter: 76px; --match-width: 56px; --match-right: 12px; --monster-size: 64px; position: relative; width: 100%; padding: 0; overflow: hidden; border: 1px solid var(--border-color); border-radius: var(--radius-md); background: #f9fafc; }
         #board { display: block; width: 100%; height: clamp(320px, 65vw, 460px); touch-action: none; cursor: grab; outline-offset: -4px; }
         #board:active { cursor: grabbing; }
         #board.over-piece { cursor: pointer; }
@@ -40,9 +38,9 @@
         .piece-btn.hinted { border-color: var(--game-color); background: color-mix(in srgb, var(--game-color) 10%, white); }
         .unlock-feedback { min-height: 2.8em; padding: 12px 4px 0; text-align: center; font-size: 0.85rem; color: var(--text-secondary); }
         .unlock-feedback.blocked { color: var(--error, #c54040); }
-        .match-waiting { position: absolute; top: 62px; right: 12px; bottom: 96px; width: clamp(64px, 22%, 82px); display: flex; flex-direction: column; align-items: center; gap: 6px; pointer-events: none; }
+        .match-waiting { position: absolute; top: 62px; right: var(--match-right); bottom: 96px; width: var(--match-width); display: flex; flex-direction: column; align-items: center; gap: 6px; pointer-events: none; }
         #match-used { font-size: 0.68rem; line-height: 1.2; color: var(--text-muted); text-align: center; }
-        .match-slots { display: grid; grid-template-rows: repeat(5, minmax(22px, 1fr)); flex: 0 1 216px; gap: 4px; width: 100%; min-height: 140px; padding: 6px 5px; border: 1px solid #ccd8d1; border-radius: 40px; background: #edf2ed; box-shadow: inset 0 0 0 3px #fafcf8, inset 0 0 0 4px #dce5dc, 0 2px 3px #556f5c0a; pointer-events: auto; touch-action: manipulation; }
+        .match-slots { display: grid; grid-template-rows: repeat(5, minmax(22px, 1fr)); flex: 0 1 216px; gap: 4px; width: 100%; min-height: 140px; padding: 6px 3px; border: 1px solid #ccd8d1; border-radius: 28px; background: #edf2ed; box-shadow: inset 0 0 0 3px #fafcf8, inset 0 0 0 4px #dce5dc, 0 2px 3px #556f5c0a; pointer-events: auto; touch-action: manipulation; }
         .match-place { position: relative; display: flex; align-items: center; justify-content: center; min-width: 0; min-height: 0; border-radius: 50%; background: #dfe8df70; box-shadow: inset 0 1px 2px #66806b14; }
         .match-place.occupied { background: #ffffff70; }
         .match-empty { font-size: 0.64rem; color: #8a9b8b; opacity: 0.65; }
@@ -53,7 +51,7 @@
         .match-slot.docking-target { position: absolute; inset: 0; opacity: 0; pointer-events: none; }
         .match-place.arriving .match-empty { visibility: hidden; }
         /* custom: miniature loop and white cap, identifying each waiting piece. */
-        .match-link { position: relative; display: block; width: clamp(26px, var(--link-length), 42px); height: 10px; border: 2px solid var(--piece-color); border-radius: 7px; }
+        .match-link { position: relative; display: block; width: clamp(22px, var(--link-length), 30px); height: 10px; border: 2px solid var(--piece-color); border-radius: 7px; }
         .match-link::after { content: ''; position: absolute; right: -5px; top: 1px; width: 6px; height: 6px; border: 1px solid var(--piece-color); border-radius: 50%; background: white; }
         .match-label { display: flex; align-items: center; gap: 3px; line-height: 1; }
         .match-label .match-token { font-size: 0.62rem; }
@@ -61,10 +59,14 @@
         .match-token { color: var(--piece-color); font-size: 1rem; }
         .match-waiting.full #match-used { color: var(--game-color); }
         .match-waiting.full .match-slots { border-color: #83a8a3; }
+        .match-waiting.rejected #match-used { color: var(--error, #c54040); font-weight: 700; }
+        .match-waiting.rejected .match-slots { border-color: var(--error, #c54040); background: #fce9e5; }
+        .match-waiting.shaking { animation: plate-reject 420ms ease-in-out; }
+        @keyframes plate-reject { 20%, 60% { transform: translateX(-4px); } 40%, 80% { transform: translateX(4px); } }
         .piece-swatch.match-token { width: auto; height: auto; background: none; }
         .match-symbols { display: flex; align-items: center; gap: 7px; width: fit-content; margin: 8px 0 12px; font-size: 0.8rem; color: var(--text-secondary); cursor: pointer; }
         .match-symbols input { accent-color: var(--game-color); }
-        .match-monster { position: absolute; right: 17px; bottom: 24px; width: 64px; height: 64px; pointer-events: none; }
+        .match-monster { position: absolute; right: calc(var(--match-right) + (var(--match-width) - var(--monster-size)) / 2); bottom: 24px; width: var(--monster-size); height: var(--monster-size); pointer-events: none; }
         .match-monster svg { display: block; width: 100%; height: 100%; overflow: visible; }
         .monster-mouth { transform-box: fill-box; transform-origin: center; transition: transform 130ms ease; }
         .match-monster.feeding .monster-mouth { transform: scale(1.15, 3.5); }
@@ -72,30 +74,22 @@
         .monster-eyes { transform-box: fill-box; transform-origin: center; animation: monster-blink 7s infinite; }
         @keyframes monster-chew { 50% { transform: scale(1.06, 0.92) translateY(2px); } }
         @keyframes monster-blink { 0%, 94%, 98%, 100% { transform: scaleY(1); } 96% { transform: scaleY(0.12); } }
-        @media (prefers-reduced-motion: reduce) { .monster-eyes, .match-monster.chewing svg { animation: none; } }
+        @media (prefers-reduced-motion: reduce) { .monster-eyes, .match-monster.chewing svg, .match-waiting.shaking { animation: none; } }
         .unlock-win { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; background: #f9fafcf5; text-align: center; padding: 24px; }
         .unlock-win .win-symbol { color: var(--success, #2e7d32); font-size: 2rem; }
         .unlock-win h2 { font-size: 1.5rem; font-weight: 600; }
         .unlock-win p { font-size: 0.88rem; color: var(--text-secondary); }
         .unlock-error { padding: 60px 24px; text-align: center; }
-        @media (min-width: 481px) and (max-width: 560px) {
-            .unlock-toolbar .piece-settings { grid-column: 1 / -1; }
-        }
         @media (max-width: 480px) {
             .game-title { font-size: 1.05rem; gap: 5px; }
             .game-title .game-icon { display: none; }
             .prototype-badge { font-size: 0.58rem; padding: 2px 4px; }
             .game-topbar { gap: 6px; }
-            .unlock-toolbar { gap: 10px; }
-            .unlock-toolbar .toolbar-group { grid-column: 1 / -1; flex-direction: row; align-items: center; justify-content: space-between; }
-            .unlock-toolbar .piece-settings { flex-direction: column; align-items: stretch; }
-            .unlock-toolbar .segmented button { padding: 6px 9px; font-size: 0.8rem; }
-            #size-seg button { flex: none; }
-            .level-control { gap: 5px; }
+            .unlock-board { --match-gutter: 64px; --match-width: 48px; --match-right: 8px; --monster-size: 54px; }
+            .match-link { max-width: 26px; }
             .level-readout { font-size: 0.75rem; }
             .view-controls { top: 8px; right: 8px; }
-            .match-waiting { right: 8px; top: 54px; }
-            .match-monster { right: 12px; width: 54px; height: 54px; }
+            .match-waiting { top: 54px; }
             .board-caption { font-size: 0.68rem; left: 10px; }
         }
         @media (max-width: 360px) {
@@ -115,7 +109,7 @@
                 <button type="button" data-lang="en" role="radio" aria-checked="true">EN</button><button type="button" data-lang="zh" role="radio" aria-checked="false">中</button>
             </div>
         </header>
-        <section class="game-toolbar unlock-toolbar" data-i18n-aria-label="gameSettings">
+        <section class="game-toolbar toolbar-stack-action unlock-toolbar" data-i18n-aria-label="gameSettings">
             <div class="toolbar-group mode-settings">
                 <span class="toolbar-label" data-i18n="unlockMode">Mode</span>
                 <div class="segmented" id="mode-seg" role="radiogroup" data-i18n-aria-label="unlockMode">
@@ -125,7 +119,7 @@
             </div>
             <div class="toolbar-group">
                 <span class="toolbar-label" data-i18n="difficulty">Difficulty</span>
-                <div class="level-control">
+                <div class="toolbar-control">
                     <div class="segmented" id="difficulty-seg" role="radiogroup" data-i18n-aria-label="difficulty">
                         <button type="button" data-value="easy" role="radio" aria-checked="true" data-i18n="easy">Easy</button>
                         <button type="button" data-value="medium" role="radio" aria-checked="false" data-i18n="medium">Medium</button>
@@ -215,7 +209,7 @@
     <script src="../js/puzzle.js"></script>
     <script src="../js/games/unshackle/engine.js?v=match-6"></script>
     <script src="../js/generators/unshackle.js?v=match-6"></script>
-    <script src="../js/games/unshackle/view.js?v=match-6"></script>
-    <script src="../js/games/unshackle/game.js?v=match-6"></script>
+    <script src="../js/games/unshackle/view.js?v=match-7"></script>
+    <script src="../js/games/unshackle/game.js?v=match-7"></script>
 </body>
 </html>

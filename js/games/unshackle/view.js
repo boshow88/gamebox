@@ -125,7 +125,7 @@
                 2*(x*z+wq*y), 2*(y*z-wq*x), 1-2*(x*x+y*y)];
             // Waiting pieces share the canvas's white frame. Reserve a little
             // internal space for them; Classic retains its original projection.
-            const inset = state && state.mode === 'match' ? Math.min(96, rect.width * 0.28) * dpr : 0;
+            const inset = state && state.mode === 'match' ? (parseFloat(getComputedStyle(canvas).getPropertyValue('--match-gutter')) || 76) * dpr : 0;
             const available = Math.max(1, w - inset);
             scale = [zoom * 0.95 / sceneRadius * Math.min(1, h/available) * (available/w),
                 zoom * 0.95 / sceneRadius * Math.min(1, available/h)];
