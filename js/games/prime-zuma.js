@@ -123,7 +123,7 @@
     function genClover(f) {   // "井"/clover in one stroke: 3 corners loop into big round leaves (270° = 3/4-circle arcs, tangent to both lines), the 4th corner open (entrance = right vertical's foot, death = bottom horizontal's right end).
         var c0 = cen(f), cx = c0.x, cy = c0.y, gx = f.gx || 50, gy = f.gy || 50, leafR = f.leafR || 76, w = f.underW || CFG.D * 1.3, seg = 6;   // line overhang beyond the crossings = leafR ⇒ each 270° leaf is tangent to its two lines
         var VRb = { x: cx + gx, y: cy + gy + leafR }, VRt = { x: cx + gx, y: cy - gy - leafR }, HTr = { x: cx + gx + leafR, y: cy - gy }, HTl = { x: cx - gx - leafR, y: cy - gy };
-        var VLt = { x: cx - gx, y: cy - gy - leafR }, VLb = { x: cx - gx, y: cy + gy + leafR }, HBl = { x: cx - gx - leafR, y: cy + gy }, HBr = { x: cx + gx + leafR, y: cy + gy };   // HBr = death
+        var VLt = { x: cx - gx, y: cy - gy - leafR }, VLb = { x: cx - gx, y: cy + gy + leafR }, HBl = { x: cx - gx - leafR, y: cy + gy }, HBr = { x: cx + gx + leafR + (f.deathExt || 0), y: cy + gy };   // HBr = death (deathExt lengthens the run up to it)
         var pts = [], arc = 0, under = [], sw = 3 * Math.PI / 2;
         function push(p) { if (pts.length) arc += Math.hypot(p.x - pts[pts.length - 1].x, p.y - pts[pts.length - 1].y); pts.push(p); }
         function straight(a, b) { var L = Math.hypot(b.x - a.x, b.y - a.y), n = Math.max(2, Math.round(L / seg)); for (var q = 1; q <= n; q++) push({ x: a.x + (b.x - a.x) * q / n, y: a.y + (b.y - a.y) * q / n }); }
@@ -138,6 +138,32 @@
         var aH = arc; straight(HBl, HBr); under.push([aH + leafR - w, aH + leafR + w]);   // VL×HB → bottom-horizontal UNDER; death at HBr
         var baseLen = arc; pts.reverse();
         return { pts: pts, cannon: c0, under: revUnder(baseLen, under) };
+    }
+    function polyRound(wp, r, seg) {   // polyline through waypoints; interior corners rounded (radius r) with a quadratic fillet, straight runs sampled ~every seg px. pts[0] = death, pts[last] = entrance.
+        var pts = [], i;
+        function push(p) { pts.push(p); }
+        function line(a, b, skip) { var L = Math.hypot(b.x - a.x, b.y - a.y), n = Math.max(1, Math.round(L / seg)); for (var k = skip ? 1 : 0; k <= n; k++) push({ x: a.x + (b.x - a.x) * k / n, y: a.y + (b.y - a.y) * k / n }); }
+        var prev = wp[0]; push(prev);
+        for (i = 1; i < wp.length - 1; i++) {
+            var cor = wp[i], nxt = wp[i + 1], dix = cor.x - prev.x, diy = cor.y - prev.y, di = Math.hypot(dix, diy) || 1, dox = nxt.x - cor.x, doy = nxt.y - cor.y, dol = Math.hypot(dox, doy) || 1;
+            dix /= di; diy /= di; dox /= dol; doy /= dol;
+            var rr = Math.min(r, di * 0.5, dol * 0.5), ain = { x: cor.x - dix * rr, y: cor.y - diy * rr }, aout = { x: cor.x + dox * rr, y: cor.y + doy * rr };
+            line(prev, ain, true);
+            var nf = 8; for (var q = 1; q <= nf; q++) { var t = q / nf, mt = 1 - t; push({ x: mt * mt * ain.x + 2 * mt * t * cor.x + t * t * aout.x, y: mt * mt * ain.y + 2 * mt * t * cor.y + t * t * aout.y }); }
+            prev = aout;
+        }
+        line(prev, wp[wp.length - 1], true);
+        return pts;
+    }
+    function genDuo(f) {   // two offset rounded-square loops (each its own lane/chain), overlapping like the sketch. Each loop is open at one corner → one end is the death core, the other is the off-screen entrance.
+        var o = cen(f), h = f.half || 128, r = f.cr || 24, gap = f.gap || 28, sep = f.sep || 58, seg = 6, w = f.underW || CFG.D * 1.3, hs = h - sep;
+        function sq(cx, cy) { return { TL: { x: cx - h, y: cy - h }, TR: { x: cx + h, y: cy - h }, BR: { x: cx + h, y: cy + h }, BL: { x: cx - h, y: cy + h } }; }
+        var a = sq(o.x - sep, o.y - sep), b = sq(o.x + sep, o.y + sep);
+        var loopA = polyRound([{ x: a.TL.x + gap, y: a.TL.y }, a.TR, a.BR, a.BL, { x: a.TL.x, y: a.TL.y + gap }], r, seg);   // upper-left square, open at TL (death on top, entrance up the left)
+        var loopB = polyRound([{ x: b.BR.x - gap, y: b.BR.y }, b.BL, b.TL, b.TR, { x: b.BR.x, y: b.BR.y - gap }], r, seg);   // lower-right square, open at BR (death on bottom, entrance down the right)
+        function arcAt(pts, x, y) { var best = 0, bd = Infinity, acc = 0; for (var i = 0; i < pts.length; i++) { if (i > 0) acc += Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y); var dx = pts[i].x - x, dy = pts[i].y - y, d = dx * dx + dy * dy; if (d < bd) { bd = d; best = acc; } } return best; }
+        var caBL = arcAt(loopA, o.x - hs, o.y + hs), cbTR = arcAt(loopB, o.x + hs, o.y - hs);   // loop A goes UNDER at the bottom-left crossing; loop B goes UNDER at the top-right crossing (→ dim + occluded there)
+        return { loops: [loopA, loopB], under: [[[caBL - w, caBL + w]], [[cbTR - w, cbTR + w]]] };
     }
     function buryHorizontalRanges(path) {   // arc-ranges where the path runs ~horizontally (|dy| small) — used to tuck the flat runs of a square underground
         var res = [], pts = path.pts, arc = path.arc, inRun = false, s0 = 0, i;
@@ -175,6 +201,7 @@
         if (field.shape === 'poly') return { paths: [make(genPoly(field, field.phase || 0).pts, field.exitAng)], cannon: can };
         if (field.shape === 'star') { var gs = genStar(field); return { paths: [make(gs.pts, field.exitAng, gs.under)], cannon: can }; }
         if (field.shape === 'clover') { var gc = genClover(field); return { paths: [make(gc.pts, field.exitAng, gc.under)], cannon: can }; }
+        if (field.shape === 'duo') { var gd = genDuo(field); return { paths: gd.loops.map(function (pts, i) { return make(pts, undefined, gd.under[i]); }), cannon: can }; }
         if (field.shape === 'snake') { var g = genSnake(field); return { paths: [make(g.pts)], cannon: g.cannon }; }
         return { paths: [make(genSpiral(field, field.phase || 0).pts, field.exitAng)], cannon: can };
     }
@@ -477,6 +504,11 @@
             var d0 = posAt(path, 0); ctx.fillStyle = 'rgba(239,68,68,0.9)'; ctx.beginPath(); ctx.arc(d0.x, d0.y, pr, 0, 7); ctx.fill();   // (5) death core
             for (qi = 0; qi < qs.length; qi++) { var qB = qs[qi]; for (j = 0; j < qB.vals.length; j++) { var bb = qB.vals[j], sBB = qB.head + j * CFG.D; if (!buriedS(path, sBB)) drawBall(bb.rx, bb.ry, bb.v, CFG.rBall * (1 + (bb.pop || 0) * 0.35)); } }   // (6) surface balls — top
         }
+        if (R.field.shape === 'duo' && lanes.length >= 2) {   // Duo interlock: redraw lane A's road + balls OVER lane B at the top-right crossing (lane B is drawn last so it already sits over at the bottom-left crossing)
+            var fo = cen(R.field), h2 = R.field.half || 140, sp2 = R.field.sep || 50, la = lanes[0], coA = nearestS(la.path, fo.x + h2 - sp2, fo.y + sp2 - h2);
+            drawBridge(la.path, coA, CFG.D * 1.0, R.field.accent);
+            var qa = la.qs; for (qi = 0; qi < qa.length; qi++) { var qc = qa[qi]; for (j = 0; j < qc.vals.length; j++) { var bz = qc.vals[j], sz = qc.head + j * CFG.D; if (Math.abs(sz - coA) < CFG.D * 1.8) drawBall(bz.rx, bz.ry, bz.v, CFG.rBall * (1 + (bz.pop || 0) * 0.35)); } }
+        }
         for (var fi = 0; fi < fx.length; fi++) {
             var f = fx[fi], tt = f.life / f.max, al = 1 - tt; ctx.globalAlpha = al < 0 ? 0 : al;
             if (f.ring) { ctx.lineWidth = 2 + 3 * al; ctx.strokeStyle = 'hsl(' + f.h + ',90%,66%)'; ctx.beginPath(); ctx.arc(f.x, f.y, f.r0 + (f.r1 - f.r0) * tt, 0, 7); ctx.stroke(); }
@@ -504,6 +536,27 @@
     function showPanel() { var o = $('pz-panel'); if (o) { renderPanel(); o.hidden = false; } }
     function hidePanel() { var o = $('pz-panel'); if (o) o.hidden = true; }
     function optBtn(label, active, fn) { var b = document.createElement('button'); b.type = 'button'; b.className = 'pz-opt' + (active ? ' active' : ''); b.textContent = label; b.addEventListener('click', fn); return b; }
+    var fbCache = {};
+    function fbOf(fi) { return fbCache[fi] || (fbCache[fi] = buildField(DATA.FIELDS[fi])); }   // built field cached for the picker thumbnails
+    function fieldThumb(fi, size) {   // a mini preview of a field's path(s) — used instead of a text name
+        var f = DATA.FIELDS[fi], built = fbOf(fi), c = document.createElement('canvas');
+        c.width = size * DPR; c.height = size * DPR; c.style.width = size + 'px'; c.style.height = size + 'px'; c.style.display = 'block';
+        var g = c.getContext('2d'); g.setTransform(DPR, 0, 0, DPR, 0, 0);
+        g.fillStyle = f.bg; g.fillRect(0, 0, size, size);
+        var sc = size / CW; g.lineCap = 'round'; g.lineJoin = 'round';
+        for (var L = 0; L < built.paths.length; L++) {
+            var path = built.paths[L], acc = (f.accent2 && L > 0) ? f.accent2 : f.accent;
+            g.strokeStyle = acc; g.lineWidth = Math.max(2.5, (CFG.rBall * 2 + 9) * sc);
+            g.beginPath(); for (var p = 0; p < path.pts.length; p++) { var pt = path.pts[p]; if (p === 0) g.moveTo(pt.x * sc, pt.y * sc); else g.lineTo(pt.x * sc, pt.y * sc); } g.stroke();
+        }
+        var d0 = posAt(built.paths[0], 0); g.fillStyle = '#ef4444'; g.beginPath(); g.arc(d0.x * sc, d0.y * sc, Math.max(2, 4 * sc), 0, 7); g.fill();
+        return c;
+    }
+    function thumbBtn(fi, active, fn) {
+        var b = document.createElement('button'); b.type = 'button'; b.className = 'pz-opt pz-thumb' + (active ? ' active' : '');
+        b.style.padding = '4px'; b.style.lineHeight = '0'; b.title = DATA.FIELDS[fi].name || ''; b.setAttribute('aria-label', b.title);
+        b.appendChild(fieldThumb(fi, 42)); b.addEventListener('click', fn); return b;
+    }
     function renderPanel() {
         var card = $('pz-card'); if (!card) return;
         card.innerHTML = '';
@@ -524,8 +577,8 @@
             var dr = document.createElement('div'); dr.className = 'pz-row';
             ['easy', 'normal', 'hard'].forEach(function (d) { dr.appendChild(optBtn(t(d === 'easy' ? 'pzEasy' : d === 'normal' ? 'pzNormal' : 'pzHard'), endlessSel.diff === d, function () { endlessSel.diff = d; persist(); renderPanel(); })); });
             card.appendChild(dr);
-            var fr = document.createElement('div'); fr.className = 'pz-row';
-            for (var fi = 0; fi < DATA.X; fi++) (function (fi) { fr.appendChild(optBtn(DATA.FIELDS[fi].name, endlessSel.fieldIdx === fi, function () { endlessSel.fieldIdx = fi; persist(); renderPanel(); })); })(fi);
+            var fr = document.createElement('div'); fr.className = 'pz-row pz-thumbs';
+            for (var fi = 0; fi < DATA.X; fi++) (function (fi) { fr.appendChild(thumbBtn(fi, endlessSel.fieldIdx === fi, function () { endlessSel.fieldIdx = fi; persist(); renderPanel(); })); })(fi);
             card.appendChild(fr);
             var go = document.createElement('button'); go.type = 'button'; go.className = 'btn btn-primary'; go.textContent = t('play'); go.addEventListener('click', function () { AC.audio.unlock(); startEndless(); }); card.appendChild(go);
         }
