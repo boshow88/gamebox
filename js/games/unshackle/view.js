@@ -123,13 +123,13 @@
             rotation = [1-2*(y*y+z*z), 2*(x*y+wq*z), 2*(x*z-wq*y),
                 2*(x*y-wq*z), 1-2*(x*x+z*z), 2*(y*z+wq*x),
                 2*(x*z+wq*y), 2*(y*z-wq*x), 1-2*(x*x+y*y)];
-            // Waiting pieces share the canvas's white frame. Reserve a little
-            // internal space for them; Classic retains its original projection.
-            const inset = state && state.mode === 'match' ? (parseFloat(getComputedStyle(canvas).getPropertyValue('--match-gutter')) || 76) * dpr : 0;
-            const available = Math.max(1, w - inset);
-            scale = [zoom * 0.95 / sceneRadius * Math.min(1, h/available) * (available/w),
-                zoom * 0.95 / sceneRadius * Math.min(1, available/h)];
-            shift = [-inset / w, 0];
+            // Frame the puzzle above the floating plate at the default zoom.
+            // Keep the full canvas drawable so enlarged pieces pass behind it.
+            const footer = state && state.mode === 'match'
+                ? parseFloat(getComputedStyle(canvas).getPropertyValue('--match-footer')) * dpr : 0;
+            const unit = zoom * 0.95 / sceneRadius * Math.min(w, Math.max(1, h - footer));
+            scale = [unit/w, unit/h];
+            shift = [0, footer/h];
             gl.viewport(0, 0, w, h);
         }
         function drawMesh(mesh) {
@@ -193,7 +193,7 @@
         function project(point) {
             const r = rotation, p = M.sub(point, center);
             return { x: ((r[0]*p[0] + r[3]*p[1] + r[6]*p[2]) * scale[0] + shift[0] + 1) / 2 * canvas.clientWidth,
-                y: (1 - (r[1]*p[0] + r[4]*p[1] + r[7]*p[2]) * scale[1]) / 2 * canvas.clientHeight,
+                y: (1 - (r[1]*p[0] + r[4]*p[1] + r[7]*p[2]) * scale[1] - shift[1]) / 2 * canvas.clientHeight,
                 z: r[2]*p[0] + r[5]*p[1] + r[8]*p[2] };
         }
         // Full swept-path legality is checked by the engine. Limit only the
@@ -222,8 +222,7 @@
         }
         function feedingCenter(mouth, plate) {
             const rect = mouth.getBoundingClientRect(), plateRect = plate.getBoundingClientRect();
-            const target = { x: rect.left + rect.width/2, y: rect.top + rect.height/2 };
-            return { x: target.x - 14, y: target.y - Math.min(64, Math.max(30, (target.y - plateRect.bottom)*0.65)) };
+            return { x: (plateRect.right + rect.left) / 2, y: plateRect.top - 28 };
         }
         // Start with the exact projected loop, then continuously shrink/morph
         // into its plate miniature. There is no offscreen exit or clamped spawn.

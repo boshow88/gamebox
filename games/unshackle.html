@@ -21,8 +21,11 @@
         .level-readout.pending { color: var(--game-color); }
         .level-readout .readout-current { color: var(--text-secondary); }
         .level-readout .readout-arrow { color: var(--text-muted); }
-        .unlock-board { --match-gutter: 76px; --match-width: 56px; --match-right: 12px; --monster-size: 64px; position: relative; width: 100%; padding: 0; overflow: hidden; border: 1px solid var(--border-color); border-radius: var(--radius-md); background: #f9fafc; }
+        .unlock-board { --monster-size: 64px; --match-footer: 102px; position: relative; display: block; width: 100%; padding: 0; overflow: hidden; border: 1px solid var(--border-color); border-radius: var(--radius-md); background: #f9fafc; }
+        .unlock-stage { position: relative; width: 100%; isolation: isolate; }
         #board { display: block; width: 100%; height: clamp(320px, 65vw, 460px); touch-action: none; cursor: grab; outline-offset: -4px; }
+        .unlock-board.match-mode #board { height: calc(clamp(320px, 65vw, 460px) + var(--match-footer)); }
+        .unlock-board.match-mode .board-caption { bottom: calc(var(--match-footer) + 12px); }
         #board:active { cursor: grabbing; }
         #board.over-piece { cursor: pointer; }
         .board-caption { position: absolute; left: 14px; bottom: 12px; pointer-events: none; font-size: 0.75rem; color: var(--text-muted); }
@@ -38,9 +41,10 @@
         .piece-btn.hinted { border-color: var(--game-color); background: color-mix(in srgb, var(--game-color) 10%, white); }
         .unlock-feedback { min-height: 2.8em; padding: 12px 4px 0; text-align: center; font-size: 0.85rem; color: var(--text-secondary); }
         .unlock-feedback.blocked { color: var(--error, #c54040); }
-        .match-waiting { position: absolute; top: 62px; right: var(--match-right); bottom: 96px; width: var(--match-width); display: flex; flex-direction: column; align-items: center; gap: 6px; pointer-events: none; }
-        #match-used { font-size: 0.68rem; line-height: 1.2; color: var(--text-muted); text-align: center; }
-        .match-slots { display: grid; grid-template-rows: repeat(5, minmax(22px, 1fr)); flex: 0 1 216px; gap: 4px; width: 100%; min-height: 140px; padding: 6px 3px; border: 1px solid #ccd8d1; border-radius: 28px; background: #edf2ed; box-shadow: inset 0 0 0 3px #fafcf8, inset 0 0 0 4px #dce5dc, 0 2px 3px #556f5c0a; pointer-events: auto; touch-action: manipulation; }
+        .match-dock { position: absolute; left: 0; bottom: 0; z-index: 1; display: flex; align-items: center; justify-content: center; gap: 12px; width: 100%; padding: 22px 14px 16px; pointer-events: none; }
+        .match-waiting { position: relative; flex: 1; min-width: 0; max-width: 360px; pointer-events: none; }
+        #match-used { position: absolute; bottom: calc(100% + 5px); left: 0; width: 100%; font-size: 0.68rem; line-height: 1.2; color: var(--text-muted); text-align: center; }
+        .match-slots { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; width: 100%; height: 60px; padding: 6px; border: 1px solid #ccd8d1; border-radius: 28px; background: #edf2ed; box-shadow: inset 0 0 0 3px #fafcf8, inset 0 0 0 4px #dce5dc, 0 2px 3px #556f5c0a; pointer-events: auto; touch-action: manipulation; }
         .match-place { position: relative; display: flex; align-items: center; justify-content: center; min-width: 0; min-height: 0; border-radius: 50%; background: #dfe8df70; box-shadow: inset 0 1px 2px #66806b14; }
         .match-place.occupied { background: #ffffff70; }
         .match-empty { font-size: 0.64rem; color: #8a9b8b; opacity: 0.65; }
@@ -66,7 +70,7 @@
         .piece-swatch.match-token { width: auto; height: auto; background: none; }
         .match-symbols { display: flex; align-items: center; gap: 7px; width: fit-content; margin: 8px 0 12px; font-size: 0.8rem; color: var(--text-secondary); cursor: pointer; }
         .match-symbols input { accent-color: var(--game-color); }
-        .match-monster { position: absolute; right: calc(var(--match-right) + (var(--match-width) - var(--monster-size)) / 2); bottom: 24px; width: var(--monster-size); height: var(--monster-size); pointer-events: none; }
+        .match-monster { flex: 0 0 var(--monster-size); width: var(--monster-size); height: var(--monster-size); pointer-events: none; }
         .match-monster svg { display: block; width: 100%; height: 100%; overflow: visible; }
         .monster-mouth { transform-box: fill-box; transform-origin: center; transition: transform 130ms ease; }
         .match-monster.feeding .monster-mouth { transform: scale(1.15, 3.5); }
@@ -75,7 +79,7 @@
         @keyframes monster-chew { 50% { transform: scale(1.06, 0.92) translateY(2px); } }
         @keyframes monster-blink { 0%, 94%, 98%, 100% { transform: scaleY(1); } 96% { transform: scaleY(0.12); } }
         @media (prefers-reduced-motion: reduce) { .monster-eyes, .match-monster.chewing svg, .match-waiting.shaking { animation: none; } }
-        .unlock-win { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; background: #f9fafcf5; text-align: center; padding: 24px; }
+        .unlock-win { position: absolute; inset: 0; z-index: 2; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; background: #f9fafcf5; text-align: center; padding: 24px; }
         .unlock-win .win-symbol { color: var(--success, #2e7d32); font-size: 2rem; }
         .unlock-win h2 { font-size: 1.5rem; font-weight: 600; }
         .unlock-win p { font-size: 0.88rem; color: var(--text-secondary); }
@@ -85,11 +89,12 @@
             .game-title .game-icon { display: none; }
             .prototype-badge { font-size: 0.58rem; padding: 2px 4px; }
             .game-topbar { gap: 6px; }
-            .unlock-board { --match-gutter: 64px; --match-width: 48px; --match-right: 8px; --monster-size: 54px; }
+            .unlock-board { --monster-size: 54px; --match-footer: 92px; }
+            .match-dock { gap: 8px; padding: 22px 10px 14px; }
+            .match-slots { height: 56px; }
             .match-link { max-width: 26px; }
             .level-readout { font-size: 0.75rem; }
             .view-controls { top: 8px; right: 8px; }
-            .match-waiting { top: 54px; }
             .board-caption { font-size: 0.68rem; left: 10px; }
         }
         @media (max-width: 360px) {
@@ -159,30 +164,34 @@
             <span class="status-item win-message" id="win-message" hidden><span data-icon="sparkles" aria-hidden="true"></span><span data-i18n="winMessage">You Win!</span></span>
         </div>
         <div class="board-wrap unlock-board">
-            <canvas id="board" width="688" height="460" tabindex="0" role="application" data-i18n-aria-label="unlockBoard" aria-describedby="unlock-feedback"></canvas>
-            <div id="piece-markers" class="piece-markers" aria-hidden="true"></div>
-            <span class="board-caption" data-i18n="unlockCaption">Drag to rotate · Tap to pull</span>
-            <div class="view-controls" role="group" data-i18n-aria-label="unlockCamera">
-                <button type="button" class="btn" data-turn="left" data-i18n-aria-label="unlockLeft">←</button>
-                <button type="button" class="btn" data-turn="right" data-i18n-aria-label="unlockRight">→</button>
-                <button type="button" class="btn" data-turn="up" data-i18n-aria-label="unlockUp">↑</button>
-                <button type="button" class="btn" data-turn="down" data-i18n-aria-label="unlockDown">↓</button>
+            <div class="unlock-stage">
+                <canvas id="board" width="688" height="460" tabindex="0" role="application" data-i18n-aria-label="unlockBoard" aria-describedby="unlock-feedback"></canvas>
+                <div id="piece-markers" class="piece-markers" aria-hidden="true"></div>
+                <span class="board-caption" data-i18n="unlockCaption">Drag to rotate · Tap to pull</span>
+                <div class="view-controls" role="group" data-i18n-aria-label="unlockCamera">
+                    <button type="button" class="btn" data-turn="left" data-i18n-aria-label="unlockLeft">←</button>
+                    <button type="button" class="btn" data-turn="right" data-i18n-aria-label="unlockRight">→</button>
+                    <button type="button" class="btn" data-turn="up" data-i18n-aria-label="unlockUp">↑</button>
+                    <button type="button" class="btn" data-turn="down" data-i18n-aria-label="unlockDown">↓</button>
+                </div>
             </div>
-            <div id="match-panel" class="match-waiting" hidden data-i18n-aria-label="unlockBuffer">
-                <span id="match-used"></span>
-                <div id="match-slots" class="match-slots" role="list" data-i18n-aria-label="unlockBuffer"></div>
-            </div>
-            <div id="match-monster" class="match-monster" role="img" hidden data-i18n-aria-label="unlockMonster">
-                <!-- custom: a small, round creature that eats matching metal loops. -->
-                <svg viewBox="0 0 96 92" aria-hidden="true">
-                    <ellipse cx="48" cy="80" rx="29" ry="4" fill="#dde5e2" opacity="0.55"/>
-                    <path d="M21 64Q8 47 20 29L17 14Q27 11 34 22Q47 17 61 22Q70 11 79 16L75 32Q86 52 73 68Q49 82 21 64Z" fill="#dcece7" stroke="#71988e" stroke-width="2.5" stroke-linejoin="round"/>
-                    <path d="M25 70Q24 79 35 77M62 75Q73 79 74 69" fill="#dcece7" stroke="#71988e" stroke-width="2.5" stroke-linecap="round"/>
-                    <g class="monster-eyes" fill="#486c64"><circle cx="34" cy="40" r="3"/><circle cx="62" cy="40" r="3"/></g>
-                    <ellipse cx="25" cy="48" rx="5" ry="2.5" fill="#e3b9ae" opacity="0.65"/>
-                    <ellipse cx="72" cy="48" rx="5" ry="2.5" fill="#e3b9ae" opacity="0.65"/>
-                    <ellipse id="monster-mouth" class="monster-mouth" cx="48" cy="54" rx="10" ry="3" fill="#577d72"/>
-                </svg>
+            <div id="match-dock" class="match-dock" hidden>
+                <div id="match-panel" class="match-waiting" hidden data-i18n-aria-label="unlockBuffer">
+                    <span id="match-used"></span>
+                    <div id="match-slots" class="match-slots" role="list" data-i18n-aria-label="unlockBuffer"></div>
+                </div>
+                <div id="match-monster" class="match-monster" role="img" hidden data-i18n-aria-label="unlockMonster">
+                    <!-- custom: a small, round creature that eats matching metal loops. -->
+                    <svg viewBox="0 0 96 92" aria-hidden="true">
+                        <ellipse cx="48" cy="80" rx="29" ry="4" fill="#dde5e2" opacity="0.55"/>
+                        <path d="M21 64Q8 47 20 29L17 14Q27 11 34 22Q47 17 61 22Q70 11 79 16L75 32Q86 52 73 68Q49 82 21 64Z" fill="#dcece7" stroke="#71988e" stroke-width="2.5" stroke-linejoin="round"/>
+                        <path d="M25 70Q24 79 35 77M62 75Q73 79 74 69" fill="#dcece7" stroke="#71988e" stroke-width="2.5" stroke-linecap="round"/>
+                        <g class="monster-eyes" fill="#486c64"><circle cx="34" cy="40" r="3"/><circle cx="62" cy="40" r="3"/></g>
+                        <ellipse cx="25" cy="48" rx="5" ry="2.5" fill="#e3b9ae" opacity="0.65"/>
+                        <ellipse cx="72" cy="48" rx="5" ry="2.5" fill="#e3b9ae" opacity="0.65"/>
+                        <ellipse id="monster-mouth" class="monster-mouth" cx="48" cy="54" rx="10" ry="3" fill="#577d72"/>
+                    </svg>
+                </div>
             </div>
             <div id="unlock-win" class="unlock-win" hidden>
                 <span class="win-symbol" data-icon="sparkles" aria-hidden="true"></span>
@@ -209,7 +218,7 @@
     <script src="../js/puzzle.js"></script>
     <script src="../js/games/unshackle/engine.js?v=match-6"></script>
     <script src="../js/generators/unshackle.js?v=match-6"></script>
-    <script src="../js/games/unshackle/view.js?v=match-7"></script>
-    <script src="../js/games/unshackle/game.js?v=match-7"></script>
+    <script src="../js/games/unshackle/view.js?v=match-8"></script>
+    <script src="../js/games/unshackle/game.js?v=match-8"></script>
 </body>
 </html>

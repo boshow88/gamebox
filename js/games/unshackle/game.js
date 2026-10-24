@@ -178,6 +178,8 @@
     }
     function syncMatchUI() {
         const active = state.mode === 'match', tray = waiting();
+        canvas.closest('.unlock-board').classList.toggle('match-mode', active);
+        $('match-dock').hidden = !active || state.won;
         $('match-panel').hidden = !active || state.won;
         $('match-help').hidden = !active; $('match-rule').hidden = !active;
         $('match-shipped').hidden = !active;
@@ -388,7 +390,7 @@
             const travel = Engine.exitDistance(p, state.pieces), rect = canvas.getBoundingClientRect();
             const distance = state.mode === 'match'
                 ? view.pullPreviewDistance(p, travel, { left: 8, top: 8,
-                    right: $('match-slots').getBoundingClientRect().left-rect.left-8, bottom: rect.height-20 }, state)
+                    right: rect.width-8, bottom: rect.height-20 }, state)
                 : travel + Engine.bounds(state.pieces).radius*2;
             state.animation = { id, start: performance.now(), offset: 0, blocked: false, distance,
                 shortPull: state.mode === 'match', plateIndex: waiting().length,
