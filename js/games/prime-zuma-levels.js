@@ -18,23 +18,23 @@ window.PrimeZumaData = (function () {
     // Rin is kept large so the inner (death) end clears the centre cannon + its muzzle ball. 'square' is a smooth
     // ROUNDED square (squircle, exponent n) — no hard 90° corners; 'snake' is a smooth sine weave (amp/waves).
     var FIELDS = [
-        { id: 'vortex',  name: 'Vortex',  shape: 'spiral', turns: 3, Rin: 70, Rout: 214, phase: -0.7854, ox: 4, oy: 16, bg: '#130d20', accent: '#8b5cf6' },
-        { id: 'box',     name: 'Box',     shape: 'square', turns: 3, Rin: 70, Rout: 184, n: 3.0, ox: 12, oy: 6, phase: 0.2, mirror: true, bg: '#0a1020', accent: '#3b82f6' },
-        { id: 'serpent', name: 'Serpent', shape: 'snake',  rows: 4,                              bg: '#08140e', accent: '#10b981' },
-        { id: 'star',    name: 'Star',    shape: 'star',   Rstar: 292, tipR: 38, phase: -1.5708, oy: 18, deathT: 0.80, bg: '#14110a', accent: '#eab308' },
-        { id: 'twin',    name: 'Twin',    shape: 'dual',   turns: 2, Rin: 70, Rout: 214,         bg: '#160a12', accent: '#ec4899', accent2: '#2dd4bf' },
-        { id: 'maze',    name: 'Maze',    shape: 'square', turns: 3, Rin: 70, Rout: 188, n: 3.2, phase: -0.7854, oy: 12, buryHorizontal: true, bg: '#08161a', accent: '#06b6d4' },
-        { id: 'tri',     name: 'Tri',     shape: 'poly',   sides: 3, polyAmp: 0.17, turns: 3, Rin: 70, Rout: 190, ox: -28, oy: 6, canDy: -12, exitAng: 0.52, bg: '#160f08', accent: '#f97316' },
-        { id: 'clover',  name: 'Clover',  shape: 'clover', gx: 70, gy: 70, leafR: 64, deathExt: 44, bg: '#0c1407', accent: '#a3e635' },
-        { id: 'helix',   name: 'Helix',   shape: 'spiral', turns: 3, Rin: 70, Rout: 214, phase: -0.7854, mirror: true, ox: -4, oy: 16, bg: '#170a1a', accent: '#d946ef' },
-        { id: 'duo',     name: 'Duo',     shape: 'duo',    half: 156, cr: 24, gap: 44, sep: 36, bg: '#140a0f', accent: '#fb7185', accent2: '#38bdf8' },
-        { id: 'trine',   name: 'Trine',   shape: 'triple', turns: 1.4, Rin: 70, Rout: 214,       bg: '#0b0e14', accents: ['#f43f5e', '#22c55e', '#3b82f6'] },
-        { id: 'eight',   name: 'Eight',   shape: 'infinity', aw: 190, bh: 108, voff: 116,        bg: '#0c0a16', accents: ['#facc15', '#818cf8'] },
+        { id: 'vortex',  name: 'Vortex',  shape: 'spiral', turns: 3, Rin: 70, Rout: 214, phase: -0.7854, ox: 4, oy: 16, entryUnder: 40, bg: '#130d20', accent: '#8b5cf6' },
+        { id: 'box',     name: 'Box',     shape: 'square', turns: 3, Rin: 70, Rout: 184, n: 3.0, ox: 12, oy: 6, phase: 0.2, mirror: true, entryUnder: 90, bg: '#0a1020', accent: '#3b82f6' },
+        { id: 'serpent', name: 'Serpent', shape: 'snake',  rows: 4, entryUnder: 30, bg: '#08140e', accent: '#10b981' },
+        { id: 'clover',  name: 'Clover',  shape: 'clover', gx: 70, gy: 70, leafR: 64, deathExt: 44, entryUnder: 30, bg: '#0c1407', accent: '#a3e635' },
+        { id: 'star',    name: 'Star',    shape: 'star',   Rstar: 292, tipR: 38, phase: -1.5708, oy: 18, deathT: 0.80, entryUnder: 50, bg: '#14110a', accent: '#eab308' },
+        { id: 'twin',    name: 'Twin',    shape: 'dual',   turns: 2, Rin: 70, Rout: 214, entryUnder: [40, 40], bg: '#160a12', accent: '#ec4899', accent2: '#2dd4bf' },
+        { id: 'tri',     name: 'Tri',     shape: 'poly',   sides: 3, polyAmp: 0.17, turns: 3, Rin: 70, Rout: 190, ox: -28, oy: 6, canDy: -12, exitAng: 0.52, entryUnder: 110, bg: '#160f08', accent: '#f97316' },
+        { id: 'eight',   name: 'Eight',   shape: 'infinity', aw: 190, bh: 108, voff: 116, bridgeW: 52, entryUnder: [30, 30], bg: '#0c0a16', accents: ['#facc15', '#818cf8'] },
+        { id: 'maze',    name: 'Maze',    shape: 'square', turns: 3, Rin: 70, Rout: 188, n: 3.2, phase: -0.7854, oy: 12, buryHorizontal: true, entryUnder: 40, bg: '#08161a', accent: '#06b6d4' },
+        { id: 'duo',     name: 'Duo',     shape: 'duo',    half: 156, cr: 24, gap: 44, sep: 36, entryUnder: [30, 30], bg: '#140a0f', accent: '#fb7185', accent2: '#38bdf8' },
+        { id: 'helix',   name: 'Helix',   shape: 'spiral', turns: 3, Rin: 70, Rout: 214, phase: -0.7854, mirror: true, ox: -4, oy: 16, entryUnder: 40, bg: '#170a1a', accent: '#d946ef' },
+        { id: 'trine',   name: 'Trine',   shape: 'triple', turns: 1.4, Rin: 70, Rout: 214, entryUnder: [40, 40, 40], bg: '#0b0e14', accents: ['#f43f5e', '#22c55e', '#3b82f6'] },
     ];
     var X = FIELDS.length;
 
     // ---- PER-LEVEL tuning table. LEVELS[world-1][fieldIndex] — hand-edit every value freely. ----
-    //   field columns 0..11 match the FIELDS order above: vortex, box, serpent, star, twin, maze, tri, clover, helix, duo, trine, eight
+    //   field columns 0..11 match the FIELDS order above: vortex, box, serpent, clover, star, twin, tri, eight, maze, duo, helix, trine
     //   per level: primes (available prime balls) · cap (max ball value) · omega (max prime-factor count Ω) ·
     //              feed (queue creep speed, px/s) · bias (<1 favours simple/primes, 1 even, >1 complex) · quota (balls to clear = win)
     var P1 = [2, 3, 5], P2 = [2, 3, 5, 7], P3 = [2, 3, 5, 7, 11];

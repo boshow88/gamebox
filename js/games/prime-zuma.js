@@ -205,22 +205,29 @@
     }
     function buildField(field) {   // → { paths:[{pts,arc,len,under}...], cannon }
         var c0 = cen(field), under = field.under || [], can = { x: c0.x + (field.canDx || 0), y: c0.y + (field.canDy || 0) };   // cannon may be nudged independently of the field
-        function make(pts, exitAng, underArc) {
+        function make(pts, exitAng, underArc, laneIdx) {
             var baseP = pathOf(pts), baseLen = baseP.len;          // length BEFORE the off-screen lead-in
             if (underArc == null && field.buryHorizontal) underArc = buryHorizontalRanges(baseP);
             extendOut(pts, exitAng);
             var p = pathOf(pts);
-            p.under = underArc ? underArc : under.map(function (u) { return [u[0] * baseLen, u[1] * baseLen]; });   // buried (unshootable) arc ranges — explicit arc-ranges, or field.under given as fractions
+            var ur = underArc ? underArc.slice() : under.map(function (u) { return [u[0] * baseLen, u[1] * baseLen]; });   // buried (unshootable) arc ranges — explicit, or field.under given as fractions
+            var eu = Array.isArray(field.entryUnder) ? field.entryUnder[laneIdx || 0] : field.entryUnder;   // entryUnder may be a single number (all lanes) or a per-lane array
+            if (eu) {   // bury the first `eu` px AFTER a ball pokes onto the screen (measured from the screen edge inward, NOT from the outermost point — the off-screen lead-in can be long)
+                var sEdge = baseLen, pe, pp;
+                for (pe = p.pts.length - 1; pe >= 0; pe--) { pp = p.pts[pe]; if (pp.x >= 0 && pp.x <= CW && pp.y >= 0 && pp.y <= CH) { sEdge = p.arc[pe]; break; } }
+                ur.push([sEdge - eu, p.len]);
+            }
+            p.under = ur;
             return p;
         }
-        if (field.shape === 'dual') { var ph = field.phase != null ? field.phase : -Math.PI / 4; return { paths: [make(genSpiral(field, ph).pts, field.exitAng), make(genSpiral(field, ph + Math.PI).pts, field.exitAng2)], cannon: can }; }
-        if (field.shape === 'triple') { var pt3 = field.phase != null ? field.phase : -Math.PI / 2; return { paths: [0, 1, 2].map(function (k) { return make(genSpiral(field, pt3 + k * 2 * Math.PI / 3).pts, field.exitAng); }), cannon: can }; }
-        if (field.shape === 'infinity') { var gl = genDualLem(field); return { paths: [make(gl.loops[0], 0, gl.under[0]), make(gl.loops[1], Math.PI, gl.under[1])], cannon: can }; }
+        if (field.shape === 'dual') { var ph = field.phase != null ? field.phase : -Math.PI / 4; return { paths: [make(genSpiral(field, ph).pts, field.exitAng, null, 0), make(genSpiral(field, ph + Math.PI).pts, field.exitAng2, null, 1)], cannon: can }; }
+        if (field.shape === 'triple') { var pt3 = field.phase != null ? field.phase : -Math.PI / 2; return { paths: [0, 1, 2].map(function (k) { return make(genSpiral(field, pt3 + k * 2 * Math.PI / 3).pts, field.exitAng, null, k); }), cannon: can }; }
+        if (field.shape === 'infinity') { var gl = genDualLem(field); return { paths: [make(gl.loops[0], 0, gl.under[0], 0), make(gl.loops[1], Math.PI, gl.under[1], 1)], cannon: can }; }
         if (field.shape === 'square') return { paths: [make(genSquare(field, field.phase || 0).pts, field.exitAng)], cannon: can };
         if (field.shape === 'poly') return { paths: [make(genPoly(field, field.phase || 0).pts, field.exitAng)], cannon: can };
         if (field.shape === 'star') { var gs = genStar(field); return { paths: [make(gs.pts, field.exitAng, gs.under)], cannon: can }; }
         if (field.shape === 'clover') { var gc = genClover(field); return { paths: [make(gc.pts, field.exitAng, gc.under)], cannon: can }; }
-        if (field.shape === 'duo') { var gd = genDuo(field); return { paths: gd.loops.map(function (pts, i) { return make(pts, undefined, gd.under[i]); }), cannon: can }; }
+        if (field.shape === 'duo') { var gd = genDuo(field); return { paths: gd.loops.map(function (pts, i) { return make(pts, undefined, gd.under[i], i); }), cannon: can }; }
         if (field.shape === 'snake') { var g = genSnake(field); return { paths: [make(g.pts)], cannon: g.cannon }; }
         return { paths: [make(genSpiral(field, field.phase || 0).pts, field.exitAng)], cannon: can };
     }
@@ -519,13 +526,13 @@
             roadStroke(path, accent);                                   // (1) continuous base road
             if (hasU) for (var ut = 0; ut < path.under.length; ut++) tintUnderground(path, path.under[ut][0], path.under[ut][1], accent);   // (2) darken the underground stretches (clear colour difference)
             for (qi = 0; qi < qs.length; qi++) { var q = qs[qi]; for (j = 0; j < q.vals.length; j++) { var b = q.vals[j], sB = q.head + j * CFG.D, lp = posAt(path, sB); b.rx += (lp.x - b.rx) * ease; b.ry += (lp.y - b.ry) * ease; if (buriedS(path, sB)) { ctx.globalAlpha = 0.42; drawBall(b.rx, b.ry, b.v, CFG.rBall * (1 + (b.pop || 0) * 0.35)); ctx.globalAlpha = 1; } } }   // (3) ease every ball; underground ones drawn semi-transparent (not hidden)
-            if (hasU) for (var ub = 0; ub < path.under.length; ub++) { var b0 = path.under[ub][0], b1 = path.under[ub][1]; if (b1 - b0 <= CFG.D * 3) { var cu = (b0 + b1) / 2, P = posAt(path, cu), co = otherPassArc(path, P, cu); if (co >= 0) drawBridge(path, co, CFG.D * 1.0, accent); } }   // (4) crossings: deck the UPPER strand over → it partially covers the semi-transparent ball (tunnels get no deck, so their balls stay visible-but-dim)
+            if (hasU) for (var ub = 0; ub < path.under.length; ub++) { var b0 = path.under[ub][0], b1 = path.under[ub][1]; if (b1 - b0 <= CFG.D * 3) { var cu = (b0 + b1) / 2, P = posAt(path, cu), co = otherPassArc(path, P, cu); if (co >= 0) drawBridge(path, co, R.field.bridgeW || CFG.D, accent); } }   // (4) crossings: deck the UPPER strand over (bridgeW = deck half-length; raise it for shallow crossings) → partially covers the semi-transparent ball
             var d0 = posAt(path, 0); ctx.fillStyle = 'rgba(239,68,68,0.9)'; ctx.beginPath(); ctx.arc(d0.x, d0.y, pr, 0, 7); ctx.fill();   // (5) death core
             for (qi = 0; qi < qs.length; qi++) { var qB = qs[qi]; for (j = 0; j < qB.vals.length; j++) { var bb = qB.vals[j], sBB = qB.head + j * CFG.D; if (!buriedS(path, sBB)) drawBall(bb.rx, bb.ry, bb.v, CFG.rBall * (1 + (bb.pop || 0) * 0.35)); } }   // (6) surface balls — top
         }
         if (R.field.shape === 'duo' && lanes.length >= 2) {   // Duo interlock: redraw lane A's road + balls OVER lane B at the top-right crossing (lane B is drawn last so it already sits over at the bottom-left crossing)
             var fo = cen(R.field), h2 = R.field.half || 140, sp2 = R.field.sep || 50, la = lanes[0], coA = nearestS(la.path, fo.x + h2 - sp2, fo.y + sp2 - h2);
-            drawBridge(la.path, coA, CFG.D * 1.0, R.field.accent);
+            drawBridge(la.path, coA, R.field.bridgeW || CFG.D, R.field.accent);
             var qa = la.qs; for (qi = 0; qi < qa.length; qi++) { var qc = qa[qi]; for (j = 0; j < qc.vals.length; j++) { var bz = qc.vals[j], sz = qc.head + j * CFG.D; if (Math.abs(sz - coA) < CFG.D * 1.8) drawBall(bz.rx, bz.ry, bz.v, CFG.rBall * (1 + (bz.pop || 0) * 0.35)); } }
         }
         for (var fi = 0; fi < fx.length; fi++) {
