@@ -166,6 +166,8 @@
             feedbackInbox: 'Feedback inbox',
             feedbackInboxEmpty: 'No feedback yet.',
             feedbackInboxError: 'Couldn\u2019t load feedback.',
+            feedbackResolved: 'Handled',
+            feedbackUpdateError: 'Couldn\u2019t save status. Please try again.',
             anonLabel: 'Guest',
             del: 'Delete',
             confirmDelete: 'Confirm?',
@@ -284,6 +286,8 @@
             feedbackInbox: '意見箱（管理）',
             feedbackInboxEmpty: '目前沒有留言。',
             feedbackInboxError: '讀取失敗。',
+            feedbackResolved: '已處理',
+            feedbackUpdateError: '狀態儲存失敗，請再試一次。',
             anonLabel: '訪客',
             del: '刪除',
             confirmDelete: '確定刪除？',
@@ -797,18 +801,36 @@
                     var kindTxt = fb.kind ? t('feedbackKind' + fb.kind.charAt(0).toUpperCase() + fb.kind.slice(1)) : '';
                     var gameTxt = fb.game ? gameName(fb.game) : '';
                     meta.textContent = [who, kindTxt, gameTxt, (fb.lang || '').toUpperCase(), fmtTime(fb.at)].filter(Boolean).join(' · ');
+                    var actions = document.createElement('div'); actions.className = 'fb-actions';
+                    var resolvedLabel = document.createElement('label'); resolvedLabel.className = 'fb-resolved';
+                    var resolved = document.createElement('input'); resolved.type = 'checkbox'; resolved.checked = fb.resolved === true;
+                    var resolvedText = document.createElement('span'); resolvedText.textContent = t('feedbackResolved');
+                    resolvedLabel.appendChild(resolved); resolvedLabel.appendChild(resolvedText);
+                    it.classList.toggle('is-resolved', resolved.checked);
+                    resolved.addEventListener('change', function () {
+                        var next = resolved.checked;
+                        resolved.disabled = true; del.disabled = true;
+                        Promise.resolve().then(function () { return N.feedbackSetResolved(fb.id, next); }).then(function () {
+                            fb.resolved = next;
+                            it.classList.toggle('is-resolved', next);
+                        }).catch(function () {
+                            resolved.checked = fb.resolved === true;
+                            showToast(t('feedbackUpdateError'));
+                        }).then(function () { resolved.disabled = false; del.disabled = false; });
+                    });
                     // Delete — two clicks (arms, then confirms) to avoid accidents.
                     var del = document.createElement('button'); del.type = 'button'; del.className = 'fb-del'; del.textContent = t('del');
                     var armed = false, armT = null;
                     del.addEventListener('click', function () {
                         if (!armed) { armed = true; del.textContent = t('confirmDelete'); del.classList.add('armed'); armT = setTimeout(function () { armed = false; del.textContent = t('del'); del.classList.remove('armed'); }, 3000); return; }
-                        clearTimeout(armT); del.disabled = true;
+                        clearTimeout(armT); del.disabled = true; resolved.disabled = true;
                         Promise.resolve(N.feedbackDelete(fb.id)).then(function () {
                             it.remove();
                             if (!m.body.querySelector('.fb-item')) { var e = document.createElement('p'); e.className = 'records-empty'; e.textContent = t('feedbackInboxEmpty'); m.body.appendChild(e); }
-                        }).catch(function () { del.disabled = false; armed = false; del.textContent = t('del'); del.classList.remove('armed'); });
+                        }).catch(function () { del.disabled = false; resolved.disabled = false; armed = false; del.textContent = t('del'); del.classList.remove('armed'); });
                     });
-                    it.appendChild(tx); it.appendChild(meta); it.appendChild(del); m.body.appendChild(it);
+                    actions.appendChild(resolvedLabel); actions.appendChild(del);
+                    it.appendChild(tx); it.appendChild(meta); it.appendChild(actions); m.body.appendChild(it);
                 });
             }).catch(function () { m.body.innerHTML = ''; var e = document.createElement('p'); e.className = 'records-empty'; e.textContent = t('feedbackInboxError'); m.body.appendChild(e); });
         });

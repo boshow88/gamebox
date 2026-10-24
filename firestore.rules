@@ -47,15 +47,18 @@ service cloud.firestore {
 
     // ---- Feedback box (drop box) ----
     // Anyone signed in (incl. anonymous) may submit a size-capped note. Only an owner
-    // (see config/admins) may read them (in-app admin view); nobody may edit, and only
-    // an owner may delete (e.g. clearing a handled note).
+    // (see config/admins) may read, mark handled or delete them. Status updates may
+    // change only the boolean resolved field; the original note stays intact.
     match /feedback/{id} {
       allow create: if request.auth != null
                        && request.resource.data.text is string
                        && request.resource.data.text.size() > 0
-                       && request.resource.data.text.size() <= 2000;
+                       && request.resource.data.text.size() <= 2000
+                       && request.resource.data.get('resolved', false) == false;
       allow read, delete: if isOwner();
-      allow update: if false;
+      allow update: if isOwner()
+                       && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['resolved'])
+                       && request.resource.data.resolved is bool;
     }
 
   }

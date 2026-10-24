@@ -253,7 +253,7 @@ function fail(err) {
                 save(uid, data) { return setDoc(doc(db, 'profiles', uid), Object.assign({ updatedAt: serverTimestamp() }, data), { merge: true }); },
             },
             // write-only feedback drop box — anyone signed in may submit; only the owner
-            // reads it in the Firebase console (see firestore.rules). Auto-generated id.
+            // manages it in the inbox (see firestore.rules). Auto-generated id.
             feedback(data) {
                 if (!user) return Promise.reject(new Error('not signed in'));
                 return setDoc(doc(collection(db, 'feedback')), Object.assign({ at: serverTimestamp(), uid: user.uid, name: user.name || null, email: user.email || null, anon: !!user.anon }, data || {}));
@@ -264,6 +264,7 @@ function fail(err) {
                 return getDocs(query(collection(db, 'feedback'), orderBy('at', 'desc'), limit(max || 100)))
                     .then((snap) => snap.docs.map((d) => Object.assign({ id: d.id }, d.data())));
             },
+            feedbackSetResolved(id, resolved) { return updateDoc(doc(db, 'feedback', id), { resolved: !!resolved }); },
             feedbackDelete(id) { return deleteDoc(doc(db, 'feedback', id)); },
             // Admin roster — a config doc readable/writable only by admins (see
             // firestore.rules). Shape: config/admins = { members: { "<email>": { name } } }.

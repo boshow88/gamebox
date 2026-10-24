@@ -591,6 +591,12 @@ button { font-family: inherit; cursor: pointer; }
 }
 .fb-text { color: var(--text-primary); font-size: 0.9rem; white-space: pre-wrap; word-break: break-word; }
 .fb-meta { color: var(--text-muted); font-size: 0.74rem; }
+.fb-item.is-resolved { border-color: var(--accent); }
+.fb-actions { display: flex; align-items: center; justify-content: space-between; gap: var(--space-sm); margin-top: 4px; }
+.fb-resolved { display: inline-flex; align-items: center; gap: 6px; min-height: 30px; color: var(--text-secondary); font-size: 0.78rem; cursor: pointer; }
+.fb-resolved input { width: 16px; height: 16px; margin: 0; accent-color: var(--accent); }
+.fb-item.is-resolved .fb-resolved { color: var(--accent); }
+.fb-resolved:has(input:disabled) { cursor: wait; opacity: 0.6; }
 .fb-del {
     align-self: flex-end;
     appearance: none;

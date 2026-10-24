@@ -31,6 +31,7 @@ js/
   generators/*.js     Puzzle generators & solvers
 games/*.html          One page per game (all 14, each sets <body data-theme="…">)
 tools/*.html          Puzzle dev tools (generators/solvers test harnesses)
+tools/*.js            Node.js checks (run with node, no packages required)
 docs/
   rules.md            Full player-facing rules for every game (merged)
   DEV.md              Arcade engine architecture & conventions
@@ -94,3 +95,9 @@ python -m http.server 8000   # then open http://localhost:8000
 Settings → Pages → Source: `main` branch, `/` (root). All paths are relative.
 Rune Stones' online PvP uses Firebase; its authorized domains are domain-level
 (`boshow88.github.io`), so sign-in keeps working.
+
+The admin feedback inbox saves its Handled checkbox to Firestore. Existing notes
+without a `resolved` field are treated as unhandled. When deploying changes to
+`firestore.rules`, publish that file in Firebase Console → Firestore Database →
+Rules as well; a GitHub Pages deployment does not update Firebase rules. Only
+admins may update the boolean `resolved` field, and feedback text stays unchanged.
