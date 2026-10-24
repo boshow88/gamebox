@@ -248,14 +248,14 @@
         for (i = 0; i < list.length; i++) { wt = Math.pow(bias, list[i].w); if ((r -= wt) <= 0) return list[i].v; }
         return list[list.length - 1].v;
     }
-    function updateProgression() {   // ENDLESS only
-        var d = R.e, T = frame / 60, prog = Math.min(1, T / d.ramp);
-        var activeN = Math.min(d.primes.length, 3 + (isFinite(d.unlockEvery) ? Math.floor(T / d.unlockEvery) : 0));
-        var cap = Math.round(d.capA + (d.capB - d.capA) * prog);
-        var maxOmega = Math.round(d.omegaA + (d.omegaB - d.omegaA) * prog);
-        R.bias = d.biasA + (d.biasB - d.biasA) * prog;
-        R.feed = d.feedA + (d.feedB - d.feedA) * prog;
-        if (activeN !== R.activeN || cap !== R.cap || maxOmega !== R.maxOmega) { R.activeN = activeN; R.cap = cap; R.maxOmega = maxOmega; rebuildCandidates(); }
+    function updateProgression() {   // ENDLESS only — walk the flattened stage keyframes, interpolate cap/feed/bias between them; primes & Ω step at each stage
+        var st = R.e.stages, T = frame / 60, i = 0;
+        while (i < st.length - 1 && T >= st[i + 1].t) i++;
+        var a = st[i], b = st[i + 1] || a, span = (b.t - a.t) || 1, u = (b === a) ? 0 : Math.max(0, Math.min(1, (T - a.t) / span));
+        var cap = Math.round(a.cap + (b.cap - a.cap) * u);
+        R.bias = a.bias + (b.bias - a.bias) * u;
+        R.feed = a.feed + (b.feed - a.feed) * u;
+        if (a.primes !== R.full || cap !== R.cap || a.omega !== R.maxOmega) { R.full = a.primes; R.activeN = a.primes.length; R.cap = cap; R.maxOmega = a.omega; rebuildCandidates(); }
     }
 
     // ---------------- state ----------------
@@ -275,8 +275,8 @@
             var lv = DATA.level(p.world, p.fieldIdx); field = lv.field;
             R = { isLevel: true, field: field, full: lv.primes, activeN: lv.primes.length, cap: lv.cap, maxOmega: lv.maxOmega, bias: lv.bias, feed: lv.feed, quota: lv.quota, spawned: 0, candidates: [] };
         } else {
-            var e = DATA.ENDLESS[p.diff] || DATA.ENDLESS.easy; field = DATA.FIELDS[p.fieldIdx] || DATA.FIELDS[0];
-            R = { isLevel: false, field: field, e: e, full: e.primes, activeN: 3, cap: e.capA, maxOmega: e.omegaA, bias: e.biasA, feed: e.feedA, quota: Infinity, spawned: 0, candidates: [] };
+            var e = DATA.ENDLESS[p.diff] || DATA.ENDLESS.easy, s0 = e.stages[0]; field = DATA.FIELDS[p.fieldIdx] || DATA.FIELDS[0];
+            R = { isLevel: false, field: field, e: e, full: s0.primes, activeN: s0.primes.length, cap: s0.cap, maxOmega: s0.omega, bias: s0.bias, feed: s0.feed, quota: Infinity, spawned: 0, candidates: [] };
         }
         var fb = buildField(field); CAN = fb.cannon;
         frame = 0; combo = 0; lastElimFrame = -999;
