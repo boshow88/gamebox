@@ -37,7 +37,7 @@ window.PrimeZumaData = (function () {
     //   field columns 0..11 match the FIELDS order above: vortex, box, serpent, clover, star, twin, tri, eight, maze, duo, helix, trine
     //   per level: primes (available prime balls) · cap (max ball value) · omega (max prime-factor count Ω) ·
     //              feed (queue creep speed, px/s) · bias (<1 favours simple/primes, 1 even, >1 complex) · quota (balls to clear = win)
-    var P1 = [2, 3, 5], P2 = [2, 3, 5, 7], P3 = [2, 3, 5, 7, 11];
+    var P1 = [2, 3, 5], P2 = [2, 3, 5, 7], P3 = [2, 3, 5, 7, 11], P4 = [2, 3, 5, 7, 11, 13];
     var LEVELS = [
         [ // World 1
             { primes: P1, cap: 18, omega: 3, feed: 11, bias: 0.38, quota: 20 },
@@ -102,36 +102,53 @@ window.PrimeZumaData = (function () {
         return { field: FIELDS[fieldIdx], primes: e.primes, cap: e.cap, maxOmega: e.omega, feed: e.feed, bias: e.bias, quota: e.quota };
     }
 
-    // ---- ENDLESS, FLATTENED into time keyframes (stages). Each stage = the values AT time t (seconds since start). ----
-    //   Between two stages the engine smoothly interpolates cap / feed / bias; primes & omega switch (step) at each stage's t.
-    //   Add / remove / retime stages freely per difficulty. The last stage holds forever.
+    // ---- ENDLESS, now split by STYLE (not difficulty). Each style = time keyframes (stages); engine interpolates cap/feed/bias and steps primes/omega. ----
+    //   `name` shows in the picker. A style may instead give `build()` — called ONCE per run to RETURN its stages, so you can randomise (e.g. pick random primes for that run). Last stage holds forever.
     var ENDLESS = {
-        easy: {
-            stages: [
-                { t: 0,   primes: P1, cap: 20, omega: 2, feed: 12.0, bias: 0.40 },
-                { t: 45,  primes: P1, cap: 28, omega: 2, feed: 13.5, bias: 0.55 },
-                { t: 90,  primes: P1, cap: 34, omega: 3, feed: 15.0, bias: 0.70 },
-                { t: 150, primes: P1, cap: 40, omega: 3, feed: 16.5, bias: 0.80 },
-                { t: 220, primes: P1, cap: 48, omega: 3, feed: 17.5, bias: 0.85 },
+        balanced: {
+            name: '均衡', stages: [   // a bit of everything, gentle ramp
+                { t: 0,   primes: P1, cap: 28, omega: 3, feed: 14, bias: 0.60 },
+                { t: 60,  primes: P2, cap: 45, omega: 3, feed: 16, bias: 0.70 },
+                { t: 140, primes: P2, cap: 62, omega: 4, feed: 18, bias: 0.80 },
+                { t: 220, primes: P2, cap: 78, omega: 4, feed: 20, bias: 0.85 },
             ],
         },
-        normal: {
-            stages: [
-                { t: 0,   primes: P1, cap: 28, omega: 3, feed: 14.0, bias: 0.45 },
-                { t: 40,  primes: P2, cap: 36, omega: 3, feed: 16.0, bias: 0.60 },
-                { t: 90,  primes: P2, cap: 50, omega: 4, feed: 18.0, bias: 0.75 },
-                { t: 150, primes: P2, cap: 62, omega: 4, feed: 20.0, bias: 0.88 },
-                { t: 220, primes: P2, cap: 70, omega: 4, feed: 21.0, bias: 0.92 },
+        diverse: {
+            name: '多元', stages: [   // large prime pool + bias ~1 → every kind of number shows up
+                { t: 0,   primes: P2, cap: 44,  omega: 3, feed: 14, bias: 0.95 },
+                { t: 60,  primes: P3, cap: 80,  omega: 4, feed: 16, bias: 1.00 },
+                { t: 150, primes: P4, cap: 120, omega: 4, feed: 18, bias: 1.00 },
+                { t: 230, primes: P4, cap: 150, omega: 4, feed: 19, bias: 1.00 },
             ],
         },
-        hard: {
-            stages: [
-                { t: 0,   primes: P2, cap: 40,  omega: 3, feed: 17.0, bias: 0.52 },
-                { t: 35,  primes: P3, cap: 55,  omega: 4, feed: 20.0, bias: 0.70 },
-                { t: 80,  primes: P3, cap: 75,  omega: 4, feed: 23.0, bias: 0.85 },
-                { t: 140, primes: P3, cap: 95,  omega: 4, feed: 25.0, bias: 0.98 },
-                { t: 200, primes: P3, cap: 120, omega: 4, feed: 27.0, bias: 1.05 },
+        gnarly: {
+            name: '難消', stages: [   // high Ω + bias >1 → gnarly composites that take many shots to clear
+                { t: 0,   primes: P1, cap: 40,  omega: 3, feed: 13, bias: 1.10 },
+                { t: 60,  primes: P1, cap: 70,  omega: 4, feed: 15, bias: 1.40 },
+                { t: 140, primes: P2, cap: 100, omega: 5, feed: 16, bias: 1.60 },
+                { t: 220, primes: P2, cap: 130, omega: 5, feed: 17, bias: 1.70 },
             ],
+        },
+        blitz: {
+            name: '反應', stages: [   // very fast feed, simple numbers → a reaction test
+                { t: 0,   primes: P1, cap: 24, omega: 2, feed: 22, bias: 0.40 },
+                { t: 50,  primes: P2, cap: 34, omega: 3, feed: 28, bias: 0.50 },
+                { t: 120, primes: P2, cap: 46, omega: 3, feed: 34, bias: 0.60 },
+                { t: 200, primes: P2, cap: 58, omega: 3, feed: 40, bias: 0.65 },
+            ],
+        },
+        hardPrimes: {
+            name: '刁鑽',
+            build: function () {   // pick 3 random big/tricky primes each run and focus the whole run on them
+                var pool = [13, 17, 19, 23, 29, 31, 37], pick = [], pp = pool.slice(), i;
+                for (i = 0; i < 3; i++) pick.push(pp.splice(Math.floor(Math.random() * pp.length), 1)[0]);
+                pick.sort(function (a, b) { return a - b; });
+                return [
+                    { t: 0,   primes: pick, cap: 240, omega: 2, feed: 14, bias: 0.70 },
+                    { t: 90,  primes: pick, cap: 420, omega: 2, feed: 16, bias: 0.85 },
+                    { t: 190, primes: pick, cap: 600, omega: 2, feed: 18, bias: 0.95 },
+                ];
+            },
         },
     };
 

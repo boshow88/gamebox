@@ -17,6 +17,7 @@
         en: {
             pzName: 'Prime Zuma', pzScore: 'Score',
             pzLevelMode: 'Levels', pzEndless: 'Endless', pzEasy: 'Easy', pzNormal: 'Normal', pzHard: 'Hard',
+            pzBalanced: 'Balanced', pzDiverse: 'Diverse', pzGnarly: 'Heavy', pzBlitz: 'Blitz', pzHardPrimes: 'Tricky',
             pzPickLevel: 'Pick a level', pzClear: 'Cleared!', pzFailed: 'Failed',
             pzHelp1Html: 'A turret shoots <strong>prime</strong> balls; chains spiral inward and you lose if one reaches a <strong>core</strong>.',
             pzHelp2Html: 'A shot prime <strong>p</strong> divides every ball in a contiguous run divisible by p (length <strong>3+</strong>) by p — any that become 1 are removed.',
@@ -25,6 +26,7 @@
         zh: {
             pzName: '質因數祖瑪', pzScore: '分數',
             pzLevelMode: '一般', pzEndless: '無盡', pzEasy: '簡單', pzNormal: '普通', pzHard: '困難',
+            pzBalanced: '均衡', pzDiverse: '多元', pzGnarly: '難消', pzBlitz: '反應', pzHardPrimes: '刁鑽',
             pzPickLevel: '選擇關卡', pzClear: '過關！', pzFailed: '失敗',
             pzHelp1Html: '砲台發射<strong>質數</strong>球；球鏈往內盤旋,抵達<strong>核心</strong>就輸了。',
             pzHelp2Html: '射出的質數 <strong>p</strong> 會把一段可被 p 整除的連續球鏈（<strong>3 顆以上</strong>）全部除以 p,變成 1 的球消除。',
@@ -287,7 +289,7 @@
     // ---------------- state ----------------
     // lanes: [{ path:{pts,arc,len}, qs:[ {vals:[ball..], head, imp} ... ] }]  — each lane is an independent chain.
     var canvas, ctx, shell, lanes, shots, cannon, score, over, fx, frame, combo, lastElimFrame, R, CAN = { x: CX, y: CY };
-    var mode = 'level', sel = { world: 1, fieldIdx: 0 }, endlessSel = { diff: 'easy', fieldIdx: 0 }, pending = null, lastResult = null, paused = false;
+    var mode = 'level', sel = { world: 1, fieldIdx: 0 }, endlessSel = { diff: 'balanced', fieldIdx: 0 }, pending = null, lastResult = null, paused = false;
     function makeBall(v, x, y) { return { v: v, rx: x, ry: y, pop: 0 }; }
 
     function $(id) { return document.getElementById(id); }
@@ -301,8 +303,9 @@
             var lv = DATA.level(p.world, p.fieldIdx); field = lv.field;
             R = { isLevel: true, field: field, full: lv.primes, activeN: lv.primes.length, cap: lv.cap, maxOmega: lv.maxOmega, bias: lv.bias, feed: lv.feed, quota: lv.quota, spawned: 0, candidates: [] };
         } else {
-            var e = DATA.ENDLESS[p.diff] || DATA.ENDLESS.easy, s0 = e.stages[0]; field = DATA.FIELDS[p.fieldIdx] || DATA.FIELDS[0];
-            R = { isLevel: false, field: field, e: e, full: s0.primes, activeN: s0.primes.length, cap: s0.cap, maxOmega: s0.omega, bias: s0.bias, feed: s0.feed, quota: Infinity, spawned: 0, candidates: [] };
+            var style = DATA.ENDLESS[p.diff] || DATA.ENDLESS[Object.keys(DATA.ENDLESS)[0]];
+            var stages = style.build ? style.build() : style.stages, s0 = stages[0]; field = DATA.FIELDS[p.fieldIdx] || DATA.FIELDS[0];   // build() lets a style randomise its stages once per run
+            R = { isLevel: false, field: field, e: { stages: stages }, full: s0.primes, activeN: s0.primes.length, cap: s0.cap, maxOmega: s0.omega, bias: s0.bias, feed: s0.feed, quota: Infinity, spawned: 0, candidates: [] };
         }
         var fb = buildField(field); CAN = fb.cannon;
         frame = 0; combo = 0; lastElimFrame = -999;
@@ -604,7 +607,7 @@
             }
         } else {
             var dr = document.createElement('div'); dr.className = 'pz-row';
-            ['easy', 'normal', 'hard'].forEach(function (d) { dr.appendChild(optBtn(t(d === 'easy' ? 'pzEasy' : d === 'normal' ? 'pzNormal' : 'pzHard'), endlessSel.diff === d, function () { endlessSel.diff = d; persist(); renderPanel(); })); });
+            Object.keys(DATA.ENDLESS).forEach(function (d) { var k = 'pz' + d.charAt(0).toUpperCase() + d.slice(1), lbl = t(k); dr.appendChild(optBtn(lbl && lbl !== k ? lbl : (DATA.ENDLESS[d].name || d), endlessSel.diff === d, function () { endlessSel.diff = d; persist(); renderPanel(); })); });
             card.appendChild(dr);
             var fr = document.createElement('div'); fr.className = 'pz-row pz-thumbs';
             for (var fi = 0; fi < DATA.X; fi++) (function (fi) { fr.appendChild(thumbBtn(fi, endlessSel.fieldIdx === fi, function () { endlessSel.fieldIdx = fi; persist(); renderPanel(); })); })(fi);
