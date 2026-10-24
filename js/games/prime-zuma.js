@@ -453,7 +453,10 @@
     }
 
     // ---------------- render ----------------
-    function hue(v) { return (v * 47) % 360; }
+    // Each prime is coloured by its PRIME INDEX (2→0, 3→1, 5→2, …), cycling through 27 well-spread hues.
+    var BALL_HUES = [146, 59, 0, 293, 215, 168, 89, 25, 324, 236, 188, 132, 47, 348, 272, 206, 158, 74, 14, 310, 225, 178, 110, 36, 336, 249, 197];
+    var PRIME_INDEX = (function () { var m = {}, c = 0, n = 2; while (c < 108) { if (isPrime(n)) { m[n] = c; c++; } n++; } return m; })();   // first 108 primes → their 0-based index
+    function hue(v) { var i = PRIME_INDEX[v]; return i != null ? BALL_HUES[i % 27] : (v * 47) % 360; }
     function hslLum(h, s, l) {   // perceived luminance (0..1) of an hsl colour → lets us pick black vs white text for best contrast on each ball
         s /= 100; l /= 100; var c = (1 - Math.abs(2 * l - 1)) * s, hh = (((h % 360) + 360) % 360) / 60, x = c * (1 - Math.abs(hh % 2 - 1)), m = l - c / 2, r = 0, g = 0, b = 0;
         if (hh < 1) { r = c; g = x; } else if (hh < 2) { r = x; g = c; } else if (hh < 3) { g = c; b = x; } else if (hh < 4) { g = x; b = c; } else if (hh < 5) { r = x; b = c; } else { r = c; b = x; }
