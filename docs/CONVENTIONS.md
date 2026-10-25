@@ -33,10 +33,12 @@ Both shells therefore run a small JS guard that cancels the quick second
 - `js/arcade.js` — at the document level (covers the canvas stage, HUD and overlay
   buttons).
 
-Unshackle also guards its numeric piece controls locally in
+Unshackle also guards its numeric piece controls and serving plate locally in
 `js/games/unshackle/game.js`, with explicit `touch-action: manipulation` on the
-tray and buttons. That delegated guard survives new puzzles, ignores drags and
-multi-touch, and uses `button.click()` so disabled pieces cannot be activated.
+tray and buttons. Each area has independent tap state. The delegated guards
+survive new puzzles and replaced plate contents, ignore drags and multi-touch,
+and use `button.click()` so disabled pieces cannot be activated. Empty plate
+places also suppress double-tap zoom without dispatching a click to the board.
 
 **If you add a new shell or a standalone interactive page, add the same guard.**
 Keep the two copies in sync.

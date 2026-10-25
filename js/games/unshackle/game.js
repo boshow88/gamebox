@@ -594,40 +594,43 @@
         const ok = await PC.share.copyCurrentUrl(); PC.toast.show(t(ok ? 'shareCopied' : 'shareFailed'));
     });
 
-    // The puzzle shell guards the canvas only. Guard numeric controls separately:
-    // cancel a nearby second tap, then replace its suppressed native click.
-    const pieceTray = $('piece-tray');
-    let controlTouch = null, lastControlTap = null;
-    function cancelControlTap() { controlTouch = null; lastControlTap = null; }
-    pieceTray.addEventListener('touchstart', e => {
-        if (e.touches.length !== 1) { cancelControlTap(); return; }
-        const t = e.touches[0];
-        controlTouch = { id: t.identifier, x: t.clientX, y: t.clientY };
-    }, { passive: true });
-    pieceTray.addEventListener('touchmove', e => {
-        if (!controlTouch) return;
-        const t = e.touches[0];
-        if (e.touches.length !== 1 || t.identifier !== controlTouch.id
-            || Math.hypot(t.clientX - controlTouch.x, t.clientY - controlTouch.y) > 10) cancelControlTap();
-    }, { passive: true });
-    pieceTray.addEventListener('touchcancel', cancelControlTap, { passive: true });
-    pieceTray.addEventListener('touchend', e => {
-        const start = controlTouch;
-        controlTouch = null;
-        if (!start || e.touches.length || e.changedTouches.length !== 1) { lastControlTap = null; return; }
-        const t = e.changedTouches[0], now = performance.now();
-        if (t.identifier !== start.id || Math.hypot(t.clientX - start.x, t.clientY - start.y) > 10) { lastControlTap = null; return; }
-        if (lastControlTap && now - lastControlTap.at <= 350
-            && Math.abs(t.clientX - lastControlTap.x) < 40 && Math.abs(t.clientY - lastControlTap.y) < 40) {
-            e.preventDefault();
-            if (e.defaultPrevented) {
-                const target = document.elementFromPoint(t.clientX, t.clientY);
-                const button = target && target.closest('.piece-btn');
-                if (button && pieceTray.contains(button)) button.click();
+    // Keep independent tap state for numeric buttons and the serving plate.
+    // Delegation survives replacement of the plate contents after every move.
+    function guardControlTaps(root, buttonSelector) {
+        let controlTouch = null, lastControlTap = null;
+        function cancelControlTap() { controlTouch = null; lastControlTap = null; }
+        root.addEventListener('touchstart', e => {
+            if (e.touches.length !== 1) { cancelControlTap(); return; }
+            const t = e.touches[0];
+            controlTouch = { id: t.identifier, x: t.clientX, y: t.clientY };
+        }, { passive: true });
+        root.addEventListener('touchmove', e => {
+            if (!controlTouch) return;
+            const t = e.touches[0];
+            if (e.touches.length !== 1 || t.identifier !== controlTouch.id
+                || Math.hypot(t.clientX - controlTouch.x, t.clientY - controlTouch.y) > 10) cancelControlTap();
+        }, { passive: true });
+        root.addEventListener('touchcancel', cancelControlTap, { passive: true });
+        root.addEventListener('touchend', e => {
+            const start = controlTouch;
+            controlTouch = null;
+            if (!start || e.touches.length || e.changedTouches.length !== 1) { lastControlTap = null; return; }
+            const t = e.changedTouches[0], now = performance.now();
+            if (t.identifier !== start.id || Math.hypot(t.clientX - start.x, t.clientY - start.y) > 10) { lastControlTap = null; return; }
+            if (lastControlTap && now - lastControlTap.at <= 350
+                && Math.abs(t.clientX - lastControlTap.x) < 40 && Math.abs(t.clientY - lastControlTap.y) < 40) {
+                e.preventDefault();
+                if (e.defaultPrevented) {
+                    const target = document.elementFromPoint(t.clientX, t.clientY);
+                    const button = target && target.closest(buttonSelector);
+                    if (button && root.contains(button)) button.click();
+                }
             }
-        }
-        lastControlTap = { at: now, x: t.clientX, y: t.clientY };
-    }, { passive: false });
+            lastControlTap = { at: now, x: t.clientX, y: t.clientY };
+        }, { passive: false });
+    }
+    guardControlTaps($('piece-tray'), '.piece-btn');
+    guardControlTaps($('match-slots'), '.match-slot[data-return-id]');
 
     function turn(direction) {
         const turns = { left: [-0.25, 0], right: [0.25, 0], up: [0, -0.2], down: [0, 0.2] };
