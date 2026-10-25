@@ -29,9 +29,14 @@ Both shells therefore run a small JS guard that cancels the quick second
 `touchend` (killing the zoom and its synthesised click) and re-dispatches a real
 `click` so buttons/cells still fire:
 
-- `js/puzzle.js` — scoped to the SVG board.
+- `js/puzzle.js` — scoped to `#board` (SVG or canvas).
 - `js/arcade.js` — at the document level (covers the canvas stage, HUD and overlay
   buttons).
+
+Unshackle also guards its numeric piece controls locally in
+`js/games/unshackle/game.js`, with explicit `touch-action: manipulation` on the
+tray and buttons. That delegated guard survives new puzzles, ignores drags and
+multi-touch, and uses `button.click()` so disabled pieces cannot be activated.
 
 **If you add a new shell or a standalone interactive page, add the same guard.**
 Keep the two copies in sync.

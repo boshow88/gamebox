@@ -33,8 +33,8 @@
         .piece-markers { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
         .piece-marker { position: absolute; font-size: 10px; font-weight: 700; color: #4b5563; transform: translate(-50%, -50%); }
         .piece-marker.hinted { color: var(--game-color); outline: 2px solid var(--game-color); outline-offset: 9px; border-radius: 50%; }
-        .piece-tray { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
-        .piece-btn { min-width: 45px; border-radius: var(--radius-sm); gap: 7px; }
+        .piece-tray { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 8px; margin-top: 14px; touch-action: manipulation; }
+        .piece-btn { min-width: 45px; border-radius: var(--radius-sm); gap: 7px; touch-action: manipulation; }
         .piece-swatch { width: 9px; height: 9px; border-radius: 50%; background: var(--piece-color); }
         .piece-btn.removed { opacity: 0.35; text-decoration: line-through; }
         .piece-btn.hinted { border-color: var(--game-color); background: color-mix(in srgb, var(--game-color) 10%, white); }
@@ -217,9 +217,9 @@
         </section>
     </div>
     <script src="../js/puzzle.js"></script>
-    <script src="../js/games/unshackle/engine.js?v=match-eight-2"></script>
-    <script src="../js/generators/unshackle.js?v=match-eight-2"></script>
-    <script src="../js/games/unshackle/view.js?v=match-eight-2"></script>
-    <script src="../js/games/unshackle/game.js?v=match-eight-2"></script>
+    <script src="../js/games/unshackle/engine.js?v=touch-controls-1"></script>
+    <script src="../js/generators/unshackle.js?v=touch-controls-1"></script>
+    <script src="../js/games/unshackle/view.js?v=touch-controls-1"></script>
+    <script src="../js/games/unshackle/game.js?v=touch-controls-1"></script>
 </body>
 </html>
