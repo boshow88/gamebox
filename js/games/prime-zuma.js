@@ -18,7 +18,7 @@
             pzName: 'Prime Zuma', pzScore: 'Score',
             pzLevelMode: 'Levels', pzEndless: 'Endless', pzEasy: 'Easy', pzNormal: 'Normal', pzHard: 'Hard',
             pzBalanced: 'Balanced', pzDiverse: 'Diverse', pzGnarly: 'Heavy', pzBlitz: 'Blitz', pzHardPrimes: 'Tricky',
-            pzPickLevel: 'Pick a level', pzClear: 'Cleared!', pzFailed: 'Failed', pzOk: 'OK', pzGameOver: 'Game Over',
+            pzPickLevel: 'Pick a level', pzClear: 'Cleared!', pzFailed: 'Failed', pzOk: 'OK', pzGameOver: 'Game Over', pzSpeed: 'Speed',
             pzHelp1Html: 'A turret shoots <strong>prime</strong> balls; chains spiral inward and you lose if one reaches a <strong>core</strong>.',
             pzHelp2Html: 'A shot prime <strong>p</strong> divides every ball in a contiguous run divisible by p (length <strong>3+</strong>) by p — any that become 1 are removed.',
             pzHelp3Html: '<strong>Levels</strong>: clear a finite chain to win. <strong>Endless</strong>: survive as it ramps up. <kbd>P</kbd> pause · <kbd>R</kbd> restart.',
@@ -27,7 +27,7 @@
             pzName: '質因數祖瑪', pzScore: '分數',
             pzLevelMode: '一般', pzEndless: '無盡', pzEasy: '簡單', pzNormal: '普通', pzHard: '困難',
             pzBalanced: '均衡', pzDiverse: '多元', pzGnarly: '難消', pzBlitz: '反應', pzHardPrimes: '刁鑽',
-            pzPickLevel: '選擇關卡', pzClear: '過關！', pzFailed: '失敗', pzOk: '確定', pzGameOver: '遊戲結束',
+            pzPickLevel: '選擇關卡', pzClear: '過關！', pzFailed: '失敗', pzOk: '確定', pzGameOver: '遊戲結束', pzSpeed: '速度',
             pzHelp1Html: '砲台發射<strong>質數</strong>球；球鏈往內盤旋,抵達<strong>核心</strong>就輸了。',
             pzHelp2Html: '射出的質數 <strong>p</strong> 會把一段可被 p 整除的連續球鏈（<strong>3 顆以上</strong>）全部除以 p,變成 1 的球消除。',
             pzHelp3Html: '<strong>一般</strong>：清光有限球鏈即過關。<strong>無盡</strong>：撐著,難度隨時間升高。<kbd>P</kbd> 暫停 · <kbd>R</kbd> 重來。',
@@ -295,6 +295,7 @@
     // lanes: [{ path:{pts,arc,len}, qs:[ {vals:[ball..], head, imp} ... ] }]  — each lane is an independent chain.
     var canvas, ctx, shell, lanes, shots, cannon, score, over, fx, frame, combo, lastElimFrame, R, CAN = { x: CX, y: CY };
     var mode = 'level', sel = { world: 1, fieldIdx: 0 }, endlessSel = { diff: 'balanced', fieldIdx: 0 }, pending = null, lastResult = null, paused = false, countdown = 0, resultView = false, gameOverAt = 0;
+    var speed = 1;   // fast-forward multiplier (1/2/3/4): how many physics ticks run per rendered frame — "time flows faster", stays stable via sub-stepping
     function makeBall(v, x, y) { return { v: v, rx: x, ry: y, pop: 0 }; }
 
     function $(id) { return document.getElementById(id); }
@@ -314,6 +315,7 @@
         }
         R.burst = field.startBurst != null ? field.startBurst : CFG.startBurst;   // fast-feed this many balls (TOTAL) at the start so there's instantly something to shoot
         countdown = CFG.startCountdown;
+        speed = 1; syncFF();   // every run starts at normal speed; the player opts into fast-forward each time
         var fb = buildField(field); CAN = fb.cannon;
         frame = 0; combo = 0; lastElimFrame = -999;
         rebuildCandidates();
@@ -419,7 +421,8 @@
     }
 
     // ---------------- main loop ----------------
-    function update() {
+    function update() { for (var s = 0; s < speed; s++) tick(); }   // fast-forward = run the fixed-dt physics `speed` times per frame (sub-stepping keeps collisions stable, unlike scaling dt)
+    function tick() {
         if (over || !lanes) return;
         frame++;
         if (!R.isLevel) updateProgression();
@@ -640,12 +643,21 @@
             var go = document.createElement('button'); go.type = 'button'; go.className = 'btn btn-primary'; go.textContent = t('play'); go.addEventListener('click', function () { AC.audio.unlock(); startEndless(); }); card.appendChild(go);
         }
     }
-    function startLevel(w, f) { sel = { world: w, fieldIdx: f }; pending = { kind: 'level', world: w, fieldIdx: f }; lastResult = null; resultView = false; paused = false; newGame(); hidePanel(); shell.start(); }
-    function startEndless() { pending = { kind: 'endless', diff: endlessSel.diff, fieldIdx: endlessSel.fieldIdx }; lastResult = null; resultView = false; paused = false; newGame(); hidePanel(); shell.start(); }
+    function startLevel(w, f) { sel = { world: w, fieldIdx: f }; pending = { kind: 'level', world: w, fieldIdx: f }; lastResult = null; resultView = false; paused = false; newGame(); hidePanel(); shell.start(); syncFF(); }
+    function startEndless() { pending = { kind: 'endless', diff: endlessSel.diff, fieldIdx: endlessSel.fieldIdx }; lastResult = null; resultView = false; paused = false; newGame(); hidePanel(); shell.start(); syncFF(); }
     function syncModeSeg() {
         var seg = $('mode-seg'); if (!seg) return;
         var bs = seg.querySelectorAll('button[data-mode]');
         for (var i = 0; i < bs.length; i++) { var on = bs[i].getAttribute('data-mode') === mode; bs[i].classList.toggle('active', on); bs[i].setAttribute('aria-checked', on ? 'true' : 'false'); }
+    }
+    function syncFF() {   // the fast-forward button: label shows the current multiplier; only usable while actively playing
+        var btn = $('ff-btn'); if (!btn) return;
+        var lbl = btn.querySelector('[data-role="ff-label"]'); if (lbl) lbl.textContent = speed + 'x';
+        btn.disabled = !(shell && shell.isPlaying());
+        btn.classList.toggle('active', speed > 1);
+    }
+    function cycleSpeed() {   // 1x → 2x → 3x → 4x → 1x
+        speed = speed >= 4 ? 1 : speed + 1; syncFF();
     }
 
     // ---------------- boot ----------------
@@ -671,15 +683,17 @@
             reset: newGame,
             restartToReady: true,
             canRestart: function () { return (shell ? shell.isPlaying() : false) || paused; },   // Restart is only usable WHILE playing (or paused) — never on the level/field select or the result screen
-            onPause: function () { paused = true; showPanel(); },
-            onResume: function () { paused = false; hidePanel(); },
-            onGameOver: function (result) { paused = false; lastResult = { win: !!(result && result.win), score: result ? result.score : score }; resultView = true; gameOverAt = Date.now(); showPanel(); },
+            onPause: function () { paused = true; syncFF(); showPanel(); },
+            onResume: function () { paused = false; syncFF(); hidePanel(); },
+            onGameOver: function (result) { paused = false; speed = 1; syncFF(); lastResult = { win: !!(result && result.win), score: result ? result.score : score }; resultView = true; gameOverAt = Date.now(); showPanel(); },
         });
 
         var seg = $('mode-seg');
         if (seg) seg.addEventListener('click', function (e) { var b = e.target.closest ? e.target.closest('button[data-mode]') : null; if (b) { AC.audio.unlock(); mode = b.getAttribute('data-mode'); persist(); syncModeSeg(); if (!shell.isPlaying()) showPanel(); } });
         syncModeSeg();
-        var rb = $('restart-btn'); if (rb) rb.addEventListener('click', function () { paused = false; setTimeout(function () { if (!shell.isPlaying()) showPanel(); }, 0); });
+        var rb = $('restart-btn'); if (rb) rb.addEventListener('click', function () { paused = false; setTimeout(function () { if (!shell.isPlaying()) showPanel(); syncFF(); }, 0); });
+        var ff = $('ff-btn'); if (ff) ff.addEventListener('click', function () { if (shell.isPlaying()) { AC.audio.unlock(); cycleSpeed(); } });
+        syncFF();
 
         AC.i18n.subscribe(function () { if (!shell.isPlaying()) { renderPanel(); shell.refreshOverlay && shell.refreshOverlay(); } });
         pending = mode === 'level' ? { kind: 'level', world: 1, fieldIdx: 0 } : { kind: 'endless', diff: endlessSel.diff, fieldIdx: endlessSel.fieldIdx };

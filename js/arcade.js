@@ -259,6 +259,10 @@
             '<line x1="6" x2="18" y1="18" y2="6"/>',
         'mirror-back':
             '<line x1="6" x2="18" y1="6" y2="18"/>',
+        // lucide "fast-forward" — the speed/fast-forward toggle
+        'fast-forward':
+            '<polygon points="13 19 22 12 13 5 13 19"/>'
+            + '<polygon points="2 19 11 12 2 5 2 19"/>',
     };
 
     function icon(name, opts) {
