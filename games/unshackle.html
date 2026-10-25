@@ -71,13 +71,30 @@
         .match-symbols input { accent-color: var(--game-color); }
         .match-monster { flex: 0 0 var(--monster-size); width: var(--monster-size); height: var(--monster-size); pointer-events: none; }
         .match-monster svg { display: block; width: 100%; height: 100%; overflow: visible; }
+        .monster-body { transform-box: fill-box; transform-origin: 50% 85%; }
         .monster-mouth { transform-box: fill-box; transform-origin: center; transition: transform 130ms ease; }
+        .monster-cheek { transform-box: fill-box; transform-origin: center; transition: transform 130ms ease, opacity 130ms ease; }
         .match-monster.feeding .monster-mouth { transform: scale(1.15, 3.5); }
         .match-monster.chewing svg { animation: monster-chew 200ms ease-in-out 2; transform-origin: center bottom; }
         .monster-eyes { transform-box: fill-box; transform-origin: center; animation: monster-blink 7s infinite; }
+        .match-monster.puzzled .monster-body { animation: monster-puzzled 760ms ease-in-out; }
+        .match-monster.puzzled .monster-eyes { transform: scaleY(0.65); animation: monster-question-blink 760ms ease-in-out; }
+        .match-monster.puzzled .monster-mouth { transform: scale(0.55, 1.55); }
+        .match-monster.plate-full .monster-body { animation: monster-plate-full 760ms ease-in-out; }
+        .match-monster.plate-full .monster-eyes { transform: scale(1.12, 1.15); animation: none; }
+        .match-monster.plate-full .monster-mouth { transform: translateY(1px) scale(0.65, 0.75); }
+        .match-monster.plate-full .monster-cheek { transform: scale(1.45, 1.5); opacity: 0.95; }
         @keyframes monster-chew { 50% { transform: scale(1.06, 0.92) translateY(2px); } }
         @keyframes monster-blink { 0%, 94%, 98%, 100% { transform: scaleY(1); } 96% { transform: scaleY(0.12); } }
-        @media (prefers-reduced-motion: reduce) { .monster-eyes, .match-monster.chewing svg, .match-waiting.shaking { animation: none; } }
+        @keyframes monster-puzzled { 30%, 48% { transform: rotate(-7deg) translateY(-1px); } 72% { transform: rotate(2deg); } 0%, 100% { transform: rotate(0); } }
+        @keyframes monster-question-blink { 0%, 25%, 65%, 100% { transform: scaleY(1); } 40%, 50% { transform: scaleY(0.15); } }
+        @keyframes monster-plate-full { 20%, 58% { transform: rotate(-5deg) scale(1.04, 0.98); } 38%, 76% { transform: rotate(5deg) scale(1.04, 0.98); } 0%, 100% { transform: rotate(0) scale(1); } }
+        @media (prefers-reduced-motion: reduce) {
+            .monster-eyes, .match-monster.chewing svg, .match-waiting.shaking,
+            .match-monster.puzzled .monster-body, .match-monster.puzzled .monster-eyes,
+            .match-monster.plate-full .monster-body { animation: none; }
+            .monster-mouth, .monster-cheek { transition: none; }
+        }
         .unlock-win { position: absolute; inset: 0; z-index: 2; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; background: #f9fafcf5; text-align: center; padding: 24px; }
         .unlock-win .win-symbol { color: var(--success, #2e7d32); font-size: 2rem; }
         .unlock-win h2 { font-size: 1.5rem; font-weight: 600; }
@@ -185,12 +202,14 @@
                     <!-- custom: a small, round creature that eats matching metal loops. -->
                     <svg viewBox="0 0 96 92" aria-hidden="true">
                         <ellipse cx="48" cy="80" rx="29" ry="4" fill="#dde5e2" opacity="0.55"/>
-                        <path d="M21 64Q8 47 20 29L17 14Q27 11 34 22Q47 17 61 22Q70 11 79 16L75 32Q86 52 73 68Q49 82 21 64Z" fill="#dcece7" stroke="#71988e" stroke-width="2.5" stroke-linejoin="round"/>
-                        <path d="M25 70Q24 79 35 77M62 75Q73 79 74 69" fill="#dcece7" stroke="#71988e" stroke-width="2.5" stroke-linecap="round"/>
-                        <g class="monster-eyes" fill="#486c64"><circle cx="34" cy="40" r="3"/><circle cx="62" cy="40" r="3"/></g>
-                        <ellipse cx="25" cy="48" rx="5" ry="2.5" fill="#e3b9ae" opacity="0.65"/>
-                        <ellipse cx="72" cy="48" rx="5" ry="2.5" fill="#e3b9ae" opacity="0.65"/>
-                        <ellipse id="monster-mouth" class="monster-mouth" cx="48" cy="54" rx="10" ry="3" fill="#577d72"/>
+                        <g class="monster-body">
+                            <path d="M21 64Q8 47 20 29L17 14Q27 11 34 22Q47 17 61 22Q70 11 79 16L75 32Q86 52 73 68Q49 82 21 64Z" fill="#dcece7" stroke="#71988e" stroke-width="2.5" stroke-linejoin="round"/>
+                            <path d="M25 70Q24 79 35 77M62 75Q73 79 74 69" fill="#dcece7" stroke="#71988e" stroke-width="2.5" stroke-linecap="round"/>
+                            <g class="monster-eyes" fill="#486c64"><circle cx="34" cy="40" r="3"/><circle cx="62" cy="40" r="3"/></g>
+                            <ellipse class="monster-cheek" cx="25" cy="48" rx="5" ry="2.5" fill="#e3b9ae" opacity="0.65"/>
+                            <ellipse class="monster-cheek" cx="72" cy="48" rx="5" ry="2.5" fill="#e3b9ae" opacity="0.65"/>
+                            <ellipse id="monster-mouth" class="monster-mouth" cx="48" cy="54" rx="10" ry="3" fill="#577d72"/>
+                        </g>
                     </svg>
                 </div>
             </div>
@@ -217,9 +236,9 @@
         </section>
     </div>
     <script src="../js/puzzle.js"></script>
-    <script src="../js/games/unshackle/engine.js?v=touch-controls-1"></script>
-    <script src="../js/generators/unshackle.js?v=touch-controls-1"></script>
-    <script src="../js/games/unshackle/view.js?v=touch-controls-1"></script>
-    <script src="../js/games/unshackle/game.js?v=touch-controls-1"></script>
+    <script src="../js/games/unshackle/engine.js?v=monster-reactions-1"></script>
+    <script src="../js/generators/unshackle.js?v=monster-reactions-1"></script>
+    <script src="../js/games/unshackle/view.js?v=monster-reactions-1"></script>
+    <script src="../js/games/unshackle/game.js?v=monster-reactions-1"></script>
 </body>
 </html>

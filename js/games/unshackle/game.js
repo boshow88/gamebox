@@ -121,6 +121,7 @@
         animation: null, blocked: null, blockers: [], highlight: null, hover: null };
     let shell, frame = 0, hintOn = false, contextLost = false, generating = false;
     let blockedFeedbackTimer = 0;
+    let monsterReactionTimer = 0;
     let feedback = { key: 'unlockReady', args: [] };
     let lastTime = '';
     let stagedMode = initialMode, matchSolveLogged = false;
@@ -145,8 +146,22 @@
     }
     function clearFeedback() {
         clearTimeout(blockedFeedbackTimer); blockedFeedbackTimer = 0;
+        clearMonsterReaction();
         state.blocked = null; state.blockers = []; state.highlight = null; hintOn = false;
         $('match-panel').classList.remove('rejected', 'shaking');
+    }
+    function clearMonsterReaction() {
+        clearTimeout(monsterReactionTimer); monsterReactionTimer = 0;
+        $('match-monster').classList.remove('puzzled', 'plate-full');
+    }
+    function reactMonster(reaction) {
+        if (state.mode !== 'match' || state.won || generating || contextLost) return;
+        clearMonsterReaction();
+        const monster = $('match-monster');
+        // Restart the expression on another rejected attempt, even at the same piece.
+        void monster.offsetWidth;
+        monster.classList.add(reaction);
+        monsterReactionTimer = setTimeout(clearMonsterReaction, 900);
     }
     function flashBlocked(id, blockers = []) {
         clearTimeout(blockedFeedbackTimer);
@@ -394,6 +409,7 @@
             flashBlocked(id, blockers);
             state.animation = { id, start: performance.now(), offset: 0, blocked: true };
             say('unlockBlocked', id, blockers);
+            reactMonster('puzzled');
         } else {
             const plan = state.mode === 'match' ? Match.pullPlan(state.puzzle, state.removed, id) : null;
             if (plan && !plan.allowed) {
@@ -401,6 +417,7 @@
                 state.animation = { id, start: performance.now(), offset: 0, blocked: true, trayFull: true,
                     reducedMotion: window.matchMedia('(prefers-reduced-motion: reduce)').matches };
                 say('unlockTrayFull');
+                reactMonster('plate-full');
                 $('match-panel').classList.add('shaking');
                 syncUI(); invalidate(); return;
             }
@@ -425,6 +442,7 @@
         // apply, including obstacles reintroduced by earlier returns.
         if (blockers.length) {
             flashBlocked(null, blockers); say('unlockReturnBlocked', id, blockers);
+            reactMonster('puzzled');
         } else {
             // Creating or drawing a flight must not add an unchanged snapshot or
             // strand the UI. Commit the return and its history only on arrival.
@@ -517,7 +535,7 @@
     }
     async function startPuzzle() {
         if (generating || contextLost) return;
-        generating = true; cancelAnimation(); shell.timer.stop(); syncUI();
+        generating = true; clearMonsterReaction(); cancelAnimation(); shell.timer.stop(); syncUI();
         try { await shell.start(); }
         catch (_) {
             shell.setWin(state.won);
@@ -678,7 +696,7 @@
         if (e.key === '-') { e.preventDefault(); view.zoom(1/1.1); invalidate(); }
     });
     canvas.addEventListener('webglcontextlost', e => {
-        e.preventDefault(); contextLost = true; cancelAnimation();
+        e.preventDefault(); contextLost = true; clearMonsterReaction(); cancelAnimation();
         pointers.clear(); gesture = null;
         shell.timer.stop(); $('unlock-error').hidden = false;
         $('unlock-error').textContent = t('unlockContextLost'); canvas.hidden = true;

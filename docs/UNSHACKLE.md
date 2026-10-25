@@ -161,6 +161,14 @@ and history commit when feeding finishes, before a possible win overlay. Undo
 restores the pre-feed pair and puts the third piece back on the board. Solves
 remain separate from Classic in `solves:unshackle-match`, once per attempt.
 
+Rejected match moves also prompt a brief creature reaction: a blocked pull or
+return gets a curious head tilt, blink and small round mouth; an unmatched pull
+at full capacity gets puffed cheeks and a gentle head shake. Reactions last 900ms,
+can restart on another rejection, and clear on the next action, reset, undo,
+generation or context loss. They affect no puzzle state or history. Feeding and
+chewing retain their original animation; reduced-motion mode keeps the facial
+expression while suppressing the tilt, shake, blink and transitions.
+
 Waiting loops sit on a small ceramic-style serving plate inside the existing white
 board, above the original SVG creature. Five recessed places are always visible;
 empty places carry faint position numbers and occupied places contain return
