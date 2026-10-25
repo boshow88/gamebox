@@ -261,14 +261,16 @@
     function isPrime(v) { if (v < 2) return false; for (var i = 2; i * i <= v; i++) if (v % i === 0) return false; return true; }
     function gcd(a, b) { a = a < 0 ? -a : a; b = b < 0 ? -b : b; while (b) { var m = a % b; a = b; b = m; } return a; }
     function activePrimes() { return R.full.slice(0, R.activeN); }
-    function pickCannonPrime() {   // weighted by the live factor DEMAND across ALL lanes (+ floor)
-        var n = R.activeN, dem = [], i, L, qi, j, pi, total = 0;
-        for (i = 0; i < n; i++) dem[i] = CFG.cannonFloor;
-        if (lanes) for (L = 0; L < lanes.length; L++) { var qs = lanes[L].qs; for (qi = 0; qi < qs.length; qi++) { var vals = qs[qi].vals; for (j = 0; j < vals.length; j++) { var v = vals[j].v; for (pi = 0; pi < n; pi++) { var p = R.full[pi], m = v; while (m % p === 0) { m /= p; dem[pi]++; } } } } }
-        for (i = 0; i < n; i++) total += dem[i];
+    function pickCannonPrime() {   // weighted by the live factor DEMAND across ALL lanes; current-P primes get a floor, primes only PRESENT on the board (e.g. dropped by a mid-run P swap) are offered purely on demand so leftover balls stay clearable
+        var dem = {}, keys = [], i, L, qi, j, m, d, p, total = 0;
+        function bump(q, by) { if (dem[q] == null) { dem[q] = 0; keys.push(q); } dem[q] += by; }
+        for (i = 0; i < R.activeN; i++) bump(R.full[i], CFG.cannonFloor);   // floor ONLY for in-P primes → dropped primes get 0 floor (demand-only)
+        if (lanes) for (L = 0; L < lanes.length; L++) { var qs = lanes[L].qs; for (qi = 0; qi < qs.length; qi++) { var vals = qs[qi].vals; for (j = 0; j < vals.length; j++) { m = vals[j].v; for (d = 2; d * d <= m; d++) { while (m % d === 0) { bump(d, 1); m /= d; } } if (m > 1) bump(m, 1); } } }   // full factorisation → counts demand for ANY prime on the board, in or out of current P
+        for (i = 0; i < keys.length; i++) total += dem[keys[i]];
+        if (total <= 0) return R.full[R.activeN - 1];
         var r = rng() * total;
-        for (i = 0; i < n; i++) if ((r -= dem[i]) <= 0) return R.full[i];
-        return R.full[n - 1];
+        for (i = 0; i < keys.length; i++) { p = keys[i]; if ((r -= dem[p]) <= 0) return p; }
+        return keys[keys.length - 1];
     }
     function rebuildCandidates() {
         var primes = activePrimes(), list = [];
