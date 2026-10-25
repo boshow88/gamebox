@@ -42,6 +42,8 @@
         vRetreat: 180, impulse: 120, impDecay: 7,
         comboImpulse: 0.50,     // crash-elimination recoil = impulse × (1 + (combo-1) × comboImpulse); longer chains kick the trailing queue back harder
         comboRetreat: 0.25,     // retreat/attraction speed = vRetreat × (1 + (combo-1) × comboRetreat); independent of comboImpulse so the two can ramp at different rates
+        primeFloor: 8,          // scoring base per peeled ball = (p + primeFloor); a big floor flattens prime magnitude (human division of small primes is ~equally easy)
+        comboScore: 0.25,       // score combo bonus: an elimination's total gain × (1 + (combo-1) × comboScore)
         k: 3,
         cannonFloor: 1.5,
         shotSpeed: 480,
@@ -288,6 +290,7 @@
         var cap = Math.round(a.cap + (b.cap - a.cap) * u);
         R.bias = a.bias + (b.bias - a.bias) * u;
         R.feed = a.feed + (b.feed - a.feed) * u;
+        R.mult = (a.mult != null ? a.mult : 1) + ((b.mult != null ? b.mult : 1) - (a.mult != null ? a.mult : 1)) * u;   // score multiplier for balls spawning right now (banked per-ball at spawn)
         if (a.primes !== R.full || cap !== R.cap || a.omega !== R.maxOmega) { R.full = a.primes; R.activeN = a.primes.length; R.cap = cap; R.maxOmega = a.omega; rebuildCandidates(); }
     }
 
@@ -296,7 +299,7 @@
     var canvas, ctx, shell, lanes, shots, cannon, score, over, fx, frame, combo, lastElimFrame, R, CAN = { x: CX, y: CY };
     var mode = 'level', sel = { world: 1, fieldIdx: 0 }, endlessSel = { diff: 'balanced', fieldIdx: 0 }, pending = null, lastResult = null, paused = false, countdown = 0, resultView = false, gameOverAt = 0;
     var speed = 1;   // fast-forward multiplier (1/2/3/4): how many physics ticks run per rendered frame — "time flows faster", stays stable via sub-stepping
-    function makeBall(v, x, y) { return { v: v, rx: x, ry: y, pop: 0 }; }
+    function makeBall(v, x, y) { return { v: v, rx: x, ry: y, pop: 0, mult: (R && R.mult != null) ? R.mult : 1 }; }   // bank the current score multiplier at spawn time (surviving deeper = higher mult)
 
     function $(id) { return document.getElementById(id); }
     function backEndS(q) { return q.head + (q.vals.length - 1) * CFG.D; }
@@ -307,11 +310,11 @@
         var p = pending || { kind: 'level', world: 1, fieldIdx: 0 }, field;
         if (p.kind === 'level') {
             var lv = DATA.level(p.world, p.fieldIdx); field = lv.field;
-            R = { isLevel: true, field: field, full: lv.primes, activeN: lv.primes.length, cap: lv.cap, maxOmega: lv.maxOmega, bias: lv.bias, feed: lv.feed, quota: lv.quota, spawned: 0, candidates: [] };
+            R = { isLevel: true, field: field, full: lv.primes, activeN: lv.primes.length, cap: lv.cap, maxOmega: lv.maxOmega, bias: lv.bias, feed: lv.feed, quota: lv.quota, spawned: 0, candidates: [], mult: 1 };
         } else {
             var style = DATA.ENDLESS[p.diff] || DATA.ENDLESS[Object.keys(DATA.ENDLESS)[0]];
             var stages = style.build ? style.build() : style.stages, s0 = stages[0]; field = DATA.FIELDS[p.fieldIdx] || DATA.FIELDS[0];   // build() lets a style randomise its stages once per run
-            R = { isLevel: false, field: field, e: { stages: stages }, full: s0.primes, activeN: s0.primes.length, cap: s0.cap, maxOmega: s0.omega, bias: s0.bias, feed: s0.feed, quota: Infinity, spawned: 0, candidates: [] };
+            R = { isLevel: false, field: field, e: { stages: stages }, full: s0.primes, activeN: s0.primes.length, cap: s0.cap, maxOmega: s0.omega, bias: s0.bias, feed: s0.feed, quota: Infinity, spawned: 0, candidates: [], mult: (s0.mult != null ? s0.mult : 1) };
         }
         R.burst = field.startBurst != null ? field.startBurst : CFG.startBurst;   // fast-feed this many balls (TOTAL) at the start so there's instantly something to shoot
         countdown = CFG.startCountdown;
@@ -358,14 +361,14 @@
         while (lo - 1 >= 0 && q.vals[lo - 1].v % p === 0) lo--;
         while (hi + 1 < q.vals.length && q.vals[hi + 1].v % p === 0) hi++;
         if (hi - lo + 1 < CFG.k) return false;
-        var items = [], cleared = 0;
+        var items = [], gain = 0;
         for (var j = 0; j < q.vals.length; j++) {
             var b = q.vals[j], sPos = q.head + j * CFG.D;
-            if (j >= lo && j <= hi) { b.v = b.v / p; if (b.v === 1) { burst(b.rx, b.ry, hue(p)); cleared++; continue; } b.pop = 1; }
+            if (j >= lo && j <= hi) { gain += (p + CFG.primeFloor) * (b.mult != null ? b.mult : 1); b.v = b.v / p; if (b.v === 1) { burst(b.rx, b.ry, hue(p)); continue; } b.pop = 1; }   // each peeled ball banks (p + floor) × its spawn-time multiplier; longer runs & high-Ω balls (peeled repeatedly) earn more
             items.push({ s: sPos, b: b });
         }
-        score += cleared * 10 + (hi - lo + 1);
         combo = (frame - lastElimFrame <= 42) ? combo + 1 : 1; lastElimFrame = frame;
+        score += Math.round(gain * (1 + (combo - 1) * CFG.comboScore));
         sfxPop(combo);
         var at = qs.indexOf(q);
         if (at >= 0) { var groups = regroup(items); if (knockback && groups.length) groups[groups.length - 1].imp = CFG.impulse * (1 + (combo - 1) * CFG.comboImpulse); qs.splice.apply(qs, [at, 1].concat(groups)); }   // on a back-crash elimination, kick the rearmost remnant backward (harder as combo grows) so the trailing chain still recoils

@@ -102,39 +102,40 @@ window.PrimeZumaData = (function () {
         return { field: FIELDS[fieldIdx], primes: e.primes, cap: e.cap, maxOmega: e.omega, feed: e.feed, bias: e.bias, quota: e.quota };
     }
 
-    // ---- ENDLESS, now split by STYLE (not difficulty). Each style = time keyframes (stages); engine interpolates cap/feed/bias and steps primes/omega. ----
+    // ---- ENDLESS, now split by STYLE (not difficulty). Each style = time keyframes (stages); engine interpolates cap/feed/bias/mult and steps primes/omega. ----
     //   `name` shows in the picker. A style may instead give `build()` — called ONCE per run to RETURN its stages, so you can randomise (e.g. pick random primes for that run). Last stage holds forever.
+    //   `mult` = the SCORE multiplier at that time; each ball banks the current mult when it spawns, so surviving deeper is worth more. Hand-authored curve (interpolated) = no exponential runaway; raise the last stage (or add a later one) if you want it to keep climbing.
     var ENDLESS = {
         balanced: {
             name: '均衡', stages: [   // a bit of everything, gentle ramp
-                { t: 0,   primes: P1, cap: 28, omega: 3, feed: 14, bias: 0.60 },
-                { t: 60,  primes: P2, cap: 45, omega: 3, feed: 16, bias: 0.70 },
-                { t: 140, primes: P2, cap: 62, omega: 4, feed: 18, bias: 0.80 },
-                { t: 220, primes: P2, cap: 78, omega: 4, feed: 20, bias: 0.85 },
+                { t: 0,   primes: P1, cap: 28, omega: 3, feed: 14, bias: 0.60, mult: 1.0 },
+                { t: 60,  primes: P2, cap: 45, omega: 3, feed: 16, bias: 0.70, mult: 1.6 },
+                { t: 140, primes: P2, cap: 62, omega: 4, feed: 18, bias: 0.80, mult: 2.8 },
+                { t: 220, primes: P2, cap: 78, omega: 4, feed: 20, bias: 0.85, mult: 4.5 },
             ],
         },
         diverse: {
             name: '多元', stages: [   // large prime pool + bias ~1 → every kind of number shows up
-                { t: 0,   primes: P2, cap: 44,  omega: 3, feed: 14, bias: 0.95 },
-                { t: 60,  primes: P3, cap: 80,  omega: 4, feed: 16, bias: 1.00 },
-                { t: 150, primes: P4, cap: 120, omega: 4, feed: 18, bias: 1.00 },
-                { t: 230, primes: P4, cap: 150, omega: 4, feed: 19, bias: 1.00 },
+                { t: 0,   primes: P2, cap: 44,  omega: 3, feed: 14, bias: 0.95, mult: 1.0 },
+                { t: 60,  primes: P3, cap: 80,  omega: 4, feed: 16, bias: 1.00, mult: 1.7 },
+                { t: 150, primes: P4, cap: 120, omega: 4, feed: 18, bias: 1.00, mult: 3.2 },
+                { t: 230, primes: P4, cap: 150, omega: 4, feed: 19, bias: 1.00, mult: 5.0 },
             ],
         },
         gnarly: {
             name: '難消', stages: [   // high Ω + bias >1 → gnarly composites that take many shots to clear
-                { t: 0,   primes: P1, cap: 40,  omega: 3, feed: 13, bias: 1.10 },
-                { t: 60,  primes: P1, cap: 70,  omega: 4, feed: 15, bias: 1.40 },
-                { t: 140, primes: P2, cap: 100, omega: 5, feed: 16, bias: 1.60 },
-                { t: 220, primes: P2, cap: 130, omega: 5, feed: 17, bias: 1.70 },
+                { t: 0,   primes: P1, cap: 40,  omega: 3, feed: 13, bias: 1.10, mult: 1.0 },
+                { t: 60,  primes: P1, cap: 70,  omega: 4, feed: 15, bias: 1.40, mult: 1.8 },
+                { t: 140, primes: P2, cap: 100, omega: 5, feed: 16, bias: 1.60, mult: 3.4 },
+                { t: 220, primes: P2, cap: 130, omega: 5, feed: 17, bias: 1.70, mult: 5.5 },
             ],
         },
         blitz: {
             name: '反應', stages: [   // very fast feed, simple numbers → a reaction test
-                { t: 0,   primes: P1, cap: 24, omega: 2, feed: 22, bias: 0.40 },
-                { t: 50,  primes: P2, cap: 34, omega: 3, feed: 28, bias: 0.50 },
-                { t: 120, primes: P2, cap: 46, omega: 3, feed: 34, bias: 0.60 },
-                { t: 200, primes: P2, cap: 58, omega: 3, feed: 40, bias: 0.65 },
+                { t: 0,   primes: P1, cap: 24, omega: 2, feed: 22, bias: 0.40, mult: 1.0 },
+                { t: 50,  primes: P2, cap: 34, omega: 3, feed: 28, bias: 0.50, mult: 1.6 },
+                { t: 120, primes: P2, cap: 46, omega: 3, feed: 34, bias: 0.60, mult: 2.6 },
+                { t: 200, primes: P2, cap: 58, omega: 3, feed: 40, bias: 0.65, mult: 4.0 },
             ],
         },
         hardPrimes: {
@@ -144,9 +145,9 @@ window.PrimeZumaData = (function () {
                 for (i = 0; i < 3; i++) pick.push(pp.splice(Math.floor(Math.random() * pp.length), 1)[0]);
                 pick.sort(function (a, b) { return a - b; });
                 return [
-                    { t: 0,   primes: pick, cap: 240, omega: 2, feed: 14, bias: 0.70 },
-                    { t: 90,  primes: pick, cap: 420, omega: 2, feed: 16, bias: 0.85 },
-                    { t: 190, primes: pick, cap: 600, omega: 2, feed: 18, bias: 0.95 },
+                    { t: 0,   primes: pick, cap: 240, omega: 2, feed: 14, bias: 0.70, mult: 1.0 },
+                    { t: 90,  primes: pick, cap: 420, omega: 2, feed: 16, bias: 0.85, mult: 2.6 },
+                    { t: 190, primes: pick, cap: 600, omega: 2, feed: 18, bias: 0.95, mult: 5.0 },
                 ];
             },
         },
