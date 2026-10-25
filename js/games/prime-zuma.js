@@ -39,7 +39,9 @@
     // ---------------- config (FEEL knobs) ----------------
     var CFG = {
         D: 27, rBall: 12.5,
-        vRetreat: 180, impulse: 70, impDecay: 7,
+        vRetreat: 180, impulse: 120, impDecay: 7,
+        comboImpulse: 0.50,     // crash-elimination recoil = impulse × (1 + (combo-1) × comboImpulse); longer chains kick the trailing queue back harder
+        comboRetreat: 0.25,     // retreat/attraction speed = vRetreat × (1 + (combo-1) × comboRetreat); independent of comboImpulse so the two can ramp at different rates
         k: 3,
         cannonFloor: 1.5,
         shotSpeed: 480,
@@ -348,7 +350,7 @@
         if (cur) out.push(cur);
         return out;
     }
-    function tryEliminate(qs, q, idx, p) {
+    function tryEliminate(qs, q, idx, p, knockback) {
         if (!q || q.vals[idx].v % p !== 0) return false;
         var lo = idx, hi = idx;
         while (lo - 1 >= 0 && q.vals[lo - 1].v % p === 0) lo--;
@@ -364,7 +366,7 @@
         combo = (frame - lastElimFrame <= 42) ? combo + 1 : 1; lastElimFrame = frame;
         sfxPop(combo);
         var at = qs.indexOf(q);
-        if (at >= 0) { var groups = regroup(items); qs.splice.apply(qs, [at, 1].concat(groups)); }
+        if (at >= 0) { var groups = regroup(items); if (knockback && groups.length) groups[groups.length - 1].imp = CFG.impulse * (1 + (combo - 1) * CFG.comboImpulse); qs.splice.apply(qs, [at, 1].concat(groups)); }   // on a back-crash elimination, kick the rearmost remnant backward (harder as combo grows) so the trailing chain still recoils
         return true;
     }
     function resolveCollisions(qs) {
@@ -378,7 +380,7 @@
                     var frontFed = (b.vel || 0) < 0 && (f.vel || 0) <= 0, retreating = (f.vel || 0) > 0;
                     var mq = { vals: f.vals.concat(b.vals), head: frontFed ? f.head : (b.head - f.vals.length * CFG.D), imp: 0 };
                     qs.splice(i, 2, mq);
-                    if (retreating) { if (a === c && isPrime(a)) tryEliminate(qs, mq, junction, a); else { mq.imp = CFG.impulse; if (crashes < 2) { sfxCrash(); crashes++; } } }
+                    if (retreating) { if (a === c && isPrime(a)) tryEliminate(qs, mq, junction, a, true); else { mq.imp = CFG.impulse; if (crashes < 2) { sfxCrash(); crashes++; } } }
                     merged = true; break;
                 }
             }
@@ -435,7 +437,7 @@
         // 2) velocities + motion + collisions, per lane
         for (L = 0; L < lanes.length; L++) {
             qs = lanes[L].qs;
-            for (i = 0; i < qs.length; i++) { var q = qs[i], v = 0; if (i === qs.length - 1) v = -feedV; else if (gcd(q.vals[q.vals.length - 1].v, qs[i + 1].vals[0].v) > 1) v = CFG.vRetreat; q.vel = v + (q.imp || 0); q.imp = (q.imp || 0) * Math.max(0, 1 - CFG.impDecay * dt); if (Math.abs(q.imp) < 1) q.imp = 0; }
+            for (i = 0; i < qs.length; i++) { var q = qs[i], v = 0; if (i === qs.length - 1) v = -feedV; else if (gcd(q.vals[q.vals.length - 1].v, qs[i + 1].vals[0].v) > 1) v = CFG.vRetreat * (1 + (combo - 1) * CFG.comboRetreat); q.vel = v + (q.imp || 0); q.imp = (q.imp || 0) * Math.max(0, 1 - CFG.impDecay * dt); if (Math.abs(q.imp) < 1) q.imp = 0; }   // retreat/attraction speed also ramps with combo, same ratio as the recoil
             for (i = 0; i < qs.length; i++) qs[i].head += qs[i].vel * dt;
             resolveCollisions(qs);
         }
