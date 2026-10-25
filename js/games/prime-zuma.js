@@ -274,15 +274,15 @@
     }
     function rebuildCandidates() {
         var primes = activePrimes(), list = [];
-        for (var n = 2; n <= R.cap; n++) { var m = n, omega = 0; for (var i = 0; i < primes.length; i++) { var p = primes[i]; while (m % p === 0) { m /= p; omega++; } } if (m === 1 && omega <= R.maxOmega) list.push({ v: n, w: omega }); }
+        for (var n = 2; n <= R.cap; n++) { var m = n, omega = 0; for (var i = 0; i < primes.length; i++) { var p = primes[i]; while (m % p === 0) { m /= p; omega++; } } if (m === 1 && omega <= R.omegaCeil) list.push({ v: n, w: omega }); }
         R.candidates = list.length ? list : [{ v: 2, w: 1 }];
     }
     function spawnValue() {
-        var list = R.candidates, bias = R.bias, sum = 0, i, wt;
+        var list = R.candidates, bias = R.bias, sum = 0, i, wt, base = Math.floor(R.maxOmega), frac = R.maxOmega - base;
         if (!list || !list.length) return 2;
-        for (i = 0; i < list.length; i++) sum += Math.pow(bias, list[i].w);
+        for (i = 0; i < list.length; i++) { wt = Math.pow(bias, list[i].w); if (list[i].w > base) wt *= frac; sum += wt; }   // the Ω tier above the floored cap is weighted by the fractional part → fades in smoothly
         var r = rng() * sum;
-        for (i = 0; i < list.length; i++) { wt = Math.pow(bias, list[i].w); if ((r -= wt) <= 0) return list[i].v; }
+        for (i = 0; i < list.length; i++) { wt = Math.pow(bias, list[i].w); if (list[i].w > base) wt *= frac; if ((r -= wt) <= 0) return list[i].v; }
         return list[list.length - 1].v;
     }
     function updateProgression() {   // ENDLESS only — walk the flattened stage keyframes, interpolate cap/feed/bias between them; primes & Ω step at each stage
@@ -293,7 +293,9 @@
         R.bias = a.bias + (b.bias - a.bias) * u;
         R.feed = a.feed + (b.feed - a.feed) * u;
         R.mult = (a.mult != null ? a.mult : 1) + ((b.mult != null ? b.mult : 1) - (a.mult != null ? a.mult : 1)) * u;   // score multiplier for balls spawning right now (banked per-ball at spawn)
-        if (a.primes !== R.full || cap !== R.cap || a.omega !== R.maxOmega) { R.full = a.primes; R.activeN = a.primes.length; R.cap = cap; R.maxOmega = a.omega; rebuildCandidates(); }
+        R.maxOmega = a.omega + (b.omega - a.omega) * u;   // smooth (float) Ω cap; the top tier fades in by its fractional part (see spawnValue)
+        var oc = Math.floor(R.maxOmega); if (R.maxOmega - oc > 1e-9) oc += 1;   // highest Ω tier the pool should contain (the fading-in one)
+        if (a.primes !== R.full || cap !== R.cap || oc !== R.omegaCeil) { R.full = a.primes; R.activeN = a.primes.length; R.cap = cap; R.omegaCeil = oc; rebuildCandidates(); }   // rebuild only when the INTEGER tier changes, not every frame
     }
 
     // ---------------- state ----------------
@@ -312,11 +314,11 @@
         var p = pending || { kind: 'level', world: 1, fieldIdx: 0 }, field;
         if (p.kind === 'level') {
             var lv = DATA.level(p.world, p.fieldIdx); field = lv.field;
-            R = { isLevel: true, field: field, full: lv.primes, activeN: lv.primes.length, cap: lv.cap, maxOmega: lv.maxOmega, bias: lv.bias, feed: lv.feed, quota: lv.quota, spawned: 0, candidates: [], mult: 1 };
+            R = { isLevel: true, field: field, full: lv.primes, activeN: lv.primes.length, cap: lv.cap, maxOmega: lv.maxOmega, omegaCeil: lv.maxOmega, bias: lv.bias, feed: lv.feed, quota: lv.quota, spawned: 0, candidates: [], mult: 1 };
         } else {
             var style = DATA.ENDLESS[p.diff] || DATA.ENDLESS[Object.keys(DATA.ENDLESS)[0]];
             var stages = style.build ? style.build() : style.stages, s0 = stages[0]; field = DATA.FIELDS[p.fieldIdx] || DATA.FIELDS[0];   // build() lets a style randomise its stages once per run
-            R = { isLevel: false, field: field, e: { stages: stages }, full: s0.primes, activeN: s0.primes.length, cap: s0.cap, maxOmega: s0.omega, bias: s0.bias, feed: s0.feed, quota: Infinity, spawned: 0, candidates: [], mult: (s0.mult != null ? s0.mult : 1) };
+            R = { isLevel: false, field: field, e: { stages: stages }, full: s0.primes, activeN: s0.primes.length, cap: s0.cap, maxOmega: s0.omega, omegaCeil: s0.omega, bias: s0.bias, feed: s0.feed, quota: Infinity, spawned: 0, candidates: [], mult: (s0.mult != null ? s0.mult : 1) };
         }
         R.burst = field.startBurst != null ? field.startBurst : CFG.startBurst;   // fast-feed this many balls (TOTAL) at the start so there's instantly something to shoot
         countdown = CFG.startCountdown;
