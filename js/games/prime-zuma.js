@@ -17,7 +17,7 @@
         en: {
             pzName: 'Prime Zuma', pzScore: 'Score',
             pzLevelMode: 'Levels', pzEndless: 'Endless', pzEasy: 'Easy', pzNormal: 'Normal', pzHard: 'Hard',
-            pzBalanced: 'Balanced', pzDiverse: 'Diverse', pzGnarly: 'Heavy', pzBlitz: 'Blitz', pzHardPrimes: 'Tricky',
+            pzBalanced: 'Balanced', pzGnarly: 'Heavy', pzBlitz: 'Blitz', pzHardPrimes: 'Tricky',
             pzPickLevel: 'Pick a level', pzClear: 'Cleared!', pzFailed: 'Failed', pzOk: 'OK', pzGameOver: 'Game Over', pzSpeed: 'Speed',
             pzHelp1Html: 'A turret shoots <strong>prime</strong> balls; chains spiral inward and you lose if one reaches a <strong>core</strong>.',
             pzHelp2Html: 'A shot prime <strong>p</strong> divides every ball in a contiguous run divisible by p (length <strong>3+</strong>) by p — any that become 1 are removed.',
@@ -26,7 +26,7 @@
         zh: {
             pzName: '質因數祖瑪', pzScore: '分數',
             pzLevelMode: '一般', pzEndless: '無盡', pzEasy: '簡單', pzNormal: '普通', pzHard: '困難',
-            pzBalanced: '均衡', pzDiverse: '多元', pzGnarly: '難消', pzBlitz: '反應', pzHardPrimes: '刁鑽',
+            pzBalanced: '均衡', pzGnarly: '稠密', pzBlitz: '高速', pzHardPrimes: '刁鑽',
             pzPickLevel: '選擇關卡', pzClear: '過關！', pzFailed: '失敗', pzOk: '確定', pzGameOver: '遊戲結束', pzSpeed: '速度',
             pzHelp1Html: '砲台發射<strong>質數</strong>球；球鏈往內盤旋,抵達<strong>核心</strong>就輸了。',
             pzHelp2Html: '射出的質數 <strong>p</strong> 會把一段可被 p 整除的連續球鏈（<strong>3 顆以上</strong>）全部除以 p,變成 1 的球消除。',
@@ -285,7 +285,7 @@
         for (i = 0; i < list.length; i++) { wt = Math.pow(bias, list[i].w); if (list[i].w > base) wt *= frac; if ((r -= wt) <= 0) return list[i].v; }
         return list[list.length - 1].v;
     }
-    function updateProgression() {   // ENDLESS only — walk the flattened stage keyframes, interpolate cap/feed/bias between them; primes & Ω step at each stage
+    function updateProgression() {   // ENDLESS only — walk the stage keyframes, interpolate cap/feed/bias/mult/Ω between them (Ω's top tier fades in by its fractional part); the prime set steps at each stage
         var st = R.e.stages, T = frame / 60, i = 0;
         while (i < st.length - 1 && T >= st[i + 1].t) i++;
         var a = st[i], b = st[i + 1] || a, span = (b.t - a.t) || 1, u = (b === a) ? 0 : Math.max(0, Math.min(1, (T - a.t) / span));
@@ -433,7 +433,7 @@
         if (over || !lanes) return;
         frame++;
         if (!R.isLevel) updateProgression();
-        var dt = 1 / 60, i, L, qs, feedV = (R.burst > 0) ? R.burstV : R.feed;   // while the start-burst is active, creep at the fixed-time burst speed so balls pour out quickly
+        var dt = 1 / 60, i, L, qs, feedV = (R.burst > 0) ? R.burstV : (R.feed / lanes.length) * (R.field.feedFactor || 1);   // the start-burst keeps its fixed-time pour (unaffected by feedFactor); normal feed is split across lanes so TOTAL balls/sec stays lane-count-independent, then a field may scale its own pace via feedFactor (default 1)
         if (countdown > 0) countdown = Math.max(0, countdown - dt);
         // 1) feed each lane from its source (level stops once the TOTAL quota is reached)
         for (L = 0; L < lanes.length; L++) {
