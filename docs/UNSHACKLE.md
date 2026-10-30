@@ -216,6 +216,36 @@ block and the geometry engine are unchanged. UI, effects and rendering stay in
 the original three runtime modules; no additional module or shared shell change
 is required. Creature artwork is inline SVG, with no image or network dependency.
 
+Version 3 uses one shared difficulty policy for the generator and match toolbar:
+
+| Difficulty | New puzzle sizes | Colours | Greedy completions (four strategies) |
+| --- | --- | --- | --- |
+| Easy | 12, 24 | One unique triple per colour | At least three |
+| Medium | 24, 36 | One unique triple per colour | At most one |
+| Hard | 36, 48 | Eight colours, some with two triples | None |
+
+Minimum required occupancy remains 2–3 / 4 / 5. Medium requires a verified bad
+choice at four places (the fifth provides tolerance); Hard requires two at the
+actual five-place capacity. These forks do not necessarily involve a completed
+triple. Hard allows that mechanism without requiring it in every puzzle.
+Easy additionally checks every empty-plate subset reachable by repeatedly
+clearing an accessible triple: each must have a verified five-place continuation.
+Unknown searches reject an assignment. This guarantee does not cover arbitrary
+partial extractions with leftovers on the plate.
+
+New puzzles use a twelve-colour palette with separated hue and lightness, replacing
+the old teal/blue-green pairing. Only Medium 36 needs all twelve; Easy and Hard
+use at most eight. Symbols remain optional and off by default. Colour alone still
+needs human assessment on small screens and under the renderer's lighting.
+Difficulty changes select the nearest allowed piece count. Classic is unaffected.
+Version-1 and version-2 shared URLs retain their original geometry, assignments,
+colours and permitted historical sizes. New shares carry `mv=3`; both strategic
+versions use the same generator with explicit version-dependent policy.
+Undo restores eaten triples as well as waiting pieces; direct returns only apply
+to pieces still on the plate. Its existing 64-action limit is unchanged.
+
+The following describes the retained Version-2 grading and solver foundations.
+
 Version 2 reuses Classic Easy geometry for Easy, and Medium geometry for both
 Medium and Hard. Colour/geometry coupling and actual choices determine the match
 grade; a longer forced chain alone is not sufficient. Generation tries up to six
@@ -262,7 +292,7 @@ resetting. Reset replays the exact puzzle, and Share identifies the running mode
 size, difficulty and seed even when different settings are staged. Undo retains
 64 actions so a complete 48-piece removal sequence can be reversed.
 
-Run `node tools/unshackle-match-check.js`. It checks 240 puzzles across all twelve
+Run `node tools/unshackle-match-check.js`. By default it checks 120 puzzles across the six current
 settings, verified solution prefixes, rejected capacity moves, direct matching
 at capacity, exact replay, geometric graph agreement and continuation hints.
 An independent exhaustive dynamic program checks minimum capacity and decision
@@ -270,7 +300,7 @@ forks for 12-piece puzzles, including padded versions exercising large-mask domi
 Forced 36/48-piece chains independently check capacity, high-numbered pieces and
 continuations after piece 32. Existing Classic checks use the updated count list.
 Replay checks also require monotonic progress. Optional size/difficulty/sample
-arguments can target a setting; `all all 4` samples all twelve settings.
+arguments can target a setting; `all all 4` samples all six current settings.
 Browser checks cover five visible plate places, return and empty-place restoration,
 three-to-one fusion with only one delivered treat, actual two-phase axis insertion,
 A/B return order, feeding at full capacity, feeding undo, complete wins, optional symbols, record separation,

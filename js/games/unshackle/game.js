@@ -7,7 +7,7 @@
     const GI = window.PuzzleGenerators.unshackleInternals;
     const Match = window.PuzzleGenerators.unshackleMatch;
     const initialMode = new URL(location.href).searchParams.get('mode') === 'match' ? 'match' : 'classic';
-    const initialMatchVersion = new URL(location.href).searchParams.get('mv') === '2' ? 2 : 1;
+    const initialMatchVersion = Number(new URL(location.href).searchParams.get('mv') || 1);
     const rawInitial = PC.share.readParams();
     const urlInitial = (initialMode === 'match' ? Match.SIZES : GI.SHARE_SIZES).includes(rawInitial.size) && DIFFICULTIES.includes(rawInitial.difficulty)
         && Number.isInteger(rawInitial.seed) ? rawInitial : null;
@@ -25,7 +25,7 @@
         unlockMonster: 'A little creature waiting for star treats', unlockSymbols: 'Colour symbols',
         unlockMatchReady: 'Match three of one colour. Fuse a star treat for the little creature.',
         unlockMatchRule: 'Three of one colour fuse into one star treat. The plate holds five pieces; a completing third piece goes directly to fusion.',
-        unlockMatchHelp: 'Tap a waiting piece to slide it back along its original path. Make room by matching or returning pieces. Optional colour symbols help identify matching groups.',
+        unlockMatchHelp: 'Tap a waiting piece to slide it back along its original path. Make room by matching or returning pieces. Hard can contain six of one colour: plan which three to remove first. Undo also restores eaten triples. Optional colour symbols are available.',
         unlockReturn: (id, symbol) => `Return piece ${id}${symbol ? `, group ${symbol}` : ''}`,
         unlockReturned: id => `Piece ${id} is back in its original position.`,
         unlockReturnFailed: 'Could not return this piece. You can try again or use Undo.',
@@ -68,7 +68,7 @@
         unlockMonster: '等待星星糖的小獸', unlockSymbols: '辨色輔助符號',
         unlockMatchReady: '湊齊三根同色，融合成星星糖餵給小獸。',
         unlockMatchRule: '同色三根融合成星星糖。餐盤最多放五根；能湊成三根的零件會直接融合，不占第六格。',
-        unlockMatchHelp: '點暫存零件可沿原路插回。空間滿時，先湊三消或放回零件。需要辨色協助時，可開啟輔助符號。',
+        unlockMatchHelp: '點暫存零件可沿原路插回。空間滿時，先湊三消或放回零件。困難可能有六根同色，先規劃要抽哪三根；已吃掉的組合也可復原。可選擇開啟辨色輔助符號。',
         unlockReturn: (id, symbol) => `放回零件 ${id}${symbol ? `，${symbol} 組` : ''}`,
         unlockReturned: id => `零件 ${id} 已放回原位。`,
         unlockReturnFailed: '暫時無法放回這個零件，可以再試一次或使用復原。',
@@ -257,7 +257,7 @@
             b.classList.toggle('committed', b.dataset.mode === state.mode);
             b.setAttribute('aria-checked', String(b.dataset.mode === stagedMode));
         });
-        const sizes = stagedMode === 'match' ? Match.SIZES : GI.SIZES;
+        const sizes = stagedMode === 'match' ? Match.SETTINGS[shell.difficulty].sizes : GI.SIZES;
         $('size-seg').querySelectorAll('button').forEach(b => {
             const size = Number(b.dataset.value);
             b.hidden = !sizes.includes(size) && !(stagedMode === 'classic' && size === modeSizes.classic && GI.SHARE_SIZES.includes(size));
@@ -491,7 +491,7 @@
             const seed = sharedSeed !== null ? sharedSeed : randomSeed();
             let candidate;
             try {
-                const generate = mode === 'match' ? (sharedSeed !== null && initialMatchVersion === 1 ? Match.generateLegacy : Match.generate) : Generator;
+                const generate = mode === 'match' ? (sharedSeed !== null ? ({ 1: Match.generateLegacy, 2: Match.generateV2, 3: Match.generate }[initialMatchVersion] || Match.generate) : Match.generate) : Generator;
                 candidate = await generate(size, difficulty, seed, async fraction => {
                     PC.progress.setFraction(fraction); await PC.progress.waitNextPaint();
                 });
@@ -528,13 +528,14 @@
         const url = new URL(location.href);
         if (mode === 'match') {
             url.searchParams.set('mode', 'match');
-            if (puzzle.matchVersion === 2) url.searchParams.set('mv', '2'); else url.searchParams.delete('mv');
+            if (puzzle.matchVersion) url.searchParams.set('mv', String(puzzle.matchVersion)); else url.searchParams.delete('mv');
         } else { url.searchParams.delete('mode'); url.searchParams.delete('mv'); }
         window.history.replaceState(null, '', url);
         say(readyMessage()); syncUI(); invalidate();
     }
     async function startPuzzle() {
         if (generating || contextLost) return;
+        if (pendingSeed === null) syncMatchSettings();
         generating = true; clearMonsterReaction(); cancelAnimation(); shell.timer.stop(); syncUI();
         try { await shell.start(); }
         catch (_) {
@@ -558,7 +559,17 @@
     });
     // Catch generation failures locally without changing the shared puzzle shell.
     $('new-game-btn').addEventListener('click', e => { e.stopImmediatePropagation(); startPuzzle(); }, true);
-    $('difficulty-seg').addEventListener('click', syncLevelReadout);
+    function syncMatchSettings() {
+        if (stagedMode === 'match') {
+            const sizes = Match.SETTINGS[shell.difficulty].sizes;
+            if (!sizes.includes(shell.size)) {
+                const nearest = sizes.reduce((a, b) => Math.abs(b - shell.size) < Math.abs(a - shell.size) ? b : a);
+                $('size-seg').querySelector(`[data-value="${nearest}"]`).click();
+            }
+        }
+        syncLevelReadout();
+    }
+    $('difficulty-seg').addEventListener('click', syncMatchSettings);
     $('size-seg').addEventListener('click', syncLevelReadout);
     $('match-symbols').addEventListener('change', () => {
         showSymbols = $('match-symbols').checked;
@@ -569,7 +580,7 @@
         if (!button || button.disabled || button.dataset.mode === stagedMode) return;
         modeSizes[stagedMode] = shell.size; stagedMode = button.dataset.mode;
         $('size-seg').querySelector(`[data-value="${modeSizes[stagedMode]}"]`).click();
-        syncLevelReadout();
+        syncMatchSettings();
     });
     $('undo-btn').addEventListener('click', () => { if (!state.animation) history.undo(); });
     $('hint-btn').addEventListener('click', () => {

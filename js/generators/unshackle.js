@@ -174,6 +174,15 @@
         { color: '#a58adb', symbol: '✚' }, { color: '#f4a34f', symbol: '✦' },
         { color: '#cf6d9e', symbol: '★' }, { color: '#4a9e9b', symbol: '⬟' },
     ];
+    // Append-only group IDs preserve both legacy replay and solver count indices.
+    const PALETTE = ['#d64235', '#2468cf', '#e8bc20', '#328443', '#8346bb', '#ef8422',
+        '#d94a91', '#49342b', '#8ca82d', '#25344d', '#a8cce8', '#858585'];
+    while (GROUPS.length < PALETTE.length) GROUPS.push({ color: PALETTE[GROUPS.length], symbol: ['○', '△', '□', '◇'][GROUPS.length - 8] });
+    const SETTINGS = {
+        easy: { sizes: [12, 24], slots: 3, greedyMin: 3, greedyMax: 4, tripleFraction: 1 },
+        medium: { sizes: [24, 36], slots: 4, greedyMin: 0, greedyMax: 1, tripleFraction: 0.5 },
+        hard: { sizes: [36, 48], slots: 5, greedyMin: 0, greedyMax: 0, tripleFraction: 0.25 },
+    };
     function rngFor(seed) {
         let a = (seed ^ 0x47ad31b9) >>> 0;
         return () => {
@@ -372,9 +381,27 @@
         }
         return decisions;
     }
-    async function generate(size, difficulty, seed, onProgress) {
-        if (!SIZES.includes(size) || !['easy', 'medium', 'hard'].includes(difficulty)) throw new Error('Invalid match settings');
-        const target = { easy: 3, medium: 4, hard: 5 }[difficulty];
+    // Check every empty-plate state reachable by clearing accessible triples.
+    // Unique triples in Easy make each state a subset of colours, at most 256.
+    function safeTripleClears(puzzle) {
+        const seen = new Set();
+        function visit(removed) {
+            const key = [...removed].sort((a, b) => a - b).join(',');
+            if (seen.has(key)) return true;
+            seen.add(key);
+            if (solve(puzzle, removed).status !== 'solved') return false;
+            const free = available(puzzle, removed);
+            for (let g = 0; g < GROUPS.length; g++) {
+                const triple = free.filter(p => p.group === g);
+                if (triple.length === 3 && !visit(new Set([...removed, ...triple.map(p => p.id)]))) return false;
+            }
+            return true;
+        }
+        return visit(new Set());
+    }
+    async function generateStrategic(size, difficulty, seed, onProgress, version) {
+        if (!(version === 3 ? SETTINGS[difficulty]?.sizes.includes(size) : SIZES.includes(size) && SETTINGS[difficulty])) throw new Error('Invalid match settings');
+        const target = SETTINGS[difficulty].slots;
         const geometryBudget = 6, assignmentBudget = 64;
         const wantedDecisions = difficulty === 'hard' ? (size === 12 ? 1 : 2) : difficulty === 'medium' ? 1 : 0;
         for (let geometry = 0; geometry < geometryBudget; geometry++) {
@@ -389,23 +416,24 @@
             const rng = rngFor(geometrySeed ^ 0x8243a719);
             for (let attempt = 0; attempt < assignmentBudget; attempt++) {
                 if (report) await report(0.5 + 0.49 * attempt / assignmentBudget);
-                const palette = shuffle(GROUPS.map((_, i) => i), rng).slice(0, Math.min(size / 3, GROUPS.length));
+                const colourCount = version === 2 ? Math.min(size / 3, 8) : difficulty === 'hard' ? 8 : size / 3;
+                const palette = shuffle(GROUPS.slice(0, version === 2 ? 8 : colourCount).map((_, i) => i), rng).slice(0, colourCount);
                 const labels = shuffle(Array.from({ length: size / 3 }, (_, i) => Array(3).fill(palette[i % palette.length])).flat(), rng);
-                const pieces = base.pieces.map((p, i) => ({ ...p, group: labels[i], ...GROUPS[labels[i]] }));
-                const puzzle = { ...base, id: `unshackle-match-v2-${size}-${difficulty}-${(seed >>> 0).toString(36)}`,
-                    mode: 'match', matchVersion: 2, seed: seed >>> 0, difficulty, pieces, capacity: CAPACITY };
+                const pieces = base.pieces.map((p, i) => ({ ...p, group: labels[i], ...GROUPS[labels[i]], color: version === 3 ? PALETTE[labels[i]] : GROUPS[labels[i]].color }));
+                const puzzle = { ...base, id: `unshackle-match-v${version}-${size}-${difficulty}-${(seed >>> 0).toString(36)}`,
+                    mode: 'match', matchVersion: version, seed: seed >>> 0, difficulty, pieces, capacity: CAPACITY };
                 const measured = strategy(puzzle);
-                const allowedGreedyWins = difficulty === 'hard' ? 0 : 4;
-                const allowedTriples = difficulty === 'hard' ? 0.25 : difficulty === 'medium' ? 0.5 : 1;
+                const allowedGreedyWins = version === 3 ? SETTINGS[difficulty].greedyMax : difficulty === 'hard' ? 0 : 4;
+                const allowedTriples = SETTINGS[difficulty].tripleFraction;
                 if (measured.greedyWins > allowedGreedyWins || measured.tripleOnlyRemoved > size * allowedTriples) continue;
-                if (difficulty === 'easy' && measured.greedyWins < 2) continue;
+                if (measured.greedyWins < (version === 3 ? SETTINGS[difficulty].greedyMin : difficulty === 'easy' ? 2 : 0)) continue;
                 if (difficulty === 'hard' && measured.openingTriples > 1) continue;
                 const upper = solve(puzzle, [], target);
                 if (upper.status === 'solved') {
                     const lower = solve(puzzle, [], target - 1, 250000);
                     if (lower.status === 'unsolvable' || (difficulty === 'easy' && lower.status === 'solved')) {
                         const decisions = auditDecisions(puzzle, upper.solution, wantedDecisions, target);
-                        if (decisions.length >= wantedDecisions) {
+                        if (decisions.length >= wantedDecisions && (version === 2 || difficulty !== 'easy' || safeTripleClears(puzzle))) {
                             const trap = findTrap(puzzle, rng);
                             if (trap) return { ...puzzle, solution: lower.status === 'solved' ? lower.solution : upper.solution, trap,
                                 matchStats: { requiredSlots: lower.status === 'solved' ? 2 : target, assignments: attempt + 1,
@@ -417,5 +445,11 @@
         }
         throw new Error('No verified strategic match puzzle met the requested difficulty');
     }
-    global.PuzzleGenerators.unshackleMatch = { generate, generateLegacy, solve, trayAfter, pullPlan, strategy, auditDecisions, SIZES, CAPACITY, GROUPS };
+    function generate(size, difficulty, seed, onProgress) {
+        return generateStrategic(size, difficulty, seed, onProgress, 3);
+    }
+    function generateV2(size, difficulty, seed, onProgress) {
+        return generateStrategic(size, difficulty, seed, onProgress, 2);
+    }
+    global.PuzzleGenerators.unshackleMatch = { generate, generateV2, generateLegacy, SETTINGS, PALETTE, safeTripleClears, solve, trayAfter, pullPlan, strategy, auditDecisions, SIZES, CAPACITY, GROUPS };
 })(typeof window === 'undefined' ? globalThis : window);

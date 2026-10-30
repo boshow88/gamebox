@@ -62,6 +62,14 @@ function checkWalk(puzzle, order, capacity) {
     assert.equal(Match.solve(fixture, [1,2,3,4,5]).status, 'solved');
     assert.equal(Match.solve(fixture, [1,2,3,4,5,8]).status, 'unsolvable');
     assert.equal(Match.solve(fixture, [], 5, 0).status, 'budget');
+    for (const [difficulty, settings] of Object.entries(Match.SETTINGS)) {
+        for (const size of Match.SIZES.filter(n => !settings.sizes.includes(n)))
+            await assert.rejects(Match.generate(size, difficulty, 0), /Invalid match settings/);
+    }
+    // Accessible independent triples stay safe in any order.
+    const independent = { size: 9, pieces: [0,0,0,1,1,1,2,2,2].map((group, i) => ({ id: i + 1, group })),
+        graph: [[],[],[],[],[],[],[],[],[]] };
+    assert(Match.safeTripleClears(independent));
     const obvious = { size: 24, pieces: Array.from({ length: 24 }, (_, i) => ({ id: i + 1, group: Math.floor(i / 3) })),
         graph: Array.from({ length: 24 }, () => []) };
     assert.equal(Match.strategy(obvious).tripleOnlyRemoved, 24);
@@ -83,6 +91,7 @@ function checkWalk(puzzle, order, capacity) {
         checkWalk(chain, [...prefix, ...continuation.solution], 5);
     }
     for (const size of sizes) for (const difficulty of difficulties) {
+        if (!Match.SETTINGS[difficulty].sizes.includes(size)) continue;
         for (let seed = 0; seed < samples; seed++) {
             const puzzle = await Match.generate(size, difficulty, seed).catch(error => {
                 throw new Error(`${size} ${difficulty} seed ${seed}: ${error.message}`, { cause: error });
@@ -90,13 +99,20 @@ function checkWalk(puzzle, order, capacity) {
             if (process.argv[2]) console.log(`${size} ${difficulty} seed ${seed}: generated`);
             assert.equal(puzzle.size, size); assert.equal(puzzle.difficulty, difficulty);
             assert.equal(puzzle.mode, 'match'); assert.equal(puzzle.seed, seed);
-            assert.equal(puzzle.matchVersion, 2);
-            assert.equal(new Set(puzzle.pieces.map(p => p.group)).size, Math.min(size / 3, 8));
+            assert.equal(puzzle.matchVersion, 3);
+            assert.equal(new Set(puzzle.pieces.map(p => p.group)).size, difficulty === 'hard' ? 8 : size / 3);
             assert(puzzle.pieces.every(p => /^#[0-9a-f]{6}$/i.test(p.color)));
             for (let g = 0; g < Match.GROUPS.length; g++) assert.equal(puzzle.pieces.filter(p => p.group === g).length % 3, 0);
             checkWalk(puzzle, puzzle.solution, puzzle.matchStats.requiredSlots);
             const measured = puzzle.matchStats;
-            if (difficulty === 'easy') assert(measured.greedyWins >= 2);
+            if (difficulty !== 'hard') {
+                for (const group of new Set(puzzle.pieces.map(p => p.group)))
+                    assert.equal(puzzle.pieces.filter(p => p.group === group).length, 3);
+            }
+            if (difficulty === 'easy') assert(Match.safeTripleClears(puzzle));
+            assert(measured.greedyWins >= Match.SETTINGS[difficulty].greedyMin);
+            assert(measured.greedyWins <= Match.SETTINGS[difficulty].greedyMax);
+            if (difficulty === 'easy') assert(measured.greedyWins >= 3);
             else {
                 assert(measured.tripleOnlyRemoved <= size * (difficulty === 'hard' ? 0.25 : 0.5));
                 assert(measured.decisions.length >= (difficulty === 'hard' && size > 12 ? 2 : 1));
