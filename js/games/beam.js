@@ -1075,7 +1075,7 @@
             var N = window.ArcadeNet, btn = $('online-btn');
             if (!N || !N.ok) { if (btn) btn.hidden = true; return; }
             net = N; buildLobby();
-            net.onAuth(function (uu) { netUser = uu; renderLobby(); });
+            net.onAuth(function (uu) { netUser = uu ? net.mp.currentPlayer() : uu; renderLobby(); });
             if (net.mp.cleanup) net.mp.cleanup(GROUP).catch(function () { });
             if (btn) btn.addEventListener('click', openLobby);
             updateOnlineBtn();

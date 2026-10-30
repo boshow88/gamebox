@@ -169,9 +169,16 @@ function fail(err) {
         // separate room spaces (e.g. Beam uses 'beam_rooms'). Up to `maxPlayers`
         // can join a 'lobby' room; `order` preserves join order (host migration,
         // tie-breaks). Rejoin by code works at any status (reconnect-friendly).
+        // Generate once per page, rather than in shared browser storage. Even a
+        // duplicated tab gets its own seat while keeping the signed-in account.
+        const mpSessionId = crypto.getRandomValues(new Uint32Array(4)).join('-');
+        function mpCurrentPlayer() {
+            return user ? Object.assign({}, user, { uid: user.uid + '_' + mpSessionId }) : null;
+        }
         function groupRef(group, code) { return doc(db, group, code); }
         async function mpCreate(group, opts) {
-            if (!user) throw new Error('not signed in');
+            const player = mpCurrentPlayer();
+            if (!player) throw new Error('not signed in');
             opts = opts || {};
             const max = Math.max(2, Math.min(8, opts.maxPlayers || 4));
             for (let attempt = 0; attempt < 6; attempt++) {
@@ -179,9 +186,9 @@ function fail(err) {
                 const ok = await runTransaction(db, async (tx) => {
                     if ((await tx.get(ref)).exists()) return false;
                     tx.set(ref, {
-                        code, status: 'lobby', hostUid: user.uid, maxPlayers: max,
-                        players: { [user.uid]: { uid: user.uid, name: user.name, photo: user.photo, anon: user.anon, order: 0 } },
-                        order: [user.uid], ready: {}, round: 0, game: {},
+                        code, status: 'lobby', hostUid: player.uid, maxPlayers: max,
+                        players: { [player.uid]: { uid: player.uid, name: player.name, photo: player.photo, anon: player.anon, order: 0 } },
+                        order: [player.uid], ready: {}, round: 0, game: {},
                         createdAt: serverTimestamp(), lastActionAt: serverTimestamp(),
                         expireAt: new Date(Date.now() + 6 * 3600 * 1000),
                     });
@@ -192,45 +199,47 @@ function fail(err) {
             throw new Error('could not allocate a room code');
         }
         async function mpJoin(group, code) {
-            if (!user) throw new Error('not signed in');
+            const player = mpCurrentPlayer();
+            if (!player) throw new Error('not signed in');
             code = String(code || '').trim().toUpperCase();
             const ref = groupRef(group, code);
             return runTransaction(db, async (tx) => {
                 const snap = await tx.get(ref);
                 if (!snap.exists()) throw new Error('room not found');
                 const d = snap.data();
-                if (d.players && d.players[user.uid]) return code;         // rejoin / reconnect at any status
+                if (d.players && d.players[player.uid]) return code;       // same page rejoining / reconnecting at any status
                 if (d.status !== 'lobby') throw new Error('already started');
                 const order = Array.isArray(d.order) ? d.order.slice() : Object.keys(d.players || {});
                 if (order.length >= (d.maxPlayers || 4)) throw new Error('room full');
-                order.push(user.uid);
+                order.push(player.uid);
                 // colour/slot index = lowest index not currently taken by a present player. This stays
                 // unique after leaves (a leaver's slot frees up) — using order.length-1 could collide,
                 // because mpLeave filters the order array but doesn't re-index players' stored slots.
                 const used = new Set(Object.keys(d.players || {}).map((u) => (d.players[u] || {}).order));
                 let slot = 0; while (used.has(slot)) slot++;
                 tx.update(ref, {
-                    [`players.${user.uid}`]: { uid: user.uid, name: user.name, photo: user.photo, anon: user.anon, order: slot },
-                    [`ready.${user.uid}`]: deleteField(),    // a new seat always needs a fresh ready confirmation
+                    [`players.${player.uid}`]: { uid: player.uid, name: player.name, photo: player.photo, anon: player.anon, order: slot },
+                    [`ready.${player.uid}`]: deleteField(),    // a new seat always needs a fresh ready confirmation
                     order, lastActionAt: serverTimestamp(),
                 });
                 return code;
             });
         }
         async function mpLeave(group, code) {
-            if (!user) return;
+            const player = mpCurrentPlayer();
+            if (!player) return;
             const ref = groupRef(group, code);
             try {
                 await runTransaction(db, async (tx) => {
                     const s = await tx.get(ref); if (!s.exists()) return;
                     const d = s.data();
                     const players = Object.assign({}, d.players || {});
-                    delete players[user.uid];
-                    const order = (Array.isArray(d.order) ? d.order : Object.keys(d.players || {})).filter((u) => u !== user.uid);
+                    delete players[player.uid];
+                    const order = (Array.isArray(d.order) ? d.order : Object.keys(d.players || {})).filter((u) => u !== player.uid);
                     if (order.length === 0) { tx.delete(ref); return; }    // nobody left → remove the room
                     let hostUid = d.hostUid;
-                    if (hostUid === user.uid) hostUid = order[0];           // host left → promote next in join order
-                    tx.update(ref, { players, order, hostUid, [`ready.${user.uid}`]: deleteField(), lastActionAt: serverTimestamp() });
+                    if (hostUid === player.uid) hostUid = order[0];         // host left → promote next in join order
+                    tx.update(ref, { players, order, hostUid, [`ready.${player.uid}`]: deleteField(), lastActionAt: serverTimestamp() });
                 });
             } catch (e) { /* ignore */ }
         }
@@ -300,6 +309,7 @@ function fail(err) {
             field: { delete: deleteField, now: serverTimestamp },
             // generic N-player rooms (used by Beam): all scoped to a `group` collection
             mp: {
+                currentPlayer: mpCurrentPlayer,
                 create: mpCreate, join: mpJoin, leave: mpLeave,
                 watch(group, code, cb) { return onSnapshot(groupRef(group, code), (s) => cb(s.exists() ? s.data() : null), (err) => cb(null, err)); },
                 update(group, code, data) { return updateDoc(groupRef(group, code), Object.assign({ lastActionAt: serverTimestamp() }, data)); },
