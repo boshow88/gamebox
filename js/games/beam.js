@@ -462,8 +462,8 @@
         startLocalRound(g.round || 1, data);
         renderPlayersBar(data);
     }
-    function exitMatch() {
-        detachRoom();                                // cancel the room listener so a finished online room can't leak into a later solo match
+    function exitMatch(keepRoom) {
+        if (!keepRoom) detachRoom();                 // rematches keep the room listener; leaving must detach before solo play
         om = null;
         setControlsForMatch();
         var pb = $('players'); if (pb) pb.hidden = true;
@@ -509,7 +509,7 @@
             }
             if (!om.local) renderLobby();
         } else if (!om.local) {                       // online room reset to lobby (rematch)
-            exitMatch(); openLobby(); renderLobby();
+            exitMatch(true); openLobby(); renderLobby();
         }
     }
 
