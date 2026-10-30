@@ -211,6 +211,7 @@ function fail(err) {
                 let slot = 0; while (used.has(slot)) slot++;
                 tx.update(ref, {
                     [`players.${user.uid}`]: { uid: user.uid, name: user.name, photo: user.photo, anon: user.anon, order: slot },
+                    [`ready.${user.uid}`]: deleteField(),    // a new seat always needs a fresh ready confirmation
                     order, lastActionAt: serverTimestamp(),
                 });
                 return code;
@@ -229,7 +230,7 @@ function fail(err) {
                     if (order.length === 0) { tx.delete(ref); return; }    // nobody left → remove the room
                     let hostUid = d.hostUid;
                     if (hostUid === user.uid) hostUid = order[0];           // host left → promote next in join order
-                    tx.update(ref, { players, order, hostUid, lastActionAt: serverTimestamp() });
+                    tx.update(ref, { players, order, hostUid, [`ready.${user.uid}`]: deleteField(), lastActionAt: serverTimestamp() });
                 });
             } catch (e) { /* ignore */ }
         }
