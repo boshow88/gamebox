@@ -37,6 +37,10 @@ css/arcade.css               Arcade game-page chrome: topbar, HUD pills, stamina
 js/arcade.js                 ArcadeCommon — all shared arcade plumbing (see below)
 js/launcher.js               Game manifest (GAMES) + tags + render/filter + account UI
 js/net/net.js                Firebase room layer (window.ArcadeNet)
+js/net/rooms.mjs             Shared configurable matchmaking and room sessions
+js/net/firebase-rooms.mjs    Firestore transport for the shared room service
+js/net/room-lobby.mjs        Shared room lobby DOM and action layout
+css/room-lobby.css           Shared responsive lobby styling
 js/cloud-sync.js             Cross-device high-score sync (window.CloudSync)
 js/games/colour-ladder.js    One file per game: logic + Canvas 2D rendering
 docs/rules.md                Player-facing rules
@@ -93,6 +97,14 @@ DOM ids the shell looks for (all optional): `#overlay`,
 Global shortcuts: `Space`/`Enter` start from idle/over, `P`/`Esc` pause,
 `R` restart (to the ready screen if `restartToReady`), `M` mute.
 Switching tabs mid-run auto-pauses.
+
+### Online rooms
+
+Beam and Rune Stones use `ArcadeNet.rooms.create(options)` for configurable
+membership, seats, readiness, starts and room subscriptions. `rooms.lobby()` renders
+their common lobby layout using game-supplied text, badges and actions. Their
+different start/departure policies live in each game's configuration. See
+[`ROOMS.md`](ROOMS.md) for the API, policy comparison and offline checks.
 
 ### i18n conventions
 

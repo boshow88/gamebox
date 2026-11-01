@@ -52,6 +52,7 @@
         rdCreateRoom: 'Create room', rdJoinRoom: 'Join', rdRoomCode: 'Code', rdLeaveRoom: 'Leave room',
         rdRoomCreated: (code) => `Room ${code} — waiting for opponent\u2026`, rdWaitingOpp: 'Waiting for opponent\u2026',
         rdMatched: (name) => `Matched with ${name}!`,
+        rdYou: 'You', rdHost: 'Host', rdOnlineTag: 'Online', rdOfflineTag: 'Disconnected', rdReadyTag: 'Ready',
         rdReadyUp: 'I\u2019m ready to start', rdReadyWait: 'Ready \u2014 waiting for opponent\u2026', rdOppReady: 'opponent ready',
         rdLvEasy: 'Easy', rdLvNormal: 'Normal', rdLvHard: 'Hard', rdTimeShort: 'Time shorten',
         rdReasonForfeit: 'Opponent left or timed out \u2014 you win.',
@@ -122,6 +123,7 @@
         rdCreateRoom: '建立房間', rdJoinRoom: '加入', rdRoomCode: '房號', rdLeaveRoom: '離開房間',
         rdRoomCreated: (code) => `房號 ${code}——等待對手加入\u2026`, rdWaitingOpp: '等待對手\u2026',
         rdMatched: (name) => `已配對：${name}！`,
+        rdYou: '你', rdHost: '房主', rdOnlineTag: '在線', rdOfflineTag: '已離線', rdReadyTag: '已準備',
         rdReadyUp: '準備好了', rdReadyWait: '已準備，等待對手\u2026', rdOppReady: '對手已準備',
         rdLvEasy: '簡單', rdLvNormal: '普通', rdLvHard: '困難', rdTimeShort: '時間縮短',
         rdReasonForfeit: '對手離開或逾時未行動，你獲勝。',
@@ -1001,7 +1003,7 @@
     function startResolve() {
         G.held = null;
         G.spinOpen = false;
-        if (G.online) { G.preSpinBoard = serializeBoard(); net.updateRoom(room.code, { ['game.spin.' + G.online.myUid]: G.round }).catch(() => {}); }   // snapshot + "I'm spinning"
+        if (G.online) { G.preSpinBoard = serializeBoard(); writeOnline({ ['game.spin.' + G.online.myUid]: G.round }).catch(() => {}); }   // snapshot + "I'm spinning"
         G.resolving = true;
         G.resolve = { stage: 'pop', t: 0, combos: [], pending: [], popIndex: 0, wave: -1, enhNext: [] };
         beginCascade();
@@ -1516,7 +1518,7 @@
         G.spinOpen = false;
         G.playedThisRound = [];   // last round's attack-card chips clear now (both sides)
         G.aiPlayed = [];
-        if (G.online) { G.online.sub = 'def'; G.online.strike = null; G.online.slowOpp = 0; G.online.phaseDeadline = Date.now() + DUEL.phaseTimeDef * 1000; G.aiShields = []; G.online.oppLastCards = []; net.updateRoom(room.code, { ['game.played.' + G.online.myUid]: [] }).catch(() => {}); pushMyBoard(); updateHud(); return; }
+        if (G.online) { G.online.sub = 'def'; G.online.strike = null; G.online.slowOpp = 0; G.online.phaseDeadline = Date.now() + DUEL.phaseTimeDef * 1000; G.aiShields = []; G.online.oppLastCards = []; writeOnline({ ['game.played.' + G.online.myUid]: [] }).catch(() => {}); pushMyBoard(); updateHud(); return; }
         if (!G.aiBoard) G.aiBoard = aiFillBoard();
         G.aiStatus = '';
         G.aiPlan = aiPlanDefense(G.round);   // decided now but hidden; revealed when you reach the attack phase (like online)
@@ -2089,24 +2091,27 @@
         for (let i = 0; i < COLS * ROWS; i++) { const o = board[i]; out.push(o ? { e: o.el, h: o.enhanced ? 1 : 0 } : null); }
         return out;
     }
+    function writeOnline(patch) {
+        if (!G.online || !room) return Promise.resolve(false);
+        return matchmaking.updateMatch(room.code, { matchId: G.online.matchId, round: G.round, status: 'playing' }, () => patch);
+    }
     function pushMyBoard() {
-        if (G.online && room && room.code) net.updateRoom(room.code, { ['game.board.' + G.online.myUid]: serializeBoard() }).catch(() => {});
+        if (G.online && room && room.code) writeOnline({ ['game.board.' + G.online.myUid]: serializeBoard() }).catch(() => {});
     }
     // live reveal: push your current board + played attack cards the instant you act, so the
     // opponent sees your cards/transmutes right away (not only when you finish spinning).
     function pushLive() {
         if (!(G.online && room && room.code)) return;
         const u = G.online.myUid;
-        net.updateRoom(room.code, { ['game.board.' + u]: serializeBoard(), ['game.played.' + u]: (G.playedThisRound || []).slice() }).catch(() => {});
+        writeOnline({ ['game.board.' + u]: serializeBoard(), ['game.played.' + u]: (G.playedThisRound || []).slice() }).catch(() => {});
     }
     function enterOnline(data) {
-        if (!netUser) return;
+        if (!netUser || !(data.players || {})[netUser.uid]) return;
         const myUid = netUser.uid;
         const oppUid = Object.keys(data.players || {}).find((u) => u !== myUid) || null;
         if (!oppUid) return;
         G.online = {
-            myUid, oppUid,
-            host: data.hostUid === myUid,
+            myUid, oppUid, matchId: (data.game || {}).matchId,
             oppName: (data.players[oppUid] && data.players[oppUid].name) || t('rdGuest'),
             sub: null, lastResolvedRound: 0, waitSince: 0, bothAtkSince: 0, phaseDeadline: 0, oppLastCards: [],
         };
@@ -2121,7 +2126,7 @@
         if (!G.online || G.online.sub !== 'def') return;
         G.online.sub = 'waitDef';
         G.online.waitSince = Date.now();
-        net.updateRoom(room.code, {
+        writeOnline({
             ['game.def.' + G.online.myUid]: serializeShields(G.youShields),
             ['game.hasten.' + G.online.myUid]: G.online.slowOpp || 0,
         }).catch((e) => console.warn('[duel]', e));
@@ -2133,23 +2138,33 @@
         const u = G.online.myUid, post = serializeBoard();   // post-spin settled board
         // write atk AND the live board, so after the host clears atk the opponent's mini-board
         // keeps showing this settled result (not the stale pre-spin board from pushLive).
-        net.updateRoom(room.code, { ['game.atk.' + u]: { dmg: dmg | 0, heal: heal | 0, cards: G.playedThisRound.slice(), board: post }, ['game.board.' + u]: post }).catch((e) => console.warn('[duel]', e));
+        writeOnline({ ['game.atk.' + u]: { dmg: dmg | 0, heal: heal | 0, cards: G.playedThisRound.slice(), board: post }, ['game.board.' + u]: post }).catch((e) => console.warn('[duel]', e));
     }
-    // Heartbeat: keep our own room's lastActionAt fresh (so it's never GC'd while we're
-    // present), and periodically purge rooms others abandoned. Firestore has no
-    // onDisconnect, so this is how F5'd/closed rooms get cleaned — reliably & for free,
-    // within ~90s, without anyone needing to reopen the lobby.
+    // Per-player counters survive rematches; use our own clock to detect missing peers.
     function heartbeatAndGc() {
-        if (!net) return;
-        if (room && room.code && netUser && room.data && room.data.players && room.data.players[netUser.uid]) {
-            net.updateRoom(room.code, {}).catch(() => {});
+        if (!matchmaking || !room || !room.data || !netUser) return;
+        const now = Date.now(), data = room.data;
+        if ((data.players || {})[netUser.uid]) {
+            if (!beatAt || now - beatAt >= 3000) {
+                beatAt = now;
+                matchmaking.update(room.code, { ['presence.' + netUser.uid]: ++beatCount }).catch(() => {});
+            }
+            const missing = roomPresence.disconnected(data).filter(item => item.uid !== netUser.uid);
+            if (missing.length && !reaping) {
+                reaping = true;
+                matchmaking.releaseDisconnected(room.code, missing).catch(showLobbyError).finally(() => { reaping = false; });
+            }
         }
-        net.cleanupStaleRooms().catch(() => {});
+        if (!gcAt || now - gcAt >= 30000) { gcAt = now; matchmaking.cleanup().catch(() => {}); }
+        if (lobbyEl && !lobbyEl.hidden) renderLobby();
     }
     function forfeitOpponent() {
-        if (!G.online) return;
-        net.updateRoom(room.code, { 'game.status': 'over', 'game.winner': G.online.myUid }).catch(() => {});
-        duelOver(true, false, 'forfeit');
+        if (!G.online || !room) return;
+        const online = G.online, sub = online.sub;
+        matchmaking.updateMatch(room.code, { matchId: online.matchId, round: G.round, status: 'playing' }, data => {
+            const submitted = sub === 'waitDef' ? (data.game.def || {})[online.oppUid] : (data.game.atk || {})[online.oppUid];
+            return submitted ? null : { 'game.status': 'over', 'game.winner': online.myUid, 'game.endReason': 'timeout' };
+        }).catch(showLobbyError);
     }
     function onlineWatchdog() {
         if (!G.online || !room || !room.data || !room.data.game) return;
@@ -2186,28 +2201,28 @@
         // (2) both attacked but no one tallied (host gone) → take over the resolve
         if (g.atk && g.atk[my] && g.atk[opp] && G.online.lastResolvedRound >= (g.round || 1)
             && G.online.bothAtkSince && now - G.online.bothAtkSince > DUEL.takeoverSec * 1000) {
-            G.online.bothAtkSince = 0;
+            G.online.bothAtkSince = Date.now();
             hostResolve(g);
         }
     }
     function hostResolve(g) {
-        const A = G.online.myUid, B = G.online.oppUid, a = g.atk || {};
-        const clamp = (v) => Math.max(0, Math.min(DUEL.hp, Math.round(v)));
-        const dA = (a[A] && a[A].dmg) || 0, hA = (a[A] && a[A].heal) || 0;
-        const dB = (a[B] && a[B].dmg) || 0, hB = (a[B] && a[B].heal) || 0;
-        const hp = Object.assign({}, g.hp);
-        hp[A] = clamp(Math.min(DUEL.hp, (hp[A] || 0) - dB + hA));   // take damage first, then heal (capped at max)
-        hp[B] = clamp(Math.min(DUEL.hp, (hp[B] || 0) - dA + hB));
-        const round = g.round || 1;
-        let status = 'playing', winner = null;
-        if (hp[A] <= 0 || hp[B] <= 0 || round >= DUEL.maxRounds) {
-            status = 'over';
-            winner = hp[A] === hp[B] ? null : (hp[A] > hp[B] ? A : B);
-        }
-        net.updateRoom(room.code, {
-            'game.hp': hp, 'game.round': round + 1, 'game.def': {}, 'game.atk': {}, 'game.spin': {},
-            'game.status': status, 'game.winner': winner,
-        }).catch((e) => console.warn('[duel]', e));
+        if (!G.online || !room) return Promise.resolve(false);
+        return matchmaking.settleRound(room.code, { matchId: g.matchId, round: g.round || 1 }, data => {
+            const current = data.game, ids = Object.keys(data.players || {}), a = current.atk || {};
+            if (ids.length !== 2 || !ids.every(uid => a[uid])) return null;
+            const A = ids[0], B = ids[1];
+            const clamp = value => Math.max(0, Math.min(DUEL.hp, Math.round(value)));
+            const hp = Object.assign({}, current.hp);
+            hp[A] = clamp(Math.min(DUEL.hp, (hp[A] || 0) - (a[B].dmg || 0) + (a[A].heal || 0)));
+            hp[B] = clamp(Math.min(DUEL.hp, (hp[B] || 0) - (a[A].dmg || 0) + (a[B].heal || 0)));
+            const round = current.round || 1;
+            let status = 'playing', winner = null;
+            if (hp[A] <= 0 || hp[B] <= 0 || round >= DUEL.maxRounds) {
+                status = 'over'; winner = hp[A] === hp[B] ? null : (hp[A] > hp[B] ? A : B);
+            }
+            return { 'game.hp': hp, 'game.round': round + 1, 'game.def': {}, 'game.atk': {}, 'game.spin': {},
+                'game.status': status, 'game.winner': winner };
+        }).catch(showLobbyError);
     }
     // Online layering: after the heal beat, land the incoming hit a short moment later, then
     // settle to the authoritative HP (if it has arrived) and start the round-end hold.
@@ -2229,6 +2244,7 @@
     function onRoomGame(data) {
         markDirty();
         if (G.online && !data && G.phase !== 'over') { duelOver(true, false, 'forfeit'); return; }   // room vanished → opponent left, you win
+        if (G.online && data && !(data.players || {})[G.online.oppUid] && G.phase !== 'over') { duelOver(true, false, 'forfeit'); return; }
         const g = data && data.game;
         if (!g) return;
         if (g.status === 'playing' && !G.online) { enterOnline(data); return; }
@@ -2257,7 +2273,7 @@
             const oppDmg = (g.atk[opp] && g.atk[opp].dmg) || 0, oppHeal = (g.atk[opp] && g.atk[opp].heal) || 0;
             if (oppHeal > 0) { G.aiHp = Math.min(G.aiMaxHp, G.aiHp + oppHeal); addFloat(W / 2, 48, '+' + oppHeal, ELEMENT_COLORS.heart, 18); }   // beat 1: heal
             G.online.strike = { t: DUEL.strikeDelay, dmg: oppDmg, done: false, ready: false };                                                  // beat 2: queued hit
-            if (G.online.host) hostResolve(g);
+            if (matchmaking.host(data) === my) hostResolve(g);
             return;
         }
         // next round — but let the strike beat finish first if one is mid-flight
@@ -2281,15 +2297,6 @@
             duelOver(g.winner === my, !g.winner);   // no winner recorded → draw (e.g. simultaneous KO)
         }
     }
-    function hostStartGame() {
-        if (!room || !room.data) return;
-        const h = room.data.hostUid;
-        const guest = Object.keys(room.data.players || {}).find((u) => u !== h);
-        if (!guest) return;
-        const hp = {}; hp[h] = DUEL.hp; hp[guest] = DUEL.hp;
-        net.updateRoom(room.code, { 'game.status': 'playing', 'game.round': 1, 'game.hp': hp, 'game.def': {}, 'game.atk': {}, 'game.winner': null, 'ready': {} }).catch((e) => showLobbyError(e));
-    }
-
     // =================================================================
     // Simulation
     // =================================================================
@@ -3211,53 +3218,28 @@
     // =================================================================
 
     let net = null;             // window.ArcadeNet once it's ready & ok
+    let matchmaking = null, roomSession = null, roomPresence = null;
+    let beatCount = 0, beatAt = 0, gcAt = 0, reaping = false;
     let netUser = undefined;    // undefined = unknown, null = signed out, else {uid,name,...}
     let room = null;            // { code, data, unsub }
-    let lobbyEl = null, lobbyRefs = null;
+    let lobbyEl = null, lobbyRefs = null, lobbyView = null;
     let lobbyResult = '';       // "You win/lose" banner shown in the lobby after an online match
     let lobbyReason = '';       // why the last online match ended (shown under the result)
 
-    function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
-    function lbtn(label, cls) { const b = el('button', cls || 'btn', label); b.type = 'button'; return b; }
-    function lrow() { const r = el('div', 'lobby-row'); for (const a of arguments) if (a) r.appendChild(a); return r; }
-
     function buildLobby() {
-        const wrap = document.querySelector('.stage-wrap') || document.body;
-        const ov = el('div', 'overlay');
-        ov.id = 'lobby';
-        ov.hidden = true;
-        ov.addEventListener('pointerdown', (e) => e.stopPropagation());   // never fall through to the board
-        const card = el('div', 'overlay-card');
-        const title = el('h2', 'overlay-title');
-        const auth = el('div', 'lobby-auth');
-        const roomBox = el('div', 'lobby-room');
-        const status = el('p', 'lobby-status');
-        const close = lbtn('', 'btn');
-        close.addEventListener('click', closeLobby);
-        card.append(title, auth, roomBox, status, close);
-        ov.appendChild(card);
-        wrap.appendChild(ov);
-        lobbyEl = ov;
-        lobbyRefs = { title, auth, room: roomBox, status, close };
+        lobbyView = net.rooms.lobby({ onClose: closeLobby, onError: showLobbyError });
+        lobbyEl = lobbyView.element; lobbyRefs = lobbyView.refs;
     }
-
     function opponentName(data) {
         if (!data || !data.players || !netUser) return null;
         for (const uid in data.players) if (uid !== netUser.uid) return data.players[uid].name || t('rdGuest');
         return null;
     }
-    function detachRoom() { if (room && room.unsub) { try { room.unsub(); } catch (e) { /* ignore */ } } room = null; }
+    function detachRoom() { if (roomSession) roomSession.detach(); room = null; if (roomPresence) roomPresence.reset(); beatAt = 0; }
     function attachRoom(code) {
         detachRoom();
         lobbyResult = ''; lobbyReason = '';
-        room = { code, data: null, unsub: null };
-        room.unsub = net.watchRoom(code, (data, err) => {
-            if (err) { showLobbyError(err); return; }
-            if (room) room.data = data;
-            renderLobby();
-            onRoomGame(data);
-            maybeStartIfReady(data);
-        });
+        room = roomSession.attach(code);
         renderLobby();
     }
     function showLobbyError(e) {
@@ -3272,77 +3254,74 @@
         try { if (kind === 'google') await net.signInGoogle(); else await net.signInGuest(); }
         catch (e) { showLobbyError(e); }
     }
-    async function doCreate() { try { const code = await net.createRoom(seedCounter + 1000); attachRoom(code); } catch (e) { showLobbyError(e); } }
+    async function doCreate() { try { const code = await matchmaking.create({ seed: seedCounter + 1000 }); attachRoom(code); } catch (e) { showLobbyError(e); } }
     async function doJoin(code) {
         code = String(code || '').trim().toUpperCase();
         if (!code) return;
-        try { const c = await net.joinRoom(code); attachRoom(c); } catch (e) { showLobbyError(e); }
+        try { const c = await matchmaking.join(code); attachRoom(c); } catch (e) { showLobbyError(e); }
     }
-    async function doLeave() { lobbyResult = ''; lobbyReason = ''; if (room) { const c = room.code; detachRoom(); try { await net.leaveRoom(c); } catch (e) { /* ignore */ } } renderLobby(); }
-    async function doReady() { if (!room || !netUser) return; try { await net.updateRoom(room.code, { ['ready.' + netUser.uid]: true }); } catch (e) { showLobbyError(e); } }
-    // Once both seats have pressed Ready, the host (and only the host) writes the start.
-    function maybeStartIfReady(data) {
-        if (!data || !netUser || data.hostUid !== netUser.uid) return;
-        if (data.game && data.game.status === 'playing') return;
-        const players = Object.keys(data.players || {});
-        const ready = data.ready || {};
-        if (players.length >= 2 && players.every((uid) => ready[uid])) hostStartGame();
+    async function doLeave() {
+        lobbyResult = ''; lobbyReason = '';
+        const leaving = roomSession ? roomSession.leave() : Promise.resolve();
+        room = null; if (roomPresence) roomPresence.reset(); beatAt = 0;
+        if (G.online) { G.online = null; setOnlineBtnEnabled(true); shell.goIdle(); }
+        renderLobby();
+        try { await leaving; } catch (e) { showLobbyError(e); }
+    }
+    async function doReady() {
+        if (!room) return;
+        try { await matchmaking.setReady(room.code); } catch (e) { showLobbyError(e); }
     }
     function copyCode(code) { try { const p = navigator.clipboard && navigator.clipboard.writeText(code); if (p && p.catch) p.catch(() => {}); } catch (e) { /* ignore */ } if (lobbyRefs) lobbyRefs.status.textContent = t('rdCopied'); }
 
     function renderLobby() {
-        if (!lobbyEl) return;
-        lobbyRefs.title.textContent = lobbyResult || t('rdOnline');
-        lobbyRefs.close.textContent = t('rdClose');
-        const u = netUser;
-        // auth
-        const auth = lobbyRefs.auth; auth.innerHTML = '';
-        if (!u) {
-            const g = lbtn(t('rdSignInGoogle'), 'btn btn-primary'); g.onclick = () => doSignIn('google');
-            const a = lbtn(t('rdSignInGuest'), 'btn'); a.onclick = () => doSignIn('guest');
-            auth.appendChild(lrow(g, a));
-        } else {
-            const info = el('span', null, t('rdSignedIn', u.name || t('rdGuest')));
-            const out = lbtn(t('rdSignOut'), 'btn'); out.onclick = () => { doLeave(); net.signOut(); };
-            auth.appendChild(lrow(info, out));
+        if (!lobbyView) return;
+        const u = netUser, data = room && room.data;
+        let status = '';
+        if (!u) status = t('rdSignInFirst');
+        else if (data) {
+            const opp = opponentName(data), oppUid = Object.keys(data.players || {}).find(uid => uid !== u.uid);
+            status = opp ? t('rdMatched', opp) + (oppUid && (data.ready || {})[oppUid] ? ' \u00b7 ' + t('rdOppReady') : '') : t('rdWaitingOpp');
         }
-        // room
-        const r = lobbyRefs.room; r.innerHTML = '';
-        if (u && !(room && room.data)) {
-            const create = lbtn(t('rdCreateRoom'), 'btn btn-primary'); create.onclick = doCreate;
-            const input = el('input'); input.placeholder = t('rdRoomCode'); input.maxLength = 4;
-            const join = lbtn(t('rdJoinRoom'), 'btn'); join.onclick = () => doJoin(input.value);
-            input.addEventListener('keydown', (e) => { if (e.key === 'Enter') doJoin(input.value); });
-            r.appendChild(lrow(create));
-            r.appendChild(lrow(input, join));
-        } else if (u && room && room.data && !opponentName(room.data)) {
-            r.appendChild(el('div', 'lobby-code', room.code));
-            const copy = lbtn(t('rdCopyCode'), 'btn btn-primary'); copy.onclick = () => copyCode(room.code);
-            const leave = lbtn(t('rdLeaveRoom'), 'btn'); leave.onclick = doLeave;
-            r.appendChild(lrow(copy, leave));
-        } else if (u && room && room.data && opponentName(room.data)) {
-            // both players must press Ready; the host starts the match once both are ready
-            const ready = room.data.ready || {};
-            if (ready[u.uid]) { r.appendChild(lrow(el('span', null, t('rdReadyWait')))); }
-            else { const rb = lbtn(t('rdReadyUp'), 'btn btn-primary'); rb.onclick = doReady; r.appendChild(lrow(rb)); }
-            const leave = lbtn(t('rdLeaveRoom'), 'btn'); leave.onclick = doLeave;
-            r.appendChild(lrow(leave));
+        if (lobbyReason) status = status ? lobbyReason + ' \u00b7 ' + status : lobbyReason;
+        const model = {
+            title: lobbyResult || t('rdOnline'), closeLabel: t('rdClose'), status,
+            auth: {
+                text: u ? t('rdSignedIn', u.name || t('rdGuest')) : '',
+                actions: u ? [{ id: 'sign-out', label: t('rdSignOut'), onClick: () => { doLeave(); return net.signOut(); } }] : [
+                    { id: 'sign-in-google', label: t('rdSignInGoogle'), primary: true, onClick: () => doSignIn('google') },
+                    { id: 'sign-in-guest', label: t('rdSignInGuest'), onClick: () => doSignIn('guest') },
+                ],
+            },
+        };
+        if (u && !data) {
+            model.entry = { codeLabel: t('rdRoomCode'),
+                create: { label: t('rdCreateRoom'), primary: true, onClick: doCreate },
+                join: { label: t('rdJoinRoom'), onClick: doJoin },
+            };
+        } else if (u && data) {
+            const ready = data.ready || {}, host = matchmaking.host(data);
+            const players = matchmaking.playerIds(data).map(uid => {
+                const online = roomPresence.isAvailable(uid), badges = [];
+                if (uid === host) badges.push({ label: t('rdHost'), tone: 'host' });
+                badges.push({ label: t(online ? 'rdOnlineTag' : 'rdOfflineTag') });
+                if (ready[uid]) badges.push({ label: t('rdReadyTag'), tone: 'ready' });
+                return { uid, name: (data.players[uid].name || t('rdGuest')) + (uid === u.uid ? ' (' + t('rdYou') + ')' : ''),
+                    muted: !online, badges };
+            });
+            let primary = null;
+            if (!data.players[u.uid]) primary = { label: t('rdJoinRoom'), primary: true, onClick: () => doJoin(room.code) };
+            else if (opponentName(data)) primary = ready[u.uid] ? { text: t('rdReadyWait') }
+                : { label: t('rdReadyUp'), primary: true, onClick: doReady };
+            model.room = { code: room.code, players, primary,
+                copy: { label: t('rdCopyCode'), onClick: () => copyCode(room.code) },
+                leave: { label: t('rdLeaveRoom'), onClick: doLeave },
+            };
         }
-        // status
-        let s = '';
-        if (!u) s = t('rdSignInFirst');
-        else if (room && room.data) {
-            const opp = opponentName(room.data);
-            if (opp) {
-                const ready = room.data.ready || {};
-                const oppUid = Object.keys(room.data.players || {}).find((x) => x !== u.uid);
-                s = t('rdMatched', opp) + (oppUid && ready[oppUid] ? ' \u00b7 ' + t('rdOppReady') : '');
-            } else s = t('rdWaitingOpp');
-        }
-        if (lobbyReason) s = s ? (lobbyReason + ' \u00b7 ' + s) : lobbyReason;
-        lobbyRefs.status.textContent = s;
+        lobbyView.render(model);
     }
-    function openLobby() { if (!net || !net.ok || G.online) return; if (!lobbyEl) buildLobby(); lobbyEl.hidden = false; renderLobby(); markDirty(); if (net.cleanupStaleRooms) net.cleanupStaleRooms().catch(() => {}); }
+
+    function openLobby() { if (!net || !net.ok || G.online) return; if (!lobbyEl) buildLobby(); lobbyEl.hidden = false; renderLobby(); markDirty(); if (matchmaking) matchmaking.cleanup().catch(() => {}); }
     function setOnlineBtnEnabled(on) { const b = document.getElementById('online-btn'); if (b) b.disabled = !on; }
     function closeLobby() { if (lobbyEl) lobbyEl.hidden = true; markDirty(); }
 
@@ -3353,13 +3332,36 @@
             const btn = document.getElementById('online-btn');
             if (!N || !N.ok) { if (btn) btn.hidden = true; return; }
             net = N;
+            roomPresence = net.rooms.presence({ timeoutMs: 15000 });
+            matchmaking = net.rooms.create({
+                collection: 'duel_rooms', identity: 'tab', layout: 'slots',
+                isAvailable: uid => roomPresence.isAvailable(uid),
+                minPlayers: 2, maxPlayers: 2, waitingStatus: 'waiting', occupiedStatus: 'playing',
+                startMode: 'all-ready',
+                onCreate: input => ({ seed: input.seed == null ? ((Math.random() * 1e9) | 0) : input.seed }),
+                onJoin: () => ({ game: {}, ready: {}, round: 1 }),
+                onLeave: (data, player, remaining) => ({ status: 'waiting', ready: {},
+                    game: data.game && data.game.status === 'playing'
+                        ? Object.assign({}, data.game, { status: 'over', winner: remaining[0] || null, endReason: 'left' })
+                        : (data.game || {}),
+                }),
+                startPatch: (data, players) => {
+                    const hp = {}; players.forEach(uid => { hp[uid] = DUEL.hp; });
+                    return { game: { status: 'playing', round: 1, hp, def: {}, atk: {}, winner: null } };
+                },
+            });
+            roomSession = matchmaking.session({
+                onChange: (data, activeRoom) => { room = activeRoom; roomPresence.observe(data); renderLobby(); onRoomGame(data); },
+                onError: showLobbyError,
+            });
             buildLobby();
-            net.onAuth((u) => { netUser = u; renderLobby(); });
-            if (net.cleanupStaleRooms) net.cleanupStaleRooms().catch(() => {});   // purge abandoned rooms on load
+            net.onAuth((u) => { netUser = u ? matchmaking.currentPlayer() : u; renderLobby(); });
+            if (matchmaking) matchmaking.cleanup().catch(() => {});   // purge abandoned rooms on load
             if (btn) { btn.hidden = (stagedMode === 'sandbox'); btn.addEventListener('click', openLobby); }
         };
         if (window.ArcadeNet) onReady();
         else window.addEventListener('arcade-net-ready', onReady, { once: true });
+        window.addEventListener('pagehide', () => { doLeave().catch(() => {}); });
     }
 
     // Difficulty picker — a segmented button group, same pattern as the other games:
@@ -3446,14 +3448,7 @@
         AC.i18n.subscribe(() => { markDirty(); updateHud(); if (lobbyEl && !lobbyEl.hidden) renderLobby(); });
         setupOnline();
         setInterval(onlineWatchdog, 1000);
-        setInterval(heartbeatAndGc, 30000);
-        window.addEventListener('pagehide', () => {
-            if (!(G.online && room && room.code)) return;
-            try {
-                if (G.online.host) net.deleteRoom(room.code);                                                   // host leaves → room gone
-                else net.updateRoom(room.code, { 'game.status': 'over', 'game.winner': G.online.oppUid });        // guest leaves → host wins
-            } catch (e) { /* ignore */ }
-        });
+        setInterval(heartbeatAndGc, 1000);
         resetRun();
         render();
     }

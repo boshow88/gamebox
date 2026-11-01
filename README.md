@@ -25,6 +25,9 @@ js/
   puzzle.js           Puzzle engine (window.PuzzleCommon: timer, generate, undo, share, shell)
   firebase-config.js  Public Firebase web config (online PvP)
   net/net.js          Firebase room layer (window.ArcadeNet)
+  net/rooms.mjs       Configurable shared matchmaking and room sessions
+  net/firebase-rooms.mjs  Firestore transport for the room service
+  net/room-lobby.mjs  Shared room lobby view (styled by css/room-lobby.css)
   cloud-sync.js       Cross-device high-score sync (window.CloudSync)
   games/*.js          One module per game (logic + rendering)
   games/unshackle/    Unshackle's isolated 3D engine, renderer and UI

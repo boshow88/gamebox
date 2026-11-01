@@ -340,7 +340,14 @@
             else obj[k] = patch[k];
         }
     }
-    function roomWrite(patch) { if (om && om.local) { applyPatch(room.data, patch); onRoom(room.data); return Promise.resolve(); } return net.mp.update(GROUP, room.code, patch); }
+    function roomWrite(patch) {
+        if (om && om.local) { applyPatch(room.data, patch); onRoom(room.data); return Promise.resolve(true); }
+        if (!room || !room.data) return Promise.resolve(false);
+        var g = room.data.game || {};
+        return matchmaking.updateMatch(room.code, { matchId: g.matchId, round: g.round, status: 'playing', settledRound: g.settledRound }, function (data) {
+            return (data.game.settledRound || 0) >= data.game.round ? null : patch;
+        });
+    }
 
     function startSoloMatch(notch) {
         notch = AC.math.clamp(notch | 0, 0, NOTCH_MAX);
@@ -359,7 +366,7 @@
         var start = AC.math.clamp(Math.floor(med * 0.85), LEVEL_MIN, LEVEL_MAX);          // opening level trails the field
         var seed = (Math.random() * 1e9) >>> 0;
         room = { code: 'SOLO', unsub: null, data: { code: 'SOLO', status: 'playing', hostUid: 'you', players: players, order: uids, round: 0, game: { status: 'playing', round: 1, seed: seed, level: start, center: start, hp: hp, alive: alive, answers: {}, results: {}, rankByUid: {} } } };
-        om = { myUid: 'you', local: true, notch: notch, seed: seed, round: 0, localStart: 0, puzzle: null, choice: null, submitted: false, alive: true, over: false, lastPhase: '', hpStart: {}, aliveStart: {}, host: { tallied: false, over: false, center: start } };
+        om = { myUid: 'you', local: true, notch: notch, seed: seed, round: 0, localStart: 0, puzzle: null, choice: null, submitted: false, alive: true, over: false, lastPhase: '', hpStart: {}, aliveStart: {}, host: {} };
         hideShellOverlay(); setControlsForMatch(); applyHudMode();
         startLocalRound(1, room.data); renderPlayersBar(room.data);
     }
@@ -429,7 +436,7 @@
         om.alive = !om.spectator && !(g.alive && g.alive[om.myUid] === false);
         om.hpStart = Object.assign({}, g.hp || {});       // pre-round snapshot — shown until the reveal (no spoiler)
         om.aliveStart = Object.assign({}, g.alive || {});
-        if (om.host) { om.host.tallied = false; om.host.over = false; om.host.pending = null; }
+        om.host = {};
         sndClick();
         if (om.local) scheduleBots();
     }
@@ -453,7 +460,7 @@
         if (om) return;
         var g = data.game || {};
         var spectator = !(data.players && data.players[netUser.uid]);   // not seated in the room → watching only
-        om = { myUid: netUser.uid, local: false, spectator: spectator, seed: g.seed || 0, round: 0, localStart: 0, puzzle: null, choice: null, submitted: false, alive: !spectator, over: false, lastPhase: '', hpStart: {}, aliveStart: {}, host: { tallied: false, over: false } };
+        om = { myUid: netUser.uid, local: false, spectator: spectator, seed: g.seed || 0, round: 0, localStart: 0, puzzle: null, choice: null, submitted: false, alive: !spectator, over: false, lastPhase: '', hpStart: {}, aliveStart: {}, host: {} };
         closeLobby();
         hideShellOverlay();
         applyHudMode();
@@ -526,64 +533,74 @@
     // The player who drives the match. Prefer the named host, but if they left OR
     // dropped (no heartbeat), the first LIVE player in join order auto-takes over —
     // so a host closing their tab mid-match never freezes the room.
-    function effectiveHost(d) {
-        var players = d.players || {};
-        if (d.hostUid && players[d.hostUid] && !isStale(d.hostUid)) return d.hostUid;
-        var order = d.order || Object.keys(players);
-        for (var i = 0; i < order.length; i++) if (players[order[i]] && !isStale(order[i])) return order[i];
-        for (var j = 0; j < order.length; j++) if (players[order[j]]) return order[j];   // all stale → anyone present
-        return null;
-    }
+    function effectiveHost(d) { return matchmaking ? matchmaking.host(d) : null; }
     // Drives the host each tick. Solo runs purely locally; online also sends presence beats.
     function watchdog() {
-        if (om && om.local) { var ld = room.data, lg = ld.game || {}; if (lg.status === 'playing' && !om.host.over) hostDrive(ld, lg); return; }
+        if (om && om.local) { var ld = room.data, lg = ld.game || {}; if (lg.status === 'playing') hostDrive(ld, lg); return; }
         if (!net || !room || !room.data || !netUser) return;
         var d = room.data, g = d.game || {}, now = Date.now();
         var watching = !(d.players && d.players[netUser.uid]);   // spectator: observe only, never write to the room
-        if (!watching && (!beatT || now - beatT > BEAT_MS)) { beatT = now; beatN++; net.mp.update(GROUP, room.code, { ['game.beat.' + netUser.uid]: beatN }).catch(function () { }); }
-        if (watching && (!specBeatT || now - specBeatT > BEAT_MS)) { specBeatT = now; net.mp.update(GROUP, room.code, { ['spectators.' + netUser.uid]: now }).catch(function () { }); }   // watcher presence (top-level, so a game reset doesn't wipe it)
-        if (effectiveHost(d) === netUser.uid && (!gcT || now - gcT > 15000)) { gcT = now; net.mp.cleanup(GROUP).catch(function () { }); }
-        if (om && !om.local && g.status === 'playing' && effectiveHost(d) === om.myUid) { hostCheckForfeit(d, g); if (!om.host.over) hostDrive(d, g); }
+        if (!watching && (!beatT || now - beatT > BEAT_MS)) { beatT = now; beatN++; matchmaking.update(room.code, { ['game.beat.' + netUser.uid]: beatN }).catch(function () { }); }
+        if (watching && (!specBeatT || now - specBeatT > BEAT_MS)) { specBeatT = now; matchmaking.update(room.code, { ['spectators.' + netUser.uid]: now }).catch(function () { }); }   // watcher presence (top-level, so a game reset doesn't wipe it)
+        if (effectiveHost(d) === netUser.uid && (!gcT || now - gcT > 15000)) { gcT = now; matchmaking.cleanup().catch(function () { }); }
+        if (om && !om.local && g.status === 'playing' && effectiveHost(d) === om.myUid) { hostCheckForfeit(d, g); hostDrive(d, g); }
     }
     // If everyone but (at most) one has left/disconnected, end the match NOW by walkover
     // (don't make the survivor wait out a round) and flag it so they're told WHY they won.
     function hostCheckForfeit(d, g) {
-        if (g.status !== 'playing' || om.host.over) return;
-        var players = d.players || {}, order = d.order || Object.keys(players), alive = g.alive || {};
-        var aliveNow = order.filter(function (u) { return alive[u] !== false; });
-        if (aliveNow.length < 2) return;
-        var live = aliveNow.filter(function (u) { return players[u] && !isStale(u); });
-        if (live.length > 1) return;                       // still a contest
-        var winner = live[0] || null, cnt = aliveNow.length;
-        var ranks = Object.assign({}, g.rankByUid || {}), aliveMap = Object.assign({}, alive);
-        var dropped = aliveNow.filter(function (u) { return u !== winner; }).sort(function (a, b) { return order.indexOf(a) - order.indexOf(b); });
-        dropped.forEach(function (u) { aliveMap[u] = false; ranks[u] = cnt; cnt--; });
-        if (winner) ranks[winner] = 1;
-        om.host.over = true;
-        net.mp.update(GROUP, room.code, { 'game.alive': aliveMap, 'game.rankByUid': ranks, 'game.status': 'over', 'game.winner': winner, 'game.endReason': 'left', 'status': 'lobby' }).catch(function () { });
+        if (g.status !== 'playing' || om.host.forfeiting) return;
+        var order = d.order || Object.keys(d.players || {});
+        var live = order.filter(function (uid) { return (g.alive || {})[uid] !== false && (d.players || {})[uid] && !isStale(uid); });
+        if (live.length > 1) return;
+        var state = om.host; state.forfeiting = true;
+        matchmaking.updateMatch(room.code, { matchId: g.matchId, round: g.round, status: 'playing' }, function (data) {
+            var current = data.game, ids = data.order || Object.keys(data.players || {});
+            var aliveNow = ids.filter(function (uid) { return (current.alive || {})[uid] !== false; });
+            var present = aliveNow.filter(function (uid) { return (data.players || {})[uid] && !isStale(uid); });
+            if (present.length > 1 || aliveNow.length < 2) return null;
+            var winner = present[0] || null, ranks = Object.assign({}, current.rankByUid), alive = Object.assign({}, current.alive);
+            var count = aliveNow.length;
+            aliveNow.filter(function (uid) { return uid !== winner; }).forEach(function (uid) { alive[uid] = false; ranks[uid] = count--; });
+            if (winner) ranks[winner] = 1;
+            return { 'game.alive': alive, 'game.rankByUid': ranks, 'game.status': 'over', 'game.winner': winner, 'game.endReason': 'left', status: 'lobby' };
+        }).catch(function () {}).finally(function () { state.forfeiting = false; });
     }
     function hostDrive(d, g) {
-        if (g.round !== om.round || om.host.over) return;      // stale echo, or match already decided
+        if (g.round !== om.round) return;
         var r = g.round, nowp = performance.now(), full = countSec(r) + om.memo + om.answerSec;
         var answerEnd = om.localStart + full * 1000;
         var roundEnd = om.localStart + (full + om.replay + RESULT_SEC) * 1000;
-        if (!om.host.tallied) {
-            // tally only once the window is truly over (+ a short settle for in-flight taps) so
-            // players can keep CHANGING their answer right up to the end
-            if (nowp >= answerEnd + SETTLE_MS) { hostTally(d, g); om.host.tallied = true; }
-        } else if (g.status === 'playing' && nowp >= roundEnd + HOST_BUFFER_MS) {
-            if (om.host.pending) hostCommitOver(d, g);          // match decided this round → END only after the reveal has played
-            else hostNextRound(d, g);                           // advance only after the whole round (incl. reveal) has played
+        var state = om.host;
+        if ((g.settledRound || 0) < r) {
+            if (!state.tallying && nowp >= answerEnd + SETTLE_MS) {
+                state.tallying = true;
+                hostTally(d, g).catch(function () {}).finally(function () { state.tallying = false; });
+            }
+        } else if (!state.advancing && g.status === 'playing' && nowp >= roundEnd + HOST_BUFFER_MS) {
+            state.advancing = true;
+            (g.pending ? hostCommitOver(d, g) : hostNextRound(d, g)).catch(function () {}).finally(function () { state.advancing = false; });
         }
     }
-    function hostCommitOver(d, g) {                             // write the 'over' status AFTER the final round's reveal finished
-        var pend = om.host.pending || {};
-        om.host.over = true; om.host.pending = null;
-        roomWrite({ 'game.status': 'over', 'game.winner': pend.winner || null, 'game.endReason': pend.endReason || 'normal', 'status': 'lobby' }).catch(function () { });
+    function hostCommitOver(d, g) {
+        if (om.local) {
+            var pending = g.pending || {};
+            return roomWrite({ 'game.status': 'over', 'game.winner': pending.winner || null, 'game.endReason': pending.endReason || 'normal', status: 'lobby' });
+        }
+        return matchmaking.updateMatch(room.code, { matchId: g.matchId, round: g.round, status: 'playing', settledRound: g.round }, function (data) {
+            var pending = data.game.pending;
+            return pending ? { 'game.status': 'over', 'game.winner': pending.winner || null, 'game.endReason': pending.endReason || 'normal', status: 'lobby' } : null;
+        });
     }
     function hostTally(d, g) {
+        var exit = om.puzzle.exit;
+        if (om.local) return roomWrite(tallyPatch(d, g, exit));
+        return matchmaking.settleRound(room.code, { matchId: g.matchId, round: g.round }, function (data) {
+            return tallyPatch(data, data.game, exit);
+        });
+    }
+    function tallyPatch(d, g, exit) {
         var r = g.round, players = d.players || {}, order = d.order || Object.keys(players);
-        var exit = om.puzzle.exit, answers = g.answers || {};
+        var answers = g.answers || {};
         var hp = Object.assign({}, g.hp || {}), alive = Object.assign({}, g.alive || {}), ranks = Object.assign({}, g.rankByUid || {});
         var results = {};
         var aliveBefore = order.filter(function (u) { return alive[u] !== false; });
@@ -613,24 +630,24 @@
         var over = remaining.length <= 1, winner = null;
         if (over && remaining.length === 1) { ranks[remaining[0]] = 1; winner = remaining[0]; }
         // adaptive difficulty: all-right together → harder; all-wrong together → easier; mixed → hold
-        if (om.host.center == null) om.host.center = (g.center != null ? g.center : START_LEVEL);
-        if (correct.length > 0 && wrong.length === 0) om.host.center = levelUp(om.host.center);
-        else if (wrong.length > 0 && correct.length === 0) om.host.center = levelDown(om.host.center);
+        var center = g.center != null ? g.center : START_LEVEL;
+        if (correct.length > 0 && wrong.length === 0) center = levelUp(center);
+        else if (wrong.length > 0 && correct.length === 0) center = levelDown(center);
         var patch = {
-            'game.hp': hp, 'game.alive': alive, 'game.results': results, 'game.revealedRound': r, 'game.rankByUid': ranks, 'game.center': om.host.center,
+            'game.hp': hp, 'game.alive': alive, 'game.results': results, 'game.revealedRound': r, 'game.rankByUid': ranks, 'game.center': center, 'game.settledRound': r,
         };
-        // If the match is decided, DON'T end it here — let the reveal animation finish first.
-        // Stash the result; hostDrive commits 'over' after roundEnd + buffer (hostCommitOver).
-        if (over) om.host.pending = { winner: winner, endReason: (gone.length > 0 ? 'left' : 'normal') };
-        roomWrite(patch).catch(function () { });
+        // Publish the pending result so a replacement host can finish the reveal.
+        patch['game.pending'] = over ? { winner: winner, endReason: gone.length ? 'left' : 'normal' } : null;
+        return patch;
     }
     function hostNextRound(d, g) {
-        var nr = (g.round || 1) + 1;
-        var center = (om.host.center != null) ? om.host.center : (g.center != null ? g.center : START_LEVEL);
-        var level = AC.math.clamp(center + (Math.random() * 2 - 1) * jitterFor(center), LEVEL_MIN, LEVEL_MAX);   // per-round spread around the centre
-        roomWrite({ 'game.round': nr, 'game.level': level, 'game.answers': {}, 'game.results': {}, 'game.revealedRound': 0 }).catch(function () { });
-        var d2 = { game: Object.assign({}, g, { round: nr, level: level }), players: d.players };
-        startLocalRound(nr, d2);   // advance the host locally in lockstep with the write (with the new level)
+        var center = g.center != null ? g.center : START_LEVEL;
+        var level = AC.math.clamp(center + (Math.random() * 2 - 1) * jitterFor(center), LEVEL_MIN, LEVEL_MAX);
+        var patch = { 'game.round': g.round + 1, 'game.level': level, 'game.answers': {}, 'game.results': {}, 'game.revealedRound': 0, 'game.pending': null };
+        if (om.local) return roomWrite(patch);
+        return matchmaking.updateMatch(room.code, { matchId: g.matchId, round: g.round, status: 'playing', settledRound: g.round }, function (data) {
+            return data.game.pending ? null : patch;
+        });
     }
 
     function updateOnline() {
@@ -876,7 +893,8 @@
     // ===============================================================
     // lobby (sign-in + room code; modeled on Rune Stones, N players)
     // ===============================================================
-    var net = null, netUser = undefined, room = null, lobbyEl = null, lobbyRefs = null;
+    var net = null, netUser = undefined, room = null, lobbyEl = null, lobbyRefs = null, lobbyView = null;
+    var matchmaking = null, roomSession = null;
     var pres = {}, beatN = 0, beatT = 0, gcT = 0, specBeatT = 0;        // presence: who is still sending heartbeats
     // track each player's beat; `at` is OUR local time it last changed (no cross-client clock needed)
     function updatePres(g) {
@@ -884,33 +902,24 @@
         for (var uid in beats) { var p = pres[uid]; if (!p) pres[uid] = { v: beats[uid], at: now }; else if (p.v !== beats[uid]) { p.v = beats[uid]; p.at = now; } }
     }
     function isStale(uid) { if (om && om.local) return false; var p = pres[uid]; return !!p && (Date.now() - p.at) > STALL_MS; }
-    function elc(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
-    function lbtn(label, cls) { var b = elc('button', cls || 'btn', label); b.type = 'button'; return b; }
-    function lrow() { var r = elc('div', 'lobby-row'); for (var i = 0; i < arguments.length; i++) if (arguments[i]) r.appendChild(arguments[i]); return r; }
     function buildLobby() {
-        var wrap = document.querySelector('.stage-wrap') || document.body;
-        var ov = elc('div', 'overlay'); ov.id = 'lobby'; ov.hidden = true;
-        ov.addEventListener('pointerdown', function (e) { e.stopPropagation(); });
-        var card = elc('div', 'overlay-card');
-        var title = elc('h2', 'overlay-title'); var auth = elc('div', 'lobby-auth'); var roomBox = elc('div', 'lobby-room'); var status = elc('p', 'lobby-status');
-        var close = lbtn('', 'btn'); close.addEventListener('click', closeLobby);
-        card.append(title, auth, roomBox, status, close); ov.appendChild(card); wrap.appendChild(ov);
-        lobbyEl = ov; lobbyRefs = { title: title, auth: auth, room: roomBox, status: status, close: close };
+        lobbyView = net.rooms.lobby({ onClose: closeLobby, onError: showLobbyError });
+        lobbyEl = lobbyView.element; lobbyRefs = lobbyView.refs;
     }
     function hideShellOverlay() { var o = $('overlay'); if (o) o.hidden = true; }
     function openLobby() {
         if (!net || !net.ok) return;
         if (om && om.local) { om = null; botTimers.forEach(clearTimeout); botTimers = []; var pb = $('players'); if (pb) pb.hidden = true; }   // drop a solo match
         if (room && room.code === 'SOLO') room = null;                          // never show the fake local room (you + 3 CPUs) in the online lobby
-        if (!lobbyEl) buildLobby(); lobbyEl.hidden = false; hideShellOverlay(); renderLobby(); if (net.mp.cleanup) net.mp.cleanup(GROUP).catch(function () { });
+        if (!lobbyEl) buildLobby(); lobbyEl.hidden = false; hideShellOverlay(); renderLobby(); if (matchmaking) matchmaking.cleanup().catch(function () { });
     }
     function closeLobby() {
         if (lobbyEl) lobbyEl.hidden = true;
         if (om && om.over && !om.local) { doLeave(); return; }     // finished online match → leave the room cleanly, back to ready
         if (!om) shell.refreshOverlay();                           // (no match) → solo ready screen, never a frozen stage
     }
-    function detachRoom() { if (room && room.unsub) { try { room.unsub(); } catch (e) { } } room = null; pres = {}; }
-    function attachRoom(code) { detachRoom(); pres = {}; beatT = 0; room = { code: code, data: null, unsub: null }; room.unsub = net.mp.watch(GROUP, code, onRoom); renderLobby(); }
+    function detachRoom() { if (roomSession) roomSession.detach(); room = null; pres = {}; }
+    function attachRoom(code, spectate) { detachRoom(); beatT = 0; room = roomSession.attach(code, { spectate: !!spectate }); renderLobby(); }
     function showLobbyError(e) {
         var m = String((e && e.message) || e), msg = t('beamNetErr');
         if (m.indexOf('not found') !== -1) msg = t('beamRoomNotFound');
@@ -919,107 +928,73 @@
         if (lobbyRefs) lobbyRefs.status.textContent = msg;
         console.warn('[beam lobby]', e);
     }
-    function doSignIn(kind) { (kind === 'google' ? net.signInGoogle() : net.signInGuest()).catch(showLobbyError); }
-    function doCreate() { net.mp.create(GROUP, { maxPlayers: MAX_PLAYERS }).then(attachRoom).catch(showLobbyError); }
-    function doJoin(code) { code = String(code || '').trim().toUpperCase(); if (!code) return; net.mp.join(GROUP, code).then(attachRoom).catch(showLobbyError); }
-    function doSpectate(code) { code = String(code || '').trim().toUpperCase(); if (!code) return; attachRoom(code); }   // watch only — no mp.join, so no seat is taken (works even when the room is full / already started)
-    function doLeave() { var wasMatch = !!(om && !om.local); var watching = !!(room && room.data && room.data.players && netUser && !room.data.players[netUser.uid]); if (room) { var c = room.code; detachRoom(); if (!watching) net.mp.leave(GROUP, c).catch(function () { }); } if (wasMatch) exitMatch(); renderLobby(); }
-    function doReady() { if (!room || !netUser) return; net.mp.update(GROUP, room.code, { ['ready.' + netUser.uid]: true }).catch(showLobbyError); }
-    function hostStart() {
-        if (!room || !room.data || !netUser) return;
-        var d = room.data; if (effectiveHost(d) !== netUser.uid) return;
-        var order = (d.order || Object.keys(d.players || {})).filter(function (u) { return (d.players || {})[u] && !isStale(u); });
-        if (order.length < 2) return;
-        var hostUid = effectiveHost(d), ready = d.ready || {};
-        if (!order.every(function (u) { return u === hostUid || ready[u]; })) return;   // the host's Start counts as ready; guests must ready up
-        var hp = {}, alive = {}; order.forEach(function (u) { hp[u] = HP_START; alive[u] = true; });
-        var seed = (Math.random() * 1e9) >>> 0;
-        net.mp.update(GROUP, room.code, { status: 'playing', game: { status: 'playing', round: 1, seed: seed, level: START_LEVEL, center: START_LEVEL, hp: hp, alive: alive, answers: {}, results: {}, rankByUid: {} }, ready: {} }).catch(showLobbyError);
+    function doSignIn(kind) { return (kind === 'google' ? net.signInGoogle() : net.signInGuest()).catch(showLobbyError); }
+    function doCreate() { return matchmaking.create().then(attachRoom).catch(showLobbyError); }
+    function doJoin(code) { code = String(code || '').trim().toUpperCase(); if (!code) return; return matchmaking.join(code).then(attachRoom).catch(showLobbyError); }
+    function doSpectate(code) { code = String(code || '').trim().toUpperCase(); if (!code) return; attachRoom(code, true); }   // watch without taking a seat, even during a match
+    function doLeave() {
+        var wasMatch = !!(om && !om.local);
+        if (roomSession) roomSession.leave().catch(showLobbyError);
+        room = null; pres = {};
+        if (wasMatch) exitMatch();
+        renderLobby();
     }
-    function doRematch() { if (!room || !room.data || !netUser) return; if (effectiveHost(room.data) !== netUser.uid) return; net.mp.update(GROUP, room.code, { status: 'lobby', game: {}, ready: {}, round: 0 }).catch(showLobbyError); }
+    function doReady() { if (room) return matchmaking.setReady(room.code).catch(showLobbyError); }
+    function hostStart() { if (room) return matchmaking.start(room.code).catch(showLobbyError); }
+    function doRematch() { if (room) return matchmaking.reset(room.code).catch(showLobbyError); }
     function copyCode(code) { try { var p = navigator.clipboard && navigator.clipboard.writeText(code); if (p && p.catch) p.catch(function () { }); } catch (e) { } if (lobbyRefs) lobbyRefs.status.textContent = t('beamCopied'); }
 
     function renderLobby() {
-        if (!lobbyEl) return;
-        // preserve the room-code field across re-renders so a background update can't steal your cursor
-        var _pi = lobbyEl.querySelector('.lobby-room input');
-        var _pv = _pi ? _pi.value : null, _pf = !!(_pi && document.activeElement === _pi);
-        var _ps = _pf ? _pi.selectionStart : 0, _pe = _pf ? _pi.selectionEnd : 0;
+        if (!lobbyView) return;
         var d = room && room.data, g = (d && d.game) || {}, u = netUser, over = g.status === 'over';
-        lobbyRefs.title.textContent = over ? t('beamResultsTitle') : t('beamLobbyTitle');
-        lobbyRefs.close.textContent = t('beamClose');
-        // auth
-        var auth = lobbyRefs.auth; auth.innerHTML = '';
-        if (!u) { var gg = lbtn(t('beamSignInGoogle'), 'btn btn-primary'); gg.onclick = function () { doSignIn('google'); }; var ag = lbtn(t('beamSignInGuest'), 'btn'); ag.onclick = function () { doSignIn('guest'); }; auth.appendChild(lrow(gg, ag)); }
-        else { var info = elc('span', null, t('beamSignedIn', u.name || t('beamGuest'))); var out = lbtn(t('beamSignOut'), 'btn'); out.onclick = function () { doLeave(); net.signOut(); }; auth.appendChild(lrow(info, out)); }
-        // room
-        var rbox = lobbyRefs.room; rbox.innerHTML = '';
+        var status = '';
+        if (!u) status = t('beamSignInFirst');
+        else if (over && g.endReason === 'left' && g.winner === u.uid) status = t('beamEndLeft');
+        else if (over && g.winner) status = t('beamWinner', pname(g.winner, d.players));
+        else if (d) status = matchmaking.playerIds(d).length < 2 ? t('beamNeedTwo') : t('beamHostStarts');
+        var model = {
+            title: t(over ? 'beamResultsTitle' : 'beamLobbyTitle'), closeLabel: t('beamClose'), status: status,
+            auth: {
+                text: u ? t('beamSignedIn', u.name || t('beamGuest')) : '',
+                actions: u ? [{ id: 'sign-out', label: t('beamSignOut'), onClick: function () { doLeave(); return net.signOut(); } }] : [
+                    { id: 'sign-in-google', label: t('beamSignInGoogle'), primary: true, onClick: function () { return doSignIn('google'); } },
+                    { id: 'sign-in-guest', label: t('beamSignInGuest'), onClick: function () { return doSignIn('guest'); } },
+                ],
+            },
+        };
         if (u && !d) {
-            var create = lbtn(t('beamCreateRoom'), 'btn btn-primary'); create.onclick = doCreate;
-            var input = elc('input'); input.placeholder = t('beamRoomCode'); input.maxLength = 4;
-            var join = lbtn(t('beamJoinRoom'), 'btn'); join.onclick = function () { doJoin(input.value); };
-            var spectate = lbtn(t('beamSpectate'), 'btn'); spectate.onclick = function () { doSpectate(input.value); };
-            input.addEventListener('keydown', function (e) { if (e.key === 'Enter') doJoin(input.value); });
-            rbox.appendChild(lrow(create)); rbox.appendChild(lrow(input)); rbox.appendChild(lrow(join, spectate));
+            model.entry = { codeLabel: t('beamRoomCode'),
+                create: { label: t('beamCreateRoom'), primary: true, onClick: doCreate },
+                join: { label: t('beamJoinRoom'), onClick: doJoin },
+                spectate: { label: t('beamSpectate'), onClick: doSpectate },
+            };
         } else if (u && d) {
-            rbox.appendChild(elc('div', 'lobby-code', d.code));
-            // player list
-            var ul = elc('ul', 'lobby-plist');
-            var order = d.order || Object.keys(d.players || {}), ready = d.ready || {}, host = effectiveHost(d);
-            var listOrder = over ? order.slice().sort(function (a, b) { return ((g.rankByUid || {})[a] || 99) - ((g.rankByUid || {})[b] || 99); }) : order;  // results → sort by placing
-            listOrder.forEach(function (uid) {
-                if (!d.players[uid]) return;
-                var li = elc('li');
-                var left = elc('span'); var dot2 = elc('span', null, '\u25cf '); dot2.style.color = colorForOrder(d.players[uid].order); left.appendChild(dot2); left.appendChild(document.createTextNode(pname(uid, d.players) + (uid === u.uid ? ' (' + t('beamYou') + ')' : '')));
-                li.appendChild(left);
-                var right = elc('span');
-                if (over) { if (g.rankByUid && g.rankByUid[uid]) { var rr = elc('span', 'rank', placeLabel(g.rankByUid[uid])); right.appendChild(rr); } }
-                else {
-                    if (uid === host) right.appendChild(elc('span', 'tag', t('beamHost')));
-                    if (isStale(uid)) { li.style.opacity = '0.5'; right.appendChild(elc('span', null, ' \u26a0')); }
-                    else if (ready[uid]) right.appendChild(elc('span', 'ok', ' ✓ ' + t('beamReadyTag')));
-                }
-                li.appendChild(right); ul.appendChild(li);
+            var order = matchmaking.playerIds(d), ready = d.ready || {}, host = effectiveHost(d);
+            if (over) order.sort(function (a, b) { return ((g.rankByUid || {})[a] || 99) - ((g.rankByUid || {})[b] || 99); });
+            var players = order.map(function (uid) {
+                var badges = [], stale = isStale(uid);
+                if (uid === host) badges.push({ label: t('beamHost'), tone: 'host' });
+                if (over && (g.rankByUid || {})[uid]) badges.push({ label: placeLabel(g.rankByUid[uid]), tone: 'rank' });
+                if (stale) badges.push({ label: t('beamOffline') });
+                else if (!over && ready[uid]) badges.push({ label: t('beamReadyTag'), tone: 'ready' });
+                return { uid: uid, name: pname(uid, d.players) + (uid === u.uid ? ' (' + t('beamYou') + ')' : ''),
+                    color: colorForOrder(d.players[uid].order), muted: stale, badges: badges };
             });
-            rbox.appendChild(ul);
-            var wcL = watcherCount(); if (wcL > 0) rbox.appendChild(elc('div', 'lobby-note', t('beamWatchers', wcL)));
-            // actions — invite + primary action share a row; Leave sits on its own row below
-            if (!d.players[u.uid]) {                      // spectator: watching only — no ready/start, just stop watching
-                rbox.appendChild(elc('div', 'lobby-note', t('beamSpectatingRoom')));
-                var lvs = lbtn(t('beamStopSpectating'), 'btn'); lvs.onclick = doLeave; rbox.appendChild(lrow(lvs));
-            } else if (over) {
-                if (effectiveHost(d) === u.uid) { var rem = lbtn(t('beamRematch'), 'btn btn-primary'); rem.onclick = doRematch; rbox.appendChild(lrow(rem)); }
-                var lvo = lbtn(t('beamLeaveRoom'), 'btn'); lvo.onclick = doLeave; rbox.appendChild(lrow(lvo));
-            } else {
-                var iAmHost = host === u.uid;
-                var present = order.filter(function (x) { return d.players[x] && !isStale(x); });
-                var copy = lbtn(t('beamCopyCode'), 'btn'); copy.onclick = function () { copyCode(d.code); };
-                var primary;
-                if (iAmHost) {                                             // the host's Start button is their "ready"
-                    var guests = present.filter(function (x) { return x !== u.uid; });
-                    var canStart = present.length >= 2 && guests.every(function (x) { return ready[x]; });
-                    primary = lbtn(t('beamStartMatch'), 'btn btn-primary'); primary.disabled = !canStart; primary.onclick = hostStart;
-                } else if (ready[u.uid]) {
-                    primary = elc('span', null, t('beamReadyWait'));
-                } else {
-                    primary = lbtn(t('beamReadyUp'), 'btn btn-primary'); primary.onclick = doReady;
-                }
-                rbox.appendChild(lrow(copy, primary));                    // 複製 + 開始對戰 / 準備好了 同一列
-                var lv = lbtn(t('beamLeaveRoom'), 'btn'); lv.onclick = doLeave;
-                rbox.appendChild(lrow(lv));                               // 離開房間 自己一列
-            }
+            var notes = [], watchers = watcherCount(), primary = null, watching = !d.players[u.uid];
+            if (watchers) notes.push(t('beamWatchers', watchers));
+            if (watching) notes.push(t('beamSpectatingRoom'));
+            else if (over) {
+                if (host === u.uid) primary = { label: t('beamRematch'), primary: true, onClick: doRematch };
+            } else if (host === u.uid) {
+                primary = { label: t('beamStartMatch'), primary: true, disabled: !matchmaking.canStart(d), onClick: hostStart };
+            } else if (ready[u.uid]) primary = { text: t('beamReadyWait') };
+            else primary = { label: t('beamReadyUp'), primary: true, onClick: doReady };
+            model.room = { code: d.code, players: players, notes: notes, primary: primary,
+                copy: { label: t('beamCopyCode'), onClick: function () { copyCode(d.code); } },
+                leave: { label: t(watching ? 'beamStopSpectating' : 'beamLeaveRoom'), onClick: doLeave },
+            };
         }
-        // status line
-        var s = '';
-        if (!u) s = t('beamSignInFirst');
-        else if (over && g.endReason === 'left' && g.winner === u.uid) s = t('beamEndLeft');
-        else if (over && g.winner) s = t('beamWinner', pname(g.winner, d.players));
-        else if (d) { var present2 = (d.order || []).filter(function (x) { return d.players[x]; }); s = present2.length < 2 ? t('beamNeedTwo') : t('beamHostStarts'); }
-        lobbyRefs.status.textContent = s;
-        if (_pv != null) {                            // restore the code field (value + focus + caret) after the rebuild
-            var _ni = lobbyRefs.room.querySelector('input');
-            if (_ni) { _ni.value = _pv; if (_pf) { _ni.focus(); try { _ni.setSelectionRange(_ps, _pe); } catch (e) { } } }
-        }
+        lobbyView.render(model);
     }
 
     // ===============================================================
@@ -1074,15 +1049,31 @@
         function ready() {
             var N = window.ArcadeNet, btn = $('online-btn');
             if (!N || !N.ok) { if (btn) btn.hidden = true; return; }
-            net = N; buildLobby();
-            net.onAuth(function (uu) { netUser = uu ? net.mp.currentPlayer() : uu; renderLobby(); });
-            if (net.mp.cleanup) net.mp.cleanup(GROUP).catch(function () { });
+            net = N;
+            matchmaking = net.rooms.create({
+                collection: GROUP, identity: 'tab', minPlayers: 2, maxPlayers: MAX_PLAYERS,
+                allowSpectators: true, isAvailable: function (uid) { return !isStale(uid); },
+                startPatch: function (data, order) {
+                    var hp = {}, alive = {};
+                    order.forEach(function (uid) { hp[uid] = HP_START; alive[uid] = true; });
+                    return { status: 'playing', game: { status: 'playing', round: 1,
+                        seed: (Math.random() * 1e9) >>> 0, level: START_LEVEL, center: START_LEVEL,
+                        hp: hp, alive: alive, answers: {}, results: {}, rankByUid: {} } };
+                },
+            });
+            roomSession = matchmaking.session({
+                onChange: function (data, activeRoom) { room = activeRoom; onRoom(data); },
+                onError: showLobbyError,
+            });
+            buildLobby();
+            net.onAuth(function (uu) { netUser = uu ? matchmaking.currentPlayer() : uu; renderLobby(); });
+            matchmaking.cleanup().catch(function () { });
             if (btn) btn.addEventListener('click', openLobby);
             updateOnlineBtn();
         }
         if (window.ArcadeNet) ready(); else window.addEventListener('arcade-net-ready', ready, { once: true });
         setInterval(watchdog, 250);
-        window.addEventListener('beforeunload', function () { if (room && room.code && net && !(om && om.local) && room.data && netUser && room.data.players && room.data.players[netUser.uid]) { try { net.mp.leave(GROUP, room.code); } catch (e) { } } });
+        window.addEventListener('beforeunload', function () { if (room && room.code && net && !(om && om.local) && room.data && netUser && room.data.players && room.data.players[netUser.uid]) { roomSession.leave().catch(function () { }); } });
     }
 
     // ===============================================================

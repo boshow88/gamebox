@@ -1,0 +1,36 @@
+/* Shared room lobby: one layout for entry, waiting, spectators and results. */
+.room-lobby { position: fixed; z-index: 20; }
+.room-lobby .overlay-card { max-width: 460px; gap: 8px; }
+.room-lobby .lobby-auth,
+.room-lobby .lobby-room { width: 100%; min-width: 0; }
+.room-lobby .lobby-row { display: flex; align-items: stretch; gap: 8px; margin: 9px 0; }
+.room-lobby .lobby-row > * { flex: 1 1 0; min-width: 0; }
+.room-lobby .btn { white-space: normal; overflow-wrap: anywhere; }
+.room-lobby .lobby-account { align-self: center; font-size: 13px; overflow-wrap: anywhere; }
+.room-lobby .lobby-code-input {
+    width: 100%; padding: 9px 10px; border-radius: 9px;
+    border: 1px solid var(--border-strong); background: var(--bg-tertiary);
+    color: var(--text-primary); font: inherit; text-align: center;
+    text-transform: uppercase; letter-spacing: 3px;
+}
+.room-lobby .lobby-code {
+    margin: 6px 0 8px; color: var(--text-primary); text-align: center;
+    font-size: 30px; font-weight: 700; letter-spacing: 8px; overflow-wrap: anywhere;
+}
+.room-lobby .lobby-plist { list-style: none; margin: 4px 0; padding: 0; width: 100%; display: flex; flex-direction: column; gap: 5px; }
+.room-lobby .lobby-player { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 7px 12px; border-radius: 9px; background: var(--bg-tertiary); font-size: 14px; }
+.room-lobby .lobby-player.offline { opacity: 0.5; }
+.room-lobby .lobby-player-name { display: inline-flex; align-items: center; gap: 5px; min-width: 0; overflow-wrap: anywhere; text-align: start; }
+.room-lobby .lobby-player-dot { flex: none; font-size: 11px; }
+.room-lobby .lobby-player-badges { display: inline-flex; flex-wrap: wrap; justify-content: flex-end; gap: 4px; }
+.room-lobby .lobby-tag { font-size: 11px; padding: 2px 6px; border-radius: 999px; background: var(--bg-secondary); }
+.room-lobby .lobby-tag.host { color: var(--game-color); font-weight: 700; }
+.room-lobby .lobby-tag.ready { color: #34d399; }
+.room-lobby .lobby-tag.rank { color: var(--game-color); font-weight: 700; font-size: 14px; }
+.room-lobby .lobby-note,
+.room-lobby .lobby-waiting,
+.room-lobby .lobby-status { color: var(--text-secondary); font-size: 14px; line-height: 1.4; overflow-wrap: anywhere; }
+.room-lobby .lobby-note { margin: 8px 0; }
+.room-lobby .lobby-waiting { align-self: center; padding: 6px 0; }
+.room-lobby .lobby-status { min-height: 1.4em; margin: 4px 0; }
+.room-lobby .lobby-close { width: 100%; }
