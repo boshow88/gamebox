@@ -39,7 +39,8 @@
     // ---------------- config (FEEL knobs) ----------------
     var CFG = {
         D: 27, rBall: 12.5,
-        vRetreat: 180, impulse: 120, impDecay: 7,
+        vRetreat: 240, impulse: 240, impDecay: 7,
+        retreatCap: 60,         // how far PAST the off-screen source a chain's FRONT may be knocked (px). A big combo flings the whole chain out onto the endless buffer track; the leading edge stops this little bit past the source (so it never flies too far) and the inward feed reels it back in. Room for the knockback comes mostly from the chain's own length, so impulse still scales the recoil; this is just the final "a little past the start" overshoot.
         comboImpulse: 0.50,     // crash-elimination recoil = impulse × (1 + (combo-1) × comboImpulse); longer chains kick the trailing queue back harder
         comboRetreat: 0.25,     // retreat/attraction speed = vRetreat × (1 + (combo-1) × comboRetreat); independent of comboImpulse so the two can ramp at different rates
         primeFloor: 8,          // scoring base per peeled ball = (p + primeFloor); a big floor flattens prime magnitude (human division of small primes is ~equally easy)
@@ -242,7 +243,11 @@
     }
     function buriedS(path, s) { var u = path.under; if (u) for (var i = 0; i < u.length; i++) if (s >= u[i][0] && s <= u[i][1]) return true; return false; }   // ball at arc-length s is underground → unshootable + drawn dim
     function posAt(path, s) {
-        s = s < 0 ? 0 : s > path.len ? path.len : s;
+        if (s > path.len) {   // beyond the off-screen source: extend STRAIGHT along the final tangent — an endless buffer track so chains knocked back past the entrance spread out off-screen instead of piling at one point
+            var pts = path.pts, nn = pts.length, pb = pts[nn - 1], pa = pts[nn - 2] || pb, ddx = pb.x - pa.x, ddy = pb.y - pa.y, dln = Math.hypot(ddx, ddy) || 1, ov = s - path.len;
+            return { x: pb.x + ddx / dln * ov, y: pb.y + ddy / dln * ov };
+        }
+        s = s < 0 ? 0 : s;
         var a = path.arc, lo = 0, hi = a.length - 1;
         while (lo < hi) { var mid = (lo + hi) >> 1; if (a[mid] < s) lo = mid + 1; else hi = mid; }
         var i = lo > 0 ? lo - 1 : 0, seg = (a[i + 1] - a[i]) || 1, f = (s - a[i]) / seg;
@@ -272,6 +277,7 @@
         for (i = 0; i < keys.length; i++) { p = keys[i]; if ((r -= dem[p]) <= 0) return p; }
         return keys[keys.length - 1];
     }
+    function omegaCeilOf(x) { var f = Math.floor(x); return f + (x - f > 1e-9 ? 1 : 0); }   // highest integer Ω tier a (possibly fractional) Ω-cap should include, so the top tier can fade in — used by BOTH newGame (levels + endless seed) and updateProgression so they behave identically
     function rebuildCandidates() {
         var primes = activePrimes(), list = [];
         for (var n = 2; n <= R.cap; n++) { var m = n, omega = 0; for (var i = 0; i < primes.length; i++) { var p = primes[i]; while (m % p === 0) { m /= p; omega++; } } if (m === 1 && omega <= R.omegaCeil) list.push({ v: n, w: omega }); }
@@ -294,7 +300,7 @@
         R.feed = a.feed + (b.feed - a.feed) * u;
         R.mult = (a.mult != null ? a.mult : 1) + ((b.mult != null ? b.mult : 1) - (a.mult != null ? a.mult : 1)) * u;   // score multiplier for balls spawning right now (banked per-ball at spawn)
         R.maxOmega = a.omega + (b.omega - a.omega) * u;   // smooth (float) Ω cap; the top tier fades in by its fractional part (see spawnValue)
-        var oc = Math.floor(R.maxOmega); if (R.maxOmega - oc > 1e-9) oc += 1;   // highest Ω tier the pool should contain (the fading-in one)
+        var oc = omegaCeilOf(R.maxOmega);   // highest Ω tier the pool should contain (the fading-in one)
         if (a.primes !== R.full || cap !== R.cap || oc !== R.omegaCeil) { R.full = a.primes; R.activeN = a.primes.length; R.cap = cap; R.omegaCeil = oc; rebuildCandidates(); }   // rebuild only when the INTEGER tier changes, not every frame
     }
 
@@ -314,11 +320,11 @@
         var p = pending || { kind: 'level', world: 1, fieldIdx: 0 }, field;
         if (p.kind === 'level') {
             var lv = DATA.level(p.world, p.fieldIdx); field = lv.field;
-            R = { isLevel: true, field: field, full: lv.primes, activeN: lv.primes.length, cap: lv.cap, maxOmega: lv.maxOmega, omegaCeil: lv.maxOmega, bias: lv.bias, feed: lv.feed, quota: lv.quota, spawned: 0, candidates: [], mult: 1 };
+            R = { isLevel: true, field: field, full: lv.primes, activeN: lv.primes.length, cap: lv.cap, maxOmega: lv.maxOmega, omegaCeil: omegaCeilOf(lv.maxOmega), bias: lv.bias, feed: lv.feed, quota: lv.quota, spawned: 0, candidates: [], mult: 1 };
         } else {
             var style = DATA.ENDLESS[p.diff] || DATA.ENDLESS[Object.keys(DATA.ENDLESS)[0]];
             var stages = style.build ? style.build() : style.stages, s0 = stages[0]; field = DATA.FIELDS[p.fieldIdx] || DATA.FIELDS[0];   // build() lets a style randomise its stages once per run
-            R = { isLevel: false, field: field, e: { stages: stages }, full: s0.primes, activeN: s0.primes.length, cap: s0.cap, maxOmega: s0.omega, omegaCeil: s0.omega, bias: s0.bias, feed: s0.feed, quota: Infinity, spawned: 0, candidates: [], mult: (s0.mult != null ? s0.mult : 1) };
+            R = { isLevel: false, field: field, e: { stages: stages }, full: s0.primes, activeN: s0.primes.length, cap: s0.cap, maxOmega: s0.omega, omegaCeil: omegaCeilOf(s0.omega), bias: s0.bias, feed: s0.feed, quota: Infinity, spawned: 0, candidates: [], mult: (s0.mult != null ? s0.mult : 1) };
         }
         R.burst = field.startBurst != null ? field.startBurst : CFG.startBurst;   // fast-feed this many balls (TOTAL) at the start so there's instantly something to shoot
         countdown = CFG.startCountdown;
@@ -378,7 +384,7 @@
         if (at >= 0) { var groups = regroup(items); if (knockback && groups.length) groups[groups.length - 1].imp = CFG.impulse * (1 + (combo - 1) * CFG.comboImpulse); qs.splice.apply(qs, [at, 1].concat(groups)); }   // on a back-crash elimination, kick the rearmost remnant backward (harder as combo grows) so the trailing chain still recoils
         return true;
     }
-    function resolveCollisions(qs) {
+    function resolveCollisions(qs, pathLen) {
         var crashes = 0;
         for (var guard = 0; guard < 200; guard++) {
             var merged = false;
@@ -389,7 +395,7 @@
                     var frontFed = (b.vel || 0) < 0 && (f.vel || 0) <= 0, retreating = (f.vel || 0) > 0;
                     var mq = { vals: f.vals.concat(b.vals), head: frontFed ? f.head : (b.head - f.vals.length * CFG.D), imp: 0 };
                     qs.splice(i, 2, mq);
-                    if (retreating) { if (a === c && isPrime(a)) tryEliminate(qs, mq, junction, a, true); else { mq.imp = CFG.impulse; if (crashes < 2) { sfxCrash(); crashes++; } } }
+                    if (retreating && mq.head + junction * CFG.D <= pathLen) { if (a === c && isPrime(a)) tryEliminate(qs, mq, junction, a, true); else { mq.imp = CFG.impulse; if (crashes < 2) { sfxCrash(); crashes++; } } }   // crashes out in the off-screen buffer (seam past the source) just MERGE quietly — a big-combo fling + attraction would otherwise rapid-fire eliminate out there; let the merged chain ride the feed back in instead
                     merged = true; break;
                 }
             }
@@ -449,7 +455,9 @@
             qs = lanes[L].qs;
             for (i = 0; i < qs.length; i++) { var q = qs[i], v = 0; if (i === qs.length - 1) v = -feedV; else if (gcd(q.vals[q.vals.length - 1].v, qs[i + 1].vals[0].v) > 1) v = CFG.vRetreat * (1 + (combo - 1) * CFG.comboRetreat); q.vel = v + (q.imp || 0); q.imp = (q.imp || 0) * Math.max(0, 1 - CFG.impDecay * dt); if (Math.abs(q.imp) < 1) q.imp = 0; }   // retreat/attraction speed also ramps with combo, same ratio as the recoil
             for (i = 0; i < qs.length; i++) qs[i].head += qs[i].vel * dt;
-            resolveCollisions(qs);
+            var maxHead = lanes[L].path.len + CFG.retreatCap, qc, exc;   // cap the chain's FRONT (head) a little past the off-screen source: a big combo can fling the whole chain out onto the buffer track (its tail trailing far off-screen), but the leading edge never flies further than this — then its impulse is killed so the normal inward feed reels it right back in
+            for (i = 0; i < qs.length; i++) { qc = qs[i]; exc = qc.head - maxHead; if (exc > 0) { qc.head -= exc; if ((qc.imp || 0) > 0) qc.imp = 0; } }
+            resolveCollisions(qs, lanes[L].path.len);
         }
         // 3) projectiles (hit the nearest ball across ALL lanes)
         for (i = shots.length - 1; i >= 0; i--) {
@@ -458,7 +466,7 @@
             var hit = nearestBall(s.x, s.y);
             if (hit && hit.dist < CFG.rBall * 1.9) { insertShot(s, hit); shots.splice(i, 1); }
         }
-        for (L = 0; L < lanes.length; L++) resolveCollisions(lanes[L].qs);
+        for (L = 0; L < lanes.length; L++) resolveCollisions(lanes[L].qs, lanes[L].path.len);
         // 4) prune, pulses, win/lose
         var allEmpty = true, dead = false;
         for (L = 0; L < lanes.length; L++) {
@@ -591,7 +599,7 @@
     }
 
     // ---------------- selection panel (modes / level grid / endless pickers / paused) ----------------
-    function persist() { try { if (AC.prefs) AC.prefs.set('prime-zuma', { mode: mode, diff: endlessSel.diff, field: endlessSel.fieldIdx }); } catch (e) { /* ignore */ } }
+    function persist() { try { if (AC.prefs) AC.prefs.set('prime-zuma', { mode: mode, diff: endlessSel.diff, field: (DATA.FIELDS[endlessSel.fieldIdx] || DATA.FIELDS[0]).id }); } catch (e) { /* ignore */ } }   // store the field by ID (robust to fields being added/removed/reordered), not by array index
     function showPanel() { var o = $('pz-panel'); if (o) { renderPanel(); o.hidden = false; } }
     function hidePanel() { var o = $('pz-panel'); if (o) o.hidden = true; }
     function optBtn(label, active, fn) { var b = document.createElement('button'); b.type = 'button'; b.className = 'pz-opt' + (active ? ' active' : ''); b.textContent = label; b.addEventListener('click', fn); return b; }
@@ -635,9 +643,9 @@
         }
         var title = document.createElement('div'); title.className = 'pz-title'; title.textContent = mode === 'level' ? t('pzPickLevel') : t('pzEndless'); card.appendChild(title);
         if (mode === 'level') {
-            for (var w = 1; w <= 4; w++) {
+            for (var w = 1; w <= DATA.worlds; w++) {
                 var row = document.createElement('div'); row.className = 'pz-row';
-                for (var f = 0; f < DATA.X; f++) (function (w, f) { var b = document.createElement('button'); b.type = 'button'; b.className = 'pz-lvl'; b.textContent = w + '-' + (f + 1); b.addEventListener('click', function () { AC.audio.unlock(); startLevel(w, f); }); row.appendChild(b); })(w, f);
+                for (var f = 0; f < DATA.levelsPerWorld(w); f++) (function (w, f) { var b = document.createElement('button'); b.type = 'button'; b.className = 'pz-lvl'; b.textContent = w + '-' + (f + 1); b.addEventListener('click', function () { AC.audio.unlock(); startLevel(w, f); }); row.appendChild(b); })(w, f);
                 card.appendChild(row);
             }
         } else {
@@ -681,10 +689,10 @@
         }, { passive: false });
         window.addEventListener('keydown', function (e) { if ((e.key === ' ') && shell.isPlaying() && !over) { e.preventDefault(); shoot(); } });
 
-        try { var sv = AC.prefs && AC.prefs.get('prime-zuma'); if (sv) { if (sv.mode === 'level' || sv.mode === 'endless') mode = sv.mode; if (DATA.ENDLESS[sv.diff]) endlessSel.diff = sv.diff; if (sv.field >= 0 && sv.field < DATA.X) endlessSel.fieldIdx = sv.field; } } catch (e) { /* defaults */ }
+        try { var sv = AC.prefs && AC.prefs.get('prime-zuma'); if (sv) { if (sv.mode === 'level' || sv.mode === 'endless') mode = sv.mode; if (DATA.ENDLESS[sv.diff]) endlessSel.diff = sv.diff; if (typeof sv.field === 'string') { for (var _k = 0; _k < DATA.FIELDS.length; _k++) if (DATA.FIELDS[_k].id === sv.field) { endlessSel.fieldIdx = _k; break; } } } } catch (e) { /* defaults */ }   // field restored by ID (old numeric saves simply fall back to the default field)
 
         shell = AC.shell.create({
-            gameId: 'prime-zuma', step: 1 / 60, preventKeys: ['Space'],
+            gameId: 'prime-zuma', step: 1 / 60, preventKeys: ['Space'], scoreEpoch: 1,   // the scoring formula + the whole level layout changed, so pre-existing best scores are no longer comparable — wipe them once on next load
             mode: function () { return mode === 'level' ? ('L' + sel.world + '-' + (sel.fieldIdx + 1)) : ('E-' + endlessSel.diff); },
             update: update, render: render,
             reset: newGame,

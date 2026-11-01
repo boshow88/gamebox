@@ -3,10 +3,10 @@
  * FIELDS: each is a board = spiral geometry (turns / inner-death radius / outer-source radius) + a visual
  *   theme (background + accent). Rout must fit the 460px canvas (keep <= 214). X = number of fields.
  *
- * level(world, fieldIdx): the per-level difficulty for 一般/Levels mode. Levels are numbered world-field,
- *   world 1..4 × field 1..X = 4·X levels, getting harder with the overall ordinal. Returns the knobs the
- *   engine reads: which primes, the value cap, the max prime-factor count Ω, feed speed, the pick bias, and
- *   `quota` = how many balls the level spawns (clear them ALL to win). Tune freely.
+ * level(world, levelIdx): the per-level tuning for 一般/Levels mode. LEVELS[world-1] is that world's list of
+ *   levels in order (currently 4 worlds × 6 = 24, labelled world-level, e.g. 1-1 … 4-6); each level picks its own
+ *   board via `field` (a FIELDS id). Returns the knobs the engine reads: which primes, the value cap, the max
+ *   prime-factor count Ω, feed speed, the pick bias, and `quota` = balls to clear to win. Tune freely.
  *
  * ENDLESS: a set of STYLES for 無盡/Endless (not difficulties). Each style is a full timeline of `stages`
  *   (time keyframes); the engine interpolates cap/feed/bias/mult/Ω between them and steps the prime set at each
@@ -17,7 +17,7 @@
 window.PrimeZumaData = (function () {
     // Each field has a `shape` the engine knows how to draw into a path (death end first, source last) plus a
     // cannon position: 'spiral' & 'square' spiral inward to a centre cannon; 'snake' serpentines top→bottom with
-    // the cannon at the bottom. (More shapes — double-spiral, underground, star — are a later phase.)
+    // the cannon at the bottom. Other shapes in use: 'star', 'poly' (n-gon spiral), 'dual'/'triple' (multi-arm spirals), 'duo' (twin loops).
     // Rin is kept large so the inner (death) end clears the centre cannon + its muzzle ball. 'square' is a smooth
     // ROUNDED square (squircle, exponent n) — no hard 90° corners; 'snake' is a smooth sine weave (amp/waves).
     // feed is auto-split across a field's lanes (so total balls/sec is lane-count-independent); optional `feedFactor`
@@ -25,23 +25,19 @@ window.PrimeZumaData = (function () {
     var FIELDS = [
         { id: 'vortex',  name: 'Vortex',  shape: 'spiral', turns: 3, Rin: 70, Rout: 214, phase: -0.7854, ox: 4, oy: 16, entryUnder: 40, startBurst: 15, bg: '#130d20', accent: '#8b5cf6' },
         { id: 'box',     name: 'Box',     shape: 'square', turns: 3, Rin: 70, Rout: 184, n: 3.0, ox: 12, oy: 6, phase: 0.2, mirror: true, entryUnder: 90, startBurst: 13, feedFactor: 0.98, bg: '#0a1020', accent: '#3b82f6' },
-        { id: 'serpent', name: 'Serpent', shape: 'snake',  rows: 4, entryUnder: 30, startBurst: 12, feedFactor: 0.70, bg: '#08140e', accent: '#10b981' },
-        { id: 'clover',  name: 'Clover',  shape: 'clover', gx: 70, gy: 70, leafR: 64, deathExt: 44, entryUnder: 30, startBurst: 16, feedFactor: 0.70, bg: '#0c1407', accent: '#a3e635' },
-        { id: 'star',    name: 'Star',    shape: 'star',   Rstar: 292, tipR: 38, phase: -1.5708, oy: 18, deathT: 0.80, entryUnder: 50, startBurst: 16, feedFactor: 0.80, bg: '#14110a', accent: '#eab308' },
-        { id: 'twin',    name: 'Twin',    shape: 'dual',   turns: 2, Rin: 70, Rout: 214, entryUnder: [40, 40], startBurst: 24, feedFactor: 1.20, bg: '#160a12', accent: '#ec4899', accent2: '#2dd4bf' },
+        { id: 'serpent', name: 'Serpent', shape: 'snake',  rows: 4, entryUnder: 30, startBurst: 12, feedFactor: 0.80, bg: '#08140e', accent: '#10b981' },
+        { id: 'star',    name: 'Star',    shape: 'star',   Rstar: 292, tipR: 38, phase: -1.5708, oy: 18, deathT: 0.80, entryUnder: 50, startBurst: 16, feedFactor: 0.70, bg: '#14110a', accent: '#eab308' },
+        { id: 'twin',    name: 'Twin',    shape: 'dual',   turns: 2, Rin: 70, Rout: 214, entryUnder: [40, 40], startBurst: 24, feedFactor: 1.00, bg: '#160a12', accent: '#ec4899', accent2: '#2dd4bf' },
         { id: 'tri',     name: 'Tri',     shape: 'poly',   sides: 3, polyAmp: 0.17, turns: 3, Rin: 70, Rout: 190, ox: -28, oy: 6, canDy: -12, exitAng: 0.52, entryUnder: 110, startBurst: 18, bg: '#160f08', accent: '#f97316' },
-        { id: 'eight',   name: 'Eight',   shape: 'infinity', aw: 190, bh: 108, voff: 116, bridgeW: 52, entryUnder: [30, 30], startBurst: 18, feedFactor: 0.60, bg: '#0c0a16', accents: ['#facc15', '#818cf8'] },
         { id: 'maze',    name: 'Maze',    shape: 'square', turns: 3, Rin: 70, Rout: 188, n: 3.2, phase: -0.7854, oy: 12, buryHorizontal: true, entryUnder: 40, startBurst: 13, feedFactor: 0.95, bg: '#08161a', accent: '#06b6d4' },
         { id: 'duo',     name: 'Duo',     shape: 'duo',    half: 156, cr: 24, gap: 44, sep: 36, entryUnder: [30, 30], startBurst: 18, feedFactor: 0.90, bg: '#140a0f', accent: '#fb7185', accent2: '#38bdf8' },
-        { id: 'helix',   name: 'Helix',   shape: 'spiral', turns: 3, Rin: 70, Rout: 214, phase: -0.7854, mirror: true, ox: -4, oy: 16, entryUnder: 40, startBurst: 15, bg: '#170a1a', accent: '#d946ef' },
-        { id: 'trine',   name: 'Trine',   shape: 'triple', turns: 1.4, Rin: 70, Rout: 214, entryUnder: [40, 40, 40], startBurst: 27, feedFactor: 1.35, bg: '#0b0e14', accents: ['#f43f5e', '#22c55e', '#3b82f6'] },
+        { id: 'trine',   name: 'Trine',   shape: 'triple', turns: 1.4, Rin: 70, Rout: 214, entryUnder: [40, 40, 40], startBurst: 27, feedFactor: 1.00, bg: '#0b0e14', accents: ['#f43f5e', '#22c55e', '#3b82f6'] },
     ];
     var X = FIELDS.length;
 
-    // ---- PER-LEVEL tuning table. LEVELS[world-1][fieldIndex] — hand-edit every value freely. ----
-    //   field columns 0..11 match the FIELDS order above: vortex, box, serpent, clover, star, twin, tri, eight, maze, duo, helix, trine
-    //   per level: primes (available prime balls) · cap (max ball value) · omega (max prime-factor count Ω) ·
-    //              feed (queue creep speed, px/s) · bias (<1 favours simple/primes, 1 even, >1 complex) · quota (balls to clear = win)
+    // ---- PER-LEVEL tuning table. LEVELS[world-1] = that world's levels, in order (level N = LEVELS[world-1][N-1]). Hand-edit freely. ----
+    //   each level picks its own board via `field` (a FIELDS id), plus: primes (available prime balls) · cap (max ball value) ·
+    //     omega (max prime-factor count Ω) · feed (queue creep speed, px/s) · bias (<1 favours simple/primes, 1 even, >1 complex) · quota (balls to clear = win)
     // Write `primes: pn(...)` instead of a long literal array. From the master list PR:
     //   pn(n)    = the first n primes            → pn(6)    = [2,3,5,7,11,13]
     //   pn(a, b) = the a-th … b-th prime (1-based, inclusive, need NOT start at 2) → pn(3, 6) = [5,7,11,13]
@@ -54,69 +50,45 @@ window.PrimeZumaData = (function () {
         var from = (b == null) ? 0 : (a - 1), to = (b == null) ? a : b;   // one-arg = first a; two-arg = a-th..b-th (1-based)
         return (_pnCache[key] = PR.slice(Math.max(0, from), Math.min(PR.length, to)));
     }
-    var P1 = pn(3), P2 = pn(4), P3 = pn(5), P4 = pn(6);
     var LEVELS = [
         [ // World 1
-            { primes: P1, cap: 18, omega: 3, feed: 11, bias: 0.38, quota: 20 },
-            { primes: P1, cap: 20, omega: 3, feed: 11, bias: 0.39, quota: 25 },
-            { primes: P1, cap: 22, omega: 3, feed: 11, bias: 0.41, quota: 30 },
-            { primes: P1, cap: 24, omega: 3, feed: 12, bias: 0.42, quota: 35 },
-            { primes: P1, cap: 25, omega: 3, feed: 12, bias: 0.43, quota: 40 },
-            { primes: P1, cap: 27, omega: 3, feed: 12, bias: 0.45, quota: 45 },
-            { primes: P1, cap: 29, omega: 3, feed: 12, bias: 0.46, quota: 50 },
-            { primes: P1, cap: 31, omega: 3, feed: 12, bias: 0.47, quota: 55 },
-            { primes: P1, cap: 33, omega: 3, feed: 12, bias: 0.49, quota: 60 },
-            { primes: P1, cap: 35, omega: 3, feed: 13, bias: 0.50, quota: 65 },
-            { primes: P1, cap: 36, omega: 3, feed: 13, bias: 0.52, quota: 70 },
-            { primes: P1, cap: 38, omega: 3, feed: 13, bias: 0.54, quota: 75 },
+            { primes: pn(3), cap: 25, omega: 3.0, feed: 18, bias: 0.30, quota: 36, field: 'vortex' },
+            { primes: pn(3), cap: 25, omega: 3.0, feed: 20, bias: 0.32, quota: 36, field: 'serpent' },
+            { primes: pn(3), cap: 30, omega: 3.0, feed: 20, bias: 0.33, quota: 42, field: 'tri' },
+            { primes: pn(3), cap: 36, omega: 3.5, feed: 14, bias: 0.35, quota: 35, field: 'box' },
+            { primes: pn(3), cap: 36, omega: 3.5, feed: 14, bias: 0.35, quota: 35, field: 'maze' },
+            { primes: pn(3), cap: 30, omega: 3.0, feed: 20, bias: 0.36, quota: 48, field: 'twin' },
         ],
         [ // World 2
-            { primes: P2, cap: 36, omega: 3, feed: 13, bias: 0.51, quota: 70 },
-            { primes: P2, cap: 38, omega: 3, feed: 13, bias: 0.53, quota: 75 },
-            { primes: P2, cap: 40, omega: 3, feed: 13, bias: 0.54, quota: 80 },
-            { primes: P2, cap: 42, omega: 3, feed: 13, bias: 0.55, quota: 85 },
-            { primes: P2, cap: 44, omega: 3, feed: 14, bias: 0.57, quota: 90 },
-            { primes: P2, cap: 46, omega: 3, feed: 14, bias: 0.58, quota: 95 },
-            { primes: P2, cap: 48, omega: 3, feed: 14, bias: 0.59, quota: 100 },
-            { primes: P2, cap: 49, omega: 3, feed: 14, bias: 0.61, quota: 105 },
-            { primes: P2, cap: 51, omega: 3, feed: 14, bias: 0.62, quota: 110 },
-            { primes: P2, cap: 53, omega: 3, feed: 14, bias: 0.63, quota: 115 },
-            { primes: P2, cap: 54, omega: 3, feed: 14, bias: 0.64, quota: 120 },
-            { primes: P2, cap: 56, omega: 3, feed: 14, bias: 0.66, quota: 125 },
+            { primes: pn(4), cap: 49, omega: 3.0, feed: 18, bias: 0.32, quota: 55, field: 'vortex' },
+            { primes: pn(4), cap: 49, omega: 2.0, feed: 18, bias: 0.35, quota: 45, field: 'star' },
+            { primes: pn(4), cap: 60, omega: 3.0, feed: 20, bias: 0.33, quota: 60, field: 'tri' },
+            { primes: pn(4), cap: 60, omega: 3.0, feed: 20, bias: 0.35, quota: 66, field: 'box' },
+            { primes: pn(4), cap: 36, omega: 3.0, feed: 17, bias: 0.30, quota: 60, field: 'duo' },
+            { primes: pn(4), cap: 49, omega: 3.0, feed: 20, bias: 0.36, quota: 72, field: 'twin' },
         ],
         [ // World 3
-            { primes: P2, cap: 55, omega: 4, feed: 15, bias: 0.65, quota: 120 },
-            { primes: P2, cap: 57, omega: 4, feed: 15, bias: 0.66, quota: 125 },
-            { primes: P2, cap: 59, omega: 4, feed: 15, bias: 0.67, quota: 130 },
-            { primes: P2, cap: 60, omega: 4, feed: 15, bias: 0.69, quota: 135 },
-            { primes: P2, cap: 62, omega: 4, feed: 15, bias: 0.70, quota: 140 },
-            { primes: P2, cap: 64, omega: 4, feed: 16, bias: 0.71, quota: 145 },
-            { primes: P2, cap: 66, omega: 4, feed: 16, bias: 0.73, quota: 150 },
-            { primes: P2, cap: 68, omega: 4, feed: 16, bias: 0.74, quota: 155 },
-            { primes: P2, cap: 70, omega: 4, feed: 16, bias: 0.75, quota: 160 },
-            { primes: P2, cap: 72, omega: 4, feed: 16, bias: 0.77, quota: 165 },
-            { primes: P2, cap: 73, omega: 4, feed: 16, bias: 0.78, quota: 170 },
-            { primes: P2, cap: 74, omega: 4, feed: 16, bias: 0.79, quota: 175 },
+            { primes: pn(4), cap: 75, omega: 3.0, feed: 20, bias: 0.42, quota: 72, field: 'vortex' },
+            { primes: pn(4), cap: 49, omega: 2.0, feed: 25, bias: 0.25, quota: 75, field: 'serpent' },
+            { primes: pn(2, 5), cap: 121, omega: 2.0, feed: 20, bias: 0.30, quota: 77, field: 'tri' },
+            { primes: pn(4), cap: 84, omega: 3.0, feed: 22, bias: 0.38, quota: 80, field: 'box' },
+            { primes: pn(4), cap: 84, omega: 3.0, feed: 22, bias: 0.38, quota: 80, field: 'maze' },
+            { primes: pn(4), cap: 75, omega: 3.0, feed: 22, bias: 0.36, quota: 100, field: 'twin' },
         ],
         [ // World 4
-            { primes: P3, cap: 73, omega: 4, feed: 16, bias: 0.78, quota: 170 },
-            { primes: P3, cap: 75, omega: 4, feed: 17, bias: 0.79, quota: 175 },
-            { primes: P3, cap: 77, omega: 4, feed: 17, bias: 0.81, quota: 180 },
-            { primes: P3, cap: 79, omega: 4, feed: 17, bias: 0.82, quota: 185 },
-            { primes: P3, cap: 81, omega: 4, feed: 17, bias: 0.83, quota: 190 },
-            { primes: P3, cap: 83, omega: 4, feed: 17, bias: 0.85, quota: 195 },
-            { primes: P3, cap: 84, omega: 4, feed: 17, bias: 0.86, quota: 200 },
-            { primes: P3, cap: 86, omega: 4, feed: 18, bias: 0.87, quota: 205 },
-            { primes: P3, cap: 88, omega: 4, feed: 18, bias: 0.89, quota: 210 },
-            { primes: P3, cap: 90, omega: 4, feed: 18, bias: 0.90, quota: 215 },
-            { primes: P3, cap: 91, omega: 4, feed: 18, bias: 0.91, quota: 220 },
-            { primes: P3, cap: 92, omega: 4, feed: 18, bias: 0.92, quota: 225 },
+            { primes: pn(5), cap: 99, omega: 3.0, feed: 22, bias: 0.50, quota: 120, field: 'vortex' },
+            { primes: pn(3, 6), cap: 169, omega: 2.0, feed: 23, bias: 0.50, quota: 100, field: 'star' },
+            { primes: pn(5), cap: 99, omega: 4.0, feed: 15, bias: 0.50, quota: 95, field: 'tri' },
+            { primes: pn(5), cap: 99, omega: 3.0, feed: 22, bias: 0.50, quota: 120, field: 'duo' },
+            { primes: pn(5), cap: 99, omega: 3.0, feed: 21, bias: 0.45, quota: 100, field: 'box' },
+            { primes: pn(5), cap: 99, omega: 3.0, feed: 20, bias: 0.45, quota: 150, field: 'trine' },
         ],
     ];
-    function level(world, fieldIdx) {
+    var FIELD_BY_ID = {}; for (var _fi = 0; _fi < FIELDS.length; _fi++) FIELD_BY_ID[FIELDS[_fi].id] = FIELDS[_fi];
+    function level(world, levelIdx) {   // levelIdx is 0-based within the world (so level W-N → level(W, N-1))
         var row = LEVELS[Math.max(0, Math.min(LEVELS.length - 1, world - 1))];
-        var e = row[fieldIdx] || row[row.length - 1];
-        return { field: FIELDS[fieldIdx], primes: e.primes, cap: e.cap, maxOmega: e.omega, feed: e.feed, bias: e.bias, quota: e.quota };
+        var e = row[Math.max(0, Math.min(row.length - 1, levelIdx))];
+        return { field: FIELD_BY_ID[e.field] || FIELDS[0], primes: e.primes, cap: e.cap, maxOmega: e.omega, feed: e.feed, bias: e.bias, quota: e.quota };
     }
 
     // ---- ENDLESS, split by STYLE (not difficulty). Each style = time keyframes (stages); the engine interpolates cap/feed/bias/mult/omega between them and steps the prime set at each stage. ----
@@ -372,5 +344,5 @@ window.PrimeZumaData = (function () {
         },
     };
 
-    return { FIELDS: FIELDS, X: X, level: level, ENDLESS: ENDLESS };
+    return { FIELDS: FIELDS, X: X, level: level, ENDLESS: ENDLESS, worlds: LEVELS.length, levelsPerWorld: function (w) { var r = LEVELS[w - 1]; return r ? r.length : 0; } };
 })();
