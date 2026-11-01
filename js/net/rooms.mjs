@@ -7,6 +7,33 @@ function randomCode() {
     return code;
 }
 function error(code, message) { return Object.assign(new Error(message), { code: 'room/' + code }); }
+function valueAt(data, path) { return path.split('.').reduce((node, key) => node == null ? undefined : node[key], data); }
+function sameData(a, b) {
+    if (Object.is(a, b)) return true;
+    if (!a || !b || typeof a !== 'object' || typeof b !== 'object') return false;
+    if (Array.isArray(a) || Array.isArray(b)) return Array.isArray(a) && Array.isArray(b)
+        && a.length === b.length && a.every((value, index) => sameData(value, b[index]));
+    if (a.constructor && a.constructor.name !== 'Object') return typeof a.isEqual === 'function' && a.isEqual(b);
+    if (b.constructor && b.constructor.name !== 'Object') return false;
+    const keys = Object.keys(a);
+    return keys.length === Object.keys(b).length && keys.every(key => Object.hasOwn(b, key) && sameData(a[key], b[key]));
+}
+function changedFields(data, patch) {
+    return Object.fromEntries(Object.entries(patch).filter(([path, value]) => !sameData(valueAt(data, path), value)));
+}
+// Add a dotted field without conflicting with a whole-map replacement in the same patch.
+function withField(patch, path, value) {
+    const result = Object.assign({}, patch), parts = path.split('.');
+    for (let length = parts.length; length > 0; length--) {
+        const prefix = parts.slice(0, length).join('.');
+        if (!Object.hasOwn(result, prefix)) continue;
+        if (length === parts.length) { result[prefix] = value; return result; }
+        let node = result[prefix] = Object.assign({}, result[prefix]);
+        for (const key of parts.slice(length, -1)) node = node[key] = Object.assign({}, node[key]);
+        node[parts.at(-1)] = value; return result;
+    }
+    result[path] = value; return result;
+}
 function matchFields(patch, fields) {
     const result = Object.assign({}, patch);
     if (patch.game) result.game = Object.assign({}, patch.game, fields);
@@ -31,10 +58,11 @@ export function createRoomPresence({ timeoutMs = 15000, now = Date.now } = {}) {
             .map(uid => ({ uid, beat: records.get(uid).beat })) };
 }
 
-export function createRoomService({ store, getUser, sessionId, generateCode = randomCode }, options) {
+export function createRoomService({ store, getUser, sessionId, generateCode = randomCode, now = Date.now }, options) {
     const config = Object.assign({
         minPlayers: 2, maxPlayers: 2, identity: 'account', layout: 'order',
         waitingStatus: 'lobby', startMode: 'host', allowSpectators: false,
+        presenceField: null,
         isAvailable: () => true,
         isPlaying: data => !!(data.game && data.game.status === 'playing'),
         onCreate: () => ({}), onJoin: () => ({}), onLeave: () => ({}), onReset: () => ({}),
@@ -47,6 +75,41 @@ export function createRoomService({ store, getUser, sessionId, generateCode = ra
     if (config.identity === 'tab' && !sessionId) throw new Error('Tab identity requires a session ID');
     config.occupiedStatus = config.occupiedStatus || config.waitingStatus;
     Object.freeze(config);
+    let pulse = 0;
+    const activity = new Map();
+    function activityFor(code) {
+        if (!activity.has(code)) activity.set(code, { at: -Infinity, pending: null, pendingAt: -Infinity, retryAfter: -Infinity });
+        return activity.get(code);
+    }
+    async function transact(code, player, decide) {
+        const counter = ++pulse, sentAt = now();
+        const outcome = await store.transact(code, data => {
+            const change = decide(data);
+            let published = false;
+            if (change.kind === 'update') {
+                change.data = changedFields(data, change.data);
+                if (!Object.keys(change.data).length) delete change.kind;
+            }
+            if (config.presenceField && ['create', 'update'].includes(change.kind)
+                && (change.data.players || (data && data.players) || {})[player.uid]) {
+                if (change.kind === 'create') {
+                    // Creation uses full document fields, not Firestore dotted update paths.
+                    const root = config.presenceField.split('.')[0];
+                    const field = withField({ [root]: change.data[root] || {} }, config.presenceField + '.' + player.uid, counter);
+                    change.data = Object.assign({}, change.data, field);
+                } else change.data = withField(change.data, config.presenceField + '.' + player.uid, counter);
+                published = true;
+            }
+            return Object.assign({}, change, { result: { value: change.result, published } });
+        });
+        // Only a committed write proves liveness. Rejected/no-op updates must not delay a heartbeat.
+        if (outcome.published) {
+            const state = activityFor(code);
+            state.at = Math.max(state.at, sentAt); // a delayed acknowledgement must not extend the heartbeat deadline
+            state.retryAfter = -Infinity;
+        }
+        return outcome.value;
+    }
 
     function currentPlayer() {
         const user = getUser();
@@ -100,7 +163,7 @@ export function createRoomService({ store, getUser, sessionId, generateCode = ra
         const player = requirePlayer();
         for (let attempt = 0; attempt < 6; attempt++) {
             const code = generateCode();
-            const created = await store.transact(code, data => {
+            const created = await transact(code, player, data => {
                 if (data) return { result: false };
                 return { kind: 'create', data: Object.assign({ round: 0, game: {} }, config.onCreate(input), {
                     code, status: config.waitingStatus, hostUid: player.uid, maxPlayers: config.maxPlayers,
@@ -113,7 +176,7 @@ export function createRoomService({ store, getUser, sessionId, generateCode = ra
     }
     async function join(value) {
         const player = requirePlayer(), code = normalizeCode(value);
-        return store.transact(code, data => {
+        return transact(code, player, data => {
             requireRoom(data);
             if ((data.players || {})[player.uid]) return { result: code };
             if (data.status !== config.waitingStatus || config.isPlaying(data)) throw error('started', 'already started');
@@ -133,14 +196,14 @@ export function createRoomService({ store, getUser, sessionId, generateCode = ra
     async function leave(value) {
         const player = currentPlayer(), code = normalizeCode(value);
         if (!player) return;
-        return store.transact(code, data => {
+        return transact(code, player, data => {
             if (!data || !(data.players || {})[player.uid]) return {}; // observers never change membership
             return departure(data, player.uid);
         });
     }
     async function releaseDisconnected(value, candidates) {
         const player = requirePlayer(), code = normalizeCode(value);
-        return store.transact(code, data => {
+        return transact(code, player, data => {
             if (!data || !(data.players || {})[player.uid]) return { result: false };
             // Recheck the observed counter inside the transaction: a recovered player stays seated.
             const candidate = candidates.find(item => item.uid !== player.uid && (data.players || {})[item.uid]
@@ -151,7 +214,7 @@ export function createRoomService({ store, getUser, sessionId, generateCode = ra
     }
     async function setReady(value, ready = true) {
         const player = requirePlayer(), code = normalizeCode(value);
-        return store.transact(code, data => {
+        return transact(code, player, data => {
             requireRoom(data);
             if (!(data.players || {})[player.uid]) throw error('spectator', 'spectators cannot ready up');
             if (config.isPlaying(data)) return { result: false };
@@ -161,7 +224,7 @@ export function createRoomService({ store, getUser, sessionId, generateCode = ra
     async function start(value) {
         const player = requirePlayer(), code = normalizeCode(value);
         const matchId = globalThis.crypto.getRandomValues(new Uint32Array(4)).join('-');
-        return store.transact(code, data => {
+        return transact(code, player, data => {
             requireRoom(data);
             if (!canStart(data, player.uid)) return { result: false };
             return { kind: 'update', data: Object.assign(matchFields(config.startPatch(data, playerIds(data, true)),
@@ -171,7 +234,7 @@ export function createRoomService({ store, getUser, sessionId, generateCode = ra
     async function updateMatch(value, expected, buildPatch) {
         const player = requirePlayer(), code = normalizeCode(value);
         if (!['matchId', 'round', 'status'].every(key => Object.hasOwn(expected, key))) throw new Error('Incomplete match guard');
-        return store.transact(code, data => {
+        return transact(code, player, data => {
             if (!data || !(data.players || {})[player.uid]) return { result: false };
             const game = data.game || {};
             if (!Object.entries(expected).every(([key, field]) => game[key] === field)) return { result: false };
@@ -188,7 +251,7 @@ export function createRoomService({ store, getUser, sessionId, generateCode = ra
     }
     async function reset(value) {
         const player = requirePlayer(), code = normalizeCode(value);
-        return store.transact(code, data => {
+        return transact(code, player, data => {
             requireRoom(data);
             if (host(data) !== player.uid || config.isPlaying(data)) return { result: false };
             return { kind: 'update', data: Object.assign({ status: config.waitingStatus, game: {}, round: 0 },
@@ -198,6 +261,25 @@ export function createRoomService({ store, getUser, sessionId, generateCode = ra
     const service = {
         config, currentPlayer, playerIds, host, canStart, create, join, leave, releaseDisconnected,
         setReady, start, reset, updateMatch, settleRound,
+        async heartbeat(value, intervalMs = 3000) {
+            const player = requirePlayer(), code = normalizeCode(value), state = activityFor(code);
+            if (!config.presenceField) return Promise.resolve(false);
+            const sentAt = now();
+            if (state.pending && sentAt - state.pendingAt < intervalMs) return state.pending;
+            if (sentAt - state.at < intervalMs || sentAt < state.retryAfter) return Promise.resolve(false);
+            const patch = { [config.presenceField + '.' + player.uid]: ++pulse };
+            const pending = store.update(code, patch).then(() => {
+                if (sentAt >= state.at) { state.at = sentAt; state.retryAfter = -Infinity; }
+                return true;
+            }, err => {
+                if (sentAt >= state.at) state.retryAfter = now() + intervalMs;
+                throw err;
+            });
+            let task;
+            task = pending.finally(() => { if (state.pending === task) state.pending = null; });
+            state.pending = task; state.pendingAt = sentAt;
+            return task;
+        },
         watch: (code, cb) => store.watch(normalizeCode(code), cb),
         get: code => store.get(normalizeCode(code)),
         update: (code, patch) => store.update(normalizeCode(code), patch),

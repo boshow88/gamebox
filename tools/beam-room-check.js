@@ -38,7 +38,7 @@ const { memoryFirestore, gameClient } = require('./helpers/room-fixtures.js');
     await db.flush();
     for (let i = 0; i < 4; i++) {
         assert.equal(getRoom().game.answers[ids[i]].c, i, 'Tabs must not overwrite each other\'s answers');
-        assert.equal(getRoom().game.beat[ids[i]], 1, 'Each tab has independent presence');
+        assert(getRoom().game.beat[ids[i]] > 0, 'Each tab has independent presence');
     }
     const beforeTally = getRoom();
     await Promise.all([tabs[0].tally(beforeTally, beforeTally.game), tabs[1].tally(beforeTally, beforeTally.game)]);
@@ -103,6 +103,9 @@ const { memoryFirestore, gameClient } = require('./helpers/room-fixtures.js');
     await winner.api.tally(finalRound, finalRound.game); await db.flush();
     assert.equal(getRoom().game.status, 'playing', 'The final reveal finishes before publishing Game Over');
     assert.equal(getRoom().game.pending.winner, W, 'Pending results are stored for a replacement host');
+    const readsBeforeReveal = db.usage.transactionReads;
+    for (let i = 0; i < 8; i++) { winner.api.tick(); await db.flush(); }
+    assert.equal(db.usage.transactionReads, readsBeforeReveal, 'The final reveal must not poll Firestore with no-op forfeit transactions');
     const pending = getRoom();
     assert.equal(await rival.api.advance(pending, pending.game), false, 'A decided match cannot advance into another round');
     await rival.api.finish(pending, pending.game); await db.flush();

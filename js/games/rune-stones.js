@@ -1518,7 +1518,7 @@
         G.spinOpen = false;
         G.playedThisRound = [];   // last round's attack-card chips clear now (both sides)
         G.aiPlayed = [];
-        if (G.online) { G.online.sub = 'def'; G.online.strike = null; G.online.slowOpp = 0; G.online.phaseDeadline = Date.now() + DUEL.phaseTimeDef * 1000; G.aiShields = []; G.online.oppLastCards = []; writeOnline({ ['game.played.' + G.online.myUid]: [] }).catch(() => {}); pushMyBoard(); updateHud(); return; }
+        if (G.online) { G.online.sub = 'def'; G.online.strike = null; G.online.slowOpp = 0; G.online.phaseDeadline = Date.now() + DUEL.phaseTimeDef * 1000; G.aiShields = []; G.online.oppLastCards = []; pushLive(); updateHud(); return; }
         if (!G.aiBoard) G.aiBoard = aiFillBoard();
         G.aiStatus = '';
         G.aiPlan = aiPlanDefense(G.round);   // decided now but hidden; revealed when you reach the attack phase (like online)
@@ -2095,9 +2095,6 @@
         if (!G.online || !room) return Promise.resolve(false);
         return matchmaking.updateMatch(room.code, { matchId: G.online.matchId, round: G.round, status: 'playing' }, () => patch);
     }
-    function pushMyBoard() {
-        if (G.online && room && room.code) writeOnline({ ['game.board.' + G.online.myUid]: serializeBoard() }).catch(() => {});
-    }
     // live reveal: push your current board + played attack cards the instant you act, so the
     // opponent sees your cards/transmutes right away (not only when you finish spinning).
     function pushLive() {
@@ -2145,17 +2142,14 @@
         if (!matchmaking || !room || !room.data || !netUser) return;
         const now = Date.now(), data = room.data;
         if ((data.players || {})[netUser.uid]) {
-            if (!beatAt || now - beatAt >= 3000) {
-                beatAt = now;
-                matchmaking.update(room.code, { ['presence.' + netUser.uid]: ++beatCount }).catch(() => {});
-            }
+            matchmaking.heartbeat(room.code, 3000).catch(() => {});
             const missing = roomPresence.disconnected(data).filter(item => item.uid !== netUser.uid);
             if (missing.length && !reaping) {
                 reaping = true;
                 matchmaking.releaseDisconnected(room.code, missing).catch(showLobbyError).finally(() => { reaping = false; });
             }
         }
-        if (!gcAt || now - gcAt >= 30000) { gcAt = now; matchmaking.cleanup().catch(() => {}); }
+        if (matchmaking.host(data) === netUser.uid && (!gcAt || now - gcAt >= 30000)) { gcAt = now; matchmaking.cleanup().catch(() => {}); }
         if (lobbyEl && !lobbyEl.hidden) renderLobby();
     }
     function forfeitOpponent() {
@@ -3219,7 +3213,7 @@
 
     let net = null;             // window.ArcadeNet once it's ready & ok
     let matchmaking = null, roomSession = null, roomPresence = null;
-    let beatCount = 0, beatAt = 0, gcAt = 0, reaping = false;
+    let gcAt = 0, reaping = false;
     let netUser = undefined;    // undefined = unknown, null = signed out, else {uid,name,...}
     let room = null;            // { code, data, unsub }
     let lobbyEl = null, lobbyRefs = null, lobbyView = null;
@@ -3235,7 +3229,7 @@
         for (const uid in data.players) if (uid !== netUser.uid) return data.players[uid].name || t('rdGuest');
         return null;
     }
-    function detachRoom() { if (roomSession) roomSession.detach(); room = null; if (roomPresence) roomPresence.reset(); beatAt = 0; }
+    function detachRoom() { if (roomSession) roomSession.detach(); room = null; if (roomPresence) roomPresence.reset(); }
     function attachRoom(code) {
         detachRoom();
         lobbyResult = ''; lobbyReason = '';
@@ -3263,7 +3257,7 @@
     async function doLeave() {
         lobbyResult = ''; lobbyReason = '';
         const leaving = roomSession ? roomSession.leave() : Promise.resolve();
-        room = null; if (roomPresence) roomPresence.reset(); beatAt = 0;
+        room = null; if (roomPresence) roomPresence.reset();
         if (G.online) { G.online = null; setOnlineBtnEnabled(true); shell.goIdle(); }
         renderLobby();
         try { await leaving; } catch (e) { showLobbyError(e); }
@@ -3335,6 +3329,7 @@
             roomPresence = net.rooms.presence({ timeoutMs: 15000 });
             matchmaking = net.rooms.create({
                 collection: 'duel_rooms', identity: 'tab', layout: 'slots',
+                presenceField: 'presence',
                 isAvailable: uid => roomPresence.isAvailable(uid),
                 minPlayers: 2, maxPlayers: 2, waitingStatus: 'waiting', occupiedStatus: 'playing',
                 startMode: 'all-ready',

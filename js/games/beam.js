@@ -540,7 +540,7 @@
         if (!net || !room || !room.data || !netUser) return;
         var d = room.data, g = d.game || {}, now = Date.now();
         var watching = !(d.players && d.players[netUser.uid]);   // spectator: observe only, never write to the room
-        if (!watching && (!beatT || now - beatT > BEAT_MS)) { beatT = now; beatN++; matchmaking.update(room.code, { ['game.beat.' + netUser.uid]: beatN }).catch(function () { }); }
+        if (!watching) matchmaking.heartbeat(room.code, BEAT_MS).catch(function () { });
         if (watching && (!specBeatT || now - specBeatT > BEAT_MS)) { specBeatT = now; matchmaking.update(room.code, { ['spectators.' + netUser.uid]: now }).catch(function () { }); }   // watcher presence (top-level, so a game reset doesn't wipe it)
         if (effectiveHost(d) === netUser.uid && (!gcT || now - gcT > 15000)) { gcT = now; matchmaking.cleanup().catch(function () { }); }
         if (om && !om.local && g.status === 'playing' && effectiveHost(d) === om.myUid) { hostCheckForfeit(d, g); hostDrive(d, g); }
@@ -550,7 +550,9 @@
     function hostCheckForfeit(d, g) {
         if (g.status !== 'playing' || om.host.forfeiting) return;
         var order = d.order || Object.keys(d.players || {});
-        var live = order.filter(function (uid) { return (g.alive || {})[uid] !== false && (d.players || {})[uid] && !isStale(uid); });
+        var aliveNow = order.filter(function (uid) { return (g.alive || {})[uid] !== false; });
+        if (aliveNow.length < 2) return; // no-op forfeit checks must not read Firestore every 250ms
+        var live = aliveNow.filter(function (uid) { return (d.players || {})[uid] && !isStale(uid); });
         if (live.length > 1) return;
         var state = om.host; state.forfeiting = true;
         matchmaking.updateMatch(room.code, { matchId: g.matchId, round: g.round, status: 'playing' }, function (data) {
@@ -895,7 +897,7 @@
     // ===============================================================
     var net = null, netUser = undefined, room = null, lobbyEl = null, lobbyRefs = null, lobbyView = null;
     var matchmaking = null, roomSession = null;
-    var pres = {}, beatN = 0, beatT = 0, gcT = 0, specBeatT = 0;        // presence: who is still sending heartbeats
+    var pres = {}, gcT = 0, specBeatT = 0;        // presence: who is still sending heartbeats
     // track each player's beat; `at` is OUR local time it last changed (no cross-client clock needed)
     function updatePres(g) {
         var beats = (g && g.beat) || {}, now = Date.now();
@@ -919,7 +921,7 @@
         if (!om) shell.refreshOverlay();                           // (no match) → solo ready screen, never a frozen stage
     }
     function detachRoom() { if (roomSession) roomSession.detach(); room = null; pres = {}; }
-    function attachRoom(code, spectate) { detachRoom(); beatT = 0; room = roomSession.attach(code, { spectate: !!spectate }); renderLobby(); }
+    function attachRoom(code, spectate) { detachRoom(); room = roomSession.attach(code, { spectate: !!spectate }); renderLobby(); }
     function showLobbyError(e) {
         var m = String((e && e.message) || e), msg = t('beamNetErr');
         if (m.indexOf('not found') !== -1) msg = t('beamRoomNotFound');
@@ -1052,6 +1054,7 @@
             net = N;
             matchmaking = net.rooms.create({
                 collection: GROUP, identity: 'tab', minPlayers: 2, maxPlayers: MAX_PLAYERS,
+                presenceField: 'game.beat',
                 allowSpectators: true, isAvailable: function (uid) { return !isStale(uid); },
                 startPatch: function (data, order) {
                     var hp = {}, alive = {};

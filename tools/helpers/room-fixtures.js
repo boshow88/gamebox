@@ -8,12 +8,13 @@ let nextSession = 0;
 
 function memoryFirestore() {
     const documents = new Map(), listeners = new Map(), commits = [];
+    const usage = { transactionReads: 0, documentReads: 0, queries: 0, queryReads: 0, listenerEvents: 0, writes: 0, deletes: 0 };
     let queue = Promise.resolve();
     const clone = value => value == null ? value : structuredClone(value);
     const snapshot = ref => ({ ref, exists: () => documents.has(ref), data: () => clone(documents.get(ref)) });
     function notify(ref) {
         const snap = snapshot(ref);
-        for (const listener of listeners.get(ref) || []) queueMicrotask(() => listener.next(snap));
+        for (const listener of listeners.get(ref) || []) queueMicrotask(() => { usage.listenerEvents++; listener.next(snap); });
     }
     function patch(ref, data) {
         const current = clone(documents.get(ref));
@@ -24,39 +25,46 @@ function memoryFirestore() {
             target[parts.at(-1)] = clone(value);
         }
         documents.set(ref, current);
+        usage.writes++;
         commits.push({ ref, kind: 'update', data: clone(data) }); notify(ref);
     }
-    function remove(ref) { documents.delete(ref); commits.push({ ref, kind: 'delete' }); notify(ref); }
+    function remove(ref) { documents.delete(ref); usage.deletes++; commits.push({ ref, kind: 'delete' }); notify(ref); }
     const sdk = {
         doc: (_db, group, code) => group + '/' + code,
         serverTimestamp: () => Date.now(),
         runTransaction: (_db, run) => {
             const next = queue.then(() => run({
-                get: async ref => snapshot(ref),
-                set: (ref, data) => { documents.set(ref, clone(data)); commits.push({ ref, kind: 'create', data: clone(data) }); notify(ref); },
+                get: async ref => { usage.transactionReads++; return snapshot(ref); },
+                set: (ref, data) => { documents.set(ref, clone(data)); usage.writes++; commits.push({ ref, kind: 'create', data: clone(data) }); notify(ref); },
                 update: patch, delete: remove,
             }));
             queue = next.catch(() => {});
             return next;
         },
-        getDoc: async ref => snapshot(ref),
+        getDoc: async ref => { usage.documentReads++; return snapshot(ref); },
         updateDoc: async (ref, data) => patch(ref, data),
         deleteDoc: async ref => remove(ref),
         onSnapshot: (ref, next, fail) => {
             const item = { next, fail };
             if (!listeners.has(ref)) listeners.set(ref, new Set());
             listeners.get(ref).add(item);
-            const snap = snapshot(ref); queueMicrotask(() => next(snap));
+            const snap = snapshot(ref); queueMicrotask(() => { usage.listenerEvents++; next(snap); });
             return () => listeners.get(ref).delete(item);
         },
         collection: (_db, group) => group,
         where: (field, op, value) => ({ field, op, value }),
-        query: (group, filter) => ({ group, filter }),
-        getDocs: async ({ group, filter }) => ({ docs: [...documents.keys()]
-            .filter(ref => ref.startsWith(group + '/') && documents.get(ref)[filter.field] < filter.value)
-            .map(ref => snapshot(ref)) }),
+        limit: count => ({ count }),
+        query: (group, ...constraints) => ({ group, constraints }),
+        getDocs: async ({ group, constraints }) => {
+            usage.queries++;
+            const filter = constraints.find(item => item.field), cap = constraints.find(item => item.count);
+            const docs = [...documents.keys()].filter(ref => ref.startsWith(group + '/') && documents.get(ref)[filter.field] < filter.value)
+                .slice(0, cap ? cap.count : Infinity).map(ref => snapshot(ref));
+            usage.queryReads += Math.max(1, docs.length);
+            return { docs };
+        },
     };
-    return { sdk, db: {}, documents, listeners, commits, get: ref => clone(documents.get(ref)) || null,
+    return { sdk, db: {}, documents, listeners, commits, usage, get: ref => clone(documents.get(ref)) || null,
         put: (ref, data) => { documents.set(ref, clone(data)); notify(ref); },
         flush: async () => { await queue; await new Promise(setImmediate); await queue; } };
 }
@@ -69,7 +77,7 @@ function gameClient(game, backend, modules, uid = 'account', now = Date.now) {
         ok: true, onAuth: callback => callback(client.user),
         rooms: { presence: options => modules.createRoomPresence({ ...options, now }), create: config => (client.service = modules.createRoomService({
             store: modules.createFirebaseRoomStore(backend.sdk, backend.db, config.collection),
-            getUser: () => client.user, sessionId, generateCode: () => 'ABCD',
+            getUser: () => client.user, sessionId, generateCode: () => 'ABCD', now,
         }, config)) },
     };
     const hooks = game === 'beam' ? [

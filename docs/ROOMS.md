@@ -63,6 +63,10 @@ Additional configuration:
   arriving/departing player is cleared by default; other readiness is preserved.
 - `isAvailable(uid, data)` filters eligible players and host candidates, without
   prescribing a heartbeat mechanism or timeout.
+- `presenceField` optionally names the room counter map (`presence` for Rune
+  Stones, `game.beat` for Beam). Successful member writes include a counter in the
+  same commit. Call `heartbeat(code, intervalMs)` on the watchdog; it sends a
+  separate pulse only when this player's own committed activity is not recent.
 - `isPlaying(data)` defaults to checking `game.status === 'playing'`; games with a
   different match schema can supply their own predicate and `startPatch`.
 - `onReset(data)` customizes the host's rematch reset. The default reset clears
@@ -88,6 +92,8 @@ inherit the room and accept a replacement. Ready flags are cleared on departure.
 Its lobby retains room code/copy controls after pairing, lists player roles,
 connection and ready states, and preserves input value, focus and selection on
 redraw. A released tab can rejoin but cannot control or enter a replacement match.
+Meaningful gameplay and membership writes can replace a separate pulse within
+that interval; silent players still send their regular heartbeats.
 
 ## Service API
 
@@ -102,6 +108,7 @@ redraw. A released tab can rejoin but cannot control or enter a replacement matc
 | `start(code)` | Recheck eligibility in a transaction and apply the game's start patch once |
 | `reset(code)` | Host-only rematch reset; ignored during play |
 | `releaseDisconnected(code, candidates)` | Release a missing peer only if its observed counter is still unchanged |
+| `heartbeat(code, intervalMs = 3000)` | Publish liveness only when this player's last committed operation is not recent |
 | `updateMatch(code, expected, buildPatch)` | Transactional gameplay update guarded by match ID, round, status and optional additional game fields |
 | `settleRound(code, expected, buildPatch)` | Guarded, member-only, once-per-round settlement from the current document |
 | `get(code)`, `watch(code, cb)`, `update(code, patch)`, `remove(code)` | Collection-scoped document transport for gameplay |
@@ -219,10 +226,77 @@ The game decides which actions to expose. Beam supplies spectator notes and rank
 badges; Rune Stones supplies online/ready badges. Both share the exact element
 structure and CSS. The view never joins/leaves a room or decides when a game starts.
 
+## Traffic and Firebase quota
+
+The Firestore implementation preserves immediate gameplay updates and the existing
+3-second liveness interval, Beam's 8-second timeout and Rune Stones' 15-second
+timeout. It reduces unnecessary operations through:
+
+- **Piggybacked presence.** Member operations include the actor's counter in the
+  existing transaction write. Only that actor's successful commit postpones its
+  next standalone heartbeat. Another player's traffic, stale rejected actions
+  and unchanged payloads do not count as proof of liveness. Scheduling uses the
+  request's send time, so delayed acknowledgements cannot extend the deadline.
+  Fast repeated watchdog calls share a pending beat; another interval can send
+  even if the previous acknowledgement is delayed. Failed beats back off one
+  interval without falsely refreshing liveness.
+- **Identical payload suppression.** Transaction updates compare against the
+  authoritative snapshot and omit unchanged fields before adding metadata or
+  presence. An entirely unchanged patch does not write or notify listeners. It
+  still performs the transaction read; concurrency guards remain in place.
+- **Combined phase writes.** Rune Stones clears the played-card list and publishes
+  its board together at the start of defense instead of two transactions.
+- **Local rejection of impossible work.** Beam does not issue a forfeit transaction
+  every 250ms when its current snapshot already has fewer than two survivors.
+- **Bounded collection cleanup.** Adapters for the same Firestore instance and
+  collection share an in-flight query and a 60-second cooldown, including failures.
+  Each pass reads/deletes at most 20 stale documents. Rune Stones delegates its
+  periodic cleanup to the effective host. Collection cleanup is not a presence
+  mechanism; unused expired rooms may be collected later during a backlog.
+
+`node tools/room-traffic-check.js` counts deterministic SDK operations, not actual
+billed Firestore reads. In a one-minute fixture with 30 distinct actions from one
+player and two listeners:
+
+| Operation | Fixed heartbeats | Piggybacked heartbeats |
+| --- | --- | --- |
+| Gameplay transaction reads | 30 | 30 |
+| Gameplay + presence writes | 50 | 30 |
+| Listener update deliveries | 100 | 60 |
+
+That fixture reduces writes and update deliveries by 40%. Actual savings depend
+on action frequency, listeners, reconnects and SDK behavior. Completely idle
+players retain 20 pulses/minute each; spectators also need presence signals.
+
+Firestore bills document operations, including listener updates, and even an
+empty query has a minimum read charge. See the official
+[Firestore billing guide](https://firebase.google.com/docs/firestore/pricing).
+Keeping a two-player room idle therefore still costs about 40 heartbeat writes
+per minute, before gameplay; optimization alone cannot remove that floor while
+retaining the same failure-detection behavior.
+
+For sustained room traffic, a suitable next step is **Realtime Database for rooms,
+gameplay and presence, with Firestore retained for account records/scores**. RTDB
+charges for storage/download rather than document-operation counts and supports
+server-managed `onDisconnect`. Its Spark limits include 100 simultaneous
+connections, 1 GB stored and 10 GB/month downloaded; each active page/connection
+must be budgeted. Verify current limits in
+[Firebase pricing](https://firebase.google.com/pricing) and the
+[database comparison](https://firebase.google.com/docs/database/rtdb-vs-firestore).
+`onDisconnect` fires after server-detected disconnection; it does not itself
+guarantee the games' exact timeout. See
+[presence documentation](https://firebase.google.com/docs/database/web/offline-capabilities).
+
+An RTDB migration needs an actual database URL, its own security rules, and an
+adapter preserving transactional round guards and presence deadlines. Changing
+the client factory alone is insufficient. No production database configuration
+or backend migration is performed by the Firestore traffic optimization.
+
 ## Offline checks
 
 ```text
 node tools/rooms-check.js
+node tools/room-traffic-check.js
 node tools/beam-room-check.js
 node tools/rune-room-check.js
 # Optional: real Chrome pages with a local fake Firebase SDK
