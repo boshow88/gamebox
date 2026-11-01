@@ -156,6 +156,60 @@
         fromProfile: function (prof) { var o = { sandbox: {} }, sb = (prof && prof.games && prof.games['rune-stones'] && prof.games['rune-stones'].sandbag) || {}; Object.keys(sb).forEach(function (lv) { o.sandbox[lv] = { bestTotal: sb[lv].total, bestSpin: sb[lv].spin }; }); return o; },
     });
 
+    // --- record migrations -----------------------------------------------------
+    // A growing, ORDERED list of one-time transforms, for when a game changes its record
+    // STRUCTURE (modes added/removed, keys renamed). To add one: append { at, note, scores }.
+    //   at:     a fixed UTC-ms timestamp (its identity; must only ever increase down the list).
+    //   scores: fn(map) → map, where map is the generic high-score map { gameId: { modeKey: best } }.
+    //           ONLY touch the game(s) you mean to — anything you leave untouched is preserved.
+    //           MUST be idempotent (re-running is a no-op): a failed/offline run gets retried.
+    // A dedicated watermark records how far each store has migrated — profile.recordsMigratedAt for
+    // an account, the arcadeGames:migratedAt key locally — so each migration runs at most once per store.
+    // (Firestore setDoc(merge) can't DROP fields, so cloud removals are applied via deleteField below.)
+    var MIGRATIONS = [
+        {
+            at: 1793577600000,   // 2026-11-02, this deploy. prime-zuma: levels became 4×6; endless keys became per (style, field).
+            note: 'prime-zuma: drop high-score keys for modes that no longer exist',
+            scores: function (map) {
+                var pz = map && map['prime-zuma']; if (!pz) return map;     // every OTHER game is left untouched
+                var valid = {}, w, l;
+                for (w = 1; w <= 4; w++) for (l = 1; l <= 6; l++) valid['L' + w + '-' + l] = 1;                       // levels 1-1 … 4-6
+                ['balanced', 'gnarly', 'blitz', 'hardPrimes'].forEach(function (d) {                                  // endless: one per (style, field)
+                    ['vortex', 'box', 'serpent', 'star', 'twin', 'tri', 'maze', 'duo', 'trine'].forEach(function (f) { valid['E-' + d + '-' + f] = 1; });
+                });
+                var kept = {}; Object.keys(pz).forEach(function (k) { if (valid[k]) kept[k] = pz[k]; });
+                map['prime-zuma'] = kept;
+                return map;
+            },
+        },
+    ];
+    var MIGR_MARK = PREFIX + ':migratedAt';   // local (live-keys) watermark
+    function migrationsLatestAt() { return MIGRATIONS.reduce(function (m, x) { return Math.max(m, x.at || 0); }, 0); }
+    function migrateScoresMap(map, from) {   // apply every migration newer than `from`; returns { map, to }
+        from = from || 0;
+        MIGRATIONS.forEach(function (mg) { if ((mg.at || 0) > from && typeof mg.scores === 'function') map = mg.scores(map) || map; });
+        return { map: map, to: Math.max(from, migrationsLatestAt()) };
+    }
+    // deleteField sentinels for score keys the migration dropped (so a merge-save actually removes them in the cloud)
+    function scoreDeletes(before, after) {
+        var N = net(), delFn = N && N.field && N.field.delete; if (!delFn) return null;
+        var out = {};
+        Object.keys(before || {}).forEach(function (g) {
+            var b = before[g] || {}, a = (after && after[g]) || {}, gone = {};
+            Object.keys(b).forEach(function (k) { if (!(k in a)) gone[k] = delFn(); });
+            if (Object.keys(gone).length) out[g] = gone;
+        });
+        return Object.keys(out).length ? out : null;
+    }
+    // Run pending migrations on the LIVE localStorage high scores (guest, or an account's working copy). Idempotent + watermarked.
+    function migrateLiveScores() {
+        var from = 0; try { from = +(localStorage.getItem(MIGR_MARK) || 0) || 0; } catch (e) { from = 0; }
+        if (from >= migrationsLatestAt()) return;
+        var d = DESCRIPTORS[0], res = migrateScoresMap(d.read(), from);
+        d.write(res.map);
+        try { localStorage.setItem(MIGR_MARK, String(res.to)); } catch (e) { /* ignore */ }
+    }
+
     // --- bucket (drawer) management -------------------------------------------
     function snapshot() { var o = []; DESCRIPTORS.forEach(function (d) { o.push(d.read()); }); return o; }
     function restore(arr) { DESCRIPTORS.forEach(function (d, i) { var rec = arr && arr[i]; if (rec && !isEmpty(rec)) d.write(rec); else d.clear(); }); }
@@ -177,10 +231,17 @@
         var acct = account(); if (!acct) return Promise.resolve(null);
         var N = net();
         return N.profile.get(acct.uid).then(function (prof) {
-            var games = {}, changed = false;
-            DESCRIPTORS.forEach(function (d) {
-                var local = d.read(), cloud = d.fromProfile(prof || {});
+            prof = prof || {};
+            var cloudMark = +(prof.recordsMigratedAt || 0) || 0, runMigr = cloudMark < migrationsLatestAt();
+            var games = {}, changed = false, dels = null;
+            DESCRIPTORS.forEach(function (d, i) {
+                var local = d.read(), cloud = d.fromProfile(prof);
                 var merged = d.merge(local, cloud);
+                if (i === 0 && runMigr) {   // generic high scores: run any pending record migrations on the merged map
+                    var before = {}; Object.keys(merged).forEach(function (g) { before[g] = Object.assign({}, merged[g]); });
+                    merged = migrateScoresMap(merged, cloudMark).map;
+                    dels = scoreDeletes(before, merged);   // keys the migration removed → explicit cloud field deletions
+                }
                 d.write(merged);
                 if (JSON.stringify(merged) !== JSON.stringify(local)) changed = true;
                 // Each descriptor contributes a { games: { <id>: {...} } } fragment; the
@@ -188,9 +249,12 @@
                 var frag = d.toProfile(merged).games || {};
                 Object.keys(frag).forEach(function (id) { games[id] = Object.assign(games[id] || {}, frag[id]); });
             });
-            if (Object.keys(games).length) { try { N.profile.save(acct.uid, { games: games, name: acct.name || null }); } catch (e) { /* ignore */ } }
+            if (dels) Object.keys(dels).forEach(function (g) { games[g] = games[g] || {}; games[g].bests = Object.assign(games[g].bests || {}, dels[g]); });   // fold in deleteField() sentinels so the merge-save drops the removed cloud keys
+            var save = { games: games, name: acct.name || null };
+            if (runMigr) save.recordsMigratedAt = migrationsLatestAt();
+            if (Object.keys(games).length || runMigr) { try { N.profile.save(acct.uid, save); } catch (e) { /* ignore */ } }
             if (changed) fireApplied();
-            return prof || {};
+            return prof;
         }).catch(function () { return null; });
     }
     function sync() { return pullMergePush().then(function (prof) { return !!prof; }); }
@@ -265,6 +329,7 @@
         var N = window.ArcadeNet;
         if (N && N.ok && N.onAuth) N.onAuth(onAuth);
     }
+    migrateLiveScores();   // prune the LIVE local high scores to the current record structure on every load (idempotent, watermarked); the cloud copy is handled in pullMergePush
     if (window.ArcadeNet) start();
     else window.addEventListener('arcade-net-ready', start, { once: true });
 

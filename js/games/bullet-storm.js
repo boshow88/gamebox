@@ -714,7 +714,6 @@
         shell = AC.shell.create({
             gameId: 'bullet-storm',
             mode: () => G.difficulty,   // high scores are per-difficulty
-            scoreEpoch: 20261009,       // bump this (e.g. to today's date) to reset everyone's bests once
             step: 1 / 60,
             preventKeys: ['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'],
             update,

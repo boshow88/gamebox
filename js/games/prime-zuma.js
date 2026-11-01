@@ -692,8 +692,8 @@
         try { var sv = AC.prefs && AC.prefs.get('prime-zuma'); if (sv) { if (sv.mode === 'level' || sv.mode === 'endless') mode = sv.mode; if (DATA.ENDLESS[sv.diff]) endlessSel.diff = sv.diff; if (typeof sv.field === 'string') { for (var _k = 0; _k < DATA.FIELDS.length; _k++) if (DATA.FIELDS[_k].id === sv.field) { endlessSel.fieldIdx = _k; break; } } } } catch (e) { /* defaults */ }   // field restored by ID (old numeric saves simply fall back to the default field)
 
         shell = AC.shell.create({
-            gameId: 'prime-zuma', step: 1 / 60, preventKeys: ['Space'], scoreEpoch: 1,   // the scoring formula + the whole level layout changed, so pre-existing best scores are no longer comparable — wipe them once on next load
-            mode: function () { return mode === 'level' ? ('L' + sel.world + '-' + (sel.fieldIdx + 1)) : ('E-' + endlessSel.diff); },
+            gameId: 'prime-zuma', step: 1 / 60, preventKeys: ['Space'],
+            mode: function () { return mode === 'level' ? ('L' + sel.world + '-' + (sel.fieldIdx + 1)) : ('E-' + endlessSel.diff + '-' + ((DATA.FIELDS[endlessSel.fieldIdx] || {}).id || '?')); },   // levels: one record per level (L<world>-<level>); endless: one per (style, field) (E-<style>-<fieldId>)
             update: update, render: render,
             reset: newGame,
             restartToReady: true,

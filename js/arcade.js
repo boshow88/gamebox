@@ -98,20 +98,8 @@
         return { best: data.best[m] || 0, isNewBest, previous: prev };
     }
 
-    // One-time, cross-player score reset. A game declares a `scoreEpoch` integer
-    // (via shell.create); each player's save stamps the epoch it was written
-    // under. When the game bumps its epoch (because a mechanics change makes old
-    // scores invalid), every returning player's next load sees a mismatch and
-    // wipes THAT game's scores exactly once, then stamps the new epoch. Saves
-    // from before this system (no epoch) count as stale, so the first bump resets
-    // everyone too. `scoreEpoch` left undefined = never auto-reset.
-    function resetScoresIfStale(game, epoch) {
-        if (epoch == null) return;
-        const key = scoreKey(game);
-        const data = readJSON(key, null);
-        if (data && data.epoch === epoch) return;          // already on this epoch
-        writeJSON(key, { best: {}, recent: [], epoch: epoch });
-    }
+    // (Stale-record resets now live in CloudSync's record MIGRATIONS — they clear both the
+    // local copy AND the cloud profile, which the old localStorage-only `scoreEpoch` couldn't.)
 
     // High-score cloud sync (per account, across devices) is handled by the shared
     // CloudSync engine in js/cloud-sync.js. The shell just repaints when it swaps
@@ -1082,14 +1070,12 @@
 
         // ---------- boot ----------
 
-        resetScoresIfStale(gameId, opts.scoreEpoch);   // one-time wipe if the game bumped its epoch
         refreshBest();
 
         // Repaint the Best readout whenever CloudSync swaps accounts or merges cloud data.
-        // Then re-pull: CloudSync's first sync can land before this shell exists (net.js is
-        // deferred) — its repaint is lost and, for games with a scoreEpoch, the cloud best it
-        // wrote can be wiped by resetScoresIfStale above. Syncing again now (epoch stamped,
-        // listener registered) re-applies the cloud best. No-op for guests.
+        // Re-pull now: CloudSync's first sync can land before this shell exists (net.js is
+        // deferred) and that repaint is lost; syncing again (listener now registered) re-applies
+        // the cloud best. No-op for guests.
         if (window.CloudSync) { window.CloudSync.onApplied(refreshBest); window.CloudSync.sync(); }
         syncButtons();
         syncSoundBtn();
@@ -1133,7 +1119,7 @@
     global.ArcadeCommon = {
         storage: { readJSON, writeJSON, storageKey },
         prefs: { get: getPrefs, set: setPrefs },
-        scores: { best: getBest, submit: submitScore, resetIfStale: resetScoresIfStale },
+        scores: { best: getBest, submit: submitScore },
         rng: { make: makeRng, int: pickInt, float: pickFloat, one: pickOne, shuffle: shuffleInPlace },
         math: { clamp },
         format: { score: formatScore },
