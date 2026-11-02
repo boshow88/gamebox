@@ -1,7 +1,15 @@
 import { encodeRoomValue, decodeRoomValue, applyRoomPatch, encodeRoomPatch } from './rtdb-values.mjs';
+import { normalizeCode } from './rooms.mjs';
 
-const validCode = code => /^R-[A-Z0-9]{4}$/.test(code);
+const validCode = code => /^[A-Z0-9]{4}$/.test(code);
+// Public codes omit the prefix; retaining storage keys keeps active rooms and rules compatible.
+const storageCode = code => 'R-' + code;
 const invalidCode = () => Object.assign(new Error('room not found'), { code: 'room/not-found' });
+function decodeStoredRoom(raw) {
+    const data = decodeRoomValue(raw);
+    if (data && typeof data.code === 'string') data.code = normalizeCode(data.code);
+    return data;
+}
 
 /** RTDB implementation of the same room store contract. Never writes to Firestore. */
 export function createRealtimeRoomStore(sdk, db, group, {
@@ -9,7 +17,7 @@ export function createRealtimeRoomStore(sdk, db, group, {
 } = {}) {
     const { ref, get, onValue, runTransaction, update, remove, serverTimestamp,
         query, orderByChild, endAt, limitToFirst, onDisconnect } = sdk;
-    const roomRef = code => ref(db, 'rooms/' + group + '/' + code);
+    const roomRef = code => ref(db, 'rooms/' + group + '/' + storageCode(code));
     const queues = new Map(), memberships = new Map(), nativeTasks = new Map();
     let cleanupAt = -Infinity, cleanupPending = null;
     let connectionWatch = null, connectedOnce = false, connected = false;
@@ -30,7 +38,7 @@ export function createRealtimeRoomStore(sdk, db, group, {
     }
     function nativePresence(code, uid, present, reconnect = false) {
         if (!presenceField || !uid || !onDisconnect) return;
-        const path = 'rooms/' + group + '/' + code + '/' + presenceField.replaceAll('.', '/') + '/' + uid;
+        const path = 'rooms/' + group + '/' + storageCode(code) + '/' + presenceField.replaceAll('.', '/') + '/' + uid;
         if (!reconnect && memberships.has(path) === present) return;
         if (present) monitorConnection();
         if (present) memberships.set(path, { code, uid }); else memberships.delete(path);
@@ -51,7 +59,7 @@ export function createRealtimeRoomStore(sdk, db, group, {
                 // A cold client can initially receive null for an existing room. A null
                 // compare-and-set forces a server retry before evaluating join/start rules.
                 if (raw === null && !confirmedMissing) return null;
-                const data = decodeRoomValue(raw), change = decide(data);
+                const data = decodeStoredRoom(raw), change = decide(data);
                 evaluated = true; result = change.result; writeRequested = !!change.kind;
                 if (!change.kind) return undefined;
                 if (change.kind === 'delete') return null;
@@ -59,6 +67,7 @@ export function createRealtimeRoomStore(sdk, db, group, {
                     ? Object.assign({}, change.data, { createdAt: now(), expireAt: now() + 6 * 3600 * 1000 })
                     : applyRoomPatch(data, change.data);
                 const encoded = encodeRoomValue(next);
+                encoded.code = storageCode(code);
                 encoded.lastActionAt = serverTimestamp();
                 if (change.kind === 'create') encoded.createdAt = serverTimestamp();
                 return encoded;
@@ -82,10 +91,12 @@ export function createRealtimeRoomStore(sdk, db, group, {
     const store = {
         backend: 'rtdb',
         transact(code, decide) {
+            code = normalizeCode(code);
             if (!validCode(code)) return Promise.reject(invalidCode());
             const uid = getPlayerId(); return enqueue(code, () => transactInternal(code, decide, uid));
         },
         watch(code, cb) {
+            code = normalizeCode(code);
             if (!validCode(code)) {
                 let active = true;
                 queueMicrotask(() => { if (active) cb(null); });
@@ -95,10 +106,10 @@ export function createRealtimeRoomStore(sdk, db, group, {
             let active = true;
             const unsubscribe = onValue(roomRef(code), snap => {
                 if (!active) return;
-                const data = decodeRoomValue(snap.val());
+                const data = decodeStoredRoom(snap.val());
                 // Avoid re-registering on every heartbeat; only membership transitions matter.
                 if (presenceField && uid) {
-                    const path = 'rooms/' + group + '/' + code + '/' + presenceField.replaceAll('.', '/') + '/' + uid;
+                    const path = 'rooms/' + group + '/' + storageCode(code) + '/' + presenceField.replaceAll('.', '/') + '/' + uid;
                     const seated = !!(data && data.players && data.players[uid]);
                     if (memberships.has(path) !== seated) nativePresence(code, uid, seated);
                 }
@@ -106,14 +117,19 @@ export function createRealtimeRoomStore(sdk, db, group, {
             }, err => { if (active) cb(null, err); });
             return () => { active = false; unsubscribe(); };
         },
-        get: code => validCode(code) ? get(roomRef(code)).then(snap => decodeRoomValue(snap.val())) : Promise.resolve(null),
+        get(code) {
+            code = normalizeCode(code);
+            return validCode(code) ? get(roomRef(code)).then(snap => decodeStoredRoom(snap.val())) : Promise.resolve(null);
+        },
         update(code, patch) {
+            code = normalizeCode(code);
             if (!validCode(code)) return Promise.reject(invalidCode());
             // Serialize this client's writes so update() cannot cancel its own pending
             // whole-room transaction. Writes by other clients cause normal retries.
             return enqueue(code, () => update(roomRef(code), Object.assign(encodeRoomPatch(patch), { lastActionAt: serverTimestamp() })));
         },
         remove(code) {
+            code = normalizeCode(code);
             if (!validCode(code)) return Promise.reject(invalidCode());
             const uid = getPlayerId();
             return enqueue(code, async () => { await remove(roomRef(code)); nativePresence(code, uid, false); });

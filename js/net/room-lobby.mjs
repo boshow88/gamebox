@@ -1,3 +1,5 @@
+import { normalizeCode } from './rooms.mjs';
+
 /** Shared lobby presentation. Games supply translated text, player badges and actions. */
 export function createRoomLobby({ document = globalThis.document,
     parent = document.body, onClose, onError = () => {} } = {}) {
@@ -42,9 +44,28 @@ export function createRoomLobby({ document = globalThis.document,
             ...(account.actions || []).map(action => button(action, action.id))));
         if (model.entry) {
             const entry = model.entry, input = element('input', 'lobby-code-input');
-            input.type = 'text'; input.maxLength = entry.codeLength || 6; input.value = value;
+            input.type = 'text'; input.maxLength = entry.codeLength || 4; input.value = value;
             input.placeholder = entry.codeLabel; input.setAttribute('aria-label', entry.codeLabel);
             input.autocomplete = 'off'; input.autocapitalize = 'characters'; input.spellcheck = false;
+            input.addEventListener('input', event => {
+                if (event.isComposing) return;
+                const normalized = normalizeCode(input.value);
+                if (input.value === normalized) return;
+                const start = input.selectionStart, end = input.selectionEnd;
+                const trimmed = input.value.trimStart();
+                const removed = input.value.length - trimmed.length + (/^R-/i.test(trimmed) ? 2 : 0);
+                input.value = normalized;
+                input.setSelectionRange(Math.max(0, start - removed), Math.max(0, end - removed));
+            });
+            // Normalize old copied codes before maxlength could truncate them to "R-XX".
+            input.addEventListener('paste', event => {
+                const text = event.clipboardData && event.clipboardData.getData('text');
+                if (!text || !/^R-/i.test(text.trim())) return;
+                event.preventDefault();
+                const start = input.selectionStart, end = input.selectionEnd;
+                const available = input.maxLength - (input.value.length - (end - start));
+                input.setRangeText(normalizeCode(text).slice(0, available), start, end, 'end');
+            });
             const join = Object.assign({}, entry.join, { onClick: () => entry.join.onClick(input.value) });
             const spectate = entry.spectate && Object.assign({}, entry.spectate, { onClick: () => entry.spectate.onClick(input.value) });
             input.addEventListener('keydown', event => {

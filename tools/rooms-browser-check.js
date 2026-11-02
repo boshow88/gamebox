@@ -85,11 +85,17 @@ async function check(game, group, prefix) {
     button(a, prefix + 'CreateRoom');
     await until(() => a.contentDocument.querySelector('.lobby-code'), 'create');
     const code = a.contentDocument.querySelector('.lobby-code').textContent;
-    if (!/^R-[A-Z0-9]{4}$/.test(code)) throw new Error('Incorrect code format');
-    const roomKey = 'rooms/' + group + '/' + code;
+    if (!/^[A-Z0-9]{4}$/.test(code)) throw new Error('Incorrect code format');
+    const roomKey = 'rooms/' + group + '/R-' + code;
     const read = () => decode(JSON.parse(localStorage.getItem('__rooms-browser-db') || '{}')[roomKey]);
-    const input = b.contentDocument.querySelector('#lobby input'); input.value = code; input.focus(); input.setSelectionRange(1, 3);
-    if (input.maxLength !== 6 || input.value !== code) throw new Error('Room input length mismatch');
+    const input = b.contentDocument.querySelector('#lobby input'); input.focus();
+    const clipboard = new b.contentWindow.DataTransfer(); clipboard.setData('text/plain', ' r-' + code.toLowerCase() + ' ');
+    input.dispatchEvent(new b.contentWindow.ClipboardEvent('paste', { clipboardData: clipboard, bubbles: true, cancelable: true }));
+    if (input.maxLength !== 4 || input.value !== code || input.selectionStart !== 4) throw new Error('Old copied code was truncated instead of normalized');
+    input.value = code.toLowerCase(); input.setSelectionRange(1, 1);
+    input.dispatchEvent(new b.contentWindow.Event('input', { bubbles: true }));
+    if (input.value !== code || input.selectionStart !== 1) throw new Error('Typed code normalization moved the caret');
+    input.setSelectionRange(1, 3);
     b.contentWindow.ArcadeCommon.i18n.setLocale('zh'); b.contentWindow.ArcadeCommon.i18n.setLocale('en');
     const restored = b.contentDocument.querySelector('#lobby input');
     if (restored.value !== code || b.contentDocument.activeElement !== restored || restored.selectionStart !== 1 || restored.selectionEnd !== 3) throw new Error('Input state lost on lobby redraw');
@@ -97,6 +103,13 @@ async function check(game, group, prefix) {
     await until(() => read() && Object.keys(read().players).length === 2, 'join');
     await sleep(50);
     layout(a); layout(b);
+    for (const f of [a, b]) {
+        Object.defineProperty(f.contentWindow.navigator, 'clipboard', { configurable: true, value: {
+            writeText: async text => { f.contentWindow.copiedCode = text; },
+        } });
+        button(f, prefix + 'CopyCode');
+        if (f.contentWindow.copiedCode !== code) throw new Error('Copied code must omit storage prefix');
+    }
     const wide = a.style.width;
     for (const width of [320, 768]) { a.style.width = width + 'px'; layout(a); }
     a.style.width = wide;
@@ -129,7 +142,7 @@ async function check(game, group, prefix) {
     const join = b.contentDocument.querySelector('#lobby input'); join.value = code;
     button(b, prefix + 'JoinRoom');
     await until(() => Object.keys(read().players).length === 2, 'rejoin');
-    if (read().code !== code) throw new Error('Room code changed');
+    if (read().code !== 'R-' + code) throw new Error('Stored room code changed');
     a.remove(); b.remove(); await sleep(50);
 }
 (async () => {

@@ -23,8 +23,14 @@ const { gameClient } = require('./helpers/room-fixtures.js');
     const config = { presenceField: 'presence', startPatch: () => ({ game: { matchId: 'ignored', status: 'playing', round: 1, hp: 3, answers: {}, cards: [] } }) };
     const host = createRoomService({ store: hostStore, getUser: () => ({ uid: 'host' }), generateCode: () => 'R-ABCD', now: () => clock }, config);
     const peer = createRoomService({ store: peerStore, getUser: () => ({ uid: 'peer' }), now: () => clock }, config);
-    await host.create(); await peer.join('R-ABCD'); await peer.setReady('R-ABCD'); await host.start('R-ABCD'); await native.flush();
+    assert.equal(await host.create(), 'ABCD');
+    assert.equal(await peer.join(' abcd '), 'ABCD');
+    await peer.setReady('ABCD'); await host.start('ABCD'); await native.flush();
     const first = await hostStore.get('R-ABCD');
+    assert.equal(first.code, 'ABCD', 'Room snapshots expose only the public code');
+    assert.equal(native.raw('rooms/beam_rooms/R-ABCD').code, 'R-ABCD', 'Storage metadata still matches the published rules');
+    assert.equal(native.raw('rooms/beam_rooms/ABCD'), null, 'Public codes never create a second storage path');
+    assert.deepEqual(await peerStore.get('ABCD'), first, 'Both code formats address exactly the same room');
     assert(first.game.matchId && first.game.matchId !== 'ignored');
     assert.deepEqual(first.game.answers, {}); assert.deepEqual(first.game.cards, []);
     await hostStore.update('R-ABCD', { 'game.answers.host': { r: 0, c: 1, side: 0 } });
@@ -73,9 +79,9 @@ const { gameClient } = require('./helpers/room-fixtures.js');
     assert.equal(await raceStore.cleanup(), 0);
     assert(await raceStore.get('R-RACE'));
 
-    // Retired/malformed codes never reach RTDB, including traversal-like input.
+    // Malformed codes never reach RTDB, including traversal-like input.
     const beforeInvalid = { ...native.usage };
-    for (const code of ['ABCD', 'R-ABC', 'R-ABCDE', '../rooms', 'R-A/BC']) {
+    for (const code of ['ABC', 'ABCDE', 'R-ABC', 'R-ABCDE', '../rooms', 'R-A/BC']) {
         await assert.rejects(peer.join(code), { code: 'room/not-found' });
         assert.equal(await hostStore.get(code), null);
         await assert.rejects(hostStore.update(code, { status: 'lobby' }), { code: 'room/not-found' });
@@ -107,6 +113,6 @@ const { gameClient } = require('./helpers/room-fixtures.js');
     beamClock = 9001; beamHost.api.tick(); await beamDB.flush();
     assert.equal(beamDB.get('beam_rooms/R-ABCD').game.status, 'over');
     assert.equal(beamDB.get('beam_rooms/R-ABCD').game.winner, beamHost.service.currentPlayer().uid);
-    console.log('PASS: RTDB lossless values, cold caches, concurrent settlement, local write ordering, reconnect presence, safe cleanup and retired-code rejection.');
+    console.log('PASS: RTDB lossless values, cold caches, concurrent settlement, local write ordering, reconnect presence, safe cleanup and public/storage code aliases.');
     console.log('Rules JSON checked; publish in Firebase Console or run the official emulator to validate server rule behavior.');
 })().catch(err => { console.error(err); process.exitCode = 1; });

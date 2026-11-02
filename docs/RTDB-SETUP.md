@@ -1,9 +1,10 @@
 # Realtime Database rooms
 
 Beam and Rune Stones now use RTDB exclusively. The Firestore room transport and
-four-character room compatibility have been removed. Existing RTDB rooms and
-their `R-XXXX` codes continue unchanged. Firebase Auth, account records/scores,
-admin settings and feedback retain their existing Auth/Firestore storage.
+its compatibility code have been removed. Players now see and share
+four-character codes such as `ABCD`; existing `R-ABCD` RTDB keys stay unchanged.
+Firebase Auth, account records/scores, admin settings and feedback retain their
+existing Auth/Firestore storage.
 
 ## Finish retiring Firestore rooms
 
@@ -20,7 +21,7 @@ JavaScript until refreshed.
    Old clients will lose Firestore room access and should reload the website.
 3. Verify both games with the two-tab checks below and confirm profile records
    still load. Publishing rules ends access to active Firestore matches, so do
-   not expect an old four-character room to continue after this cutoff.
+   not expect an old Firestore room to continue after this cutoff.
 4. If old room data is no longer needed, back up and remove only the Firestore
    collections `beam_rooms` and `duel_rooms` from the Console. Rule publication
    does not delete documents. This code does not delete production data.
@@ -62,7 +63,7 @@ different database or create a fallback room. Deploy all changed modules togethe
 ## Verify in two fresh tabs
 
 1. Reload the deployed page and sign in through the existing Google/guest flow.
-2. Create a Beam room, confirm a code such as `R-ABCD`, and join from a second
+2. Create a Beam room, confirm a code such as `ABCD`, and join from a second
    tab. Same-account tabs must occupy separate seats. Test readiness, starting,
    finishing, same-room rematch, leave/rejoin and disconnect recovery.
 3. Repeat with Rune Stones. Both players ready up to start automatically. A
@@ -70,8 +71,9 @@ different database or create a fallback room. Deploy all changed modules togethe
 4. Confirm RTDB data appears under `rooms/beam_rooms/R-ABCD` or
    `rooms/duel_rooms/R-EFGH`. Existing RTDB rooms need no migration.
 5. Check account records/scores still appear; they remain in Firestore profiles.
-6. Old four-character room codes must fail to join. After publishing Firestore
-   rules, a stale Firestore client must no longer be able to read or write rooms.
+6. Copied codes must omit `R-`; pasting a previous `R-ABCD` code must normalize to
+   `ABCD` and join the same RTDB room. After publishing Firestore rules, a stale
+   Firestore client must no longer be able to read or write Firestore rooms.
 7. Observe RTDB Usage for connections/downloads and Firestore Usage for accounts.
    Current room clients perform no Firestore room operations. Server rule changes
    are needed to stop stale clients from continuing the old transport.
@@ -79,12 +81,19 @@ different database or create a fallback room. Deploy all changed modules togethe
 `window.ArcadeNet.rooms.backend` reports `rtdb`. Successful room creation/joining
 is the permissions test; the reported backend alone is not.
 
-## Why keep the room prefix?
+## Public codes and storage keys
 
-The `R-` prefix is now a stable room-code format, not a database selector.
-Removing it offers no matchmaking or quota benefit and would require a second
-format/rules migration for already-open pages and existing rooms. It stays in
-place, with six-character input/copy support and narrow-screen layout checks.
+Players enter and copy only four characters. The adapter normalizes both `ABCD`
+and `R-ABCD` to public code `ABCD`, then uses the single existing storage path
+`R-ABCD`. It also preserves stored metadata `code: 'R-ABCD'` for the published
+rules while exposing `code: 'ABCD'` to games. This needs no database migration,
+extra lookup, new security rule or change to active RTDB rooms. There is no
+unprefixed RTDB storage path and no Firestore fallback.
+
+The shared input normalizes old prefixed clipboard content before the browser's
+four-character limit could truncate it. Refresh old pages to get the shorter
+display/copy/input behavior. An old page can still address the same room using
+its prefixed code. Namespaced storage is an internal detail, not player input.
 
 ## Local checks
 
@@ -102,7 +111,8 @@ node tools/rooms-browser-check.js --invalid-rtdb
 
 These check real game/service code against local RTDB SDK fixtures, including
 cold caches, transactions, serialization, presence, settlement, cleanup, retired
-code rejection, lobby layout and independent account storage. They do not replace
+code validation, public/storage code aliases, clipboard normalization, lobby layout
+and independent account storage. They do not replace
 server rules/live-project verification.
 
 Official references: [setup](https://firebase.google.com/docs/database/web/start),

@@ -1,6 +1,6 @@
 /** Shared room membership and matchmaking. No Firebase, DOM or game rules. */
 const ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
-export function normalizeCode(value) { return String(value || '').trim().toUpperCase(); }
+export function normalizeCode(value) { return String(value || '').trim().toUpperCase().replace(/^R-/, ''); }
 function randomCode() {
     let code = '';
     for (let i = 0; i < 4; i++) code += ALPHABET[(Math.random() * ALPHABET.length) | 0];
@@ -166,7 +166,7 @@ export function createRoomService({ store, getUser, sessionId, generateCode = ra
     async function create(input = {}) {
         const player = requirePlayer();
         for (let attempt = 0; attempt < 6; attempt++) {
-            const code = generateCode();
+            const code = normalizeCode(generateCode());
             const created = await transact(code, player, data => {
                 if (data) return { result: false };
                 return { kind: 'create', data: Object.assign({ round: 0, game: {} }, config.onCreate(input), {

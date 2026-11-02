@@ -29,9 +29,10 @@ replace separate copies of room CRUD and readiness checks.
 
 The logical collection names and room layouts are retained, including
 Rune Stones' distinction between an occupied room (`status: 'playing'`) and a
-running match (`game.status: 'playing'`). Rooms use `R-XXXX` codes on RTDB.
-Four-character Firestore rooms are retired. The `R-` prefix remains a stable
-room-code format; it no longer selects a database.
+running match (`game.status: 'playing'`). Players see and share four-character
+codes such as `ABCD`. The adapter keeps the existing `R-ABCD` RTDB key and stored
+metadata, so active rooms and published rules need no migration. Firestore rooms
+remain retired; four-character input always addresses RTDB.
 
 ## Creating a service
 
@@ -274,9 +275,16 @@ positive beat. Periodic pulses preserve the existing 8/15-second timeouts even
 when server disconnect detection takes longer. Connection monitoring starts only
 after room use; solo startup does not scan rooms.
 
-The adapter validates `R-XXXX` codes before SDK access. Old four-character and
-malformed codes cannot initiate room reads, subscriptions or writes. The input
-accepts six characters, including the prefix; copy/join preserve the full code.
+The shared service normalizes `ABCD` and `R-ABCD` to the same public code. The
+adapter validates the four-character suffix before SDK access and deterministically
+maps it to `R-ABCD` for storage. No second lookup, dual writes or alias records are
+needed. Transactions decode room metadata for callers and restore its stored code
+before writing, preserving the existing rule that metadata matches the RTDB key.
+
+The input accepts four characters and copy/display omit the prefix. Typing or
+pasting an old prefixed code is normalized before input truncation. Malformed
+codes cannot initiate room reads, subscriptions or writes. Old clients can still
+use prefixed room codes; reload them to get the four-character input experience.
 
 ## Offline checks
 

@@ -79,8 +79,8 @@ function fail(err) {
             return createRoomService({
                 store,
                 getUser: () => user, sessionId: roomSessionId,
-                generateCode: () => 'R-' + generateRoomCode(),
-            }, Object.assign({}, options, { codeLength: 6 }));
+                generateCode: generateRoomCode,
+            }, Object.assign({}, options, { codeLength: 4 }));
         }
 
         window.ArcadeNet = {

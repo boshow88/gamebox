@@ -72,7 +72,7 @@ const { gameClient } = require('./helpers/room-fixtures.js');
     await clients[0].service.update('R-ABCD', { status: 'lobby', 'game.status': 'over' }); await db.flush();
     tabs[0].rematch(); await db.flush();
     for (const tab of tabs.slice(0, 3)) {
-        assert.equal(tab.snapshot().room.code, 'R-ABCD', 'Rematches retain room subscriptions');
+        assert.equal(tab.snapshot().room.code, 'ABCD', 'Rematches retain room subscriptions');
         assert.equal(tab.snapshot().om, null);
     }
     tabs[1].ready(); tabs[2].ready(); await db.flush();

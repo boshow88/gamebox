@@ -138,7 +138,7 @@ const { realtimeGameBackend } = require('./helpers/rtdb-fixtures.js');
     let attempt = 0;
     const codes = createRoomService({ store: store('test_rooms'), getUser: () => user('new-host'),
         generateCode: () => ++attempt === 1 ? 'R-ABCD' : 'R-EFGH' }, {});
-    assert.equal(await codes.create(), 'R-EFGH');
+    assert.equal(await codes.create(), 'EFGH');
     assert.equal(backend.get('test_rooms/R-ABCD').hostUid, 'host');
     const signedOut = createRoomService({ store: store('test_rooms'), getUser: () => null }, {});
     await assert.rejects(signedOut.create(), { code: 'room/auth' });
