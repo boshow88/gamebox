@@ -572,9 +572,14 @@ button { font-family: inherit; cursor: pointer; }
 .drawer::-webkit-scrollbar-thumb, .modal-body::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--text-muted) 55%, transparent); border-radius: 999px; }
 .drawer::-webkit-scrollbar-thumb:hover, .modal-body::-webkit-scrollbar-thumb:hover { background: color-mix(in srgb, var(--text-muted) 80%, transparent); }
 
-/* Records overview — one block per game, a line per difficulty / mode. */
-.rec-game { display: flex; flex-direction: column; gap: 4px; }
+/* Records overview — one block per game, grouped (e.g. Levels / Endless), a line per key. */
+.rec-game { display: flex; flex-direction: column; gap: 6px; }
 .rec-game-name { font-size: 0.95rem; font-weight: 600; color: var(--text-primary); }
+.rec-group { display: flex; flex-direction: column; gap: 3px; }
+.rec-group-title { font-size: 0.72rem; font-weight: 600; color: var(--text-muted); }
+.rec-lines { display: flex; flex-direction: column; gap: 3px; }
+/* compact: many short key→value pairs packed into columns (e.g. Prime Zuma's two dozen levels) */
+.rec-group.compact .rec-lines { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 2px 16px; }
 .rec-line { display: flex; justify-content: space-between; gap: var(--space-sm); font-size: 0.85rem; }
 .rec-line .k { color: var(--text-secondary); }
 .rec-line .v { color: var(--text-primary); white-space: nowrap; }

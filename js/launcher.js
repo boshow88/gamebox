@@ -42,12 +42,12 @@
         {
             id: 'colour-ladder', theme: 'arcade', icon: 'ladder', color: '#f472b6',
             href: './games/colour-ladder.html',
-            tags: ['action', 'single'], modes: ['easy', 'normal', 'hard'],
+            tags: ['action', 'single'],
         },
         {
             id: 'bullet-storm', theme: 'arcade', icon: 'target', color: '#a78bfa',
             href: './games/bullet-storm.html',
-            tags: ['action', 'single'], modes: ['easy', 'normal', 'hard'],
+            tags: ['action', 'single'],
         },
         {
             id: 'beam', theme: 'arcade', icon: 'zap', color: '#22d3ee',
@@ -57,7 +57,12 @@
         {
             id: 'prime-zuma', theme: 'arcade', icon: 'coins', color: '#f97316',
             href: './games/prime-zuma.html',
-            tags: ['action', 'puzzle', 'single'], modes: ['easy', 'normal', 'hard'],
+            tags: ['action', 'puzzle', 'single'],
+        },
+        {
+            id: 'darts', theme: 'arcade', icon: 'darts', color: '#22c55e',
+            href: './games/darts.html',
+            tags: ['action', 'single'], wip: true,
         },
         {
             id: 'patches', theme: 'puzzle', icon: 'layout-template-ccw', color: '#e5484d',
@@ -205,6 +210,12 @@
             'prime-zuma_name': 'Prime Zuma',
             'prime-zuma_tagline': 'Factor the chain before it reaches the core.',
             'prime-zuma_body': 'Fire prime balls into the inward-spiralling chain. A prime peels a factor off every ball in a matching run — clear them before the chain reaches the core.',
+            pzrec_levels: 'Levels', pzrec_endless: 'Endless',
+            pzrec_balanced: 'Balanced', pzrec_gnarly: 'Heavy', pzrec_blitz: 'Blitz', pzrec_hardPrimes: 'Tricky',
+            pzrec_vortex: 'Vortex', pzrec_box: 'Box', pzrec_serpent: 'Serpent', pzrec_star: 'Star', pzrec_twin: 'Twin', pzrec_tri: 'Tri', pzrec_maze: 'Maze', pzrec_duo: 'Duo', pzrec_trine: 'Trine',
+            'darts_name': 'Darts',
+            'darts_tagline': 'Flick the throw, find your groove.',
+            'darts_body': 'A throwing-feel prototype: press and flick toward the board, then release. The flick\u2019s direction and pace are the whole throw — no power meter, no random spread. A debug view shows exactly why each dart landed where it did.',
             'patches_name': 'Patches',
             'patches_tagline': 'Tile the grid with shapes.',
             'patches_body': "Split the grid into rectangles \u2014 one per clue \u2014 matching each clue\u2019s shape and size.",
@@ -325,6 +336,12 @@
             'prime-zuma_name': '質數祖瑪',
             'prime-zuma_tagline': '在球鏈抵達核心前把它分解掉。',
             'prime-zuma_body': '朝向內盤旋的球鏈發射質數球。質數會把一段可整除的球鏈各剝掉一個因數——趕在球鏈抵達核心前清除它們。',
+            pzrec_levels: '一般', pzrec_endless: '無盡',
+            pzrec_balanced: '均衡', pzrec_gnarly: '稠密', pzrec_blitz: '高速', pzrec_hardPrimes: '刁鑽',
+            pzrec_vortex: '漩渦', pzrec_box: '方陣', pzrec_serpent: '蛇行', pzrec_star: '星形', pzrec_twin: '雙生', pzrec_tri: '三角', pzrec_maze: '迷宮', pzrec_duo: '雙環', pzrec_trine: '三環',
+            'darts_name': '飛鏢',
+            'darts_tagline': '甩出手感，練成自己的節奏。',
+            'darts_body': '一個專注於「擲鏢手感」的原型：按住並朝鏢靶輕甩，放開即擲出。甩的方向與快慢就是這一擲的全部——沒有力量條，也沒有隨機散佈。除錯視圖會清楚呈現每一鏢為何如此落點。',
             'patches_name': 'Patches',
             'patches_tagline': '用形狀鋪滿整個盤面。',
             'patches_body': '把盤面切成一個個矩形 \u2014 每個提示對應一個 \u2014 並符合該提示的形狀與大小。',
@@ -363,6 +380,8 @@
         unlink: '<path d="m9 15-2 2a3.5 3.5 0 0 1-5-5l4-4a3.5 3.5 0 0 1 5 0m2 8a3.5 3.5 0 0 0 5 0l4-4a3.5 3.5 0 0 0-5-5l-2 2M9 3v2m-6 0 2 2m14 10 2 2m-6 0v2"/>',
         ladder: '<path d="M8 3v18"/><path d="M16 3v18"/><path d="M8 8h8"/><path d="M8 13h8"/><path d="M8 18h8"/>',
         target: '<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>',
+        // custom: a dartboard (two rings + pip) with a dart arriving from the top-right
+        darts: '<circle cx="11" cy="13" r="8"/><circle cx="11" cy="13" r="3.5"/><circle cx="11" cy="13" r="0.5"/><path d="m11 13 9-9"/><path d="M21 4h-3m3 0v3"/>',
         stone: '<path d="M11.264 2.205A4 4 0 0 0 6.42 4.211l-4 8a4 4 0 0 0 1.359 5.117l6 4a4 4 0 0 0 4.438 0l6-4a4 4 0 0 0 1.576-4.592l-2-6a4 4 0 0 0-2.53-2.53z"/><path d="M11.99 22 14 12l7.822 3.184"/><path d="M14 12 8.47 2.302"/>',
         // lucide: graph-star (Hashi)
         'graph-star': '<path d="m12.342 9.316 1.764-3.527"/><path d="m12.59 14.545 2.35 3.759"/><path d="m13.982 12.332 4.03.447"/><path d="M5.414 17.586 8.88 14.12"/><path d="M9.025 9.742 5.317 5.505"/><circle cx="11" cy="12" r="3"/><circle cx="15" cy="4" r="2"/><circle cx="16" cy="20" r="2"/><circle cx="20" cy="13" r="2"/><circle cx="4" cy="19" r="2"/><circle cx="4" cy="4" r="2"/>',
@@ -725,23 +744,53 @@
         });
         return lines;
     }
-    function scoreLines(P, g) {
-        var d = rdLocal(P + ':scores:' + g.id), best = d && d.best, lines = [];
-        if (!best) return lines;
-        var keys = Object.keys(best).filter(function (m) { return typeof best[m] === 'number'; });
-        if (g.modes) keys = keys.filter(function (m) { return g.modes.indexOf(m) !== -1; });   // hide renamed-away / stale modes
-        keys.sort(byDiff).forEach(function (m) {
-            lines.push({ k: (m === 'default') ? t('recordScore') : diffLabel(m), v: best[m].toLocaleString() });
-        });
-        return lines;
+    // A game's stored score keys ARE the source of truth; we show EVERY recorded best.
+    // An OPTIONAL per-game schema (REC_SCHEMA) turns raw keys into named, ordered GROUPS
+    // with pretty labels; a game with NO schema falls back to a single generic group
+    // (default→High score, easy/normal/hard→difficulty, else the raw key). So adding a
+    // game needs nothing here — a schema is purely opt-in polish, and nothing is ever
+    // hidden. Renamed/stale keys are pruned at the source by the CloudSync record
+    // migrations, so there is no per-game whitelist to keep in sync.
+    function recRank(m) { if (m === 'default') return -1; var d = DIFF_ORDER[m]; return d == null ? 100 : d; }
+    function recLabel(m) { return (m === 'default') ? t('recordScore') : (DIFF_ORDER[m] != null ? diffLabel(m) : m); }
+    function byKey(a, b) { return a < b ? -1 : a > b ? 1 : 0; }
+    function tFb(k) { var s = t(k); return s === k ? k.replace(/^pzrec_/, '') : s; }   // t() with a raw-id fallback for any schema key that has no string yet
+
+    // Per-game record schema: ordered groups, each { title (i18n key), match(key)→bool,
+    // label(key)→text, compact? }. The ONE place that describes a game's record layout.
+    var REC_SCHEMA = {
+        'prime-zuma': [
+            { title: 'pzrec_levels', compact: true, match: function (k) { return k.charAt(0) === 'L'; }, label: function (k) { return k.slice(1); } },
+            { title: 'pzrec_endless', match: function (k) { return k.indexOf('E-') === 0; }, label: function (k) { var p = k.split('-'); return tFb('pzrec_' + p[1]) + ' \u00b7 ' + tFb('pzrec_' + p[2]); } },
+        ],
+    };
+    function genericGroup(best, keys) {
+        keys.sort(function (a, b) { var ra = recRank(a), rb = recRank(b); return ra !== rb ? ra - rb : byKey(a, b); });
+        return { title: null, compact: false, lines: keys.map(function (m) { return { k: recLabel(m), v: best[m].toLocaleString() }; }) };
     }
+    function scoreGroups(P, g) {
+        var d = rdLocal(P + ':scores:' + g.id), best = d && d.best;
+        if (!best) return [];
+        var keys = Object.keys(best).filter(function (m) { return typeof best[m] === 'number'; }), schema = REC_SCHEMA[g.id];
+        if (!schema) return keys.length ? [genericGroup(best, keys)] : [];
+        var used = {}, groups = [];
+        schema.forEach(function (grp) {
+            var mk = keys.filter(function (m) { return !used[m] && grp.match(m); }).sort(byKey);
+            mk.forEach(function (m) { used[m] = 1; });
+            if (mk.length) groups.push({ title: grp.title, compact: !!grp.compact, lines: mk.map(function (m) { return { k: grp.label(m), v: best[m].toLocaleString() }; }) });
+        });
+        var rest = keys.filter(function (m) { return !used[m]; });   // keys matching no group → trailing generic group (never hide anything)
+        if (rest.length) groups.push(genericGroup(best, rest));
+        return groups;
+    }
+    function wrapLines(lines) { return lines.length ? [{ title: null, compact: false, lines: lines }] : []; }
     function collectRecords() {
         var P = 'arcadeGames', blocks = [];
         GAMES.forEach(function (g) {
-            var lines = (g.id === 'beam') ? beamLines(P)
-                : (g.id === 'rune-stones') ? runeLines(P)
-                : scoreLines(P, g);
-            if (lines.length) blocks.push({ key: g.id, lines: lines });
+            var groups = (g.id === 'beam') ? wrapLines(beamLines(P))
+                : (g.id === 'rune-stones') ? wrapLines(runeLines(P))
+                : scoreGroups(P, g);
+            if (groups.reduce(function (n, gr) { return n + gr.lines.length; }, 0)) blocks.push({ key: g.id, groups: groups });
         });
         return blocks;
     }
@@ -772,11 +821,17 @@
         blocks.forEach(function (b) {
             var g = document.createElement('div'); g.className = 'rec-game';
             var nm = document.createElement('div'); nm.className = 'rec-game-name'; nm.textContent = gameName(b.key); g.appendChild(nm);
-            b.lines.forEach(function (ln) {
-                var row = document.createElement('div'); row.className = 'rec-line';
-                var ks = document.createElement('span'); ks.className = 'k'; ks.textContent = ln.k;
-                var vs = document.createElement('span'); vs.className = 'v'; vs.textContent = ln.v;
-                row.appendChild(ks); row.appendChild(vs); g.appendChild(row);
+            b.groups.forEach(function (grp) {
+                var gr = document.createElement('div'); gr.className = 'rec-group' + (grp.compact ? ' compact' : '');
+                if (grp.title) { var tt = document.createElement('div'); tt.className = 'rec-group-title'; tt.textContent = t(grp.title); gr.appendChild(tt); }
+                var ls = document.createElement('div'); ls.className = 'rec-lines';
+                grp.lines.forEach(function (ln) {
+                    var row = document.createElement('div'); row.className = 'rec-line';
+                    var ks = document.createElement('span'); ks.className = 'k'; ks.textContent = ln.k;
+                    var vs = document.createElement('span'); vs.className = 'v'; vs.textContent = ln.v;
+                    row.appendChild(ks); row.appendChild(vs); ls.appendChild(row);
+                });
+                gr.appendChild(ls); g.appendChild(gr);
             });
             m.body.appendChild(g);
         });
