@@ -13,8 +13,8 @@ just a **theme**, chosen per page with `<body data-theme="arcade">` or
 ```
 index.html            Unified launcher (tag-driven game picker)
 favicon.svg           GameBox mark
-firestore.rules       Firestore security rules (profiles, records and legacy rooms)
-database.rules.json   Optional RTDB room rules (setup: docs/RTDB-SETUP.md)
+firestore.rules       Firestore security rules (profiles, records, admin and feedback)
+database.rules.json   RTDB room rules (setup: docs/RTDB-SETUP.md)
 css/
   common.css          Shared base + BOTH themes, scoped under [data-theme="…"]
   launcher.css        Launcher-only hub theme
@@ -27,11 +27,9 @@ js/
   firebase-config.js  Public Firebase web config (online PvP)
   net/net.js          Firebase room layer (window.ArcadeNet)
   net/rooms.mjs       Configurable shared matchmaking and room sessions
-  net/firebase-rooms.mjs  Firestore transport for the room service
   net/room-lobby.mjs  Shared room lobby view (styled by css/room-lobby.css)
-  net/rtdb-rooms.mjs  Optional Realtime Database room transport
+  net/rtdb-rooms.mjs  Realtime Database room transport
   net/rtdb-values.mjs Lossless RTDB value encoding
-  net/room-routing.mjs New RTDB / legacy Firestore room code routing
   cloud-sync.js       Cross-device high-score sync (window.CloudSync)
   games/*.js          One module per game (logic + rendering)
   games/unshackle/    Unshackle's isolated 3D engine, renderer and UI

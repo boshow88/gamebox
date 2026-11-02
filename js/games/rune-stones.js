@@ -3289,7 +3289,7 @@
             },
         };
         if (u && !data) {
-            model.entry = { codeLabel: t('rdRoomCode'), codeLength: matchmaking.config.codeLength || 4,
+            model.entry = { codeLabel: t('rdRoomCode'), codeLength: matchmaking.config.codeLength,
                 create: { label: t('rdCreateRoom'), primary: true, onClick: doCreate },
                 join: { label: t('rdJoinRoom'), onClick: doJoin },
             };

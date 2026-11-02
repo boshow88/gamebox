@@ -1,91 +1,91 @@
-/** Run with `node tools/rooms-check.js`. Tests the shared service and actual Firebase adapter offline. */
+/** Run with `node tools/rooms-check.js`. Tests the shared service and actual RTDB adapter offline. */
 'use strict';
 const assert = require('node:assert/strict');
-const { memoryFirestore } = require('./helpers/room-fixtures.js');
+const { realtimeGameBackend } = require('./helpers/rtdb-fixtures.js');
 
 (async () => {
     const { createRoomService, createRoomPresence } = await import('../js/net/rooms.mjs');
-    const { createFirebaseRoomStore } = await import('../js/net/firebase-rooms.mjs');
-    const backend = memoryFirestore();
-    const store = group => createFirebaseRoomStore(backend.sdk, backend.db, group);
+    const modules = Object.assign({}, await import('../js/net/rtdb-rooms.mjs'), await import('../js/net/rtdb-values.mjs'));
+    const backend = realtimeGameBackend(modules);
+    const store = group => backend.createStore({ collection: group }, () => null, '');
     const user = uid => ({ uid, name: uid });
     const service = (uid, config = {}, group = 'test_rooms') => createRoomService({
-        store: store(group), getUser: () => user(uid), generateCode: () => 'ABCD', sessionId: uid,
+        store: store(group), getUser: () => user(uid), generateCode: () => 'R-ABCD', sessionId: uid,
     }, { maxPlayers: 3, ...config });
     const host = service('host'), guest = service('guest'), other = service('other'), observer = service('observer');
     await host.create();
-    const created = backend.get('test_rooms/ABCD');
+    const created = backend.get('test_rooms/R-ABCD');
     assert.equal(typeof created.createdAt, 'number');
-    assert(created.expireAt instanceof Date);
+    assert.equal(typeof created.expireAt, 'number');
 
     // Contending joiners cannot exceed capacity or overwrite one another.
     const contenders = Array.from({ length: 12 }, (_, i) => service('contender' + i));
-    const results = await Promise.allSettled(contenders.map(client => client.join('abcd')));
+    const results = await Promise.allSettled(contenders.map(client => client.join('r-abcd')));
     assert.equal(results.filter(result => result.status === 'fulfilled').length, 2);
-    assert.equal(Object.keys(backend.get('test_rooms/ABCD').players).length, 3);
-    for (const client of contenders) await client.leave('ABCD');
-    await guest.join('ABCD'); await other.join('ABCD');
-    assert.equal(await host.start('ABCD'), false, 'Readiness is checked inside the transaction');
-    await assert.rejects(observer.setReady('ABCD'), { code: 'room/spectator' });
-    await guest.setReady('ABCD'); await other.setReady('ABCD');
-    assert.equal(await guest.start('ABCD'), false, 'Guests cannot start a host-controlled room');
-    const starts = await Promise.all([host.start('ABCD'), host.start('ABCD'), host.start('ABCD')]);
+    assert.equal(Object.keys(backend.get('test_rooms/R-ABCD').players).length, 3);
+    for (const client of contenders) await client.leave('R-ABCD');
+    await guest.join('R-ABCD'); await other.join('R-ABCD');
+    assert.equal(await host.start('R-ABCD'), false, 'Readiness is checked inside the transaction');
+    await assert.rejects(observer.setReady('R-ABCD'), { code: 'room/spectator' });
+    await guest.setReady('R-ABCD'); await other.setReady('R-ABCD');
+    assert.equal(await guest.start('R-ABCD'), false, 'Guests cannot start a host-controlled room');
+    const starts = await Promise.all([host.start('R-ABCD'), host.start('R-ABCD'), host.start('R-ABCD')]);
     assert.equal(starts.filter(Boolean).length, 1, 'Concurrent start requests cannot replace an already-started match');
-    assert.equal(await host.reset('ABCD'), false, 'An active match cannot accidentally be reset');
-    assert.equal(await guest.setReady('ABCD'), false, 'Ready clicks during a match do not carry into the rematch');
-    await host.update('ABCD', { 'game.status': 'over' });
-    assert.equal(await guest.reset('ABCD'), false, 'Only the host resets a room');
-    await host.reset('ABCD');
-    assert.deepEqual(backend.get('test_rooms/ABCD').ready, {});
+    assert.equal(await host.reset('R-ABCD'), false, 'An active match cannot accidentally be reset');
+    assert.equal(await guest.setReady('R-ABCD'), false, 'Ready clicks during a match do not carry into the rematch');
+    await host.update('R-ABCD', { 'game.status': 'over' });
+    assert.equal(await guest.reset('R-ABCD'), false, 'Only the host resets a room');
+    await host.reset('R-ABCD');
+    assert.deepEqual(backend.get('test_rooms/R-ABCD').ready, {});
 
     // Once-only settlement uses the latest committed data, not a stale caller snapshot.
     const roundConfig = { startPatch: () => ({ game: { status: 'playing', round: 1, hp: 10 } }) };
     const roundHost = service('round-host', roundConfig, 'round_rooms'), roundGuest = service('round-guest', roundConfig, 'round_rooms');
-    await roundHost.create(); await roundGuest.join('ABCD'); await roundGuest.setReady('ABCD'); await roundHost.start('ABCD');
-    const version = backend.get('round_rooms/ABCD').game;
+    await roundHost.create(); await roundGuest.join('R-ABCD'); await roundGuest.setReady('R-ABCD'); await roundHost.start('R-ABCD');
+    const version = backend.get('round_rooms/R-ABCD').game;
     assert(version.matchId);
-    await roundHost.update('ABCD', { 'game.hp': 20 });
-    const settle = client => client.settleRound('ABCD', { matchId: version.matchId, round: 1 }, data =>
+    await roundHost.update('R-ABCD', { 'game.hp': 20 });
+    const settle = client => client.settleRound('R-ABCD', { matchId: version.matchId, round: 1 }, data =>
         ({ 'game.hp': data.game.hp - 1, 'game.round': 2 }));
     const settled = await Promise.all([settle(roundHost), settle(roundGuest), settle(roundHost)]);
     assert.equal(settled.filter(Boolean).length, 1);
-    assert.equal(backend.get('round_rooms/ABCD').game.hp, 19);
-    assert.equal(await roundHost.updateMatch('ABCD', { matchId: version.matchId, round: 1, status: 'playing' },
+    assert.equal(backend.get('round_rooms/R-ABCD').game.hp, 19);
+    assert.equal(await roundHost.updateMatch('R-ABCD', { matchId: version.matchId, round: 1, status: 'playing' },
         () => ({ 'game.hp': 0 })), false, 'A delayed round write cannot damage a later round');
-    await roundHost.update('ABCD', { 'game.status': 'over' });
-    await roundHost.reset('ABCD'); await roundGuest.setReady('ABCD'); await roundHost.start('ABCD');
-    assert.notEqual(backend.get('round_rooms/ABCD').game.matchId, version.matchId);
+    await roundHost.update('R-ABCD', { 'game.status': 'over' });
+    await roundHost.reset('R-ABCD'); await roundGuest.setReady('R-ABCD'); await roundHost.start('R-ABCD');
+    assert.notEqual(backend.get('round_rooms/R-ABCD').game.matchId, version.matchId);
     assert.equal(await settle(roundHost), false, 'A stale round-one settlement cannot damage a rematch');
-    const currentVersion = backend.get('round_rooms/ABCD').game;
+    const currentVersion = backend.get('round_rooms/R-ABCD').game;
     const observerRound = service('observer', roundConfig, 'round_rooms');
-    assert.equal(await observerRound.settleRound('ABCD', { matchId: currentVersion.matchId, round: 1 }, () => ({ 'game.hp': 0 })), false);
-    assert.equal(await roundHost.settleRound('ABCD', { matchId: currentVersion.matchId, round: 1 }, () => null), false);
-    assert.equal(backend.get('round_rooms/ABCD').game.settledRound, 0, 'Missing inputs do not consume a settlement');
+    assert.equal(await observerRound.settleRound('R-ABCD', { matchId: currentVersion.matchId, round: 1 }, () => ({ 'game.hp': 0 })), false);
+    assert.equal(await roundHost.settleRound('R-ABCD', { matchId: currentVersion.matchId, round: 1 }, () => null), false);
+    assert.equal(backend.get('round_rooms/R-ABCD').game.settledRound, 0, 'Missing inputs do not consume a settlement');
 
     // Even a player who never heartbeats becomes unavailable. A new beat cancels an eviction.
     let clock = 1000;
     const presence = createRoomPresence({ timeoutMs: 15000, now: () => clock });
     const presenceOptions = { isAvailable: uid => presence.isAvailable(uid) };
     const liveHost = service('live', presenceOptions, 'presence_rooms'), missing = service('missing', presenceOptions, 'presence_rooms');
-    await liveHost.create(); await missing.join('ABCD');
-    presence.observe(backend.get('presence_rooms/ABCD'));
+    await liveHost.create(); await missing.join('R-ABCD');
+    presence.observe(backend.get('presence_rooms/R-ABCD'));
     clock += 16000;
-    const disconnected = presence.disconnected(backend.get('presence_rooms/ABCD'));
+    const disconnected = presence.disconnected(backend.get('presence_rooms/R-ABCD'));
     assert(disconnected.some(item => item.uid === 'missing'));
-    await missing.update('ABCD', { 'presence.missing': 1 });
-    assert.equal(await liveHost.releaseDisconnected('ABCD', disconnected), false, 'The authoritative beat changed after the timeout observation');
-    presence.observe(backend.get('presence_rooms/ABCD'));
+    await missing.update('R-ABCD', { 'presence.missing': 1 });
+    assert.equal(await liveHost.releaseDisconnected('R-ABCD', disconnected), false, 'The authoritative beat changed after the timeout observation');
+    presence.observe(backend.get('presence_rooms/R-ABCD'));
     assert(presence.isAvailable('missing'));
     clock += 16000;
-    assert.equal(await liveHost.releaseDisconnected('ABCD', presence.disconnected(backend.get('presence_rooms/ABCD'))), true);
-    assert.deepEqual(Object.keys(backend.get('presence_rooms/ABCD').players), ['live']);
+    assert.equal(await liveHost.releaseDisconnected('R-ABCD', presence.disconnected(backend.get('presence_rooms/R-ABCD'))), true);
+    assert.deepEqual(Object.keys(backend.get('presence_rooms/R-ABCD').players), ['live']);
 
     // A ready click racing a departure must not leave a stale ready flag behind.
-    await Promise.allSettled([guest.setReady('ABCD'), guest.leave('ABCD')]);
-    assert.equal(backend.get('test_rooms/ABCD').ready.guest, undefined);
-    await guest.join('ABCD');
-    await Promise.allSettled([guest.leave('ABCD'), guest.setReady('ABCD')]);
-    assert.equal(backend.get('test_rooms/ABCD').ready.guest, undefined);
+    await Promise.allSettled([guest.setReady('R-ABCD'), guest.leave('R-ABCD')]);
+    assert.equal(backend.get('test_rooms/R-ABCD').ready.guest, undefined);
+    await guest.join('R-ABCD');
+    await Promise.allSettled([guest.leave('R-ABCD'), guest.setReady('R-ABCD')]);
+    assert.equal(backend.get('test_rooms/R-ABCD').ready.guest, undefined);
 
     // A different game can use six seats, custom match fields and lifecycle hooks.
     const variant = {
@@ -98,27 +98,27 @@ const { memoryFirestore } = require('./helpers/room-fixtures.js');
     const teamHost = service('team-host', variant, 'team_rooms');
     await teamHost.create({ variant: 'teams' });
     const teamGuests = Array.from({ length: 5 }, (_, i) => service('team' + i, variant, 'team_rooms'));
-    for (const client of teamGuests) { await client.join('ABCD'); await client.setReady('ABCD'); }
-    assert.equal(await teamHost.start('ABCD'), true);
-    assert.equal(backend.get('team_rooms/ABCD').match.teams.length, 6);
-    assert.equal(backend.get('team_rooms/ABCD').variant, 'teams');
+    for (const client of teamGuests) { await client.join('R-ABCD'); await client.setReady('R-ABCD'); }
+    assert.equal(await teamHost.start('R-ABCD'), true);
+    assert.equal(backend.get('team_rooms/R-ABCD').match.teams.length, 6);
+    assert.equal(backend.get('team_rooms/R-ABCD').variant, 'teams');
     const observe = service('observer', variant, 'team_rooms');
-    const observed = observe.session(); observed.attach('ABCD', { spectate: true }); await backend.flush();
+    const observed = observe.session(); observed.attach('R-ABCD', { spectate: true }); await backend.flush();
     const beforeLeave = backend.commits.length;
     await observed.leave();
     assert.equal(backend.commits.length, beforeLeave);
-    await teamHost.update('ABCD', { 'match.phase': 'over' }); await teamHost.reset('ABCD');
-    assert.equal(backend.get('team_rooms/ABCD').match.phase, 'waiting');
+    await teamHost.update('R-ABCD', { 'match.phase': 'over' }); await teamHost.reset('R-ABCD');
+    assert.equal(backend.get('team_rooms/R-ABCD').match.phase, 'waiting');
 
     // Availability chooses a live host without forcing game-specific timeouts into the service.
     const live = new Set(['other']);
     const takeover = service('other', { isAvailable: uid => live.has(uid) });
-    const current = backend.get('test_rooms/ABCD');
+    const current = backend.get('test_rooms/R-ABCD');
     assert.equal(takeover.host(current), 'other');
     assert.deepEqual(takeover.playerIds(current, true), ['other']);
     assert.equal(takeover.canStart(current), false, 'Minimum player count still applies after filtering unavailable players');
 
-    // Firestore may deliver a callback already queued before unsubscribe.
+    // The SDK may deliver a callback already queued before unsubscribe.
     const callbacks = [], changes = [], errors = [];
     const lateStore = { ...store('late_rooms'), watch: (code, cb) => { callbacks.push(cb); return () => {}; } };
     const late = createRoomService({ store: lateStore, getUser: () => user('host') }, {});
@@ -137,16 +137,16 @@ const { memoryFirestore } = require('./helpers/room-fixtures.js');
     // Code collisions retry without replacing the previous room.
     let attempt = 0;
     const codes = createRoomService({ store: store('test_rooms'), getUser: () => user('new-host'),
-        generateCode: () => ++attempt === 1 ? 'ABCD' : 'EFGH' }, {});
-    assert.equal(await codes.create(), 'EFGH');
-    assert.equal(backend.get('test_rooms/ABCD').hostUid, 'host');
+        generateCode: () => ++attempt === 1 ? 'R-ABCD' : 'R-EFGH' }, {});
+    assert.equal(await codes.create(), 'R-EFGH');
+    assert.equal(backend.get('test_rooms/R-ABCD').hostUid, 'host');
     const signedOut = createRoomService({ store: store('test_rooms'), getUser: () => null }, {});
     await assert.rejects(signedOut.create(), { code: 'room/auth' });
     assert.equal(await signedOut.cleanup(), 0);
     assert.throws(() => service('invalid', { minPlayers: 4, maxPlayers: 2 }), /capacity/);
-    backend.put('test_rooms/OLD', { lastActionAt: 0 });
-    backend.put('other_rooms/OLD', { lastActionAt: 0 });
+    backend.put('test_rooms/R-OLD1', { lastActionAt: 0 });
+    backend.put('other_rooms/R-OLD1', { lastActionAt: 0 });
     assert.equal(await host.cleanup(), 1);
-    assert(backend.get('test_rooms/ABCD') && backend.get('other_rooms/OLD'), 'Cleanup stays within the game collection');
+    assert(backend.get('test_rooms/R-ABCD') && backend.get('other_rooms/R-OLD1'), 'Cleanup stays within the game collection');
     console.log('PASS: shared room transactions, contention, policies, lifecycle hooks, capacity, authority, subscription safety and cleanup.');
 })().catch(err => { console.error(err); process.exitCode = 1; });

@@ -969,7 +969,7 @@
             },
         };
         if (u && !d) {
-            model.entry = { codeLabel: t('beamRoomCode'), codeLength: matchmaking.config.codeLength || 4,
+            model.entry = { codeLabel: t('beamRoomCode'), codeLength: matchmaking.config.codeLength,
                 create: { label: t('beamCreateRoom'), primary: true, onClick: doCreate },
                 join: { label: t('beamJoinRoom'), onClick: doJoin },
                 spectate: { label: t('beamSpectate'), onClick: doSpectate },

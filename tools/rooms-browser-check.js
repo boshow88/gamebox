@@ -8,35 +8,23 @@ const path = require('node:path');
 const { spawn } = require('node:child_process');
 const root = path.resolve(__dirname, '..');
 const args = process.argv.slice(2);
-const mode = args.includes('--invalid-rtdb') ? 'invalid' : args.includes('--rtdb') ? 'rtdb' : 'firestore';
+const mode = args.includes('--invalid-rtdb') ? 'invalid' : 'rtdb';
 const chrome = args.find(arg => !arg.startsWith('--')) || 'C:/Program Files/Google/Chrome/Application/chrome.exe';
 const database = require('./helpers/browser-rtdb.js');
 
 // Mock only the remote Firebase SDK. net.js, the room modules and both game pages
 // load normally. Browser storage events connect the real pages; Web Locks serialize transactions.
+// Firestore remains for profiles/admin/feedback only. Reject room operations.
 const firestore = `
-const key = '__rooms-browser-db', watchers = new Set();
-const read = () => JSON.parse(localStorage.getItem(key) || '{}');
-const snap = ref => ({ ref, exists: () => !!read()[ref], data: () => read()[ref] });
-function notify() { for (const w of watchers) queueMicrotask(() => w.cb(snap(w.ref))); }
-function write(ref, data) { const all = read(); if (data === null) delete all[ref]; else all[ref] = data; localStorage.setItem(key, JSON.stringify(all)); notify(); }
-function patch(ref, fields) {
-    const data = read()[ref]; if (!data) throw new Error('room not found');
-    for (const [key, value] of Object.entries(fields)) {
-        const parts = key.split('.'); let target = data;
-        for (const part of parts.slice(0, -1)) target = target[part] ||= {};
-        target[parts.at(-1)] = value;
-    }
-    write(ref, data);
-}
-addEventListener('storage', event => { if (event.key === key) notify(); });
-export const getFirestore = () => ({}), doc = (_db, ...parts) => parts.join('/');
+const records = new Map();
+function accountRef(ref) { if (ref.split('/')[0].endsWith('_rooms')) throw new Error('Unexpected Firestore room access'); return ref; }
+export const getFirestore = () => ({}), doc = (_db, ...parts) => accountRef(parts.join('/'));
 export const serverTimestamp = () => Date.now(), deleteField = () => null;
-export const getDoc = async ref => snap(ref), setDoc = async (ref, data) => write(ref, data);
-export const updateDoc = async (ref, data) => patch(ref, data), deleteDoc = async ref => write(ref, null);
-export function onSnapshot(ref, cb) { const w = { ref, cb }; watchers.add(w); queueMicrotask(() => cb(snap(ref))); return () => watchers.delete(w); }
-export const runTransaction = (_db, run) => navigator.locks.request('rooms-browser-db', () => run({ get: getDoc, set: (ref, data) => write(ref, data), update: patch, delete: ref => write(ref, null) }));
-export const collection = (_db, name) => name, query = (...args) => args, where = (...args) => args, orderBy = (...args) => args, limit = n => n;
+export const getDoc = async ref => ({ exists: () => records.has(accountRef(ref)), data: () => records.get(ref) });
+export const setDoc = async (ref, data) => records.set(accountRef(ref), data);
+export const updateDoc = async (ref, data) => records.set(accountRef(ref), { ...records.get(ref), ...data });
+export const deleteDoc = async ref => records.delete(accountRef(ref));
+export const collection = (_db, name) => accountRef(name), query = (...args) => args, orderBy = (...args) => args, limit = n => n;
 export const getDocs = async () => ({ docs: [], size: 0 });
 `;
 const auth = `
@@ -97,11 +85,11 @@ async function check(game, group, prefix) {
     button(a, prefix + 'CreateRoom');
     await until(() => a.contentDocument.querySelector('.lobby-code'), 'create');
     const code = a.contentDocument.querySelector('.lobby-code').textContent;
-    if (!(mode === 'rtdb' ? /^R-[A-Z0-9]{4}$/ : /^[A-Z0-9]{4}$/).test(code)) throw new Error('Incorrect code format');
-    const roomKey = (mode === 'rtdb' ? 'rooms/' : '') + group + '/' + code;
+    if (!/^R-[A-Z0-9]{4}$/.test(code)) throw new Error('Incorrect code format');
+    const roomKey = 'rooms/' + group + '/' + code;
     const read = () => decode(JSON.parse(localStorage.getItem('__rooms-browser-db') || '{}')[roomKey]);
     const input = b.contentDocument.querySelector('#lobby input'); input.value = code; input.focus(); input.setSelectionRange(1, 3);
-    if (input.maxLength !== (mode === 'rtdb' ? 6 : 4) || input.value !== code) throw new Error('Room input length mismatch');
+    if (input.maxLength !== 6 || input.value !== code) throw new Error('Room input length mismatch');
     b.contentWindow.ArcadeCommon.i18n.setLocale('zh'); b.contentWindow.ArcadeCommon.i18n.setLocale('en');
     const restored = b.contentDocument.querySelector('#lobby input');
     if (restored.value !== code || b.contentDocument.activeElement !== restored || restored.selectionStart !== 1 || restored.selectionEnd !== 3) throw new Error('Input state lost on lobby redraw');
@@ -151,11 +139,12 @@ async function check(game, group, prefix) {
             await until(() => f.contentWindow.ArcadeNet && f.contentWindow.ArcadeNet.ok, 'auth boot');
             const net = f.contentWindow.ArcadeNet;
             if (net.rooms.ok !== false || !f.contentDocument.getElementById('online-btn').hidden) throw new Error('Invalid RTDB settings must disable rooms');
-            await net.profile.get('same-account'); // account/records remain on Firestore
+            await net.profile.save('same-account', { games: { beam: { bests: { test: 7 } } } });
+            if ((await net.profile.get('same-account')).games.beam.bests.test !== 7) throw new Error('Account records unavailable');
             f.remove();
         }
     } else {
-        if (mode === 'rtdb') { const codec = await import('/js/net/rtdb-values.mjs'); encode = codec.encodeRoomValue; decode = codec.decodeRoomValue; }
+        const codec = await import('/js/net/rtdb-values.mjs'); encode = codec.encodeRoomValue; decode = codec.decodeRoomValue;
         await check('beam', 'beam_rooms', 'beam'); await check('rune-stones', 'duel_rooms', 'rd');
     }
     document.getElementById('result').textContent = 'PASS (' + mode + '): real browser room flows, backend selection and account isolation.';
@@ -170,15 +159,14 @@ async function main() {
         if (url.pathname === '/__check') { body = runner; type = 'text/html'; }
         else if (url.pathname === '/__sdk/firebase-app.js') body = 'export const initializeApp = () => ({});';
         else if (url.pathname === '/__sdk/firebase-auth.js') body = auth;
-        else if (url.pathname === '/__sdk/firebase-firestore.js') body = mode === 'rtdb'
-            ? firestore.replace('async ref => snap(ref)', "async ref => { if (ref.includes('_rooms/')) throw new Error('Unexpected Firestore room access'); return snap(ref); }") : firestore;
+        else if (url.pathname === '/__sdk/firebase-firestore.js') body = firestore;
         else if (url.pathname === '/__sdk/firebase-database.js') body = database;
         else {
             const file = path.resolve(root, '.' + url.pathname);
             if (!file.startsWith(root + path.sep) || !fs.existsSync(file) || !fs.statSync(file).isFile()) { response.writeHead(404); response.end(); return; }
             body = fs.readFileSync(file);
             if (file.endsWith('firebase-config.js')) body = body.toString()
-                + '\nwindow.FIREBASE_ROOMS = ' + JSON.stringify({ backend: mode === 'firestore' ? 'firestore' : 'rtdb', databaseURL: mode === 'invalid' ? '' : 'https://demo-local-test.firebaseio.com', legacyFirestore: false }) + ';';
+                + '\nwindow.FIREBASE_ROOMS = ' + JSON.stringify({ databaseURL: mode === 'invalid' ? '' : 'https://demo-local-test.firebaseio.com' }) + ';';
             if (file.endsWith('net.js')) body = body.toString().replace('const BASE = `https://www.gstatic.com/firebasejs/${SDK}`;', "const BASE = location.origin + '/__sdk';");
             if (file.endsWith('.html')) {
                 type = 'text/html';

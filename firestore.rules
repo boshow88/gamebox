@@ -8,27 +8,8 @@ service cloud.firestore {
       allow read, write: if request.auth != null && request.auth.uid == uid;
     }
 
-    // ---- Rune Stones rooms (room-code PvP; collection name kept as duel_rooms) ----
-    // Honor-system MVP: any signed-in (anonymous) player may read/write rooms.
-    // This is enough for playing with friends via a shared room code. It does
-    // NOT stop a determined cheater from reading an opponent's unrevealed data
-    // via F12 — tightening that needs server authority (Cloud Functions).
-    match /duel_rooms/{roomId} {
-      allow read:   if request.auth != null;
-      allow create: if request.auth != null;
-      allow update: if request.auth != null;
-      allow delete: if request.auth != null;
-    }
-
-    // ---- Beam rooms (2–4 player room-code matches) ----
-    // Same honor-system MVP as duel_rooms: any signed-in (anonymous) player may
-    // read/write a room they know the code of.
-    match /beam_rooms/{roomId} {
-      allow read:   if request.auth != null;
-      allow create: if request.auth != null;
-      allow update: if request.auth != null;
-      allow delete: if request.auth != null;
-    }
+    // Rooms now live exclusively in RTDB. Denying unmatched paths retires
+    // Firestore room access, including clients loaded before the migration.
 
     // ---- Admin roster ----
     // The admin list lives in a single config doc, readable AND writable only by

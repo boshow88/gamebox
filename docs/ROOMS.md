@@ -2,9 +2,8 @@
 
 `js/net/rooms.mjs` owns room membership, seats, readiness, host selection,
 transactional starts, rematches and subscription lifetime. It has no Firebase or
-DOM dependency. `js/net/firebase-rooms.mjs` adapts those operations to Firestore.
-`js/net/rtdb-rooms.mjs` provides the optional Realtime Database transport;
-[`RTDB-SETUP.md`](RTDB-SETUP.md) covers Console setup and the explicit rollout.
+DOM dependency. `js/net/rtdb-rooms.mjs` provides the Realtime Database transport;
+[`RTDB-SETUP.md`](RTDB-SETUP.md) covers Console setup and Firestore room retirement.
 `js/net/room-lobby.mjs` and `css/room-lobby.css` provide the shared lobby view.
 `js/net/net.js` handles authentication and exposes `ArcadeNet.rooms.create(options)`,
 `rooms.presence(options)` and `rooms.lobby(options)`.
@@ -30,9 +29,9 @@ replace separate copies of room CRUD and readiness checks.
 
 The logical collection names and room layouts are retained, including
 Rune Stones' distinction between an occupied room (`status: 'playing'`) and a
-running match (`game.status: 'playing'`). Existing rooms stay on their original
-backend. RTDB rooms use `R-XXXX` codes; four-character codes identify legacy
-Firestore rooms during the transition.
+running match (`game.status: 'playing'`). Rooms use `R-XXXX` codes on RTDB.
+Four-character Firestore rooms are retired. The `R-` prefix remains a stable
+room-code format; it no longer selects a database.
 
 ## Creating a service
 
@@ -52,9 +51,10 @@ const matchmaking = net.rooms.create({
 });
 ```
 
-Choose a collection permitted by `firestore.rules`. Adding a game requires no
-changes to the networking implementation. Capacity belongs to the configured
-service; a different mode can configure a different service.
+Choose a room group permitted by `database.rules.json`. Adding a game requires
+authorizing its group in the RTDB rules, but no changes to the networking
+implementation. Capacity belongs to the configured service; a different mode
+can configure a different service.
 
 Additional configuration:
 
@@ -77,7 +77,7 @@ Additional configuration:
   `game`, `round` and readiness and restores the waiting status.
 
 Hooks return plain patches and must not perform writes, DOM changes or other side
-effects: Firestore can retry a transaction. Dotted fields are supported in patches.
+effects: RTDB can retry a transaction. Dotted fields are supported in patches.
 Membership hooks run inside the same transaction as the membership change.
 
 `net.rooms.presence({ timeoutMs })` creates a reusable presence observer. Call
@@ -126,7 +126,7 @@ Creation, membership changes, readiness and starts all use transactions. Capacit
 checks and ready checks use the authoritative snapshot, preventing concurrent
 joins from overfilling a room or repeated starts from replacing an active match.
 Gameplay `update` remains available for the game's own synchronization protocol.
-These client checks use the existing Firestore access rules; they are not server
+These client checks use the RTDB access rules; they are not server
 authority or cheat prevention.
 
 ## Match and round guards
@@ -230,96 +230,53 @@ The game decides which actions to expose. Beam supplies spectator notes and rank
 badges; Rune Stones supplies online/ready badges. Both share the exact element
 structure and CSS. The view never joins/leaves a room or decides when a game starts.
 
-## Traffic and Firebase quota
+## Traffic and storage
 
-The Firestore implementation preserves immediate gameplay updates and the existing
-3-second liveness interval, Beam's 8-second timeout and Rune Stones' 15-second
-timeout. It reduces unnecessary operations through:
+Rooms, gameplay and presence use RTDB. Authentication, account records/scores,
+admin settings and feedback still use the existing Auth/Firestore APIs. There is
+no room backend selector, legacy routing or cross-database fallback. Invalid
+RTDB configuration disables rooms while account sync and solo play remain usable.
 
-- **Piggybacked presence.** Member operations include the actor's counter in the
-  existing transaction write. Only that actor's successful commit postpones its
-  next standalone heartbeat. Another player's traffic, stale rejected actions
-  and unchanged payloads do not count as proof of liveness. Scheduling uses the
-  request's send time, so delayed acknowledgements cannot extend the deadline.
-  Fast repeated watchdog calls share a pending beat; another interval can send
-  even if the previous acknowledgement is delayed. Failed beats back off one
-  interval without falsely refreshing liveness.
-- **Identical payload suppression.** Transaction updates compare against the
-  authoritative snapshot and omit unchanged fields before adding metadata or
-  presence. An entirely unchanged patch does not write or notify listeners. It
-  still performs the transaction read; concurrency guards remain in place.
-- **Combined phase writes.** Rune Stones clears the played-card list and publishes
-  its board together at the start of defense instead of two transactions.
-- **Local rejection of impossible work.** Beam does not issue a forfeit transaction
-  every 250ms when its current snapshot already has fewer than two survivors.
-- **Bounded collection cleanup.** Adapters for the same Firestore instance and
-  collection share an in-flight query and a 60-second cooldown, including failures.
-  Each pass reads/deletes at most 20 stale documents. Rune Stones delegates its
-  periodic cleanup to the effective host. Collection cleanup is not a presence
-  mechanism; unused expired rooms may be collected later during a backlog.
+The room service preserves immediate gameplay updates, the 3-second liveness
+interval, Beam's 8-second timeout and Rune Stones' 15-second timeout:
 
-`node tools/room-traffic-check.js` counts deterministic SDK operations, not actual
-billed Firestore reads. In a one-minute fixture with 30 distinct actions from one
-player and two listeners:
+- Successful member operations include their presence counter in the same write.
+  Only that player's committed activity postpones its standalone heartbeat.
+  Rejected/stale actions and another player's activity do not prove liveness.
+  Send times drive scheduling, so delayed acknowledgements cannot extend the
+  deadline; failures back off one interval without refreshing presence.
+- Identical payloads produce no write or listener update. Transactions still read
+  authoritative data and retain their concurrency guards.
+- Rune Stones combines phase updates, and Beam skips impossible local work.
+- Each adapter shares an in-flight cleanup query and a 60-second cooldown across
+  repeated calls. A pass considers at most 20 old rooms, rechecks inactivity in
+  per-room transactions, and deletes only rooms that are still inactive. Cleanup
+  is not a presence mechanism and can take several passes to drain a backlog.
 
-| Operation | Fixed heartbeats | Piggybacked heartbeats |
-| --- | --- | --- |
-| Gameplay transaction reads | 30 | 30 |
-| Gameplay + presence writes | 50 | 30 |
-| Listener update deliveries | 100 | 60 |
-
-That fixture reduces writes and update deliveries by 40%. Actual savings depend
-on action frequency, listeners, reconnects and SDK behavior. Completely idle
-players retain 20 pulses/minute each; spectators also need presence signals.
-
-Firestore bills document operations, including listener updates, and even an
-empty query has a minimum read charge. See the official
-[Firestore billing guide](https://firebase.google.com/docs/firestore/pricing).
-Keeping a two-player room idle therefore still costs about 40 heartbeat writes
-per minute, before gameplay; optimization alone cannot remove that floor while
-retaining the same failure-detection behavior.
-
-For sustained room traffic, a suitable next step is **Realtime Database for rooms,
-gameplay and presence, with Firestore retained for account records/scores**. RTDB
-charges for storage/download rather than document-operation counts and supports
-server-managed `onDisconnect`. Its Spark limits include 100 simultaneous
-connections, 1 GB stored and 10 GB/month downloaded; each active page/connection
-must be budgeted. Verify current limits in
-[Firebase pricing](https://firebase.google.com/pricing) and the
-[database comparison](https://firebase.google.com/docs/database/rtdb-vs-firestore).
-`onDisconnect` fires after server-detected disconnection; it does not itself
-guarantee the games' exact timeout. See
-[presence documentation](https://firebase.google.com/docs/database/web/offline-capabilities).
-
-An RTDB migration needs an actual database URL, its own security rules, and an
-adapter preserving transactional round guards and presence deadlines. Changing
-the client factory alone is insufficient. That adapter and the rule file are now
-included. The current local configuration selects the operator's existing RTDB
-with legacy Firestore room support. Deploy the configured code and follow the
-live verification and retirement steps in [`RTDB-SETUP.md`](RTDB-SETUP.md).
+The deterministic traffic fixture compares fixed and piggybacked heartbeats:
+30 gameplay actions per minute produce 50 versus 30 writes and 100 versus 60
+update deliveries to two listeners. Idle clients retain their heartbeat cadence.
+These are fixture operation counts, not measurements of Firebase billing or
+network bytes. RTDB costs depend on connections, downloads and stored data; see
+[Firebase pricing](https://firebase.google.com/pricing).
 
 The RTDB adapter encodes null, empty containers and arrays explicitly, since
-native RTDB null deletes a field and empty containers disappear. Reserved
-`__room_*` markers are internal; callers receive ordinary JSON through the store
-API. Cleanup metadata remains numeric/indexable at the room root. A transaction
-uses a server compare-and-set before applying a decision to an initially empty
-local cache, disables optimistic game notifications, and retries against fresh
-data. This client's child updates are serialized with its room transactions to
-avoid SDK cancellation of a pending transaction. Cleanup rechecks inactivity
-inside a transaction before deleting.
+native null deletes a field and empty containers disappear. Reserved
+`__room_*` markers are internal; callers receive ordinary JSON. Cleanup metadata
+remains numeric/indexable at the room root. Cold-cache transactions confirm
+server state before evaluating a missing-room decision, disable optimistic game
+notifications and retry against fresh data. This client's updates are serialized
+with its room transactions to avoid cancelling its own pending transaction.
 
-Native `onDisconnect` marks this player's configured presence counter as `-1`,
-with registration renewed after reconnect. Existing presence observers retain
-the deadline measured from the last positive beat, so the marker cannot reset
-the failure timer. Periodic pulses remain to preserve the current 8/15-second
-timeouts even when server disconnect detection takes longer. Native listeners
-are initialized only after room usage; solo page startup does not scan rooms.
+Native `onDisconnect` marks this player's presence counter as `-1` and is
+rearmed after reconnect. Existing observers retain the deadline from the last
+positive beat. Periodic pulses preserve the existing 8/15-second timeouts even
+when server disconnect detection takes longer. Connection monitoring starts only
+after room use; solo startup does not scan rooms.
 
-`room-routing.mjs` selects by code prefix, without any Firestore probe for new
-RTDB room creation, joining or spectating. Permission/network errors never change
-the selected backend. `legacyFirestore: false` disables only legacy room lookup;
-it does not affect profiles. Invalid RTDB configuration disables rooms while
-keeping the existing account/score service available.
+The adapter validates `R-XXXX` codes before SDK access. Old four-character and
+malformed codes cannot initiate room reads, subscriptions or writes. The input
+accepts six characters, including the prefix; copy/join preserve the full code.
 
 ## Offline checks
 
@@ -328,22 +285,24 @@ node tools/rooms-check.js
 node tools/room-traffic-check.js
 node tools/beam-room-check.js
 node tools/rune-room-check.js
+node tools/rtdb-room-check.js
 # Optional: real Chrome pages with a local fake Firebase SDK
 node tools/rooms-browser-check.js
+node tools/rooms-browser-check.js --invalid-rtdb
 ```
 
-The first exercises the shared core and real Firebase adapter against a serialized
-in-memory Firestore fixture, including concurrent operations, capacity, host
-authority, alternate game policies, cleanup and delayed subscriptions. The game
-checks execute each game's real matchmaking handlers with DOM/drawing stubbed.
-They cover independent Beam tabs, spectators, both start modes, rematches,
-departures, host migration, readiness resets, simultaneous settlements and stale
-round/match writes without network writes. Presence tests use a controlled clock,
-including recovery immediately before an eviction transaction.
-The optional browser check loads both actual pages, ES modules and lobby UI in
-headless Chrome with a temporary profile. It exercises creation, joining, starts,
-results, rematches, rejoining, input preservation, shared action placement,
-320px/desktop overflow checks and actual round settlement,
-including Beam solo play. Pass a Chrome executable path as the first
-argument if it is not installed at the Windows default path. All SDK calls are
-redirected to the local fixture; production Firebase is never contacted.
+The core check uses the actual RTDB adapter and a serialized native-tree fixture
+for contention, capacity, policies, authority, subscription lifetime and cleanup.
+Game checks execute both games' actual handlers with DOM/drawing stubbed, covering
+independent tabs, spectators, both start modes, readiness resets, departures,
+host migration, rematches and single settlement. Controlled clocks cover presence,
+recovery before eviction and native disconnect/reconnect.
+
+The optional browser check loads the real pages, modules and shared UI. It covers
+creation, joining, starts, results, rematches, rejoining, input preservation,
+320px/768px layout and Beam solo settlement. Firestore stubs reject room access;
+profile reads/writes still work even with invalid RTDB settings. All SDK calls
+are redirected locally; these checks never access production Firebase. Pass a
+Chrome executable as the first argument if the Windows default path is unavailable.
+Rules JSON is checked locally, but server-side authorization still requires the
+Firebase rule evaluator or a live-project check after publishing rules.

@@ -5,7 +5,7 @@ const assert = require('node:assert/strict');
 function memoryRealtimeDatabase() {
     let tree = {}, queue = Promise.resolve(), nextClient = 0;
     const listeners = new Set(), clients = new Set(), commits = [];
-    const usage = { transactionReads: 0, updates: 0, reads: 0 };
+    const usage = { transactionReads: 0, updates: 0, reads: 0, queries: 0, writes: 0, deletes: 0, listenerEvents: 0 };
     const clone = value => value == null ? value : structuredClone(value);
     const parts = path => path.split('/').filter(Boolean);
     const read = path => parts(path).reduce((node, key) => node && node[key], tree) ?? null;
@@ -32,13 +32,14 @@ function memoryRealtimeDatabase() {
     }
     function notify(path) {
         for (const listener of listeners) if (listener.path !== '.info/connected' && overlap(path, listener.path)) {
-            const snap = snapshot(listener.path); queueMicrotask(() => listener.next(snap));
+            const snap = snapshot(listener.path); queueMicrotask(() => { usage.listenerEvents++; listener.next(snap); });
         }
     }
     function commit(path, value) {
         value = resolve(value);
         const before = clone(read(path));
         if (JSON.stringify(before) === JSON.stringify(value)) return;
+        if (value === null) usage.deletes++; else usage.writes++;
         write(path, value); commits.push({ path, before, after: clone(value) }); notify(path);
     }
     function job(run) { const result = queue.then(run); queue = result.catch(() => {}); return result; }
@@ -50,6 +51,7 @@ function memoryRealtimeDatabase() {
             get: async target => {
                 usage.reads++;
                 if (!target.constraints) return snapshot(target.path);
+                usage.queries++;
                 const order = target.constraints.find(item => item.order).order;
                 const end = target.constraints.find(item => item.end !== undefined).end;
                 const limit = target.constraints.find(item => item.limit).limit;
@@ -60,7 +62,7 @@ function memoryRealtimeDatabase() {
             onValue: (target, next, fail) => {
                 const entry = { client, path: target.path, next, fail }; listeners.add(entry);
                 const snap = snapshot(target.path, target.path === '.info/connected' ? client.connected : read(target.path));
-                queueMicrotask(() => next(snap)); return () => listeners.delete(entry);
+                queueMicrotask(() => { usage.listenerEvents++; next(snap); }); return () => listeners.delete(entry);
             },
             runTransaction: (target, updater, options) => {
                 assert.equal(options.applyLocally, false);
@@ -79,12 +81,13 @@ function memoryRealtimeDatabase() {
                 if ([...client.pending].some(path => overlap(path, target.path))) return Promise.reject(new Error('update would cancel this client\'s transaction'));
                 return job(() => {
                     usage.updates++;
+                    const next = clone(read(target.path) || {});
                     for (const [path, value] of Object.entries(patch)) {
-                        const child = target.path + '/' + path;
-                        const root = child.split('/').slice(0, 3).join('/');
-                        const before = clone(read(root)); write(child, resolve(value));
-                        commits.push({ path: root, before, after: clone(read(root)) }); notify(child);
+                        const fields = parts(path); let node = next;
+                        for (const field of fields.slice(0, -1)) node = node[field] ||= {};
+                        node[fields.at(-1)] = resolve(value);
                     }
+                    commit(target.path, next);
                 });
             },
             remove: target => job(() => commit(target.path, null)),

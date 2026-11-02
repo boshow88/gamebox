@@ -42,7 +42,7 @@ export function createRoomLobby({ document = globalThis.document,
             ...(account.actions || []).map(action => button(action, action.id))));
         if (model.entry) {
             const entry = model.entry, input = element('input', 'lobby-code-input');
-            input.type = 'text'; input.maxLength = entry.codeLength || 4; input.value = value;
+            input.type = 'text'; input.maxLength = entry.codeLength || 6; input.value = value;
             input.placeholder = entry.codeLabel; input.setAttribute('aria-label', entry.codeLabel);
             input.autocomplete = 'off'; input.autocapitalize = 'characters'; input.spellcheck = false;
             const join = Object.assign({}, entry.join, { onClick: () => entry.join.onClick(input.value) });

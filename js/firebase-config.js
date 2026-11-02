@@ -2,11 +2,11 @@
  * Firebase web config for GameBox accounts and online rooms.
  *
  * These values are PUBLIC by design — they ship to every browser. Security is
- * enforced by Firestore Security Rules + anonymous auth, NOT by hiding this key.
+ * enforced by Firebase Security Rules + authentication, NOT by hiding this key.
  * It is safe to commit this file.
  *
  * Sign-in: Google (primary) + Anonymous guest fallback. Firestore rules live in
- * `firestore.rules`; optional RTDB room rules live in `database.rules.json`.
+ * `firestore.rules`; RTDB room rules live in `database.rules.json`.
  * Authorized domains must include localhost + boshow88.github.io.
  *
  * If Firebase ever fails to load (offline), PvP simply stays disabled and the
@@ -21,14 +21,11 @@ window.FIREBASE_CONFIG = {
     appId: '1:702001155215:web:98988e28348c4bed8474fa',
 };
 
-// Room transport rollout. Account records and scores always remain in Firestore.
+// Rooms use RTDB. Account records and scores remain in Firestore.
 // Console rules must match database.rules.json; see docs/RTDB-SETUP.md.
-// No RTDB requests occur while this is set to 'firestore'.
-// RTDB creates R-XXXX room codes. Legacy four-character codes remain on Firestore.
+// R-XXXX codes retain the existing RTDB format; old Firestore rooms are retired.
 window.FIREBASE_ROOMS = {
-    backend: 'rtdb',
     databaseURL: 'https://games-7e19b-default-rtdb.asia-southeast1.firebasedatabase.app/',
-    legacyFirestore: true,
 };
 
 // Convenience flag the game checks before offering online play.

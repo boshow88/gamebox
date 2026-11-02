@@ -1,5 +1,8 @@
 import { encodeRoomValue, decodeRoomValue, applyRoomPatch, encodeRoomPatch } from './rtdb-values.mjs';
 
+const validCode = code => /^R-[A-Z0-9]{4}$/.test(code);
+const invalidCode = () => Object.assign(new Error('room not found'), { code: 'room/not-found' });
+
 /** RTDB implementation of the same room store contract. Never writes to Firestore. */
 export function createRealtimeRoomStore(sdk, db, group, {
     now = Date.now, presenceField = null, getPlayerId = () => null,
@@ -78,8 +81,16 @@ export function createRealtimeRoomStore(sdk, db, group, {
     }
     const store = {
         backend: 'rtdb',
-        transact(code, decide) { const uid = getPlayerId(); return enqueue(code, () => transactInternal(code, decide, uid)); },
+        transact(code, decide) {
+            if (!validCode(code)) return Promise.reject(invalidCode());
+            const uid = getPlayerId(); return enqueue(code, () => transactInternal(code, decide, uid));
+        },
         watch(code, cb) {
+            if (!validCode(code)) {
+                let active = true;
+                queueMicrotask(() => { if (active) cb(null); });
+                return () => { active = false; };
+            }
             const uid = getPlayerId();
             let active = true;
             const unsubscribe = onValue(roomRef(code), snap => {
@@ -95,13 +106,15 @@ export function createRealtimeRoomStore(sdk, db, group, {
             }, err => { if (active) cb(null, err); });
             return () => { active = false; unsubscribe(); };
         },
-        get: code => get(roomRef(code)).then(snap => decodeRoomValue(snap.val())),
+        get: code => validCode(code) ? get(roomRef(code)).then(snap => decodeRoomValue(snap.val())) : Promise.resolve(null),
         update(code, patch) {
+            if (!validCode(code)) return Promise.reject(invalidCode());
             // Serialize this client's writes so update() cannot cancel its own pending
             // whole-room transaction. Writes by other clients cause normal retries.
             return enqueue(code, () => update(roomRef(code), Object.assign(encodeRoomPatch(patch), { lastActionAt: serverTimestamp() })));
         },
         remove(code) {
+            if (!validCode(code)) return Promise.reject(invalidCode());
             const uid = getPlayerId();
             return enqueue(code, async () => { await remove(roomRef(code)); nativePresence(code, uid, false); });
         },
@@ -113,8 +126,10 @@ export function createRealtimeRoomStore(sdk, db, group, {
                 const cutoff = now() - maxAgeMs;
                 const snapshot = await get(query(ref(db, 'rooms/' + group), orderByChild('lastActionAt'), endAt(cutoff), limitToFirst(20)));
                 const jobs = [];
-                snapshot.forEach(child => jobs.push(store.transact(child.key, data => data && data.lastActionAt < cutoff
-                    ? { kind: 'delete', result: true } : { result: false })));
+                snapshot.forEach(child => {
+                    jobs.push(store.transact(child.key, data => data && data.lastActionAt < cutoff
+                        ? { kind: 'delete', result: true } : { result: false }));
+                });
                 const results = await Promise.allSettled(jobs);
                 return results.filter(item => item.status === 'fulfilled' && item.value).length;
             })().catch(err => { console.warn('[rooms] cleanup failed:', err); return 0; }).finally(() => { cleanupPending = null; });

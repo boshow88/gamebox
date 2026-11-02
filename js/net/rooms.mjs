@@ -85,7 +85,7 @@ export function createRoomService({ store, getUser, sessionId, generateCode = ra
         if (!activity.has(code)) activity.set(code, { at: -Infinity, pending: null, pendingAt: -Infinity, retryAfter: -Infinity });
         return activity.get(code);
     }
-    async function transact(code, player, decide, intent = 'update') {
+    async function transact(code, player, decide) {
         const counter = ++pulse, sentAt = now();
         const outcome = await store.transact(code, data => {
             const change = decide(data);
@@ -97,7 +97,7 @@ export function createRoomService({ store, getUser, sessionId, generateCode = ra
             if (config.presenceField && ['create', 'update'].includes(change.kind)
                 && (change.data.players || (data && data.players) || {})[player.uid]) {
                 if (change.kind === 'create') {
-                    // Creation uses full document fields, not Firestore dotted update paths.
+                    // Creation uses full fields rather than dotted patch paths.
                     const root = config.presenceField.split('.')[0];
                     const field = withField({ [root]: change.data[root] || {} }, config.presenceField + '.' + player.uid, counter);
                     change.data = Object.assign({}, change.data, field);
@@ -105,7 +105,7 @@ export function createRoomService({ store, getUser, sessionId, generateCode = ra
                 published = true;
             }
             return Object.assign({}, change, { result: { value: change.result, published } });
-        }, { intent });
+        });
         // Only a committed write proves liveness. Rejected/no-op updates must not delay a heartbeat.
         if (outcome.published) {
             const state = activityFor(code);
@@ -173,7 +173,7 @@ export function createRoomService({ store, getUser, sessionId, generateCode = ra
                     code, status: config.waitingStatus, hostUid: player.uid, maxPlayers: config.maxPlayers,
                     players: { [player.uid]: member(player, 0) }, ready: {},
                 }, seating([player.uid])), result: true };
-            }, 'create');
+            });
             if (created) return code;
         }
         throw error('code', 'could not allocate a room code');
@@ -195,7 +195,7 @@ export function createRoomService({ store, getUser, sessionId, generateCode = ra
                 status: ids.length >= config.minPlayers ? config.occupiedStatus : config.waitingStatus,
                 players: Object.assign({}, data.players, { [player.uid]: member(player, seat) }), ready,
             }, seating(ids), config.onJoin(data, player, ids)), result: code };
-        }, 'join');
+        });
     }
     async function leave(value) {
         const player = currentPlayer(), code = normalizeCode(value);
