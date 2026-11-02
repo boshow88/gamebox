@@ -103,8 +103,9 @@ Switching tabs mid-run auto-pauses.
 
 Beam and Rune Stones use `ArcadeNet.rooms.create(options)` for configurable
 membership, seats, readiness, starts and room subscriptions. `rooms.lobby()` renders
-their common lobby layout using game-supplied text, badges and actions. Their
-different start/departure policies live in each game's configuration. See
+their common lobby layout using game-supplied text, badges and actions.
+Both use guest readiness, host-controlled starts and same-room rematches; their
+different departure policies live in each game's configuration. See
 [`ROOMS.md`](ROOMS.md) for the API, policy comparison and offline checks.
 Rooms use RTDB exclusively. See [`RTDB-SETUP.md`](RTDB-SETUP.md) for database rules,
 deployment, verification and the final server-side retirement of Firestore rooms.

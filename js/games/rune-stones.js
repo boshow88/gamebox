@@ -51,9 +51,11 @@
         rdSignedIn: (name) => `Signed in: ${name}`, rdSignInFirst: 'Sign in to create or join a room.',
         rdCreateRoom: 'Create room', rdJoinRoom: 'Join', rdRoomCode: 'Code', rdLeaveRoom: 'Leave room',
         rdRoomCreated: (code) => `Room ${code} — waiting for opponent\u2026`, rdWaitingOpp: 'Waiting for opponent\u2026',
-        rdMatched: (name) => `Matched with ${name}!`,
         rdYou: 'You', rdHost: 'Host', rdOnlineTag: 'Online', rdOfflineTag: 'Disconnected', rdReadyTag: 'Ready',
-        rdReadyUp: 'I\u2019m ready to start', rdReadyWait: 'Ready \u2014 waiting for opponent\u2026', rdOppReady: 'opponent ready',
+        rdReadyUp: 'I\u2019m ready to start', rdReadyWait: 'Ready — waiting for the host…',
+        rdStartMatch: 'Start match', rdHostStarts: 'Once the guest is ready, the host starts.',
+        rdRematch: 'Rematch', rdRematchWait: 'Waiting for the host to start a rematch…',
+        rdAlreadyStarted: 'That match already started', rdRoomGone: 'The room closed.',
         rdLvEasy: 'Easy', rdLvNormal: 'Normal', rdLvHard: 'Hard', rdTimeShort: 'Time shorten',
         rdReasonForfeit: 'Opponent left or timed out \u2014 you win.',
         rdReasonKoWin: 'Rival HP hit 0 \u2014 you win.', rdReasonKoLose: 'Your HP hit 0 \u2014 you lose.', rdReasonDoubleKo: 'Both HP hit 0 \u2014 draw.',
@@ -122,9 +124,11 @@
         rdSignedIn: (name) => `已登入：${name}`, rdSignInFirst: '登入後即可建立或加入房間。',
         rdCreateRoom: '建立房間', rdJoinRoom: '加入', rdRoomCode: '房號', rdLeaveRoom: '離開房間',
         rdRoomCreated: (code) => `房號 ${code}——等待對手加入\u2026`, rdWaitingOpp: '等待對手\u2026',
-        rdMatched: (name) => `已配對：${name}！`,
         rdYou: '你', rdHost: '房主', rdOnlineTag: '在線', rdOfflineTag: '已離線', rdReadyTag: '已準備',
-        rdReadyUp: '準備好了', rdReadyWait: '已準備，等待對手\u2026', rdOppReady: '對手已準備',
+        rdReadyUp: '準備好了', rdReadyWait: '已準備，等待房主開始…',
+        rdStartMatch: '開始對戰', rdHostStarts: '對手準備好後，由房主開始。',
+        rdRematch: '再來一場', rdRematchWait: '等待房主再開一場…',
+        rdAlreadyStarted: '該場對戰已經開始', rdRoomGone: '房間已關閉。',
         rdLvEasy: '簡單', rdLvNormal: '普通', rdLvHard: '困難', rdTimeShort: '時間縮短',
         rdReasonForfeit: '對手離開或逾時未行動，你獲勝。',
         rdReasonKoWin: '對手血量歸零，你獲勝。', rdReasonKoLose: '你的血量歸零，你落敗。', rdReasonDoubleKo: '雙方同時血量歸零，平手。',
@@ -2237,10 +2241,20 @@
     }
     function onRoomGame(data) {
         markDirty();
-        if (G.online && !data && G.phase !== 'over') { duelOver(true, false, 'forfeit'); return; }   // room vanished → opponent left, you win
+        if (!data) {
+            const wasOnline = !!G.online || !!lobbyResult;
+            detachRoom(); lobbyResult = ''; lobbyReason = '';
+            if (wasOnline) exitOnline();
+            if (wasOnline && AC.toast) AC.toast.show(t('rdRoomGone'));
+            renderLobby(); return;
+        }
         if (G.online && data && !(data.players || {})[G.online.oppUid] && G.phase !== 'over') { duelOver(true, false, 'forfeit'); return; }
         const g = data && data.game;
         if (!g) return;
+        if (!g.status && lobbyResult) {
+            lobbyResult = ''; lobbyReason = '';
+            exitOnline(); openLobby(); return;
+        }
         if (g.status === 'playing' && !G.online) { enterOnline(data); return; }
         if (!G.online) return;
         const my = G.online.myUid, opp = G.online.oppUid;
@@ -3208,7 +3222,7 @@
     }
     // =================================================================
     // Online lobby (Google / guest sign-in + room-code matchmaking)
-    // Stage 1: auth + pairing. Per-round sync arrives next.
+    // Auth, room membership and host-controlled starts/rematches.
     // =================================================================
 
     let net = null;             // window.ArcadeNet once it's ready & ok
@@ -3241,6 +3255,7 @@
         let msg = t('rdNetErr');
         if (m.indexOf('not found') !== -1) msg = t('rdRoomNotFound');
         else if (m.indexOf('full') !== -1) msg = t('rdRoomFull');
+        else if (m.indexOf('already') !== -1) msg = t('rdAlreadyStarted');
         if (lobbyRefs) lobbyRefs.status.textContent = msg;
         console.warn('[lobby]', e);
     }
@@ -3255,10 +3270,11 @@
         try { const c = await matchmaking.join(code); attachRoom(c); } catch (e) { showLobbyError(e); }
     }
     async function doLeave() {
+        const wasOnline = !!G.online || !!lobbyResult;
         lobbyResult = ''; lobbyReason = '';
         const leaving = roomSession ? roomSession.leave() : Promise.resolve();
         room = null; if (roomPresence) roomPresence.reset();
-        if (G.online) { G.online = null; setOnlineBtnEnabled(true); shell.goIdle(); }
+        if (wasOnline) exitOnline();
         renderLobby();
         try { await leaving; } catch (e) { showLobbyError(e); }
     }
@@ -3266,16 +3282,29 @@
         if (!room) return;
         try { await matchmaking.setReady(room.code); } catch (e) { showLobbyError(e); }
     }
+    async function hostStart() {
+        if (!room) return false;
+        try { return await matchmaking.start(room.code); } catch (e) { showLobbyError(e); return false; }
+    }
+    async function doRematch() {
+        if (!room) return false;
+        try { return await matchmaking.reset(room.code); } catch (e) { showLobbyError(e); return false; }
+    }
+    function exitOnline() {
+        G.online = null;
+        setOnlineBtnEnabled(true);
+        shell.goIdle();
+    }
     function copyCode(code) { try { const p = navigator.clipboard && navigator.clipboard.writeText(code); if (p && p.catch) p.catch(() => {}); } catch (e) { /* ignore */ } if (lobbyRefs) lobbyRefs.status.textContent = t('rdCopied'); }
 
     function renderLobby() {
         if (!lobbyView) return;
         const u = netUser, data = room && room.data;
+        const finished = !!(data && data.game && data.game.status === 'over');
         let status = '';
         if (!u) status = t('rdSignInFirst');
-        else if (data) {
-            const opp = opponentName(data), oppUid = Object.keys(data.players || {}).find(uid => uid !== u.uid);
-            status = opp ? t('rdMatched', opp) + (oppUid && (data.ready || {})[oppUid] ? ' \u00b7 ' + t('rdOppReady') : '') : t('rdWaitingOpp');
+        else if (data && !finished) {
+            status = opponentName(data) ? t('rdHostStarts') : t('rdWaitingOpp');
         }
         if (lobbyReason) status = status ? lobbyReason + ' \u00b7 ' + status : lobbyReason;
         const model = {
@@ -3299,14 +3328,20 @@
                 const online = roomPresence.isAvailable(uid), badges = [];
                 if (uid === host) badges.push({ label: t('rdHost'), tone: 'host' });
                 badges.push({ label: t(online ? 'rdOnlineTag' : 'rdOfflineTag') });
-                if (ready[uid]) badges.push({ label: t('rdReadyTag'), tone: 'ready' });
+                if (!finished && ready[uid]) badges.push({ label: t('rdReadyTag'), tone: 'ready' });
                 return { uid, name: (data.players[uid].name || t('rdGuest')) + (uid === u.uid ? ' (' + t('rdYou') + ')' : ''),
                     muted: !online, badges };
             });
             let primary = null;
-            if (!data.players[u.uid]) primary = { label: t('rdJoinRoom'), primary: true, onClick: () => doJoin(room.code) };
-            else if (opponentName(data)) primary = ready[u.uid] ? { text: t('rdReadyWait') }
-                : { label: t('rdReadyUp'), primary: true, onClick: doReady };
+            const action = matchmaking.primaryAction(data);
+            if (action) {
+                if (action.kind === 'join') primary = { label: t('rdJoinRoom'), primary: true, onClick: () => doJoin(room.code) };
+                else if (action.kind === 'rematch') primary = { label: t('rdRematch'), primary: true, onClick: doRematch };
+                else if (action.kind === 'wait-rematch') primary = { text: t('rdRematchWait') };
+                else if (action.kind === 'start') primary = { label: t('rdStartMatch'), primary: true, disabled: action.disabled, onClick: hostStart };
+                else if (action.kind === 'wait-ready') primary = { text: t('rdReadyWait') };
+                else if (action.kind === 'ready') primary = { label: t('rdReadyUp'), primary: true, onClick: doReady };
+            }
             model.room = { code: room.code, players, primary,
                 copy: { label: t('rdCopyCode'), onClick: () => copyCode(room.code) },
                 leave: { label: t('rdLeaveRoom'), onClick: doLeave },
@@ -3315,9 +3350,20 @@
         lobbyView.render(model);
     }
 
-    function openLobby() { if (!net || !net.ok || G.online) return; if (!lobbyEl) buildLobby(); lobbyEl.hidden = false; renderLobby(); markDirty(); if (matchmaking) matchmaking.cleanup().catch(() => {}); }
+    function openLobby() {
+        if (!net || !net.ok || G.online) return;
+        if (!lobbyEl) buildLobby();
+        lobbyEl.hidden = false;
+        const overlay = document.getElementById('overlay'); if (overlay) overlay.hidden = true;
+        renderLobby(); markDirty(); if (matchmaking) matchmaking.cleanup().catch(() => {});
+    }
     function setOnlineBtnEnabled(on) { const b = document.getElementById('online-btn'); if (b) b.disabled = !on; }
-    function closeLobby() { if (lobbyEl) lobbyEl.hidden = true; markDirty(); }
+    function closeLobby() {
+        if (lobbyEl) lobbyEl.hidden = true;
+        if (lobbyResult) { doLeave().catch(showLobbyError); return; }
+        if (!G.online && shell.refreshOverlay) shell.refreshOverlay();
+        markDirty();
+    }
 
     function setupOnline() {
         if (window.CloudSync) window.CloudSync.onApplied(updateHud);   // repaint records on account swap / cloud merge
@@ -3332,7 +3378,7 @@
                 presenceField: 'presence',
                 isAvailable: uid => roomPresence.isAvailable(uid),
                 minPlayers: 2, maxPlayers: 2, waitingStatus: 'waiting', occupiedStatus: 'playing',
-                startMode: 'all-ready',
+                startMode: 'host',
                 onCreate: input => ({ seed: input.seed == null ? ((Math.random() * 1e9) | 0) : input.seed }),
                 onJoin: () => ({ game: {}, ready: {}, round: 1 }),
                 onLeave: (data, player, remaining) => ({ status: 'waiting', ready: {},

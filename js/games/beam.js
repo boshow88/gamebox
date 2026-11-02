@@ -62,7 +62,7 @@
         beamRoomNotFound: 'Room not found', beamRoomFull: 'Room is full', beamAlreadyStarted: 'That match already started',
         beamNetErr: 'Network error', beamPlayers: 'Players', beamYou: 'You', beamHost: 'Host', beamReadyTag: 'Ready',
         beamResultsTitle: 'Final standings', beamWinner: function (n) { return n + ' wins!'; },
-        beamRematch: 'Rematch', beamRoomGone: 'The room closed.', beamOffline: 'Disconnected',
+        beamRematch: 'Rematch', beamRematchWait: 'Waiting for the host to start a rematch…', beamRoomGone: 'The room closed.', beamOffline: 'Disconnected',
         beamEndLeft: 'Everyone else left — you win!',
     });
     Object.assign(AC.i18n.STRINGS.zh, {
@@ -102,7 +102,7 @@
         beamRoomNotFound: '找不到房間', beamRoomFull: '房間已滿', beamAlreadyStarted: '該場對戰已經開始',
         beamNetErr: '連線錯誤', beamPlayers: '玩家', beamYou: '你', beamHost: '房主', beamReadyTag: '準備',
         beamResultsTitle: '最終名次', beamWinner: function (n) { return n + ' 獲勝！'; },
-        beamRematch: '再來一場', beamRoomGone: '房間已關閉。', beamOffline: '已離線',
+        beamRematch: '再來一場', beamRematchWait: '等待房主再開一場…', beamRoomGone: '房間已關閉。', beamOffline: '已離線',
         beamEndLeft: '其他玩家都離開了，你獲勝！',
     });
     var t = AC.i18n.t;
@@ -989,12 +989,14 @@
             var notes = [], watchers = watcherCount(), primary = null, watching = !d.players[u.uid];
             if (watchers) notes.push(t('beamWatchers', watchers));
             if (watching) notes.push(t('beamSpectatingRoom'));
-            else if (over) {
-                if (host === u.uid) primary = { label: t('beamRematch'), primary: true, onClick: doRematch };
-            } else if (host === u.uid) {
-                primary = { label: t('beamStartMatch'), primary: true, disabled: !matchmaking.canStart(d), onClick: hostStart };
-            } else if (ready[u.uid]) primary = { text: t('beamReadyWait') };
-            else primary = { label: t('beamReadyUp'), primary: true, onClick: doReady };
+            var action = matchmaking.primaryAction(d);
+            if (action) {
+                if (action.kind === 'rematch') primary = { label: t('beamRematch'), primary: true, onClick: doRematch };
+                else if (action.kind === 'wait-rematch') primary = { text: t('beamRematchWait') };
+                else if (action.kind === 'start') primary = { label: t('beamStartMatch'), primary: true, disabled: action.disabled, onClick: hostStart };
+                else if (action.kind === 'wait-ready') primary = { text: t('beamReadyWait') };
+                else if (action.kind === 'ready') primary = { label: t('beamReadyUp'), primary: true, onClick: doReady };
+            }
             model.room = { code: d.code, players: players, notes: notes, primary: primary,
                 copy: { label: t('beamCopyCode'), onClick: function () { copyCode(d.code); } },
                 leave: { label: t(watching ? 'beamStopSpectating' : 'beamLeaveRoom'), onClick: doLeave },

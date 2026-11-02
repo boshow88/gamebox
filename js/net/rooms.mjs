@@ -163,6 +163,18 @@ export function createRoomService({ store, getUser, sessionId, generateCode = ra
         return ids.length >= config.minPlayers && ids.every(id =>
             (config.startMode === 'host' && id === uid) || ready[id]);
     }
+    function primaryAction(data, { finished = !!(data && data.game && data.game.status === 'over') } = {}) {
+        const player = currentPlayer();
+        if (!data || !player) return null;
+        if (!(data.players || {})[player.uid]) return config.allowSpectators ? null : { kind: 'join' };
+        if (config.isPlaying(data)) return null;
+        if (config.startMode === 'host') {
+            const isHost = host(data) === player.uid;
+            if (finished) return { kind: isHost ? 'rematch' : 'wait-rematch' };
+            if (isHost) return { kind: 'start', disabled: !canStart(data) };
+        }
+        return { kind: (data.ready || {})[player.uid] ? 'wait-ready' : 'ready' };
+    }
     async function create(input = {}) {
         const player = requirePlayer();
         for (let attempt = 0; attempt < 6; attempt++) {
@@ -263,7 +275,7 @@ export function createRoomService({ store, getUser, sessionId, generateCode = ra
         });
     }
     const service = {
-        config, currentPlayer, playerIds, host, canStart, create, join, leave, releaseDisconnected,
+        config, currentPlayer, playerIds, host, canStart, primaryAction, create, join, leave, releaseDisconnected,
         setReady, start, reset, updateMatch, settleRound,
         async heartbeat(value, intervalMs = 3000) {
             const player = requirePlayer(), code = normalizeCode(value), state = activityFor(code);

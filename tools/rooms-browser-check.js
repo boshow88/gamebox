@@ -114,11 +114,13 @@ async function check(game, group, prefix) {
     for (const width of [320, 768]) { a.style.width = width + 'px'; layout(a); }
     a.style.width = wide;
     if (game === 'rune-stones' && (!a.contentDocument.querySelector('.lobby-code') || a.contentDocument.querySelectorAll('.lobby-plist li').length !== 2)) throw new Error('Matched lobby must retain room code and player list');
+    if (enabled(a, prefix + 'StartMatch')) throw new Error('Host start must wait for guest readiness');
     button(b, prefix + 'ReadyUp');
     await until(() => Object.values(read().ready).some(Boolean), 'guest ready');
     await until(() => !!b.contentDocument.querySelector('.lobby-waiting'), 'ready waiting display');
     layout(b);
-    if (game === 'beam') { await until(() => enabled(a, 'beamStartMatch'), 'start button enabled'); button(a, 'beamStartMatch'); } else button(a, 'rdReadyUp');
+    if (read().game.status === 'playing') throw new Error('Guest readiness must not automatically start the match');
+    await until(() => enabled(a, prefix + 'StartMatch'), 'start button enabled'); button(a, prefix + 'StartMatch');
     await until(() => read().game.status === 'playing' && a.contentDocument.getElementById('lobby').hidden && b.contentDocument.getElementById('lobby').hidden, 'start');
     if (game === 'rune-stones') {
         const all = JSON.parse(localStorage.getItem('__rooms-browser-db')), room = decode(all[roomKey]), ids = Object.keys(room.players);
@@ -132,9 +134,12 @@ async function check(game, group, prefix) {
     end();
     await until(() => !a.contentDocument.getElementById('lobby').hidden && !b.contentDocument.getElementById('lobby').hidden, 'results');
     layout(a); layout(b);
-    if (game === 'beam') { button(a, 'beamRematch'); await until(() => !read().game.status, 'reset'); await sleep(50); }
+    await until(() => !!b.contentDocument.querySelector('.lobby-waiting'), 'guest waits for host rematch');
+    button(a, prefix + 'Rematch'); await until(() => !read().game.status, 'reset');
+    await until(() => enabled(b, prefix + 'ReadyUp'), 'guest can ready after reset');
+    if (Object.keys(read().ready).length) throw new Error('Rematch must clear readiness');
     button(b, prefix + 'ReadyUp'); await until(() => Object.values(read().ready).some(Boolean), 'rematch ready');
-    if (game === 'beam') { await until(() => enabled(a, 'beamStartMatch'), 'rematch button enabled'); button(a, 'beamStartMatch'); } else button(a, 'rdReadyUp');
+    await until(() => enabled(a, prefix + 'StartMatch'), 'rematch button enabled'); button(a, prefix + 'StartMatch');
     await until(() => read().game.status === 'playing' && a.contentDocument.getElementById('lobby').hidden, 'rematch start');
     end(); await until(() => !b.contentDocument.getElementById('lobby').hidden, 'second results');
     button(b, prefix + 'LeaveRoom');
@@ -143,6 +148,16 @@ async function check(game, group, prefix) {
     button(b, prefix + 'JoinRoom');
     await until(() => Object.keys(read().players).length === 2, 'rejoin');
     if (read().code !== 'R-' + code) throw new Error('Stored room code changed');
+    if (read().game.status === 'over') {
+        button(a, prefix + 'Rematch'); await until(() => !read().game.status, 'reset after rejoin');
+    }
+    await until(() => enabled(b, prefix + 'ReadyUp'), 'ready after rejoin');
+    button(b, prefix + 'ReadyUp'); await until(() => enabled(a, prefix + 'StartMatch'), 'start after rejoin');
+    button(a, prefix + 'StartMatch'); await until(() => read().game.status === 'playing', 'third match');
+    end(); await until(() => !b.contentDocument.getElementById('lobby').hidden, 'third results');
+    button(b, prefix + 'Close');
+    await until(() => Object.keys(read().players).length === 1, 'closing results leaves room');
+    if (!b.contentDocument.getElementById('lobby').hidden || b.contentDocument.getElementById('overlay').hidden) throw new Error('Closing results must restore the solo ready screen');
     a.remove(); b.remove(); await sleep(50);
 }
 (async () => {

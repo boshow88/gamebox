@@ -32,8 +32,8 @@ function gameClient(game, backend, modules, uid = 'account', now = Date.now) {
         "resetRun = function () { G.phase = 'defense'; G.round = 1; };",
         "shell = { isPlaying: function () { return true; }, syncButtons: function () {}, goIdle: function () { G.phase = 'idle'; } };",
         'setupOnline();',
-        'window.roomTest = { create: doCreate, join: doJoin, attach: attachRoom, ready: doReady, leave: doLeave, gameUpdate: onRoomGame, tick: heartbeatAndGc, resolve: hostResolve,',
-        'snapshot: function () { return { room: room, om: G.online, phase: G.phase, uid: netUser.uid }; } };',
+        'window.roomTest = { create: doCreate, join: doJoin, attach: attachRoom, ready: doReady, start: hostStart, rematch: doRematch, close: closeLobby, leave: doLeave, gameUpdate: onRoomGame, tick: heartbeatAndGc, resolve: hostResolve,',
+        'snapshot: function () { return { room: room, om: G.online, phase: G.phase, uid: netUser.uid, result: lobbyResult, reason: lobbyReason }; } };',
         '})();',
     ];
     const sandbox = {

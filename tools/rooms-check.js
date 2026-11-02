@@ -15,6 +15,8 @@ const { realtimeGameBackend } = require('./helpers/rtdb-fixtures.js');
     const host = service('host'), guest = service('guest'), other = service('other'), observer = service('observer');
     await host.create();
     const created = backend.get('test_rooms/R-ABCD');
+    assert.deepEqual(host.primaryAction(created), { kind: 'start', disabled: true });
+    assert.deepEqual(observer.primaryAction(created), { kind: 'join' });
     assert.equal(typeof created.createdAt, 'number');
     assert.equal(typeof created.expireAt, 'number');
 
@@ -28,15 +30,31 @@ const { realtimeGameBackend } = require('./helpers/rtdb-fixtures.js');
     assert.equal(await host.start('R-ABCD'), false, 'Readiness is checked inside the transaction');
     await assert.rejects(observer.setReady('R-ABCD'), { code: 'room/spectator' });
     await guest.setReady('R-ABCD'); await other.setReady('R-ABCD');
+    assert.deepEqual(host.primaryAction(backend.get('test_rooms/R-ABCD')), { kind: 'start', disabled: false });
+    assert.deepEqual(guest.primaryAction(backend.get('test_rooms/R-ABCD')), { kind: 'wait-ready' });
     assert.equal(await guest.start('R-ABCD'), false, 'Guests cannot start a host-controlled room');
     const starts = await Promise.all([host.start('R-ABCD'), host.start('R-ABCD'), host.start('R-ABCD')]);
     assert.equal(starts.filter(Boolean).length, 1, 'Concurrent start requests cannot replace an already-started match');
     assert.equal(await host.reset('R-ABCD'), false, 'An active match cannot accidentally be reset');
     assert.equal(await guest.setReady('R-ABCD'), false, 'Ready clicks during a match do not carry into the rematch');
     await host.update('R-ABCD', { 'game.status': 'over' });
+    assert.deepEqual(host.primaryAction(backend.get('test_rooms/R-ABCD')), { kind: 'rematch' });
+    assert.deepEqual(guest.primaryAction(backend.get('test_rooms/R-ABCD')), { kind: 'wait-rematch' });
     assert.equal(await guest.reset('R-ABCD'), false, 'Only the host resets a room');
     await host.reset('R-ABCD');
     assert.deepEqual(backend.get('test_rooms/R-ABCD').ready, {});
+
+    // Games may still opt into automatic all-ready starts through the same core.
+    const autoHost = service('auto-host', { startMode: 'all-ready' }, 'auto_rooms');
+    const autoGuest = service('auto-guest', { startMode: 'all-ready' }, 'auto_rooms');
+    await autoHost.create(); await autoGuest.join('ABCD');
+    const autoSession = autoHost.session(); autoSession.attach('ABCD'); await backend.flush();
+    assert.deepEqual(autoHost.primaryAction(backend.get('auto_rooms/R-ABCD')), { kind: 'ready' });
+    await autoGuest.setReady('ABCD'); await backend.flush();
+    assert.notEqual(backend.get('auto_rooms/R-ABCD').game.status, 'playing');
+    await autoHost.setReady('ABCD'); await backend.flush();
+    assert.equal(backend.get('auto_rooms/R-ABCD').game.status, 'playing');
+    autoSession.detach();
 
     // Once-only settlement uses the latest committed data, not a stale caller snapshot.
     const roundConfig = { startPatch: () => ({ game: { status: 'playing', round: 1, hp: 10 } }) };

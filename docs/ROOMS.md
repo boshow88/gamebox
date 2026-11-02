@@ -21,10 +21,11 @@ replace separate copies of room CRUD and readiness checks.
 | Identity | One player per page instance; same account can occupy multiple seats | One player per page instance; same account can occupy both seats |
 | Capacity | 2–4 | Exactly 2 |
 | Seat layout | Join `order`, stable player colour indices | `slots`, host and guest |
-| Start | Host presses Start; guests must be ready | Both press Ready; the host's subscription starts automatically |
+| Start | Host presses Start; guests must be ready | Host presses Start; guest must be ready |
 | Spectators | Watch without joining or consuming a seat | Disabled |
 | Departure | Clear only the departing player's ready flag; match continues | Record a forfeit during play, clear both ready flags, preserve the room and wait for replacement |
-| Rematch | Host resets to lobby; everyone readies again | Both ready again from results |
+| Rematch | Host resets the same room; guests ready again, then host starts | Same flow |
+| Closing results | Leave the room and return to solo ready screen | Same flow |
 | Host availability | Game supplies heartbeat-based `isAvailable` | Per-player presence counters; release missing peers after 15 seconds |
 
 The logical collection names and room layouts are retained, including
@@ -110,6 +111,7 @@ that interval; silent players still send their regular heartbeats.
 | `setReady(code, ready = true)` | Member-only, transactional readiness; ignored during play |
 | `playerIds(data, availableOnly = false)`, `host(data)` | Seat order and host selection |
 | `canStart(data)` | Local UI eligibility, including host, readiness and minimum player count |
+| `primaryAction(data, { finished }?)` | Shared action policy: join, start, ready, wait-ready, rematch, wait-rematch, or no action |
 | `start(code)` | Recheck eligibility in a transaction and apply the game's start patch once |
 | `reset(code)` | Host-only rematch reset; ignored during play |
 | `releaseDisconnected(code, candidates)` | Release a missing peer only if its observed counter is still unchanged |
@@ -129,6 +131,14 @@ joins from overfilling a room or repeated starts from replacing an active match.
 Gameplay `update` remains available for the game's own synchronization protocol.
 These client checks use the RTDB access rules; they are not server
 authority or cheat prevention.
+
+Both games render their primary action from `primaryAction`, then supply their
+own translated text and handlers to the shared lobby. A host sees a disabled Start
+until the guest is ready, a ready guest waits for the host, and results offer
+Rematch only to the host while guests see a waiting message. Rematch clears all
+readiness inside the same room; it does not create a room or start automatically.
+`finished` defaults to `game.status === 'over'`; custom schemas may override it.
+The generic core still supports `startMode: 'all-ready'` for future games.
 
 ## Match and round guards
 
@@ -302,8 +312,9 @@ node tools/rooms-browser-check.js --invalid-rtdb
 The core check uses the actual RTDB adapter and a serialized native-tree fixture
 for contention, capacity, policies, authority, subscription lifetime and cleanup.
 Game checks execute both games' actual handlers with DOM/drawing stubbed, covering
-independent tabs, spectators, both start modes, readiness resets, departures,
-host migration, rematches and single settlement. Controlled clocks cover presence,
+independent tabs, spectators, host-controlled starts, readiness resets, departures,
+host migration, rematches, result closing, vanished rooms and single settlement.
+The core check also covers opt-in all-ready starts. Controlled clocks cover presence,
 recovery before eviction and native disconnect/reconnect.
 
 The optional browser check loads the real pages, modules and shared UI. It covers

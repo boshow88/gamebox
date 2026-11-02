@@ -66,8 +66,11 @@ different database or create a fallback room. Deploy all changed modules togethe
 2. Create a Beam room, confirm a code such as `ABCD`, and join from a second
    tab. Same-account tabs must occupy separate seats. Test readiness, starting,
    finishing, same-room rematch, leave/rejoin and disconnect recovery.
-3. Repeat with Rune Stones. Both players ready up to start automatically. A
-   surviving player retains the room when the other leaves or disconnects.
+3. Repeat with Rune Stones. As in Beam, the guest readies up and the host presses
+   Start. After results, the host chooses Rematch in the same room; the guest
+   readies again and the host starts. Closing results leaves the room and restores
+   the solo ready screen. A survivor retains the room when the other leaves or
+   disconnects.
 4. Confirm RTDB data appears under `rooms/beam_rooms/R-ABCD` or
    `rooms/duel_rooms/R-EFGH`. Existing RTDB rooms need no migration.
 5. Check account records/scores still appear; they remain in Firestore profiles.
