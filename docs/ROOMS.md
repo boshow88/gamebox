@@ -3,6 +3,8 @@
 `js/net/rooms.mjs` owns room membership, seats, readiness, host selection,
 transactional starts, rematches and subscription lifetime. It has no Firebase or
 DOM dependency. `js/net/firebase-rooms.mjs` adapts those operations to Firestore.
+`js/net/rtdb-rooms.mjs` provides the optional Realtime Database transport;
+[`RTDB-SETUP.md`](RTDB-SETUP.md) covers Console setup and the explicit rollout.
 `js/net/room-lobby.mjs` and `css/room-lobby.css` provide the shared lobby view.
 `js/net/net.js` handles authentication and exposes `ArcadeNet.rooms.create(options)`,
 `rooms.presence(options)` and `rooms.lobby(options)`.
@@ -26,9 +28,11 @@ replace separate copies of room CRUD and readiness checks.
 | Rematch | Host resets to lobby; everyone readies again | Both ready again from results |
 | Host availability | Game supplies heartbeat-based `isAvailable` | Per-player presence counters; release missing peers after 15 seconds |
 
-The existing collection names and document layouts are retained, including
+The logical collection names and room layouts are retained, including
 Rune Stones' distinction between an occupied room (`status: 'playing'`) and a
-running match (`game.status: 'playing'`). Existing rooms need no migration.
+running match (`game.status: 'playing'`). Existing rooms stay on their original
+backend. RTDB rooms use `R-XXXX` codes; four-character codes identify legacy
+Firestore rooms during the transition.
 
 ## Creating a service
 
@@ -289,8 +293,33 @@ guarantee the games' exact timeout. See
 
 An RTDB migration needs an actual database URL, its own security rules, and an
 adapter preserving transactional round guards and presence deadlines. Changing
-the client factory alone is insufficient. No production database configuration
-or backend migration is performed by the Firestore traffic optimization.
+the client factory alone is insufficient. That adapter and the rule file are now
+included. The current local configuration selects the operator's existing RTDB
+with legacy Firestore room support. Deploy the configured code and follow the
+live verification and retirement steps in [`RTDB-SETUP.md`](RTDB-SETUP.md).
+
+The RTDB adapter encodes null, empty containers and arrays explicitly, since
+native RTDB null deletes a field and empty containers disappear. Reserved
+`__room_*` markers are internal; callers receive ordinary JSON through the store
+API. Cleanup metadata remains numeric/indexable at the room root. A transaction
+uses a server compare-and-set before applying a decision to an initially empty
+local cache, disables optimistic game notifications, and retries against fresh
+data. This client's child updates are serialized with its room transactions to
+avoid SDK cancellation of a pending transaction. Cleanup rechecks inactivity
+inside a transaction before deleting.
+
+Native `onDisconnect` marks this player's configured presence counter as `-1`,
+with registration renewed after reconnect. Existing presence observers retain
+the deadline measured from the last positive beat, so the marker cannot reset
+the failure timer. Periodic pulses remain to preserve the current 8/15-second
+timeouts even when server disconnect detection takes longer. Native listeners
+are initialized only after room usage; solo page startup does not scan rooms.
+
+`room-routing.mjs` selects by code prefix, without any Firestore probe for new
+RTDB room creation, joining or spectating. Permission/network errors never change
+the selected backend. `legacyFirestore: false` disables only legacy room lookup;
+it does not affect profiles. Invalid RTDB configuration disables rooms while
+keeping the existing account/score service available.
 
 ## Offline checks
 

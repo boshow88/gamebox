@@ -5,7 +5,8 @@ const { memoryFirestore, gameClient } = require('./helpers/room-fixtures.js');
 
 (async () => {
     const modules = Object.assign({}, await import('../js/net/rooms.mjs'), await import('../js/net/firebase-rooms.mjs'));
-    const db = memoryFirestore();
+    Object.assign(modules, await import('../js/net/rtdb-rooms.mjs'), await import('../js/net/rtdb-values.mjs'));
+    const db = process.argv.includes('--rtdb') ? require('./helpers/rtdb-fixtures.js').realtimeGameBackend(modules) : memoryFirestore();
     let time = 1000;
     const make = () => gameClient('rune-stones', db, modules, 'same-account', () => time);
     const host = make(), guest = make(), other = make();

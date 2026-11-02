@@ -1,6 +1,8 @@
-import { createRoomService, createRoomPresence } from './rooms.mjs';
+import { createRoomService, createRoomPresence, generateRoomCode } from './rooms.mjs';
 import { createFirebaseRoomStore } from './firebase-rooms.mjs';
 import { createRoomLobby } from './room-lobby.mjs';
+import { createRealtimeRoomStore } from './rtdb-rooms.mjs';
+import { createRoomRoutingStore } from './room-routing.mjs';
 
 /*
  * ArcadeNet — thin Firebase layer for online play (ES module, no build step).
@@ -57,12 +59,38 @@ function fail(err) {
         });
 
         const roomSessionId = crypto.getRandomValues(new Uint32Array(4)).join('-');
+        const roomSettings = window.FIREBASE_ROOMS || { backend: 'firestore' };
+        let rtdbSdk = null, rtdb = null, roomError = null;
+        try {
+            if (!['firestore', 'rtdb'].includes(roomSettings.backend)) throw new Error('Unknown room backend');
+            if (roomSettings.backend === 'rtdb') {
+                if (!roomSettings.databaseURL || !/^https:\/\/[a-z0-9.-]+\.(firebaseio\.com|firebasedatabase\.app)\/?$/i.test(roomSettings.databaseURL)) {
+                    throw new Error('Copy the Realtime Database URL from Firebase Console into FIREBASE_ROOMS.databaseURL');
+                }
+                rtdbSdk = await import(`${BASE}/firebase-database.js`);
+                rtdb = rtdbSdk.getDatabase(app, roomSettings.databaseURL);
+            }
+        } catch (err) {
+            roomError = err;
+            console.warn('[rooms] disabled; account sync is still available:', err);
+        }
         function configureRooms(options) {
             if (!options || !options.collection) throw new Error('Room collection is required');
+            if (roomError) throw roomError;
+            const firestore = createFirebaseRoomStore(fsMod, db, options.collection);
+            let store = firestore;
+            if (rtdb) {
+                const primary = createRealtimeRoomStore(rtdbSdk, rtdb, options.collection, {
+                    presenceField: options.presenceField,
+                    getPlayerId: () => user ? (options.identity === 'tab' ? user.uid + '_' + roomSessionId : user.uid) : null,
+                });
+                store = createRoomRoutingStore(primary, roomSettings.legacyFirestore === false ? null : firestore);
+            }
             return createRoomService({
-                store: createFirebaseRoomStore(fsMod, db, options.collection),
+                store,
                 getUser: () => user, sessionId: roomSessionId,
-            }, options);
+                generateCode: rtdb ? () => 'R-' + generateRoomCode() : undefined,
+            }, Object.assign({}, options, { codeLength: rtdb ? 6 : 4 }));
         }
 
         window.ArcadeNet = {
@@ -124,7 +152,8 @@ function fail(err) {
             },
             field: { delete: deleteField, now: serverTimestamp },
             // Each game supplies its own matchmaking policy and initial match data.
-            rooms: { create: configureRooms, presence: createRoomPresence, lobby: createRoomLobby },
+            rooms: { ok: !roomError, backend: roomSettings.backend, error: roomError,
+                create: configureRooms, presence: createRoomPresence, lobby: createRoomLobby },
         };
         window.dispatchEvent(new CustomEvent('arcade-net-ready'));
     } catch (err) {

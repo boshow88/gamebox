@@ -5,7 +5,8 @@ const { memoryFirestore, gameClient } = require('./helpers/room-fixtures.js');
 
 (async () => {
     const modules = Object.assign({}, await import('../js/net/rooms.mjs'), await import('../js/net/firebase-rooms.mjs'));
-    const db = memoryFirestore();
+    Object.assign(modules, await import('../js/net/rtdb-rooms.mjs'), await import('../js/net/rtdb-values.mjs'));
+    const db = process.argv.includes('--rtdb') ? require('./helpers/rtdb-fixtures.js').realtimeGameBackend(modules) : memoryFirestore();
     const clients = Array.from({ length: 5 }, () => gameClient('beam', db, modules, 'same-account'));
     const ids = clients.map(client => client.service.currentPlayer().uid);
     const tabs = clients.map(client => client.api), getRoom = () => db.get('beam_rooms/ABCD');

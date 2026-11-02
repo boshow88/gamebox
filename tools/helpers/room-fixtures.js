@@ -76,7 +76,8 @@ function gameClient(game, backend, modules, uid = 'account', now = Date.now) {
     const net = {
         ok: true, onAuth: callback => callback(client.user),
         rooms: { presence: options => modules.createRoomPresence({ ...options, now }), create: config => (client.service = modules.createRoomService({
-            store: modules.createFirebaseRoomStore(backend.sdk, backend.db, config.collection),
+            store: backend.createStore ? backend.createStore(config, () => client.user, sessionId, now)
+                : modules.createFirebaseRoomStore(backend.sdk, backend.db, config.collection),
             getUser: () => client.user, sessionId, generateCode: () => 'ABCD', now,
         }, config)) },
     };

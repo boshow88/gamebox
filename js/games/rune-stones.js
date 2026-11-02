@@ -3289,7 +3289,7 @@
             },
         };
         if (u && !data) {
-            model.entry = { codeLabel: t('rdRoomCode'),
+            model.entry = { codeLabel: t('rdRoomCode'), codeLength: matchmaking.config.codeLength || 4,
                 create: { label: t('rdCreateRoom'), primary: true, onClick: doCreate },
                 join: { label: t('rdJoinRoom'), onClick: doJoin },
             };
@@ -3324,7 +3324,7 @@
         const onReady = () => {
             const N = window.ArcadeNet;
             const btn = document.getElementById('online-btn');
-            if (!N || !N.ok) { if (btn) btn.hidden = true; return; }
+            if (!N || !N.ok || (N.rooms && N.rooms.ok === false)) { if (btn) btn.hidden = true; return; }
             net = N;
             roomPresence = net.rooms.presence({ timeoutMs: 15000 });
             matchmaking = net.rooms.create({
@@ -3351,7 +3351,6 @@
             });
             buildLobby();
             net.onAuth((u) => { netUser = u ? matchmaking.currentPlayer() : u; renderLobby(); });
-            if (matchmaking) matchmaking.cleanup().catch(() => {});   // purge abandoned rooms on load
             if (btn) { btn.hidden = (stagedMode === 'sandbox'); btn.addEventListener('click', openLobby); }
         };
         if (window.ArcadeNet) onReady();

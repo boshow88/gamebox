@@ -6,6 +6,7 @@ function randomCode() {
     for (let i = 0; i < 4; i++) code += ALPHABET[(Math.random() * ALPHABET.length) | 0];
     return code;
 }
+export { randomCode as generateRoomCode };
 function error(code, message) { return Object.assign(new Error(message), { code: 'room/' + code }); }
 function valueAt(data, path) { return path.split('.').reduce((node, key) => node == null ? undefined : node[key], data); }
 function sameData(a, b) {
@@ -49,7 +50,10 @@ export function createRoomPresence({ timeoutMs = 15000, now = Date.now } = {}) {
         for (const uid of records.keys()) if (!players[uid]) records.delete(uid);
         for (const uid of Object.keys(players)) {
             const record = records.get(uid);
-            if (!record || record.beat !== beats[uid]) records.set(uid, { beat: beats[uid], at: now() });
+            if (!record || record.beat !== beats[uid]) records.set(uid, {
+                beat: beats[uid],
+                at: beats[uid] === -1 ? (record ? record.at : now() - timeoutMs) : now(),
+            });
         }
     }
     const isAvailable = uid => !records.has(uid) || now() - records.get(uid).at < timeoutMs;
@@ -81,7 +85,7 @@ export function createRoomService({ store, getUser, sessionId, generateCode = ra
         if (!activity.has(code)) activity.set(code, { at: -Infinity, pending: null, pendingAt: -Infinity, retryAfter: -Infinity });
         return activity.get(code);
     }
-    async function transact(code, player, decide) {
+    async function transact(code, player, decide, intent = 'update') {
         const counter = ++pulse, sentAt = now();
         const outcome = await store.transact(code, data => {
             const change = decide(data);
@@ -101,7 +105,7 @@ export function createRoomService({ store, getUser, sessionId, generateCode = ra
                 published = true;
             }
             return Object.assign({}, change, { result: { value: change.result, published } });
-        });
+        }, { intent });
         // Only a committed write proves liveness. Rejected/no-op updates must not delay a heartbeat.
         if (outcome.published) {
             const state = activityFor(code);
@@ -169,7 +173,7 @@ export function createRoomService({ store, getUser, sessionId, generateCode = ra
                     code, status: config.waitingStatus, hostUid: player.uid, maxPlayers: config.maxPlayers,
                     players: { [player.uid]: member(player, 0) }, ready: {},
                 }, seating([player.uid])), result: true };
-            });
+            }, 'create');
             if (created) return code;
         }
         throw error('code', 'could not allocate a room code');
@@ -191,7 +195,7 @@ export function createRoomService({ store, getUser, sessionId, generateCode = ra
                 status: ids.length >= config.minPlayers ? config.occupiedStatus : config.waitingStatus,
                 players: Object.assign({}, data.players, { [player.uid]: member(player, seat) }), ready,
             }, seating(ids), config.onJoin(data, player, ids)), result: code };
-        });
+        }, 'join');
     }
     async function leave(value) {
         const player = currentPlayer(), code = normalizeCode(value);

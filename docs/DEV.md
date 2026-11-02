@@ -39,6 +39,9 @@ js/launcher.js               Game manifest (GAMES) + tags + render/filter + acco
 js/net/net.js                Firebase room layer (window.ArcadeNet)
 js/net/rooms.mjs             Shared configurable matchmaking and room sessions
 js/net/firebase-rooms.mjs    Firestore transport for the shared room service
+js/net/rtdb-rooms.mjs        Optional RTDB transport (see docs/RTDB-SETUP.md)
+js/net/rtdb-values.mjs       Lossless RTDB encoding for logical JSON values
+js/net/room-routing.mjs      New RTDB codes and legacy Firestore room routing
 js/net/room-lobby.mjs        Shared room lobby DOM and action layout
 css/room-lobby.css           Shared responsive lobby styling
 js/cloud-sync.js             Cross-device high-score sync (window.CloudSync)
@@ -105,6 +108,9 @@ membership, seats, readiness, starts and room subscriptions. `rooms.lobby()` ren
 their common lobby layout using game-supplied text, badges and actions. Their
 different start/departure policies live in each game's configuration. See
 [`ROOMS.md`](ROOMS.md) for the API, policy comparison and offline checks.
+The configured room backend is RTDB with legacy Firestore room support. See
+[`RTDB-SETUP.md`](RTDB-SETUP.md) for database rules, deployment and live checks while
+retaining Firestore accounts and existing rooms.
 
 ### i18n conventions
 

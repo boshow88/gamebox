@@ -7,7 +7,10 @@ const os = require('node:os');
 const path = require('node:path');
 const { spawn } = require('node:child_process');
 const root = path.resolve(__dirname, '..');
-const chrome = process.argv[2] || 'C:/Program Files/Google/Chrome/Application/chrome.exe';
+const args = process.argv.slice(2);
+const mode = args.includes('--invalid-rtdb') ? 'invalid' : args.includes('--rtdb') ? 'rtdb' : 'firestore';
+const chrome = args.find(arg => !arg.startsWith('--')) || 'C:/Program Files/Google/Chrome/Application/chrome.exe';
+const database = require('./helpers/browser-rtdb.js');
 
 // Mock only the remote Firebase SDK. net.js, the room modules and both game pages
 // load normally. Browser storage events connect the real pages; Web Locks serialize transactions.
@@ -44,6 +47,8 @@ export const signInAnonymously = async () => {}, signOut = async () => {}, signI
 `;
 const runner = `<!doctype html><meta charset="utf-8"><pre id="result">RUNNING</pre><script>
 const errors = [];
+const mode = '${mode}';
+let encode = value => value, decode = value => value;
 addEventListener('message', event => { if (event.data && event.data.roomError) errors.push(event.data.roomError); });
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 async function until(check, label) { for (let i = 0; i < 2500; i++) { if (errors.length) throw new Error(errors.join('; ')); if (check()) return; await sleep(10); } throw new Error('Timed out: ' + label); }
@@ -59,6 +64,11 @@ function layout(f, entry = false) {
     if (!entry && rows[0].firstElementChild.dataset.lobbyAction !== 'copy') throw new Error('Copy must precede the primary action');
     if (!entry && rows[1].firstElementChild.dataset.lobbyAction !== 'leave') throw new Error('Leave must have its own row');
     const bounds = card.getBoundingClientRect();
+    const code = root.querySelector('.lobby-code');
+    if (code) {
+        const range = f.contentDocument.createRange(); range.selectNodeContents(code);
+        if (range.getClientRects().length !== 1 || code.scrollWidth > code.clientWidth + 1) throw new Error('Room code wraps or overflows');
+    }
     for (const row of rows) {
         if (row.scrollWidth > row.clientWidth + 1) throw new Error('Lobby row overflows on a narrow screen');
         for (const child of row.children) {
@@ -71,6 +81,7 @@ async function check(game, group, prefix) {
     const a = frame(game, 'same-account'), b = frame(game, 'same-account');
     for (const f of [a, b]) {
         await until(() => f.contentWindow.ArcadeNet && f.contentWindow.ArcadeNet.ok && f.contentDocument.getElementById('lobby'), game + ' boot');
+        if (f.contentWindow.ArcadeNet.rooms.backend !== mode) throw new Error('Unexpected room backend');
         f.contentWindow.ArcadeCommon.i18n.setLocale('en');
         if (game === 'rune-stones') f.contentDocument.querySelector('[data-mode="duel"]').click();
         f.contentDocument.getElementById('online-btn').click();
@@ -86,8 +97,11 @@ async function check(game, group, prefix) {
     button(a, prefix + 'CreateRoom');
     await until(() => a.contentDocument.querySelector('.lobby-code'), 'create');
     const code = a.contentDocument.querySelector('.lobby-code').textContent;
-    const read = () => JSON.parse(localStorage.getItem('__rooms-browser-db') || '{}')[group + '/' + code];
+    if (!(mode === 'rtdb' ? /^R-[A-Z0-9]{4}$/ : /^[A-Z0-9]{4}$/).test(code)) throw new Error('Incorrect code format');
+    const roomKey = (mode === 'rtdb' ? 'rooms/' : '') + group + '/' + code;
+    const read = () => decode(JSON.parse(localStorage.getItem('__rooms-browser-db') || '{}')[roomKey]);
     const input = b.contentDocument.querySelector('#lobby input'); input.value = code; input.focus(); input.setSelectionRange(1, 3);
+    if (input.maxLength !== (mode === 'rtdb' ? 6 : 4) || input.value !== code) throw new Error('Room input length mismatch');
     b.contentWindow.ArcadeCommon.i18n.setLocale('zh'); b.contentWindow.ArcadeCommon.i18n.setLocale('en');
     const restored = b.contentDocument.querySelector('#lobby input');
     if (restored.value !== code || b.contentDocument.activeElement !== restored || restored.selectionStart !== 1 || restored.selectionEnd !== 3) throw new Error('Input state lost on lobby redraw');
@@ -106,13 +120,14 @@ async function check(game, group, prefix) {
     if (game === 'beam') { await until(() => enabled(a, 'beamStartMatch'), 'start button enabled'); button(a, 'beamStartMatch'); } else button(a, 'rdReadyUp');
     await until(() => read().game.status === 'playing' && a.contentDocument.getElementById('lobby').hidden && b.contentDocument.getElementById('lobby').hidden, 'start');
     if (game === 'rune-stones') {
-        const all = JSON.parse(localStorage.getItem('__rooms-browser-db')), room = all[group + '/' + code], ids = Object.keys(room.players);
+        const all = JSON.parse(localStorage.getItem('__rooms-browser-db')), room = decode(all[roomKey]), ids = Object.keys(room.players);
         room.game.atk = Object.fromEntries(ids.map(id => [id, { dmg: 100, heal: 0 }]));
+        all[roomKey] = encode(room);
         localStorage.setItem('__rooms-browser-db', JSON.stringify(all));
         await until(() => read().game.round === 2, 'round settlement');
         if (!Object.values(read().game.hp).every(hp => hp === 2900) || read().game.settledRound !== 1) throw new Error('Incorrect round settlement');
     }
-    const end = () => { const all = JSON.parse(localStorage.getItem('__rooms-browser-db')); const room = all[group + '/' + code]; room.game.status = 'over'; room.game.winner = room.hostUid; if (game === 'beam') room.status = 'lobby'; localStorage.setItem('__rooms-browser-db', JSON.stringify(all)); };
+    const end = () => { const all = JSON.parse(localStorage.getItem('__rooms-browser-db')); const room = decode(all[roomKey]); room.game.status = 'over'; room.game.winner = room.hostUid; if (game === 'beam') room.status = 'lobby'; all[roomKey] = encode(room); localStorage.setItem('__rooms-browser-db', JSON.stringify(all)); };
     end();
     await until(() => !a.contentDocument.getElementById('lobby').hidden && !b.contentDocument.getElementById('lobby').hidden, 'results');
     layout(a); layout(b);
@@ -129,7 +144,22 @@ async function check(game, group, prefix) {
     if (read().code !== code) throw new Error('Room code changed');
     a.remove(); b.remove(); await sleep(50);
 }
-(async () => { await check('beam', 'beam_rooms', 'beam'); await check('rune-stones', 'duel_rooms', 'rd'); document.getElementById('result').textContent = 'PASS: real browser pages, ESM loading, room UI, starts, results, rematches and rejoining.'; })().catch(error => { document.getElementById('result').textContent = 'FAIL: ' + error.stack; });
+(async () => {
+    if (mode === 'invalid') {
+        for (const game of ['beam', 'rune-stones']) {
+            const f = frame(game, 'same-account');
+            await until(() => f.contentWindow.ArcadeNet && f.contentWindow.ArcadeNet.ok, 'auth boot');
+            const net = f.contentWindow.ArcadeNet;
+            if (net.rooms.ok !== false || !f.contentDocument.getElementById('online-btn').hidden) throw new Error('Invalid RTDB settings must disable rooms');
+            await net.profile.get('same-account'); // account/records remain on Firestore
+            f.remove();
+        }
+    } else {
+        if (mode === 'rtdb') { const codec = await import('/js/net/rtdb-values.mjs'); encode = codec.encodeRoomValue; decode = codec.decodeRoomValue; }
+        await check('beam', 'beam_rooms', 'beam'); await check('rune-stones', 'duel_rooms', 'rd');
+    }
+    document.getElementById('result').textContent = 'PASS (' + mode + '): real browser room flows, backend selection and account isolation.';
+})().catch(error => { document.getElementById('result').textContent = 'FAIL: ' + error.stack; });
 </script>`;
 
 async function main() {
@@ -140,11 +170,15 @@ async function main() {
         if (url.pathname === '/__check') { body = runner; type = 'text/html'; }
         else if (url.pathname === '/__sdk/firebase-app.js') body = 'export const initializeApp = () => ({});';
         else if (url.pathname === '/__sdk/firebase-auth.js') body = auth;
-        else if (url.pathname === '/__sdk/firebase-firestore.js') body = firestore;
+        else if (url.pathname === '/__sdk/firebase-firestore.js') body = mode === 'rtdb'
+            ? firestore.replace('async ref => snap(ref)', "async ref => { if (ref.includes('_rooms/')) throw new Error('Unexpected Firestore room access'); return snap(ref); }") : firestore;
+        else if (url.pathname === '/__sdk/firebase-database.js') body = database;
         else {
             const file = path.resolve(root, '.' + url.pathname);
             if (!file.startsWith(root + path.sep) || !fs.existsSync(file) || !fs.statSync(file).isFile()) { response.writeHead(404); response.end(); return; }
             body = fs.readFileSync(file);
+            if (file.endsWith('firebase-config.js')) body = body.toString()
+                + '\nwindow.FIREBASE_ROOMS = ' + JSON.stringify({ backend: mode === 'firestore' ? 'firestore' : 'rtdb', databaseURL: mode === 'invalid' ? '' : 'https://demo-local-test.firebaseio.com', legacyFirestore: false }) + ';';
             if (file.endsWith('net.js')) body = body.toString().replace('const BASE = `https://www.gstatic.com/firebasejs/${SDK}`;', "const BASE = location.origin + '/__sdk';");
             if (file.endsWith('.html')) {
                 type = 'text/html';
@@ -167,7 +201,7 @@ async function main() {
         try { await new Promise((resolve, reject) => { browser.on('error', reject); browser.on('exit', resolve); }); }
         finally { clearTimeout(timeout); }
         const match = output.match(/<pre id="result">([\s\S]*?)<\/pre>/);
-        assert(match && match[1].startsWith('PASS:'), (match && match[1]) || diagnostics.slice(-2000) || 'No browser result');
+        assert(match && match[1].startsWith('PASS ('), (match && match[1]) || diagnostics.slice(-2000) || 'No browser result');
         console.log(match[1]);
     } finally {
         if (browser && browser.exitCode === null) browser.kill();

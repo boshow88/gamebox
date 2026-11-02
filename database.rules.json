@@ -1,0 +1,16 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "rooms": {
+      "$game": {
+        ".read": "auth != null && ($game === 'beam_rooms' || $game === 'duel_rooms')",
+        ".indexOn": ["lastActionAt"],
+        "$code": {
+          ".write": "auth != null && ($game === 'beam_rooms' || $game === 'duel_rooms')",
+          ".validate": "newData.hasChildren(['code', 'status', 'hostUid', 'players', 'lastActionAt']) && newData.child('code').isString() && newData.child('code').val() === $code && $code.matches(/^R-[A-Z0-9]{4}$/) && newData.child('status').isString() && newData.child('hostUid').isString() && newData.child('lastActionAt').isNumber()"
+        }
+      }
+    }
+  }
+}

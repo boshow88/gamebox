@@ -901,7 +901,11 @@
     // track each player's beat; `at` is OUR local time it last changed (no cross-client clock needed)
     function updatePres(g) {
         var beats = (g && g.beat) || {}, now = Date.now();
-        for (var uid in beats) { var p = pres[uid]; if (!p) pres[uid] = { v: beats[uid], at: now }; else if (p.v !== beats[uid]) { p.v = beats[uid]; p.at = now; } }
+        for (var uid in beats) {
+            var p = pres[uid];
+            if (!p) pres[uid] = { v: beats[uid], at: beats[uid] === -1 ? now - STALL_MS - 1 : now };
+            else if (p.v !== beats[uid]) { p.v = beats[uid]; if (beats[uid] !== -1) p.at = now; }
+        }
     }
     function isStale(uid) { if (om && om.local) return false; var p = pres[uid]; return !!p && (Date.now() - p.at) > STALL_MS; }
     function buildLobby() {
@@ -965,7 +969,7 @@
             },
         };
         if (u && !d) {
-            model.entry = { codeLabel: t('beamRoomCode'),
+            model.entry = { codeLabel: t('beamRoomCode'), codeLength: matchmaking.config.codeLength || 4,
                 create: { label: t('beamCreateRoom'), primary: true, onClick: doCreate },
                 join: { label: t('beamJoinRoom'), onClick: doJoin },
                 spectate: { label: t('beamSpectate'), onClick: doSpectate },
@@ -1050,7 +1054,7 @@
     function setupOnline() {
         function ready() {
             var N = window.ArcadeNet, btn = $('online-btn');
-            if (!N || !N.ok) { if (btn) btn.hidden = true; return; }
+            if (!N || !N.ok || (N.rooms && N.rooms.ok === false)) { if (btn) btn.hidden = true; return; }
             net = N;
             matchmaking = net.rooms.create({
                 collection: GROUP, identity: 'tab', minPlayers: 2, maxPlayers: MAX_PLAYERS,
@@ -1070,7 +1074,6 @@
             });
             buildLobby();
             net.onAuth(function (uu) { netUser = uu ? matchmaking.currentPlayer() : uu; renderLobby(); });
-            matchmaking.cleanup().catch(function () { });
             if (btn) btn.addEventListener('click', openLobby);
             updateOnlineBtn();
         }
