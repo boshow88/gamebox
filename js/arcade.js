@@ -194,6 +194,12 @@
             '<circle cx="12" cy="12" r="10"/>'
             + '<circle cx="12" cy="12" r="6"/>'
             + '<circle cx="12" cy="12" r="2"/>',
+        // custom: a dartboard (two rings + pip) with a dart arriving from the top-right
+        darts:
+            '<circle cx="11" cy="13" r="8"/>'
+            + '<circle cx="11" cy="13" r="3.5"/>'
+            + '<circle cx="11" cy="13" r="0.5"/>'
+            + '<path d="m11 13 9-9"/><path d="M21 4h-3m3 0v3"/>',
         clock:
             '<circle cx="12" cy="12" r="10"/>'
             + '<polyline points="12 6 12 12 16 14"/>',

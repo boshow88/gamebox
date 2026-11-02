@@ -425,6 +425,67 @@ timings (`ANSWER_SEC`, `countSec`, memorise scaling), and the late-match speed-u
 
 ---
 
+## Darts
+
+A **throwing-feel prototype**, not a full 501 game. It exists to answer one
+question: *does the mouse / touch gesture actually feel like throwing a dart?* So
+it's a free, endless practice board — throw, watch it fly, throw again.
+
+### Throwing
+
+- **Press, flick toward the board, release.** Hold the left mouse button (or a
+  finger), move, and let go to throw. You can start the gesture **anywhere** — the
+  press point is the virtual hand, so only your *motion* matters (the same flick
+  throws the same whether you start top-left or bottom-right). This matters most on
+  touch, where your hand never has to cover the board.
+- There is **no power meter, no angle meter, no crosshair, and no random spread.**
+  The throw is built entirely from your gesture.
+
+### What the gesture does
+
+- You throw from **below the bull**, so a gentle flick **up** aims at the centre.
+- The **release** is what counts — the throw's direction is read from the last
+  ~100 ms of your flick (smoothed, not a single jerky sample):
+  - Pull **sideways** at the last moment and the dart drifts that way.
+  - Flick a touch **harder** and it flies **flatter and higher**; softer and it
+    drops. Pace changes the throw only modestly — it's a groove to settle into,
+    not a meter to max out.
+- It's **deterministic**: the same gesture always lands in the same place. You miss
+  because of *how you threw*, not because the game rolled a dice.
+
+### Scoring
+
+- A standard board: singles, the **triple** (inner) and **double** (outer) rings,
+  the **outer bull** (25) and the **bullseye** (50). The HUD shows your last dart,
+  a running session **total**, and the number of **darts** thrown. There's no match
+  or finish yet — just practice.
+
+### Debug / practice view
+
+- Press **`D`** (or the Debug button) to see *why* a dart went where it did: your
+  recorded gesture and its smoothed path, the final release window and release
+  vector, and the flight from the **top** (left/right) and the **side** (drop),
+  with the impact point and the derived numbers (duration, release speed, tempo,
+  launch velocity). It turns "the game says I missed" into "I missed right because
+  my release pulled right."
+
+### Controls
+
+- **Throw**: hold + flick + release, anywhere in the play zone.
+- **`D`** debug view · **`R`** reset the session · **`P`** / `Esc` pause · **`M`**
+  mute.
+
+### Tuning
+
+Everything lives in `TUNING` at the top of `js/games/darts.js` — gesture sampling
+and the release window, the gesture-to-world X / Y scales, the forward distance and
+base speed, the compressed tempo range, gravity, the hand height, the board
+geometry, and the perspective. The throw maths (`analyseGesture`, `computeThrow`,
+`computeImpact`, `scoreAt`) are kept pure and separate from rendering so the feel
+can be retuned — or the physics swapped out — without touching the draw code.
+
+---
+
 # Puzzle Games
 
 A central reference for the eight puzzles in this collection. Each game

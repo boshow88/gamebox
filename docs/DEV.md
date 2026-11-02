@@ -146,6 +146,29 @@ retaining Firestore accounts and existing rooms.
    `STRINGS` in `js/launcher.js`; per-game gameplay strings stay in the game file.
 6. Add a rules section to `docs/rules.md`.
 
+### WIP gating (the `wip` flag)
+
+A game whose `GAMES` entry has `wip: true` is still shown on the launcher, but
+opening it goes through a soft gate (`openWipGate` in `js/launcher.js`). What the
+gate does depends on who's looking — so a half-built game can ship on `main`
+without being openly playable, while you and testers still reach it directly:
+
+- **Signed-in owner / admin** (listed in `config/admins`): no gate at all. The
+  card opens the game directly, exactly like a normal entry. This is why a `wip`
+  game is fully playable for you once you're signed in.
+- **A device unlocked via `index.html?backstage`**: the flag is stored in
+  `localStorage` (`gamebox:backstage`), so WIP games open after a friendly
+  "backstage — take a look?" confirm. Share that one link with a tester and a
+  single click unlocks every WIP game on their device.
+- **Everyone else (locked)**: the confirm reads "still being built — isn't open
+  yet"; insisting ("let me in anyway") leads to a well-known decoy video rather
+  than the game. It's a deterrent, not real access.
+
+So `wip: true` is the switch between "listed but gated for the public" and
+"normal playable card". Flip it off (or just delete the key) to release a game to
+everyone. Nothing else changes — strings, scoring and sync all behave the same
+whether or not the flag is set.
+
 Canvas convention: render at a fixed logical resolution (Colour Ladder
 uses 600×760 portrait, capped/centred via a `.stage-wrap { max-width }`
 on its page) and scale the backing store by `devicePixelRatio` in a

@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="arcade">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Darts · GameBox</title>
+    <link rel="icon" type="image/svg+xml" href="../favicon.svg">
+    <link rel="stylesheet" href="../css/common.css">
+    <link rel="stylesheet" href="../css/arcade.css">
+    <style>
+        body { --game-color: #22c55e; }
+        /* Board is slightly portrait; cap and centre the stage. */
+        .stage-wrap { max-width: 480px; margin: 0 auto; }
+        /* A touch-action:none play zone around the board: a relative flick can start on
+           the board OR in this margin (so an off-board press never whiffs) without the
+           gesture turning into a page scroll. */
+        .stage-pad { touch-action: none; padding: 16px 16px 40px; }
+        .stage-canvas { touch-action: none; width: 100%; height: auto; background: #0a0f15; border-radius: 12px; }
+    </style>
+</head>
+
+<body>
+    <div class="game-shell">
+        <header class="game-topbar">
+            <a class="back-link" href="../index.html">
+                <span data-icon="arrow-left" aria-hidden="true"></span>
+                <span data-i18n="menu">Menu</span>
+            </a>
+            <div class="game-title">
+                <span class="game-icon" data-icon="darts" aria-hidden="true"></span>
+                <span data-i18n="dartsReady">Darts</span>
+            </div>
+            <div class="lang-toggle" id="lang-toggle" role="radiogroup" data-i18n-aria-label="language">
+                <button type="button" data-lang="en" role="radio" aria-checked="true">EN</button>
+                <button type="button" data-lang="zh" role="radio" aria-checked="false">中</button>
+            </div>
+        </header>
+
+        <div class="hud">
+            <div class="hud-stat accent">
+                <span class="hud-label"><span data-icon="target" aria-hidden="true"></span><span data-i18n="dartsLast">Last</span></span>
+                <span class="hud-value" id="last-score">—</span>
+            </div>
+            <div class="hud-stat">
+                <span class="hud-label"><span data-icon="coins" aria-hidden="true"></span><span data-i18n="dartsTotal">Total</span></span>
+                <span class="hud-value" id="session-total">0</span>
+            </div>
+            <div class="hud-stat">
+                <span class="hud-label"><span data-icon="darts" aria-hidden="true"></span><span data-i18n="dartsDarts">Darts</span></span>
+                <span class="hud-value" id="dart-count">0</span>
+            </div>
+        </div>
+
+        <div class="control-row">
+            <span class="spacer"></span>
+            <div class="control-actions">
+                <button class="btn toggle" id="debug-btn" type="button" aria-pressed="false" data-i18n-title="dartsDebug" title="Debug">
+                    <span data-icon="target" aria-hidden="true"></span>
+                    <span data-i18n="dartsDebug">Debug</span>
+                </button>
+                <button class="btn" id="pause-btn" type="button" disabled>
+                    <span data-icon="pause" aria-hidden="true"></span>
+                    <span data-role="pause-label" data-i18n="pause">Pause</span>
+                </button>
+                <button class="btn" id="restart-btn" type="button" disabled>
+                    <span data-icon="rotate-ccw" aria-hidden="true"></span>
+                    <span data-i18n="restart">Restart</span>
+                </button>
+                <button class="btn btn-icon toggle" id="sound-btn" type="button" aria-pressed="true" data-i18n-title="sound" title="Sound">
+                    <span data-role="sound-icon" aria-hidden="true"></span>
+                </button>
+            </div>
+        </div>
+
+        <div class="stage-pad">
+            <div class="stage-wrap">
+                <canvas class="stage-canvas drag-stage" id="stage" width="480" height="600"
+                        role="img" aria-label="Darts practice board"></canvas>
+                <div class="overlay" id="overlay" hidden>
+                    <div class="overlay-card">
+                        <span class="overlay-badge" id="overlay-badge" aria-hidden="true"></span>
+                        <h2 class="overlay-title" id="overlay-title"></h2>
+                        <p class="overlay-message" id="overlay-message"></p>
+                        <button class="btn btn-primary overlay-btn" id="overlay-btn" type="button"></button>
+                        <p class="overlay-hint" id="overlay-hint"></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <section class="game-footer">
+            <h4 data-i18n="howToPlay">How to play</h4>
+            <ul>
+                <li data-i18n="dartsHelp1Html">Press, <strong>flick toward the board</strong>, and release. You throw from below the bull, so a gentle flick <strong>up</strong> aims at the centre.</li>
+                <li data-i18n="dartsHelp2Html">The <strong>release</strong> is what counts: pull sideways at the last moment and the dart drifts that way; flick a touch harder and it flies flatter and higher. The same flick always lands the same — <strong>no random spread</strong>.</li>
+                <li data-i18n="dartsHelp3Html">Drag <strong>anywhere</strong> (the press point is ignored). <kbd>D</kbd> debug view · <kbd>R</kbd> reset session · <kbd>M</kbd> mute.</li>
+            </ul>
+        </section>
+    </div>
+
+    <script src="../js/arcade.js"></script>
+    <script src="../js/games/darts.js"></script>
+</body>
+
+</html>
