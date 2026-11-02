@@ -43,6 +43,7 @@
         retreatCap: 60,         // how far PAST the off-screen source a chain's FRONT may be knocked (px). A big combo flings the whole chain out onto the endless buffer track; the leading edge stops this little bit past the source (so it never flies too far) and the inward feed reels it back in. Room for the knockback comes mostly from the chain's own length, so impulse still scales the recoil; this is just the final "a little past the start" overshoot.
         comboImpulse: 0.50,     // crash-elimination recoil = impulse × (1 + (combo-1) × comboImpulse); longer chains kick the trailing queue back harder
         comboRetreat: 0.25,     // retreat/attraction speed = vRetreat × (1 + (combo-1) × comboRetreat); independent of comboImpulse so the two can ramp at different rates
+        voidMin: 20,            // the "往回撞" (recoil) threshold (px). Attraction ALWAYS closes a shared-factor gap (回彈); it only CRASHES/recoils back (往回撞) if the gap it crossed was ≥ this. A removed ball leaves one full slot (D = 27 ≥ 20 → real void → recoil); a mere displacement (balls nudged a few px apart, nothing removed) stays below → just merges quietly. Keep < D so a real one-ball void still recoils.
         primeFloor: 8,          // scoring base per peeled ball = (p + primeFloor); a big floor flattens prime magnitude (human division of small primes is ~equally easy)
         comboScore: 0.25,       // score combo bonus: an elimination's total gain × (1 + (combo-1) × comboScore)
         k: 3,
@@ -365,13 +366,16 @@
         if (cur) out.push(cur);
         return out;
     }
-    function tryEliminate(qs, q, idx, p, knockback) {
-        if (!q || q.vals[idx].v % p !== 0) return false;
-        var lo = idx, hi = idx;
+    // NORMAL mode: `idx` is a ball index (the matched/crashed ball). VIRTUAL mode (extra given): `idx` is the GAP index where a shot would sit (balls [0..idx-1] on the death side, [idx..] on the source side). The shot counts toward the run length & score but is NEVER inserted, so a shot that completes a run peels it IN PLACE — no ball-slot void is left behind, hence no spurious recoil.
+    function tryEliminate(qs, q, idx, p, knockback, extra) {
+        if (!q) return false;
+        var lo, hi;
+        if (extra) { lo = idx; hi = idx - 1; }                                   // virtual shot in the gap → empty seed range; expand divisible runs on BOTH sides of the gap
+        else { if (q.vals[idx].v % p !== 0) return false; lo = idx; hi = idx; }  // normal: seed on the matched ball
         while (lo - 1 >= 0 && q.vals[lo - 1].v % p === 0) lo--;
         while (hi + 1 < q.vals.length && q.vals[hi + 1].v % p === 0) hi++;
-        if (hi - lo + 1 < CFG.k) return false;
-        var items = [], gain = 0;
+        if ((hi - lo + 1) + (extra ? 1 : 0) < CFG.k) return false;              // +1 counts the virtual shot ball toward the run length
+        var items = [], gain = extra ? (p + CFG.primeFloor) * (extra.mult != null ? extra.mult : 1) : 0;   // the virtual shot banks its own (p + floor) × mult too
         for (var j = 0; j < q.vals.length; j++) {
             var b = q.vals[j], sPos = q.head + j * CFG.D;
             if (j >= lo && j <= hi) { gain += (p + CFG.primeFloor) * (b.mult != null ? b.mult : 1); b.v = b.v / p; if (b.v === 1) { burst(b.rx, b.ry, hue(p)); continue; } b.pop = 1; }   // each peeled ball banks (p + floor) × its spawn-time multiplier; longer runs & high-Ω balls (peeled repeatedly) earn more
@@ -395,7 +399,11 @@
                     var frontFed = (b.vel || 0) < 0 && (f.vel || 0) <= 0, retreating = (f.vel || 0) > 0;
                     var mq = { vals: f.vals.concat(b.vals), head: frontFed ? f.head : (b.head - f.vals.length * CFG.D), imp: 0 };
                     qs.splice(i, 2, mq);
-                    if (retreating && mq.head + junction * CFG.D <= pathLen) { if (a === c && isPrime(a)) tryEliminate(qs, mq, junction, a, true); else { mq.imp = CFG.impulse; if (crashes < 2) { sfxCrash(); crashes++; } } }   // crashes out in the off-screen buffer (seam past the source) just MERGE quietly — a big-combo fling + attraction would otherwise rapid-fire eliminate out there; let the merged chain ride the feed back in instead
+                    if (retreating && mq.head + junction * CFG.D <= pathLen) {   // seam on-screen only — crashes out in the off-screen buffer just MERGE quietly (a big-combo fling would otherwise rapid-fire eliminate out there)
+                        var recoil = (f.voidGap || 0) >= CFG.voidMin;   // the gap ALWAYS closes (回彈); only a gap ≥ voidMin crashes/recoils back (往回撞). A slight-displacement re-stick merges quietly — the original [4,4]→[2,2] fix. (A removed-ball void is D ≥ voidMin, so real voids & combos still kick back.)
+                        if (a === c && isPrime(a)) tryEliminate(qs, mq, junction, a, recoil);
+                        else if (recoil) { mq.imp = CFG.impulse; if (crashes < 2) { sfxCrash(); crashes++; } }
+                    }
                     merged = true; break;
                 }
             }
@@ -427,10 +435,11 @@
         return best;
     }
     function insertShot(shot, hit) {
-        var lane = hit.lane, q = hit.q, shotS = nearestS(lane.path, shot.x, shot.y), j = shotS < hit.s ? hit.j : hit.j + 1;
-        q.vals.splice(j, 0, makeBall(shot.v, shot.x, shot.y));
+        var lane = hit.lane, q = hit.q, p = shot.v, shotS = nearestS(lane.path, shot.x, shot.y), j = shotS < hit.s ? hit.j : hit.j + 1;
+        if (tryEliminate(lane.qs, q, j, p, false, { mult: (R && R.mult != null) ? R.mult : 1 })) return;   // shot completes a run at gap j → peel IN PLACE (virtual shot: counts toward the run & score, occupies no slot) → no ball-slot void, so no spurious recoil. Works wherever it lands, incl. hitting the non-matching ball on the far side of the gap (e.g. 2 into [2,2,7] from the 7 side).
+        q.vals.splice(j, 0, makeBall(p, shot.x, shot.y));   // no run → the shot stays in the chain: make room and sit
         if (CFG.insertPush === 'front') q.head -= CFG.D;
-        if (!tryEliminate(lane.qs, q, j, shot.v)) sfxInsert();
+        sfxInsert();
     }
 
     // ---------------- main loop ----------------
@@ -453,7 +462,7 @@
         // 2) velocities + motion + collisions, per lane
         for (L = 0; L < lanes.length; L++) {
             qs = lanes[L].qs;
-            for (i = 0; i < qs.length; i++) { var q = qs[i], v = 0; if (i === qs.length - 1) v = -feedV; else if (gcd(q.vals[q.vals.length - 1].v, qs[i + 1].vals[0].v) > 1) v = CFG.vRetreat * (1 + (combo - 1) * CFG.comboRetreat); q.vel = v + (q.imp || 0); q.imp = (q.imp || 0) * Math.max(0, 1 - CFG.impDecay * dt); if (Math.abs(q.imp) < 1) q.imp = 0; }   // retreat/attraction speed also ramps with combo, same ratio as the recoil
+            for (i = 0; i < qs.length; i++) { var q = qs[i], v = 0; if (i === qs.length - 1) { v = -feedV; q.voidGap = null; } else if (gcd(q.vals[q.vals.length - 1].v, qs[i + 1].vals[0].v) > 1) { v = CFG.vRetreat * (1 + (combo - 1) * CFG.comboRetreat); if (q.voidGap == null) q.voidGap = gapBetween(q, qs[i + 1]); } else q.voidGap = null; q.vel = v + (q.imp || 0); q.imp = (q.imp || 0) * Math.max(0, 1 - CFG.impDecay * dt); if (Math.abs(q.imp) < 1) q.imp = 0; }   // attraction (回彈) ALWAYS closes a shared-factor gap by easing the front back; voidGap latches the gap size when attraction began so the crash can tell a real void from a slight displacement. Speed ramps with combo.
             for (i = 0; i < qs.length; i++) qs[i].head += qs[i].vel * dt;
             var maxHead = lanes[L].path.len + CFG.retreatCap, qc, exc;   // cap the chain's FRONT (head) a little past the off-screen source: a big combo can fling the whole chain out onto the buffer track (its tail trailing far off-screen), but the leading edge never flies further than this — then its impulse is killed so the normal inward feed reels it right back in
             for (i = 0; i < qs.length; i++) { qc = qs[i]; exc = qc.head - maxHead; if (exc > 0) { qc.head -= exc; if ((qc.imp || 0) > 0) qc.imp = 0; } }
@@ -645,7 +654,7 @@
         if (mode === 'level') {
             for (var w = 1; w <= DATA.worlds; w++) {
                 var row = document.createElement('div'); row.className = 'pz-row';
-                for (var f = 0; f < DATA.levelsPerWorld(w); f++) (function (w, f) { var b = document.createElement('button'); b.type = 'button'; b.className = 'pz-lvl'; b.textContent = w + '-' + (f + 1); b.addEventListener('click', function () { AC.audio.unlock(); startLevel(w, f); }); row.appendChild(b); })(w, f);
+                for (var f = 0; f < DATA.levelsPerWorld(w); f++) (function (w, f) { var b = document.createElement('button'); b.type = 'button'; b.className = 'pz-lvl'; b.textContent = w + '-' + DATA.level(w, f).label; b.addEventListener('click', function () { AC.audio.unlock(); startLevel(w, f); }); row.appendChild(b); })(w, f);
                 card.appendChild(row);
             }
         } else {
@@ -693,7 +702,7 @@
 
         shell = AC.shell.create({
             gameId: 'prime-zuma', step: 1 / 60, preventKeys: ['Space'],
-            mode: function () { return mode === 'level' ? ('L' + sel.world + '-' + (sel.fieldIdx + 1)) : ('E-' + endlessSel.diff + '-' + ((DATA.FIELDS[endlessSel.fieldIdx] || {}).id || '?')); },   // levels: one record per level (L<world>-<level>); endless: one per (style, field) (E-<style>-<fieldId>)
+            mode: function () { return mode === 'level' ? ('L' + sel.world + '-' + DATA.level(sel.world, sel.fieldIdx).label) : ('E-' + endlessSel.diff + '-' + ((DATA.FIELDS[endlessSel.fieldIdx] || {}).id || '?')); },   // levels: one record per level (L<world>-<label>, label defaults to the level number); endless: one per (style, field) (E-<style>-<fieldId>)
             update: update, render: render,
             reset: newGame,
             restartToReady: true,

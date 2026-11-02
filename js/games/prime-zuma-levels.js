@@ -83,12 +83,18 @@ window.PrimeZumaData = (function () {
             { primes: pn(5), cap: 99, omega: 3.0, feed: 21, bias: 0.45, quota: 100, field: 'box' },
             { primes: pn(5), cap: 99, omega: 3.0, feed: 20, bias: 0.45, quota: 150, field: 'trine' },
         ],
+        [ // World 5 — one level per endless STYLE, all on vortex, labelled 5-A…5-D. Values seeded from each style's character; tune freely.
+            { primes: pn(4), cap: 7, omega: 1.0, feed: 50, bias: 1.00, quota: 360, field: 'vortex', label: 'A' },    // blitz — fast feed, small simple numbers
+            { primes: pn(4), cap: 980, omega: 5.0, feed: 13, bias: 9.90, quota: 90, field: 'vortex', label: 'B' },   // gnarly — high Ω, bias > 1 (dense composites)
+            { primes: pn(5, 11), cap: 961, omega: 2.0, feed: 15, bias: 0.35, quota: 85, field: 'vortex', label: 'C' }, // hardPrimes — big primes [17,19,23,29]
+            { primes: pn(6), cap: 847, omega: 3.0, feed: 23, bias: 0.50, quota: 200, field: 'vortex', label: 'D' },   // balanced — all-round
+        ],
     ];
     var FIELD_BY_ID = {}; for (var _fi = 0; _fi < FIELDS.length; _fi++) FIELD_BY_ID[FIELDS[_fi].id] = FIELDS[_fi];
     function level(world, levelIdx) {   // levelIdx is 0-based within the world (so level W-N → level(W, N-1))
         var row = LEVELS[Math.max(0, Math.min(LEVELS.length - 1, world - 1))];
         var e = row[Math.max(0, Math.min(row.length - 1, levelIdx))];
-        return { field: FIELD_BY_ID[e.field] || FIELDS[0], primes: e.primes, cap: e.cap, maxOmega: e.omega, feed: e.feed, bias: e.bias, quota: e.quota };
+        return { field: FIELD_BY_ID[e.field] || FIELDS[0], primes: e.primes, cap: e.cap, maxOmega: e.omega, feed: e.feed, bias: e.bias, quota: e.quota, label: (e.label != null ? String(e.label) : String(levelIdx + 1)) };   // label = button text / high-score key suffix (defaults to the level number)
     }
 
     // ---- ENDLESS, split by STYLE (not difficulty). Each style = time keyframes (stages); the engine interpolates cap/feed/bias/mult/omega between them and steps the prime set at each stage. ----
