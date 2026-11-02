@@ -55,9 +55,9 @@
             tags: ['timeattack', 'single', 'multi'],
         },
         {
-            id: 'prime-zuma', theme: 'arcade', icon: 'coins', color: '#f59e0b',
+            id: 'prime-zuma', theme: 'arcade', icon: 'coins', color: '#f97316',
             href: './games/prime-zuma.html',
-            tags: ['action', 'single'], wip: true, modes: ['easy', 'normal', 'hard'],
+            tags: ['action', 'puzzle', 'single'], modes: ['easy', 'normal', 'hard'],
         },
         {
             id: 'patches', theme: 'puzzle', icon: 'layout-template-ccw', color: '#e5484d',
@@ -204,7 +204,7 @@
             'beam_body': 'Mirrors appear then vanish; a laser fires in and you tap where it exits in time.',
             'prime-zuma_name': 'Prime Zuma',
             'prime-zuma_tagline': 'Factor the chain before it reaches the core.',
-            'prime-zuma_body': 'Fire prime balls into the inward-spiralling chain. A prime peels a factor off every ball in a matching run — clear them before the chain reaches the centre.',
+            'prime-zuma_body': 'Fire prime balls into the inward-spiralling chain. A prime peels a factor off every ball in a matching run — clear them before the chain reaches the core.',
             'patches_name': 'Patches',
             'patches_tagline': 'Tile the grid with shapes.',
             'patches_body': "Split the grid into rectangles \u2014 one per clue \u2014 matching each clue\u2019s shape and size.",
@@ -322,9 +322,9 @@
             'beam_name': '追光',
             'beam_tagline': '記住鏡子，追蹤雷射。',
             'beam_body': '鏡子出現後消失，雷射射入，在時間內點出它射出的邊界位置。',
-            'prime-zuma_name': '質因數祖瑪',
+            'prime-zuma_name': '質數祖瑪',
             'prime-zuma_tagline': '在球鏈抵達核心前把它分解掉。',
-            'prime-zuma_body': '朝向內盤旋的球鏈發射質數球。質數會把一段可整除的球鏈各剝掉一個因數——趕在球鏈抵達中心前清除它們。',
+            'prime-zuma_body': '朝向內盤旋的球鏈發射質數球。質數會把一段可整除的球鏈各剝掉一個因數——趕在球鏈抵達核心前清除它們。',
             'patches_name': 'Patches',
             'patches_tagline': '用形狀鋪滿整個盤面。',
             'patches_body': '把盤面切成一個個矩形 \u2014 每個提示對應一個 \u2014 並符合該提示的形狀與大小。',
@@ -376,6 +376,8 @@
         image: '<rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>',
         crown: '<path d="M11.562 3.266a.5.5 0 0 1 .876 0L15.39 8.87a1 1 0 0 0 1.516.294L21.183 5.5a.5.5 0 0 1 .798.519l-2.834 10.246a1 1 0 0 1-.956.734H5.81a1 1 0 0 1-.957-.734L2.02 6.02a.5.5 0 0 1 .798-.519l4.276 3.664a1 1 0 0 0 1.516-.294z"/><path d="M5 21h14"/>',
         zap: '<path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/>',
+        // lucide: coins (modified) — front coin "2", back coin "3" (Prime Zuma); mirror of js/arcade.js
+        coins: '<circle cx="8" cy="8" r="6"/><path d="M18.09 10.37A6 6 0 1 1 10.34 18"/><path d="M6.3 7.1Q6.3 5.8 8 5.8 9.7 5.8 9.7 7.3 9.7 8.6 6.3 10.2L9.8 10.2"/><g transform="rotate(12 16.3 16)"><path d="M14.8 14.1Q16 13.3 17.2 14.3 18 15.2 16.2 16.1 18 17 17.1 18 15.9 18.8 14.7 17.9"/></g>',
     };
 
     // Hue (0–360) of a #rrggbb colour — used to order the launcher as a soft rainbow.

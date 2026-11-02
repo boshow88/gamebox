@@ -9,7 +9,7 @@
     <link rel="stylesheet" href="../css/common.css">
     <link rel="stylesheet" href="../css/arcade.css">
     <style>
-        body { --game-color: #f59e0b; }
+        body { --game-color: #f97316; }
         .stage-wrap { max-width: 480px; margin: 0 auto; }
         /* A generous touch zone around the board so taps just outside the circle still aim+fire (no dead zone). */
         .stage-pad { touch-action: none; padding: 12px 12px 24px; }
@@ -92,9 +92,9 @@
         <section class="game-footer">
             <h4 data-i18n="howToPlay">How to play</h4>
             <ul>
-                <li data-i18n="pzHelp1Html">A turret in the centre shoots <strong>prime</strong> balls; the chain spirals inward and you lose if it reaches the <strong>core</strong>.</li>
-                <li data-i18n="pzHelp2Html">A shot prime <strong>p</strong> divides every ball in a contiguous run divisible by p (length <strong>3+</strong>) by p — any that become 1 are removed.</li>
-                <li data-i18n="pzHelp3Html">Gaps split the chain; <strong>matching</strong> ends pull together and crash — primes can chain more clears. <kbd>P</kbd> pause · <kbd>R</kbd> restart.</li>
+                <li data-i18n="pzHelp1Html">A turret fires <strong>prime</strong> balls; the chain spirals inward and you lose if it reaches the <strong>core</strong>.</li>
+                <li data-i18n="pzHelp2Html">Fire a prime into a run of <strong>three or more</strong> balls all divisible by it — each is divided once, and any that reach <strong>1</strong> pop.</li>
+                <li data-i18n="pzHelp3Html"><strong>Levels</strong>: clear the chain to win. <strong>Endless</strong>: last as long as you can as it speeds up. <kbd>P</kbd> pause · <kbd>R</kbd> restart.</li>
             </ul>
         </section>
     </div>

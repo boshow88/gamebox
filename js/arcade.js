@@ -197,11 +197,12 @@
         clock:
             '<circle cx="12" cy="12" r="10"/>'
             + '<polyline points="12 6 12 12 16 14"/>',
+        // lucide: coins (modified) — the front coin reads "2" and the back coin "3" (Prime Zuma's prime theme), replacing the stock "1" + check
         coins:
             '<circle cx="8" cy="8" r="6"/>'
             + '<path d="M18.09 10.37A6 6 0 1 1 10.34 18"/>'
-            + '<path d="M7 6h1v4"/>'
-            + '<path d="m16.71 13.88.7.71-2.82 2.82"/>',
+            + '<path d="M6.3 7.1Q6.3 5.8 8 5.8 9.7 5.8 9.7 7.3 9.7 8.6 6.3 10.2L9.8 10.2"/>'
+            + '<g transform="rotate(12 16.3 16)"><path d="M14.8 14.1Q16 13.3 17.2 14.3 18 15.2 16.2 16.1 18 17 17.1 18 15.9 18.8 14.7 17.9"/></g>',
         heart:
             '<path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>',
         ladder:

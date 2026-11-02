@@ -90,6 +90,11 @@ Reference: `js/puzzle.js` → `syncSizeButtons` (`.size-readout`), and
   confident identity line over an instruction.
 - Keep each game's in-game copy in the same voice as its siblings.
 - No emoji unless explicitly requested.
+- **Chinese copy uses full-width punctuation** (，。；：！？「」（）、…, and —— for a
+  dash), never half-width commas/periods. Write it as idiomatic Chinese — don't just
+  transliterate the English line word-for-word.
+- Prefer plain language over notation in player copy: say "the prime you fire", not a
+  symbol like "p". Math notation is for comments and docs, not the player.
 
 ## Accounts & cloud sync
 
