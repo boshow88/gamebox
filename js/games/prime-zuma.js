@@ -270,7 +270,8 @@
     function pickCannonPrime() {   // weighted by the live factor DEMAND across ALL lanes; current-P primes get a floor, primes only PRESENT on the board (e.g. dropped by a mid-run P swap) are offered purely on demand so leftover balls stay clearable
         var dem = {}, keys = [], i, L, qi, j, m, d, p, total = 0;
         function bump(q, by) { if (dem[q] == null) { dem[q] = 0; keys.push(q); } dem[q] += by; }
-        for (i = 0; i < R.activeN; i++) bump(R.full[i], CFG.cannonFloor);   // floor ONLY for in-P primes → dropped primes get 0 floor (demand-only)
+        var floor = (R.isLevel && R.spawned >= R.quota) ? 0 : CFG.cannonFloor;   // once a level's feed is spent the board only shrinks → drop the floor so the cannon offers ONLY primes actually present (demand-only); any prime you still need is a factor of some leftover ball, so this can't strand you
+        for (i = 0; i < R.activeN; i++) bump(R.full[i], floor);   // floor ONLY for in-P primes → dropped primes get 0 floor (demand-only)
         if (lanes) for (L = 0; L < lanes.length; L++) { var qs = lanes[L].qs; for (qi = 0; qi < qs.length; qi++) { var vals = qs[qi].vals; for (j = 0; j < vals.length; j++) { m = vals[j].v; for (d = 2; d * d <= m; d++) { while (m % d === 0) { bump(d, 1); m /= d; } } if (m > 1) bump(m, 1); } } }   // full factorisation → counts demand for ANY prime on the board, in or out of current P
         for (i = 0; i < keys.length; i++) total += dem[keys[i]];
         if (total <= 0) return R.full[R.activeN - 1];
