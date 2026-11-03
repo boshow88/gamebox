@@ -5,6 +5,12 @@ prominent, personalized entry above the homepage search. It is deliberately
 outside the ordinary game manifest and filters. Both Chinese and English use
 the same mock-official register: a formal letter, findings, resolution and seal.
 
+On mobile, the complete letter comes before the portrait, seal and candle start
+button, matching DOM and reading order. A text link below the page heading jumps
+to the ceremony section without starting the game, allowing optional skipping or
+quick replay. Its wording changes after completion. Desktop retains the letter
+and sticky ceremony column side by side.
+
 ## Profile setup and local test
 
 In **Firestore Database > Data > profiles > your actual account UID**, add:

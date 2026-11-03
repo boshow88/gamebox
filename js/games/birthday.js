@@ -5,6 +5,7 @@
         zh: {
             pageTitle: '生日慶祝專案 · GameBox', home: '返回首頁', department: 'GAMEBOX・玩家事務處', caseName: '出生週年紀念專案',
             title: '閣下之生日，\n本處業已正式受理。', subtitle: '關於出生週年紀念之祝賀暨休閒活動核准事宜。',
+            jumpToCeremony: '閱函後，前往吹蠟燭儀式',
             issuer: 'GameBox 玩家事務處', subjectLabel: '主旨', explanationLabel: '說明', proposalLabel: '擬辦',
             subject: '為辦理閣下出生週年紀念之祝賀暨遊戲精神表彰事宜，特致本函，敬請查照。',
             clause1: '依本系統所載生日資料，今日適逢閣下出生週年紀念日，依照本站慶生作業程序，正式致上祝賀。',
@@ -27,6 +28,7 @@
         en: {
             pageTitle: 'Birthday Proceedings · GameBox', home: 'Back to GameBox', department: 'GAMEBOX · PLAYER AFFAIRS', caseName: 'BIRTH ANNIVERSARY PROCEEDINGS',
             title: 'Your birthday\nhas been duly received.', subtitle: 'Concerning anniversary felicitations and the authorization of recreational proceedings.',
+            jumpToCeremony: 'After the notice, proceed to the candle ceremony',
             issuer: 'GameBox Office of Player Affairs', subjectLabel: 'Subject', explanationLabel: 'Findings', proposalLabel: 'Resolution',
             subject: 'Formal felicitations upon the anniversary of your birth, together with commendation of your recreational perseverance. Kindly take due notice.',
             clause1: 'Upon examination of the birthday particulars held on record, this Office confirms that today constitutes the anniversary of your birth. Formal congratulations are hereby extended in accordance with established celebratory procedure.',
@@ -50,6 +52,7 @@
     var REPEAT = {
         zh: {
             title: '閣下之慶生程序，\n業已辦理完竣。', subtitle: '關於已完成慶生程序之確認暨再次遊玩核准事宜。',
+            jumpToCeremony: '前往再次辦理吹蠟燭儀式',
             subject: '為確認閣下今日生日吹蠟燭儀式業已完成，並核准後續自由重玩，特致本函，敬請查照。',
             clause1: '經查，閣下已於今日完成生日蠟燭熄滅作業，本處予以確認；本日之祝賀及休閒活動資格仍持續有效。',
             clause3: '本案既已辦理完竣，毋須重行完成儀式；如閣下仍有再玩一場之意願，本處准予續辦，次數不拘。',
@@ -59,6 +62,7 @@
         },
         en: {
             title: 'Your birthday proceedings\nare duly completed.', subtitle: 'Concerning confirmation of completed proceedings and authorization of repeat recreation.',
+            jumpToCeremony: 'Proceed directly to repeat candle proceedings',
             subject: 'Confirmation that today\'s birthday candle ceremony has been completed, together with authorization for further recreational attempts. Kindly take due notice.',
             clause1: 'Upon examination, this Office confirms your completion of today\'s candle-extinguishing procedure. All birthday felicitations and recreational permissions remain in force for the remainder of this day.',
             clause3: 'The required proceedings having been concluded, repetition is not mandatory. Should one further round be desired, repeat attendance is hereby authorized without numerical restriction.',
