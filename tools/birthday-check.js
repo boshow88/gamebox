@@ -24,34 +24,43 @@ const step = sandbox.window.GameBoxBirthdayCake.stepCandle;
 const onCake = sandbox.window.GameBoxBirthdayCake.footprintOnCake;
 assert(!onCake({ x: 60, y: 170 }) && !onCake({ x: 420, y: 170 }), 'Outer candles cannot dodge beyond the elliptical top');
 function candle(x = 112, y = 152) {
-    return { home: { x, y }, point: { x, y }, life: 1, cooldown: .16, recoverWait: 0, destination: null };
+    return { home: { x, y }, point: { x, y }, life: 1, cooldown: .16, missedFor: 0, destination: null };
 }
 const fixed = candle();
-for (let t = 0; t < 5; t += .01) step(fixed, fixed.home, .01, false, [fixed]);
+for (let t = 0; t < 5; t += .01) step(fixed, fixed.home, .01, [fixed]);
 assert(fixed.life > .95 && !hits(fixed.point, fixed.home), 'A candle must escape unattended wind and recover');
 let chaseTime = 0, chaseAim = fixed.point;
 for (; chaseTime < 3 && fixed.life > 0; chaseTime += .01) {
     if (Math.round(chaseTime * 100) % 8 === 0) chaseAim = fixed.point;
-    step(fixed, chaseAim, .01, false, [fixed]);
+    step(fixed, chaseAim, .01, [fixed]);
 }
 assert.equal(fixed.life, 0, 'Following a candle with human-scale aim updates must beat its evasion');
 assert(chaseTime < 3, 'Chasing must remain approachable');
-const healing = candle();
-for (let i = 0; i < 30; i++) step(healing, healing.home, .01, true, [healing]);
+const healing = candle(); healing.life = .3;
 const damaged = healing.life;
-for (let i = 0; i < 30; i++) step(healing, null, .01, true, [healing]);
-assert.equal(healing.life, damaged, 'Brief aiming gaps receive a recovery grace period');
-for (let i = 0; i < 70; i++) step(healing, null, .01, true, [healing]);
-assert(healing.life > damaged && healing.life < 1, 'Partial flames recover gradually after release, without snapping full');
-for (let i = 0; i < 600; i++) step(healing, null, .01, true, [healing]);
+step(healing, null, .01, [healing]);
+assert(healing.life > damaged && healing.life < damaged + .005, 'Recovery begins immediately but gently on the first missed frame');
+const early = healing.life;
+for (let i = 0; i < 5; i++) step(healing, null, .01, [healing]);
+const earlyGain = healing.life - early;
+for (let i = 0; i < 30; i++) step(healing, null, .01, [healing]);
+const later = healing.life;
+for (let i = 0; i < 5; i++) step(healing, null, .01, [healing]);
+assert(healing.life - later > earlyGain * 2, 'Recovery accelerates while the flame remains outside the breeze');
+assert(healing.life < 1, 'Partial flames must not instantly recover to full strength');
+for (let i = 0; i < 600; i++) step(healing, null, .01, [healing]);
 assert.equal(healing.life, 1);
-for (let i = 0; i < 600; i++) step(fixed, null, .01, false, [fixed]);
+const fine = candle(), coarse = candle(); fine.life = coarse.life = .1;
+for (let i = 0; i < 40; i++) step(fine, null, .01, [fine]);
+for (let i = 0; i < 8; i++) step(coarse, null, .05, [coarse]);
+assert(Math.abs(fine.life - coarse.life) < 1e-10, 'Recovery must be independent of frame rate');
+for (let i = 0; i < 600; i++) step(fixed, null, .01, [fixed]);
 assert.equal(fixed.life, 0, 'Fully extinguished candles must never reignite');
 const group = [candle(), candle(176), candle(240), candle(304), candle(368)];
 let target = 0;
 for (let i = 0; i < 1200 && target < group.length; i++) {
     const aim = group[target].point;
-    group.forEach(c => step(c, aim, .01, false, group));
+    group.forEach(c => step(c, aim, .01, group));
     group.forEach(c => {
         assert(Math.abs(c.point.x - c.home.x) <= 52.001 && Math.abs(c.point.y - c.home.y) <= 12.001, 'Dodging stays on the cake');
         assert(onCake(c.point), 'Every intermediate foot position must remain inside the safe ellipse');
@@ -62,6 +71,15 @@ for (let i = 0; i < 1200 && target < group.length; i++) {
     while (target < group.length && group[target].life === 0) target++;
 }
 assert.equal(target, 5, 'The complete five-candle chase must be winnable');
+for (const period of [.25, .5, 1, 2, 4]) {
+    const sweep = [candle(), candle(176), candle(240), candle(304), candle(368)];
+    for (let i = 0; i < 6000; i++) {
+        const angle = Math.sin(i * .01 / period * Math.PI * 2) * .8;
+        const aim = { x: 240 + Math.sin(angle) * 310, y: 367 - Math.cos(angle) * 310 };
+        sweep.forEach(c => step(c, aim, .01, sweep));
+    }
+    assert(sweep.some(c => c.life > 0), 'Repeated broad sweeping must not clear the cake at period ' + period);
+}
 const today = new Date(2026, 10, 3, 12);
 const api = sandbox.window.GameBoxBirthday;
 assert.equal(api.midnightDelay(new Date(2026, 10, 3, 23, 59, 59, 500)), 550);

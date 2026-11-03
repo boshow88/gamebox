@@ -37,29 +37,29 @@
         });
         return best;
     }
-    function stepCandle(candle, aim, dt, stationary, others) {
+    function recoveryTotal(time) {
+        var ramp = Math.min(time, .65);
+        return .18 * time + (1.32 / .65) * ramp * ramp / 2 + 1.32 * Math.max(0, time - .65);
+    }
+    function stepCandle(candle, aim, dt, others) {
         if (candle.life <= 0) return;
         candle.cooldown = Math.max(0, candle.cooldown - dt);
-        if (stationary) {
-            candle.point = { x: candle.home.x, y: candle.home.y }; candle.destination = null;
-        } else {
-            if (aim && windHits(candle.point, aim) && candle.cooldown === 0) {
-                candle.destination = planDodge(candle, aim, others);
-                candle.cooldown = .55;
-            }
-            if (candle.destination) {
-                var dx = candle.destination.x - candle.point.x, dy = candle.destination.y - candle.point.y;
-                var distance = Math.hypot(dx, dy), travel = Math.min(distance, 110 * dt);
-                if (distance < .1) candle.destination = null;
-                else candle.point = { x: candle.point.x + dx / distance * travel, y: candle.point.y + dy / distance * travel };
-            }
+        if (aim && windHits(candle.point, aim) && candle.cooldown === 0) {
+            candle.destination = planDodge(candle, aim, others);
+            candle.cooldown = .55;
+        }
+        if (candle.destination) {
+            var dx = candle.destination.x - candle.point.x, dy = candle.destination.y - candle.point.y;
+            var distance = Math.hypot(dx, dy), travel = Math.min(distance, 110 * dt);
+            if (distance < .1) candle.destination = null;
+            else candle.point = { x: candle.point.x + dx / distance * travel, y: candle.point.y + dy / distance * travel };
         }
         if (aim && windHits(candle.point, aim)) {
-            candle.life = Math.max(0, candle.life - dt * 1.1); candle.recoverWait = .55;
+            candle.life = Math.max(0, candle.life - dt * 1.1); candle.missedFor = 0;
         } else {
-            var recoveryTime = Math.max(0, dt - candle.recoverWait);
-            candle.recoverWait = Math.max(0, candle.recoverWait - dt);
-            candle.life = Math.min(1, candle.life + recoveryTime * .22);
+            var previous = candle.missedFor;
+            candle.missedFor = Math.min(.65, previous + dt);
+            candle.life = Math.min(1, candle.life + recoveryTotal(previous + dt) - recoveryTotal(previous));
         }
     }
     function svgNode(tag, attributes) {
@@ -70,8 +70,10 @@
     function mount(options) {
         var root = options.element, copy = options.copy, reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
         var alive = true, finished = false, frame = null, aim = null, pointer = null, last = 0, keyboardInput = false;
+        var angle = 0, keys = { left: false, right: false, blow: false };
         root.classList.add('birthday-cake-game');
         var stage = document.createElement('div'); stage.className = 'birthday-cake-stage';
+        stage.tabIndex = 0; stage.setAttribute('role', 'group'); stage.setAttribute('aria-label', copy.keyboardControls);
         var svg = svgNode('svg', { viewBox: '0 0 480 390', 'aria-hidden': 'true', focusable: 'false' });
         svg.innerHTML = '<defs><linearGradient id="birthday-cake-side" x2="0" y2="1"><stop stop-color="#e6b3a6"/><stop offset="1" stop-color="#a77583"/></linearGradient><linearGradient id="birthday-cake-top" x2="0" y2="1"><stop stop-color="#fff0d0"/><stop offset="1" stop-color="#e1c295"/></linearGradient><radialGradient id="birthday-flame-glow"><stop stop-color="#f9d58b" stop-opacity=".3"/><stop offset="1" stop-color="#f9d58b" stop-opacity="0"/></radialGradient></defs>'
             + '<ellipse cx="240" cy="330" rx="207" ry="34" fill="#080b16" opacity=".45"/><ellipse cx="240" cy="321" rx="195" ry="29" fill="#d1b27e"/><ellipse cx="240" cy="315" rx="195" ry="29" fill="#f0d9a9"/>'
@@ -92,12 +94,8 @@
                 + '<path class="birthday-smoke" d="M' + x + ' ' + (y + 9) + 'c-16-14 13-19-1-35s10-21 2-32" fill="none" stroke="#d6d3df" stroke-width="2" stroke-linecap="round"/>';
             var flame = group.querySelector('.birthday-flame'); flame.style.transformOrigin = x + 'px ' + (y + 15) + 'px';
             candleLayer.append(group);
-            var button = document.createElement('button'); button.type = 'button'; button.className = 'birthday-candle-target';
-            button.style.left = (x / 480 * 100) + '%'; button.style.top = (y / 390 * 100) + '%';
-            button.setAttribute('aria-label', copy.candle(index + 1)); button.dataset.candle = index;
-            stage.append(button);
-            return { home: position, point: { x: x, y: y }, group: group, flame: flame, button: button, index: index,
-                life: 1, cooldown: .16, recoverWait: 0, destination: null };
+            return { home: position, point: { x: x, y: y }, group: group, flame: flame, index: index,
+                life: 1, cooldown: .16, missedFor: 0, destination: null };
         });
         var wind = svgNode('g', { class: 'birthday-wind', 'aria-hidden': 'true' });
         var strokes = [-1, 0, 1].map(function () { var line = svgNode('path', { fill: 'none' }); wind.append(line); return line; });
@@ -114,30 +112,25 @@
             var order = sorted.map(function (candle) { return candle.index; }).join(',');
             if (order === depthOrder) return;
             depthOrder = order;
-            sorted.forEach(function (candle, index) {
-                candleLayer.append(candle.group);
-                // Match overlapping pointer targets to the visible foreground candle.
-                candle.button.style.zIndex = index + 1;
-            });
+            sorted.forEach(function (candle) { candleLayer.append(candle.group); });
         }
         sortDepth();
         function renderCandle(candle, hit) {
             candle.group.setAttribute('transform', 'translate(' + (candle.point.x - candle.home.x) + ' ' + (candle.point.y - candle.home.y) + ')');
-            candle.button.style.left = (candle.point.x / 480 * 100) + '%';
-            candle.button.style.top = (candle.point.y / 390 * 100) + '%';
             var scale = .55 + candle.life * .45;
             candle.flame.style.transform = 'scale(' + scale + ')' + (!reduced && hit ? ' rotate(' + ((aim.x - ORIGIN.x) / 14) + 'deg) scaleY(.72)' : '');
             candle.flame.style.opacity = candle.life > 0 ? .25 + candle.life * .75 : 0;
         }
         function needsFrame() {
             return alive && !finished && document.visibilityState !== 'hidden'
-                && (aim || candles.some(function (candle) { return candle.life > 0 && (candle.life < 1 || candle.destination); }));
+                && (aim || keys.left || keys.right || candles.some(function (candle) { return candle.life > 0 && (candle.life < 1 || candle.destination); }));
         }
         function wake() {
             if (frame === null && needsFrame()) { last = performance.now(); frame = requestAnimationFrame(tick); }
         }
         function stop() {
-            aim = null; pointer = null; keyboardInput = false; wind.classList.remove('is-blowing');
+            aim = null; pointer = null; keyboardInput = false; keys.left = keys.right = keys.blow = false;
+            wind.classList.remove('is-blowing', 'is-aiming');
             if (frame !== null) cancelAnimationFrame(frame); frame = null;
             candles.forEach(function (candle) { renderCandle(candle, false); });
             sortDepth();
@@ -147,14 +140,14 @@
             frame = null;
             if (!alive || finished || document.visibilityState === 'hidden') { stop(); return; }
             var dt = Math.min(.05, Math.max(0, (time - last) / 1000)); last = time;
+            if (keyboardInput) updateKeyboard(dt);
             var changed = false, wasKeyboard = keyboardInput;
             candles.forEach(function (candle) {
                 if (candle.life <= 0) return;
-                stepCandle(candle, aim, dt, keyboardInput || reduced, candles);
+                stepCandle(candle, aim, dt, candles);
                 renderCandle(candle, aim && windHits(candle.point, aim));
                 if (candle.life === 0) {
-                    candle.group.classList.add('is-out'); candle.button.disabled = true;
-                    candle.button.setAttribute('aria-label', copy.extinguished); changed = true;
+                    candle.group.classList.add('is-out'); changed = true;
                 }
             });
             sortDepth();
@@ -165,17 +158,27 @@
             }
             if (needsFrame()) frame = requestAnimationFrame(tick);
         }
-        function pointAt(point, fromKeyboard) {
-            if (!alive || finished || document.visibilityState === 'hidden') return;
-            aim = point; keyboardInput = !!fromKeyboard;
+        function drawWind(point) {
             var dx = point.x - ORIGIN.x, dy = point.y - ORIGIN.y, length = Math.hypot(dx, dy) || 1;
             var ux = dx / length, uy = dy / length;
             [-1, 0, 1].forEach(function (offset, i) {
                 var sx = ORIGIN.x - uy * offset * 9, sy = ORIGIN.y + ux * offset * 9;
                 strokes[i].setAttribute('d', 'M' + sx + ' ' + sy + 'Q' + (sx + ux * 110 - uy * offset * 9) + ' ' + (sy + uy * 110 + ux * offset * 9) + ' ' + (sx + ux * 310) + ' ' + (sy + uy * 310));
             });
-            wind.classList.add('is-blowing');
+        }
+        function pointAt(point) {
+            if (!alive || finished || document.visibilityState === 'hidden') return;
+            aim = point; keyboardInput = false; keys.left = keys.right = keys.blow = false;
+            angle = Math.max(-.82, Math.min(.82, Math.atan2(point.x - ORIGIN.x, ORIGIN.y - point.y)));
+            drawWind(point); wind.classList.remove('is-aiming'); wind.classList.add('is-blowing');
             wake();
+        }
+        function updateKeyboard(dt) {
+            angle = Math.max(-.82, Math.min(.82, angle + (Number(keys.right) - Number(keys.left)) * .95 * dt));
+            var point = { x: ORIGIN.x + Math.sin(angle) * 310, y: ORIGIN.y - Math.cos(angle) * 310 };
+            aim = keys.blow ? point : null;
+            drawWind(point); wind.classList.toggle('is-blowing', keys.blow);
+            wind.classList.toggle('is-aiming', !keys.blow && (keys.left || keys.right));
         }
         function fromPointer(event) {
             var bounds = stage.getBoundingClientRect();
@@ -184,6 +187,7 @@
         stage.addEventListener('pointerdown', function (event) {
             if (pointer !== null || (event.pointerType === 'mouse' && event.button !== 0)) return;
             event.preventDefault(); pointer = event.pointerId;
+            stage.focus({ preventScroll: true });
             try { stage.setPointerCapture(pointer); } catch (e) { /* synthetic test pointers have no capture */ }
             pointAt(fromPointer(event));
         });
@@ -192,21 +196,24 @@
             stage.addEventListener(name, function (event) { if (event.pointerId === pointer) stop(); });
         });
         stage.addEventListener('keydown', function (event) {
-            if (event.key !== ' ' && event.key !== 'Enter') return;
-            var index = event.target.dataset.candle;
-            if (index == null || candles[index].life <= 0) return;
-            event.preventDefault(); pointAt(candles[index].home, true);
+            var key = event.key === 'ArrowLeft' ? 'left' : event.key === 'ArrowRight' ? 'right' : event.key === ' ' ? 'blow' : null;
+            if (!key || pointer !== null || !alive || finished || document.hidden || event.altKey || event.ctrlKey || event.metaKey) return;
+            event.preventDefault(); keyboardInput = true; keys[key] = true; updateKeyboard(0); wake();
         });
-        stage.addEventListener('keyup', function (event) { if (event.key === ' ' || event.key === 'Enter') { event.preventDefault(); stop(); } });
+        stage.addEventListener('keyup', function (event) {
+            var key = event.key === 'ArrowLeft' ? 'left' : event.key === 'ArrowRight' ? 'right' : event.key === ' ' ? 'blow' : null;
+            if (!key || !keyboardInput) return;
+            event.preventDefault(); keys[key] = false; updateKeyboard(0); wake();
+        });
         stage.addEventListener('focusout', stop);
         function onVisibility() { if (document.visibilityState === 'hidden') stop(); else wake(); }
         document.addEventListener('visibilitychange', onVisibility); window.addEventListener('blur', stop);
         return {
-            focus: function () { candles[0].button.focus({ preventScroll: true }); },
+            focus: function () { stage.focus({ preventScroll: true }); },
             setCopy: function (next) {
                 copy = next; instruction.textContent = copy.blowHint;
+                stage.setAttribute('aria-label', copy.keyboardControls);
                 status.textContent = copy.remaining(candles.filter(function (candle) { return candle.life > 0; }).length);
-                candles.forEach(function (candle, index) { candle.button.setAttribute('aria-label', candle.life > 0 ? copy.candle(index + 1) : copy.extinguished); });
             },
             destroy: function () { alive = false; stop(); document.removeEventListener('visibilitychange', onVisibility); window.removeEventListener('blur', stop); root.replaceChildren(); },
         };

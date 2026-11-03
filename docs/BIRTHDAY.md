@@ -10,6 +10,11 @@ button, matching DOM and reading order. A text link below the page heading jumps
 to the ceremony section without starting the game, allowing optional skipping or
 quick replay. Its wording changes after completion. Desktop retains the letter
 and sticky ceremony column side by side.
+Mobile notice pages also show a small, non-interactive "More below" cue near the
+bottom safe area while content remains below the viewport. It hides at the end
+of the reading path, when the final start button is fully visible, and during
+the candle game or a dialog. Scrolling, viewport changes and content resizing
+refresh it without a permanent animation loop; reduced motion disables its nudge.
 
 ## Profile setup and local test
 
@@ -81,7 +86,12 @@ client-side event presentation, not server-authoritative reward authorization.
 
 The local SVG cake has five candles. Hold mouse/touch over its area and move to
 aim a breeze from the bottom-center wind icon. Direction and held time determine
-which candles go out. Keyboard users can focus a flame and hold Space or Enter.
+which candles go out. Keyboard users focus the cake as one control, use Left/Right
+to steer at 0.95 radians/second, and hold Space to blow along that direction.
+There is no per-candle focus, target lock, Enter shortcut or stationary keyboard
+mode. Steering alone previews the direction without blowing. Release, focus loss
+or page hiding clears held inputs. Visible instructions stay short and do not
+reveal the evasion or recovery mechanics; keyboard instructions label the control.
 Candles repeatedly choose destinations outside the current wind cone and avoid
 crowding their neighbors. Motion is limited to 52 SVG units horizontally and 12
 vertically around each home position, at 110 units/second with a 0.55-second
@@ -92,13 +102,19 @@ Destinations also stay inside an inset ellipse of the cake's top, with room for
 the entire wax base. The five candles initially form a level horizontal row, with
 equal heights and aligned bases. Dodging can then move them forward or backward
 on the top surface. SVG groups are drawn
-back to front by current base height, with matching pointer-target stacking.
-Flame strength decreases at 1.1/second while hit. Unfinished flames recover at
-0.22/second after 0.55 seconds without a hit, including after releasing the wind.
+back to front by current base height. Input targets the shared stage rather than
+individual candle buttons.
+Flame strength decreases at 1.1/second while hit. Recovery begins on the first
+missed frame at 0.18/second and ramps linearly to 1.5/second over 0.65 seconds of
+uninterrupted misses, including after releasing the wind. A new hit resets the
+recovery rate. The curve is integrated over frame time, so frame rates do not
+change the recovery amount. Repeated broad sweeping is checked against sustained
+target tracking to preserve the need to pursue candles.
 Opacity and size show both weakening and recovery. Fully extinguished candles
 remain out for the current round; replay starts with five fresh candles.
-Visual candle groups, flame hit detection and accessible targets move together.
-Keyboard operation and reduced-motion mode keep the candles stationary.
+Visual candle groups and flame hit detection use the same moving positions.
+Mouse, touch, keyboard and reduced-motion mode all use the same moving-candle
+simulation. Reduced motion removes only decorative motion, preserving gameplay.
 There is no microphone permission. Remaining candles are announced accessibly.
 After all candles are extinguished, a formal completion dialog offers return to
 the homepage or another candle procedure with five fresh flames. The formal

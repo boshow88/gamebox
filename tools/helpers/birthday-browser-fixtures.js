@@ -69,49 +69,72 @@ function setDate(f, date) { f.contentWindow.birthdayTestDate = date; f.contentDo
     }
     checkCakeGeometry();
     if (a.contentWindow.feedbackWrites) throw new Error('Birthday submitted feedback');
+    const isOut = candle => candle.classList.contains('is-out');
+    const unlit = () => [...stage.querySelectorAll('.birthday-candle:not(.is-out)')];
+    function modelPoint(candle) {
+        const circle = candle.querySelector('.birthday-flame circle'), matrix = candle.transform.baseVal.consolidate();
+        return { x: Number(circle.getAttribute('cx')) + (matrix ? matrix.matrix.e : 0), y: Number(circle.getAttribute('cy')) + (matrix ? matrix.matrix.f : 0) };
+    }
     function pointer(type, candle, pointerType = 'touch') {
-        const rect = candle.getBoundingClientRect();
-        stage.dispatchEvent(new a.contentWindow.PointerEvent(type, { pointerId: 7, pointerType, button: 0, clientX: rect.left + rect.width / 2, clientY: rect.top + rect.height / 2, bubbles: true, cancelable: true }));
+        const point = modelPoint(candle), svg = stage.querySelector('svg'), local = svg.createSVGPoint();
+        local.x = point.x; local.y = point.y;
+        const screen = local.matrixTransform(svg.getScreenCTM());
+        stage.dispatchEvent(new a.contentWindow.PointerEvent(type, { pointerId: 7, pointerType, button: 0, clientX: screen.x, clientY: screen.y, bubbles: true, cancelable: true }));
     }
-    const first = stage.querySelector('.birthday-candle-target');
-    const firstHome = parseFloat(first.style.left);
+    function key(type, value) { stage.dispatchEvent(new a.contentWindow.KeyboardEvent(type, { key: value, bubbles: true, cancelable: true })); }
+    if (stage.querySelector('button') || stage.tabIndex !== 0) throw new Error('Keyboard must focus the whole cake without per-candle targets');
+    key('keydown', 'Enter'); await sleep(100); key('keyup', 'Enter');
+    if (stage.querySelector('.birthday-wind').classList.contains('is-blowing')) throw new Error('Enter must not blow directly at a candle');
+    key('keydown', 'ArrowRight'); await sleep(150); key('keyup', 'ArrowRight');
+    if (stage.querySelector('.birthday-wind').classList.contains('is-blowing') || stage.querySelector('.is-out')) throw new Error('Arrow steering alone must not extinguish candles');
+    const first = stage.querySelector('.birthday-candle[data-candle="0"]');
+    const firstHome = modelPoint(first).x;
     pointer('pointerdown', first);
-    if (!a.contentWindow.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-        await until(() => Math.abs(parseFloat(first.style.left) - firstHome) > 2, 'candle sidesteps the breeze');
-        const visual = stage.querySelector('.birthday-candle');
-        if (!visual.getAttribute('transform').startsWith('translate(')) throw new Error('Candle visual did not follow its target');
-        await sleep(1100);
-        if (first.disabled) throw new Error('Unattended wind must not win the chase');
-    }
+    await until(() => Math.abs(modelPoint(first).x - firstHome) > 2, 'candle sidesteps the breeze in every input/motion mode');
+    await sleep(1100);
+    if (isOut(first)) throw new Error('Unattended wind must not win the chase');
     async function chase(candle, type) {
         const started = performance.now();
-        while (!candle.disabled && performance.now() - started < 3500) { checkCakeGeometry(); pointer('pointermove', candle, type); await sleep(25); }
-        if (!candle.disabled) throw new Error('Following a candle should win within a few seconds');
+        while (!isOut(candle) && performance.now() - started < 3500) { checkCakeGeometry(); pointer('pointermove', candle, type); await sleep(25); }
+        if (!isOut(candle)) throw new Error('Following a candle should win within a few seconds');
         pointer('pointerup', candle, type);
     }
     await chase(first, 'touch');
-    if (stage.querySelectorAll('.birthday-candle-target:not(:disabled)').length !== 4) throw new Error('Directional breeze extinguished unrelated candles');
+    // Nearby candles can share a wind cone; the far side must remain unaffected.
+    if (unlit().length === 5 || isOut(stage.querySelector('.birthday-candle[data-candle="4"]'))) throw new Error('Directional breeze affected the opposite side');
+    const remainingAfterTouch = unlit().length;
     doc.querySelector('[data-lang="en"]').click();
-    if (stage.querySelectorAll('.birthday-candle-target:disabled').length !== 1 || !doc.querySelector('.birthday-candle-status').textContent.includes('4')) throw new Error('Language switching reset candle progress');
-    const second = stage.querySelector('.birthday-candle-target:not(:disabled)');
+    if (unlit().length !== remainingAfterTouch || !doc.querySelector('.birthday-candle-status').textContent.includes(String(remainingAfterTouch))) throw new Error('Language switching reset candle progress');
+    const second = unlit()[0];
     pointer('pointerdown', second, 'mouse'); pointer('pointermove', second, 'mouse');
     await chase(second, 'mouse');
-    const partial = stage.querySelector('.birthday-candle-target:not(:disabled)');
-    partial.focus(); partial.dispatchEvent(new a.contentWindow.KeyboardEvent('keydown', { key: ' ', bubbles: true, cancelable: true }));
-    await sleep(250);
-    partial.dispatchEvent(new a.contentWindow.KeyboardEvent('keyup', { key: ' ', bubbles: true, cancelable: true }));
-    const partialFlame = stage.querySelector('.birthday-candle[data-candle="' + partial.dataset.candle + '"] .birthday-flame');
+    const partial = unlit()[0]; pointer('pointerdown', partial, 'mouse');
+    for (let i = 0; i < 10; i++) { pointer('pointermove', partial, 'mouse'); await sleep(25); }
+    pointer('pointerup', partial, 'mouse');
+    const partialFlame = partial.querySelector('.birthday-flame');
     const lowOpacity = parseFloat(partialFlame.style.opacity);
     if (!(lowOpacity < .9 && lowOpacity > 0)) throw new Error('Partial blowing must weaken the flame');
-    await sleep(200);
-    if (parseFloat(partialFlame.style.opacity) > lowOpacity + .02) throw new Error('Flame recovery must not happen instantly');
-    await until(() => parseFloat(partialFlame.style.opacity) > lowOpacity + .06, 'released wind allows gradual recovery');
+    await sleep(70);
+    const earlyOpacity = parseFloat(partialFlame.style.opacity);
+    if (!(earlyOpacity > lowOpacity && earlyOpacity < lowOpacity + .05)) throw new Error('Flame must recover immediately but slowly after a miss');
+    await until(() => parseFloat(partialFlame.style.opacity) > earlyOpacity + .06, 'recovery accelerates without wind');
     if (a.contentWindow.GameBoxBirthday.hasCompleted('birthday-a')) throw new Error('Partial play must not mark completion');
-    for (const candle of stage.querySelectorAll('.birthday-candle-target:not(:disabled)')) {
-        candle.focus(); candle.dispatchEvent(new a.contentWindow.KeyboardEvent('keydown', { key: ' ', bubbles: true, cancelable: true }));
-        await until(() => candle.disabled, 'keyboard candle');
-        candle.dispatchEvent(new a.contentWindow.KeyboardEvent('keyup', { key: ' ', bubbles: true, cancelable: true }));
+    stage.focus(); key('keydown', ' ');
+    let heldArrow = null;
+    for (const candle of unlit()) {
+        const started = performance.now();
+        while (!isOut(candle) && performance.now() - started < 6000) {
+            checkCakeGeometry();
+            const point = modelPoint(candle), numbers = stage.querySelectorAll('.birthday-wind path')[1].getAttribute('d').match(/[-+]?\\d*\\.?\\d+(?:e[-+]?\\d+)?/g).map(Number);
+            const current = Math.atan2(numbers[numbers.length - 2] - 240, 367 - numbers[numbers.length - 1]);
+            const delta = Math.atan2(point.x - 240, 367 - point.y) - current;
+            const next = delta > .025 ? 'ArrowRight' : delta < -.025 ? 'ArrowLeft' : null;
+            if (next !== heldArrow) { if (heldArrow) key('keyup', heldArrow); if (next) key('keydown', next); heldArrow = next; }
+            await sleep(25);
+        }
+        if (!isOut(candle)) throw new Error('Keyboard steering must be able to pursue moving candles');
     }
+    if (heldArrow) key('keyup', heldArrow); key('keyup', ' ');
     await until(() => doc.querySelector('.birthday-finale[open]'), 'completion notice');
     const finale = doc.querySelector('.birthday-finale');
     for (const [width, height] of [[768, 900], [320, 480]]) {
@@ -125,7 +148,7 @@ function setDate(f, date) { f.contentWindow.birthdayTestDate = date; f.contentDo
     if (!doc.getElementById('birthday-start').textContent.includes('Repeat')) throw new Error('English replay wording did not update');
     doc.querySelector('.birthday-finale').dispatchEvent(new a.contentWindow.KeyboardEvent('keyup', { key: ' ', bubbles: true, cancelable: true }));
     doc.querySelector('.birthday-complete-again').click();
-    if (doc.querySelectorAll('.birthday-candle-target:not(:disabled)').length !== 5 || doc.querySelector('.birthday-finale')) throw new Error('Replay must start with fresh candles');
+    if (doc.querySelectorAll('.birthday-candle:not(.is-out)').length !== 5 || doc.querySelector('.birthday-finale')) throw new Error('Replay must start with fresh candles');
     doc.querySelector('.birthday-home-link').click();
     await until(() => a.contentWindow.location.pathname === '/index.html' && a.contentDocument.getElementById('birthday-entry') && !a.contentDocument.getElementById('birthday-entry').hidden, 'return to homepage retains birthday entry');
     await sleep(500);

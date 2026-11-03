@@ -6,6 +6,7 @@
             pageTitle: '生日慶祝專案 · GameBox', home: '返回首頁', department: 'GAMEBOX・玩家事務處', caseName: '出生週年紀念專案',
             title: '閣下之生日，\n本處業已正式受理。', subtitle: '關於出生週年紀念之祝賀暨休閒活動核准事宜。',
             jumpToCeremony: '閱函後，前往吹蠟燭儀式',
+            moreBelow: '下方尚有內容',
             issuer: 'GameBox 玩家事務處', subjectLabel: '主旨', explanationLabel: '說明', proposalLabel: '擬辦',
             subject: '為辦理閣下出生週年紀念之祝賀暨遊戲精神表彰事宜，特致本函，敬請查照。',
             clause1: '依本系統所載生日資料，今日適逢閣下出生週年紀念日，依照本站慶生作業程序，正式致上祝賀。',
@@ -15,8 +16,8 @@
             letterEnd: '專此函達。', validity: '本函於閣下生日當地日期內有效，當日屆滿後停止受理。',
             seal: '准予\n慶祝', ritualNote: '請先於心中許願，再行辦理下列吹蠟燭作業。', start: '開始辦理吹蠟燭作業',
             cakeTitle: '生日蠟燭熄滅作業', cakeLead: '請依下列操作要領完成本項慶祝程序。', readAgain: '返回閱覽祝賀函',
-            blowHint: '滑鼠或觸控：按住蛋糕畫面，追著躲風的蠟燭移動，調整風向。沒吹到時，尚未熄滅的火焰會緩慢恢復；完全吹熄後就不會復燃。鍵盤：選取燭火後，按住空白鍵或 Enter。',
-            candle: function (n) { return '以風力熄滅第 ' + n + ' 根蠟燭'; }, extinguished: '本根蠟燭已完成熄滅',
+            blowHint: '滑鼠或觸控：按住畫面調整風向。',
+            keyboardControls: '生日蛋糕。左右方向鍵調整風向，按住空白鍵送風。',
             remaining: function (n) { return n ? '尚待熄滅：' + n + ' 根蠟燭' : '全部蠟燭熄滅作業完成。'; },
             doneTitle: '本次慶生程序\n業已完成。', doneBody: '經查，所列生日蠟燭均已熄滅，本處謹向閣下致上正式祝賀。祈願往後年度諸事順遂，並請持續蒞臨本站指導。',
             again: '再次辦理吹蠟燭作業', doneSeal: '辦理完竣', checking: '生日資格查驗中。', checkingBody: '請稍候，本處正在核對帳號資料。',
@@ -29,6 +30,7 @@
             pageTitle: 'Birthday Proceedings · GameBox', home: 'Back to GameBox', department: 'GAMEBOX · PLAYER AFFAIRS', caseName: 'BIRTH ANNIVERSARY PROCEEDINGS',
             title: 'Your birthday\nhas been duly received.', subtitle: 'Concerning anniversary felicitations and the authorization of recreational proceedings.',
             jumpToCeremony: 'After the notice, proceed to the candle ceremony',
+            moreBelow: 'More below',
             issuer: 'GameBox Office of Player Affairs', subjectLabel: 'Subject', explanationLabel: 'Findings', proposalLabel: 'Resolution',
             subject: 'Formal felicitations upon the anniversary of your birth, together with commendation of your recreational perseverance. Kindly take due notice.',
             clause1: 'Upon examination of the birthday particulars held on record, this Office confirms that today constitutes the anniversary of your birth. Formal congratulations are hereby extended in accordance with established celebratory procedure.',
@@ -38,8 +40,8 @@
             letterEnd: 'Issued for your due notice and appropriate celebration.', validity: 'This instrument is valid solely on your birthday in the local calendar and expires at the close of that day.',
             seal: 'CELEBRATION\nAPPROVED', ritualNote: 'Kindly formulate your wish privately before commencing the candle-extinguishing procedure.', start: 'Commence candle proceedings',
             cakeTitle: 'Candle-extinguishing procedure', cakeLead: 'Kindly complete the celebratory operation in accordance with the instructions below.', readAgain: 'Return to the formal notice',
-            blowHint: 'Mouse or touch: hold the cake area and follow the evasive candles to direct the breeze. Flames gradually recover when missed; fully extinguished candles remain out. Keyboard: focus a flame and hold Space or Enter.',
-            candle: function (n) { return 'Extinguish candle number ' + n; }, extinguished: 'Extinguishing of this candle is complete',
+            blowHint: 'Mouse or touch: hold and move to direct the breeze.',
+            keyboardControls: 'Birthday cake. Left and right arrows adjust the wind direction; hold Space to blow.',
             remaining: function (n) { return n ? 'Candles pending extinguishment: ' + n : 'All candle-extinguishing operations are complete.'; },
             doneTitle: 'The proceedings\nare duly concluded.', doneBody: 'Upon inspection, all listed birthday candles have been extinguished. This Office hereby conveys its formal congratulations and wishes you every success throughout the coming annual period. Your continued attendance at GameBox is cordially invited.',
             again: 'Repeat candle proceedings', doneSeal: 'DULY COMPLETED', checking: 'Verification in progress.', checkingBody: 'This Office is examining the account particulars. Kindly stand by.',
@@ -73,11 +75,32 @@
     };
     var B = window.GameBoxBirthday, user, profile = null, locale = 'en', scene = 'notice', cake = null, finale = null, decoration = null;
     var midnight = null, loadingTimer = null, failed = false, activeDay = null;
+    var scrollCueFrame = null, scrollCueObserver = null;
     function el(id) { return document.getElementById(id); }
+    function updateScrollCue() {
+        scrollCueFrame = null;
+        var cue = el('birthday-scroll-cue'), viewport = window.visualViewport;
+        var top = viewport ? viewport.offsetTop : 0, height = viewport ? viewport.height : document.documentElement.clientHeight;
+        var bottom = window.scrollY + top + height;
+        var remaining = Math.max(document.documentElement.scrollHeight, document.body.scrollHeight) - bottom;
+        var show = window.matchMedia('(max-width: 700px)').matches && !el('birthday-notice').hidden
+            && !finale && !document.hidden && remaining > 56;
+        if (show) {
+            var action = el('birthday-start').getBoundingClientRect();
+            // Once the final action is fully visible, the reading path is complete.
+            if (action.top >= top && action.bottom <= top + height - 12) show = false;
+        }
+        cue.hidden = !show;
+    }
+    function scheduleScrollCue() {
+        if (scrollCueFrame === null) scrollCueFrame = requestAnimationFrame(updateScrollCue);
+    }
     try { var saved = JSON.parse(localStorage.getItem('gamebox:lang')); if (saved === 'zh') locale = 'zh'; } catch (e) { /* default English */ }
     function eligible() { return user && !user.anon && profile && B.isBirthday(profile.birthday, new Date()); }
     function currentCopy() { return Object.assign({}, TEXT[locale], eligible() && B.hasCompleted(user.uid, new Date()) ? REPEAT[locale] : {}); }
     function cleanup() {
+        if (scrollCueFrame !== null) cancelAnimationFrame(scrollCueFrame); scrollCueFrame = null;
+        el('birthday-scroll-cue').hidden = true;
         if (cake) cake.destroy(); cake = null;
         if (finale) { finale.close(); finale.remove(); finale = null; }
         if (decoration) decoration(); decoration = null;
@@ -114,6 +137,7 @@
         var valid = eligible();
         el('birthday-gate').hidden = !!valid; el('birthday-notice').hidden = !valid || scene !== 'notice';
         el('birthday-cake-screen').hidden = !valid || scene !== 'cake';
+        scheduleScrollCue();
         if (!valid) { cleanup(); activeDay = null; scene = 'notice'; gate(); return; }
         var day = B.dayKey(new Date());
         if (activeDay !== day) { activeDay = day; B.markEntered(user.uid, new Date()); }
@@ -141,7 +165,7 @@
             event.preventDefault(); finale.close(); finale.remove(); finale = null;
             if (cake) cake.destroy(); cake = null; scene = 'notice'; paint();
         });
-        finale.append(seal, heading, body, home, again); document.body.append(finale); renderLanguage(); finale.showModal(); home.focus();
+        finale.append(seal, heading, body, home, again); document.body.append(finale); renderLanguage(); finale.showModal(); home.focus(); scheduleScrollCue();
     }
     function startCake() {
         if (!eligible()) { refresh(); return; }
@@ -198,8 +222,22 @@
         if (event.key === 'gamebox:lang') { try { locale = JSON.parse(event.newValue) === 'zh' ? 'zh' : 'en'; } catch (e) { locale = 'en'; } paint(); }
         else if (!event.key || event.key.indexOf('gamebox:birthday:completed:') === 0) paint();
     });
-    window.addEventListener('pagehide', function () { cleanup(); clearTimeout(midnight); clearTimeout(loadingTimer); });
-    window.addEventListener('pageshow', function (event) { if (event.persisted) { scene = 'notice'; refresh(); } });
+    window.addEventListener('scroll', scheduleScrollCue, { passive: true });
+    window.addEventListener('resize', scheduleScrollCue, { passive: true });
+    if (window.visualViewport) {
+        window.visualViewport.addEventListener('resize', scheduleScrollCue, { passive: true });
+        window.visualViewport.addEventListener('scroll', scheduleScrollCue, { passive: true });
+    }
+    if (window.ResizeObserver) {
+        scrollCueObserver = new ResizeObserver(scheduleScrollCue);
+        scrollCueObserver.observe(document.querySelector('.birthday-app'));
+    }
+    window.addEventListener('pagehide', function () { cleanup(); clearTimeout(midnight); clearTimeout(loadingTimer); if (scrollCueObserver) scrollCueObserver.disconnect(); });
+    window.addEventListener('pageshow', function (event) {
+        if (event.persisted) { scene = 'notice'; refresh(); }
+        if (scrollCueObserver) scrollCueObserver.observe(document.querySelector('.birthday-app'));
+        scheduleScrollCue();
+    });
     paint();
     if (window.ArcadeNet) connect(); else window.addEventListener('arcade-net-ready', connect, { once: true });
 })();
