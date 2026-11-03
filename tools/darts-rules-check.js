@@ -160,4 +160,36 @@ assert(Math.abs(impact.t - 2370 / flight.vel.z) < 1e-12);
 assert(Math.abs(impact.y - (-292 + flight.vel.y * impact.t - 2450 * impact.t ** 2)) < 1e-10);
 assert.equal(physics.analyseGesture([{ t: 0, x: 0, y: 0 }, { t: .1, x: 0, y: -100 }]).valid, false);
 assert.equal(physics.scoreAt(0, 0).mult, 2);
+
+// Pitch trim rotates the entire gesture mapping rather than changing sensitivity,
+// speed, release position or the camera. The zero setting retains exact parity.
+const neutralAnalysis = { speed: 700, releaseVel: { x: 300, y: 600 } };
+const otherAnalysis = { speed: 900, releaseVel: { x: -400, y: 800 } };
+const speedOf = v => Math.hypot(v.x, v.y, v.z);
+const dotOf = (a, b) => a.x * b.x + a.y * b.y + a.z * b.z;
+const neutral = physics.computeThrow(neutralAnalysis), other = physics.computeThrow(otherAnalysis);
+const fixedView = [physics.TUNING.camY, physics.TUNING.boardCenterY, physics.TUNING.viewFocal];
+try {
+    for (const degrees of [-5, 5]) {
+        physics.TUNING.pitchOffsetDeg = degrees;
+        const tilted = physics.computeThrow(neutralAnalysis), tiltedOther = physics.computeThrow(otherAnalysis);
+        assert.equal(tilted.vel.x, neutral.vel.x);
+        assert.deepEqual(tilted.pos, neutral.pos); assert.equal(tilted.tempo, neutral.tempo);
+        assert(Math.abs(speedOf(tilted.vel) - speedOf(neutral.vel)) < 1e-9);
+        assert(Math.abs(dotOf(tilted.vel, tiltedOther.vel) - dotOf(neutral.vel, other.vel)) < 1e-7,
+            'Relative angles between gesture-derived directions are preserved');
+        const angleDelta = Math.atan2(tilted.vel.y, tilted.vel.z) - Math.atan2(neutral.vel.y, neutral.vel.z);
+        assert(Math.abs(angleDelta - degrees * Math.PI / 180) < 1e-12);
+        assert.equal(Math.sign(physics.computeImpact(tilted).y - physics.computeImpact(neutral).y), Math.sign(degrees));
+        assert.deepEqual([physics.TUNING.camY, physics.TUNING.boardCenterY, physics.TUNING.viewFocal], fixedView);
+        assert.deepEqual(physics.computeThrow(neutralAnalysis), tilted, 'Pitch trim remains deterministic');
+    }
+    physics.TUNING.pitchOffsetDeg = 90;
+    const cappedPitch = physics.computeThrow(neutralAnalysis);
+    physics.TUNING.pitchOffsetDeg = 30;
+    assert.deepEqual(cappedPitch, physics.computeThrow(neutralAnalysis));
+    const extreme = physics.computeThrow({ speed: 3200, releaseVel: { x: 0, y: 3200 } });
+    assert(extreme.vel.z > 0 && Number.isFinite(physics.computeImpact(extreme).t));
+} finally { physics.TUNING.pitchOffsetDeg = 0; }
+assert.deepEqual(physics.computeThrow(neutralAnalysis), neutral);
 console.log('PASS: darts board, 501 bust/double-out, Cricket marks/scoring/wins, Count-Up/timeout/ties, BO3 and throwing physics.');

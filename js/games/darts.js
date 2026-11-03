@@ -180,6 +180,7 @@
         // centre up/down. Board scoring radius is 170 mm.
         aimScaleX: 1.57,          // world mm/s of launch velocity per logical px/s of release motion — lateral
         aimScaleY: 1.40,          // world mm/s of launch velocity per logical px/s of release motion — vertical (kept equal to X on purpose)
+        pitchOffsetDeg: 0,        // rotate the final launch direction: + = up, - = down (degrees, clamped to ±30). Preserves gesture mapping/speed; camera and release height stay fixed.
 
         // --- forward throw / tempo (the compressed "power") ---
         boardDistance: 2370,      // mm from the hand to the board plane along +Z
@@ -403,6 +404,15 @@
         if (T.releaseNoise > 0) {   // kept off by default → deterministic
             vx += (Math.random() * 2 - 1) * T.releaseNoise;
             vy += (Math.random() * 2 - 1) * T.releaseNoise;
+        }
+        // Apply a fixed pitch to the complete gesture-derived velocity, like tilting
+        // the throwing frame without moving the camera. A rigid rotation preserves
+        // speed and angular relationships between gestures; 0 keeps the original throw.
+        var pitch = clamp(T.pitchOffsetDeg, -30, 30) * Math.PI / 180;
+        if (pitch !== 0) {
+            var originalVy = vy, cosPitch = Math.cos(pitch), sinPitch = Math.sin(pitch);
+            vy = originalVy * cosPitch + vz * sinPitch;
+            vz = vz * cosPitch - originalVy * sinPitch;
         }
         return { pos: { x: 0, y: T.handYOffset, z: 0 }, vel: { x: vx, y: vy, z: vz }, tempo: tempo };
     }
