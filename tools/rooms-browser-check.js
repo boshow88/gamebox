@@ -9,7 +9,8 @@ const { spawn } = require('node:child_process');
 const root = path.resolve(__dirname, '..');
 const args = process.argv.slice(2);
 const mode = args.includes('--invalid-rtdb') ? 'invalid' : 'rtdb';
-const dartsOnly = args.includes('--darts');
+const preview = args.includes('--darts-mobile') ? 'mobile' : args.includes('--darts-desktop') ? 'desktop' : '';
+const dartsOnly = args.includes('--darts') || !!preview;
 const chrome = args.find(arg => !arg.startsWith('--')) || 'C:/Program Files/Google/Chrome/Application/chrome.exe';
 const database = require('./helpers/browser-rtdb.js');
 
@@ -38,11 +39,12 @@ const runner = `<!doctype html><meta charset="utf-8"><pre id="result">RUNNING</p
 const errors = [];
 const mode = '${mode}';
 const dartsOnly = ${dartsOnly};
+const preview = '${preview}';
 let encode = value => value, decode = value => value;
 addEventListener('message', event => { if (event.data && event.data.roomError) errors.push(event.data.roomError); });
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 async function until(check, label) { for (let i = 0; i < 2500; i++) { if (errors.length) throw new Error(errors.join('; ')); if (check()) return; await sleep(10); } throw new Error('Timed out: ' + label); }
-function frame(game, uid) { const f = document.createElement('iframe'); f.src = '/games/' + game + '.html?testUser=' + uid; document.body.append(f); return f; }
+function frame(game, uid) { const f = document.createElement('iframe'); f.src = '/games/' + game + '.html?testUser=' + uid; if(game==='darts')f.style.height='900px'; document.body.append(f); return f; }
 function button(f, key) { const label = f.contentWindow.ArcadeCommon.i18n.t(key); const b = [...f.contentDocument.querySelectorAll('#lobby button')].find(b => b.textContent === label); if (!b || b.disabled) throw new Error('Missing/enabled button: ' + label); b.click(); }
 function enabled(f, key) { const label = f.contentWindow.ArcadeCommon.i18n.t(key); return [...f.contentDocument.querySelectorAll('#lobby button')].some(b => b.textContent === label && !b.disabled); }
 function layout(f, entry = false) {
@@ -209,7 +211,7 @@ async function checkDarts() {
     if(await api(other).controller().submit(flight(0,103)))throw new Error('Opponent scored out of turn');
     await throwAt(0,103);
     if(read().game.scores[owner]!==441)throw new Error('Online T20 score mismatch');
-    for(const f of [a,b])if(!f.contentDocument.getElementById('dart-feedback').textContent.includes('T20'))throw new Error('Opponent impact was not shown');
+    for(const f of [a,b])if(!f.contentDocument.getElementById('turn-darts').textContent.includes('T20'))throw new Error('Opponent impact was not shown');
     for(const f of [a,b])if(api(f).snapshot().dartState!=='landed')throw new Error('Opponent flight did not land');
     await api(a).controller().tick();await sleep(10);
     if(api(a).snapshot().dartState==='flying')throw new Error('Presence snapshot replayed a flight');
@@ -250,6 +252,95 @@ async function checkDarts() {
     if(!b.contentDocument.querySelector('.cricket-table td').getAttribute('aria-label').includes('記號'))throw new Error('Cricket localization missing');
     a.remove();b.remove();
 }
+async function checkDartsLayouts() {
+    const f=frame('darts','layout-player');
+    await until(()=>f.contentWindow.__dartsTest&&f.contentWindow.ArcadeNet,'layout boot');
+    const doc=f.contentDocument,w=f.contentWindow,api=w.__dartsTest;
+    w.ArcadeCommon.i18n.setLocale('en');
+    Object.assign(w.ArcadeCommon.i18n.STRINGS.en,{dartsPlayerA:'Alexandria North',dartsPlayerB:'Benedict Longname',dartsPlayerC:'Charlotte East',dartsPlayerD:'Dominique West'});
+    function change(id,value){doc.getElementById(id).value=value;doc.getElementById(id).dispatchEvent(new w.Event('change'));}
+    function box(selector){const b=doc.querySelector(selector).getBoundingClientRect();return [b.x,b.y,b.width,b.height];}
+    function within(inner,outer,label){if(inner[0]<outer[0]-.6||inner[1]<outer[1]-.6||inner[0]+inner[2]>outer[0]+outer[2]+.6||inner[1]+inner[3]>outer[1]+outer[3]+.6)throw new Error(label+' outside viewport: '+JSON.stringify([inner,outer]));}
+    const cases=[['cricket','4'],['501','2'],['501','4'],['countup','4'],['practice','1']];
+    for(const [width,height] of [[320,568],[390,844],[768,1024],[1200,800]]){
+        f.style.width=width+'px';f.style.height=height+'px';await sleep(30);
+        let baseline;
+        for(const [mode,players] of cases){
+            doc.getElementById('restart-btn').click();change('mode-select',mode);change('players-select',players);
+            doc.getElementById('overlay-btn').click();await sleep(30);
+            if(mode==='cricket')api.previewCricket();
+            const viewport=box('#match-panel'),board=box('#throw-surface'),panel=box('#mode-panel'),summary=box('.darts-players');
+            within(viewport,[0,0,w.innerWidth,w.innerHeight],width+' '+mode);
+            within(board,viewport,'board');within(panel,viewport,'mode panel');within(summary,viewport,'player summary');
+            const dimensions=[...board,...panel,...summary];
+            if(!baseline)baseline=dimensions;else if(dimensions.some((value,i)=>Math.abs(value-baseline[i])>.6))throw new Error('Mode switch moved the board/panels at '+width+' '+mode);
+            if(doc.documentElement.scrollWidth>w.innerWidth+1||doc.documentElement.scrollHeight>w.innerHeight+1)throw new Error('Live game needs scrolling at '+width+' '+mode);
+            const cards=[...doc.querySelectorAll('.darts-player')];
+            if(cards.length!==Number(players))throw new Error('Player count in HUD');
+            for(const card of cards){const r=card.getBoundingClientRect();within([r.x,r.y,r.width,r.height],summary,'player card');}
+            if(mode==='cricket'){
+                if(doc.querySelectorAll('.cricket-table tbody tr').length!==7||doc.querySelectorAll('.cricket-table thead th').length!==5)throw new Error('Four-player Cricket matrix');
+                within(box('.cricket-table'),panel,'Cricket table');
+                if(doc.getElementById('mode-panel').scrollHeight>doc.getElementById('mode-panel').clientHeight+1)throw new Error('Cricket panel overflows');
+            }
+            if(mode!=='practice'&&!doc.querySelector('.status-dart').textContent.includes('1/3'))throw new Error('Dart count is not visible');
+            // HUD drags do not start a gesture or spend a dart.
+            doc.getElementById('mode-panel').dispatchEvent(new w.PointerEvent('pointerdown',{bubbles:true,clientX:40,clientY:400,pointerId:1,isPrimary:true}));
+            w.dispatchEvent(new w.PointerEvent('pointermove',{clientX:40,clientY:100,pointerId:1,isPrimary:true}));
+            w.dispatchEvent(new w.PointerEvent('pointerup',{clientX:40,clientY:100,pointerId:1,isPrimary:true}));
+            if(api.snapshot().darts!==0||api.snapshot().dartState==='flying')throw new Error('HUD interaction threw a dart');
+        }
+    }
+    if(preview){
+        f.style.cssText='position:fixed;inset:0;width:'+(preview==='mobile'?'390px':'1200px')+';height:'+(preview==='mobile'?'844px':'800px')+';border:0;z-index:10';
+        doc.getElementById('restart-btn').click();change('mode-select','cricket');change('players-select','4');
+        doc.getElementById('overlay-btn').click();await sleep(100);
+        api.previewCricket();await sleep(30);
+    }else f.remove();
+}
+async function checkDartsFour() {
+    const frames=[0,1,2,3].map(i=>frame('darts','four-'+i));
+    for(const f of frames){
+        await until(()=>f.contentWindow.__dartsTest&&f.contentDocument.getElementById('lobby'),'four-player boot');
+        f.contentWindow.ArcadeCommon.i18n.setLocale('en');
+        f.contentDocument.getElementById('online-btn').click();
+    }
+    const api=f=>f.contentWindow.__dartsTest;
+    const select=frames[0].contentDocument.getElementById('mode-select');select.value='cricket';select.dispatchEvent(new frames[0].contentWindow.Event('change'));
+    button(frames[0],'dartsCreate');await until(()=>frames[0].contentDocument.querySelector('.lobby-code'),'four-player create');
+    const code=frames[0].contentDocument.querySelector('.lobby-code').textContent,key='rooms/darts_rooms/R-'+code;
+    const read=()=>decode(JSON.parse(localStorage.getItem('__rooms-browser-db')||'{}')[key]);
+    for(let i=1;i<4;i++){
+        frames[i].contentDocument.querySelector('#lobby input').value=code;button(frames[i],'dartsJoin');
+        await until(()=>read()&&Object.keys(read().players).length===i+1,'join player '+i);
+    }
+    button(frames[1],'dartsReadyUp');button(frames[2],'dartsReadyUp');await sleep(20);
+    if(enabled(frames[0],'dartsStartMatch'))throw new Error('Started without fourth player readiness');
+    button(frames[3],'dartsReadyUp');await until(()=>enabled(frames[0],'dartsStartMatch'),'four-player start ready');button(frames[0],'dartsStartMatch');
+    await until(()=>frames.every(f=>api(f).snapshot().match&&api(f).snapshot().match.players.length===4),'four-player started');
+    for(const f of frames)if(f.contentDocument.querySelectorAll('.cricket-table thead th').length!==5||f.contentDocument.querySelectorAll('.darts-player').length!==4)throw new Error('Online four-player HUD missing');
+    const seen=[];
+    for(let turn=0;turn<4;turn++){
+        seen.push(read().game.active);
+        for(let dart=0;dart<3;dart++){
+            const stamp=read().game.readyAt+1;frames.forEach(f=>f.contentWindow.__dartsNow=stamp);
+            const player=frames.find(f=>api(f).snapshot().uid===read().game.active),old=read().game.seq,t=2370/12600;
+            await api(player).controller().submit({pos:{x:0,y:-292,z:0},vel:{x:0,y:(80+292+2450*t*t)/t,z:12600},tempo:1});
+            await until(()=>frames.every(f=>api(f).snapshot().match.seq>old),'four-player dart');frames.forEach(f=>api(f).land());
+        }
+    }
+    if(new Set(seen).size!==4)throw new Error('Turns did not rotate through four players');
+    const hostId=api(frames[0]).snapshot().uid;
+    await api(frames[0]).controller().leave();
+    await until(()=>read().hostUid!==hostId&&read().game.withdrawn.includes(hostId),'multi-player host departure');
+    for(const f of frames.slice(1))await until(()=>f.contentDocument.querySelectorAll('.darts-player.withdrawn').length===1,'withdrawn HUD');
+    if(read().game.status!=='playing')throw new Error('Four-player match ended on first departure');
+    await api(frames[1]).controller().leave();await until(()=>Object.keys(read().players).length===2,'two remain');
+    if(read().game.status!=='playing')throw new Error('Three-player match ended on second departure');
+    await api(frames[2]).controller().leave();await until(()=>api(frames[3]).snapshot().match.status==='over','last player wins');
+    if(read().game.winner!==api(frames[3]).snapshot().uid)throw new Error('Wrong forfeit winner');
+    await api(frames[3]).controller().leave();frames.forEach(f=>f.remove());
+}
 (async () => {
     if (mode === 'invalid') {
         for (const game of (dartsOnly ? ['darts'] : ['beam', 'rune-stones'])) {
@@ -263,10 +354,10 @@ async function checkDarts() {
         }
     } else {
         const codec = await import('/js/net/rtdb-values.mjs'); encode = codec.encodeRoomValue; decode = codec.decodeRoomValue;
-        if(dartsOnly) await checkDarts();
+        if(dartsOnly) { await checkDarts(); await checkDartsFour(); await checkDartsLayouts(); }
         else { await check('beam', 'beam_rooms', 'beam'); await check('rune-stones', 'duel_rooms', 'rd'); }
     }
-    document.getElementById('result').textContent = 'PASS (' + mode + '): ' + (mode === 'invalid' ? 'disabled online rooms and working account profiles.' : dartsOnly ? 'Darts pointer gesture, solo completion, online turns/animations/BO3/rematch, room lifecycle, translations and responsive layout.' : 'real browser room flows, backend selection and account isolation.');
+    document.getElementById('result').textContent = 'PASS (' + mode + '): ' + (mode === 'invalid' ? 'disabled online rooms and working account profiles.' : dartsOnly ? 'Darts pointer gesture, solo completion, 2/4-player online flow, rematches/departures, translations, HUD interaction safety and stable 320/390/768/1200px layouts across modes.' : 'real browser room flows, backend selection and account isolation.');
 })().catch(error => { document.getElementById('result').textContent = 'FAIL: ' + error.stack; });
 </script>`;
 
@@ -291,6 +382,7 @@ async function main() {
                 window.__dartsTest = {
                     gesture: function () { if (G.dartState === 'landed') freshDart(); launchThrow(analyseGesture([{t:0,x:0,y:0},{t:.05,x:0,y:50},{t:.1,x:0,y:140},{t:.15,x:0,y:230}])); },
                     land: function () { update(1); }, controller: function () { return online; },
+                    previewCricket: function () { match.players.forEach(function (id, i) { match.scores[id]=[120,80,40,95][i]; Rules.TARGETS.forEach(function(n,r){match.marks[id][n]=(r+i)%4;}); }); viewMatch=match; syncGameUi(); },
                     snapshot: function () { return {match:match,room:room,uid:netUser&&netUser.uid,darts:G.darts,dartState:G.dartState}; }
                 }; })();`);
             if (file.endsWith('.html')) {
@@ -306,7 +398,12 @@ async function main() {
     const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'gamebox-rooms-browser-'));
     let browser;
     try {
-        browser = spawn(chrome, ['--headless=new', '--disable-gpu', '--no-first-run', '--no-default-browser-check',
+        const extra = [];
+        if (preview) {
+            const target = path.join(root, '.cache'); fs.mkdirSync(target, { recursive: true });
+            extra.push('--screenshot=' + path.join(target, 'darts-' + preview + '.png'), '--window-size=' + (preview === 'mobile' ? '390,844' : '1200,800'), '--hide-scrollbars');
+        }
+        browser = spawn(chrome, ['--headless=new', '--disable-gpu', '--no-first-run', '--no-default-browser-check', ...extra,
             '--disable-background-networking', '--user-data-dir=' + profile, '--dump-dom', '--virtual-time-budget=45000',
             'http://127.0.0.1:' + server.address().port + '/__check'], { windowsHide: true });
         let output = '', diagnostics = '';

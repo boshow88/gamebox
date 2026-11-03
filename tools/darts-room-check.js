@@ -27,11 +27,11 @@ const createRoom = require('../js/games/darts-room.js');
     async function shoot(base, mult) { wait(); assert.equal(await active().submit(flight(base, mult)), true); await db.flush(); }
     await a.create({ mode: '501', bestOf: 3, turnMs: 60000 }); await db.flush();
     await b.join(' r-abcd '); await db.flush();
-    assert.notEqual(A, B); assert.deepEqual(get().slots, [A, B]);
-    await assert.rejects(third.join('ABCD'));
+    assert.notEqual(A, B); assert.deepEqual(get().slots, [A, B, null, null]);
     assert.equal(await a.start(), false); assert.equal(await b.start(), false);
     await b.ready(); await db.flush(); assert.equal(game().status, undefined);
     await a.start(); await db.flush(); assert.equal(game().status, 'playing');
+    await assert.rejects(third.join('ABCD'));
     const firstMatch = { ...game() };
     const inactive = active() === a ? b : a;
     assert.equal(await inactive.submit(flight()), false, 'Only active player can score');
@@ -115,5 +115,45 @@ const createRoom = require('../js/games/darts-room.js');
     assert(R.TARGETS.every(target => game().marks[cricketWinner][target] === 3));
     await a.leave(); await b.leave(); await db.flush();
     assert.equal(errors.length, 0, errors.map(String).join('\n'));
-    console.log('PASS: darts RTDB 1v1 readiness, atomic throws, animation events, bust, checkout, BO3, rematch, timer, recovery/forfeit, full Count-Up/tie replay and Cricket.');
+
+    // The same shared service admits four, checks every guest, rotates all seats,
+    // continues after departure, and rejects departed/delayed writes.
+    const c = make(), d = make(), e = make();
+    await a.create({ mode: 'countup', bestOf: 1 }); await b.join('ABCD'); await c.join('ABCD'); await d.join('ABCD'); await db.flush();
+    const C = c.service.currentPlayer().uid, D = d.service.currentPlayer().uid;
+    assert.equal(Object.keys(get().players).length, 4); assert.equal(get().maxPlayers, 4);
+    await assert.rejects(e.join('ABCD'), error => error.code === 'room/full');
+    await b.ready(); await c.ready(); assert.equal(await a.start(), false, 'Every guest must be ready');
+    await d.ready(); assert.equal(await a.start(), true); await db.flush();
+    const clients = { [A]: a, [B]: b, [C]: c, [D]: d };
+    const seen = [];
+    for (let i = 0; i < 4; i++) {
+        seen.push(game().active);
+        for (let j = 0; j < 3; j++) { wait(); await clients[game().active].submit(flight(20, 3)); await db.flush(); }
+    }
+    assert.equal(new Set(seen).size, 4); assert.equal(game().active, seen[0]);
+    const departed = game().active, departureClient = clients[departed], delayed = { ...game() };
+    await departureClient.leave(); await db.flush();
+    assert.equal(game().status, 'playing'); assert.equal(Object.keys(get().players).length, 3); assert.notEqual(game().active, departed);
+    assert(game().withdrawn.includes(departed)); assert.equal(await departureClient.submit(flight(), delayed), false);
+    const hostNow = clients[get().hostUid];
+    const survivors = game().players.filter(uid => uid !== departed);
+    // Complete all eight rounds with the current roster, keeping enough peers for a rematch.
+    while (game().status === 'playing') {
+        wait(); await clients[game().active].submit(flight(game().active === survivors[0] ? 20 : 1, 3)); await db.flush();
+    }
+    assert.equal(game().winner, survivors[0]); assert(survivors.every(uid => game().stats[uid].darts === 24));
+    assert.equal(await hostNow.rematch(), true); await db.flush();
+    await e.join('ABCD'); await db.flush(); assert.equal(Object.keys(get().players).length, 4);
+    const all = Object.assign({}, clients, { [e.service.currentPlayer().uid]: e });
+    for (const uid of Object.keys(get().players)) if (uid !== get().hostUid) await all[uid].ready();
+    await hostNow.start(); await db.flush(); assert.equal(game().players.length, 4); assert.deepEqual(game().withdrawn, []);
+    const hostId = get().hostUid; await all[hostId].leave(); await db.flush();
+    assert.notEqual(get().hostUid, hostId); assert.equal(game().status, 'playing', 'Host departure preserves a multi-player match');
+    const nextHost = get().hostUid; await all[nextHost].leave(); await db.flush(); assert.equal(game().status, 'playing');
+    const finalTwo = Object.keys(get().players); await all[finalTwo[0]].leave(); await db.flush();
+    assert.equal(game().winner, finalTwo[1]); assert.equal(game().endReason, 'left');
+    await all[finalTwo[1]].leave(); await db.flush(); assert.equal(get(), null);
+    assert.equal(errors.length, 0, errors.map(String).join('\n'));
+    console.log('PASS: darts RTDB 2–4 players, capacity/readiness, atomic throws, turns/starters, rematch, timers, recovery/host migration, departures and full Count-Up/Cricket.');
 })().catch(error => { console.error(error); process.exitCode = 1; });

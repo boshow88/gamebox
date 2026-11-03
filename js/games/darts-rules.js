@@ -9,6 +9,15 @@
     var SECTORS = [20, 1, 18, 4, 13, 6, 10, 15, 2, 17, 3, 19, 7, 16, 8, 11, 14, 9, 12, 5];
     var TARGETS = [20, 19, 18, 17, 16, 15, 25];
     function copy(value) { return JSON.parse(JSON.stringify(value)); }
+    function contenders(s) { return s.players.filter(function (id) { return !(s.withdrawn || []).includes(id); }); }
+    function nextPlayer(s, after) {
+        var ids = contenders(s), start = s.players.indexOf(after);
+        for (var i = 1; i <= s.players.length; i++) {
+            var uid = s.players[(start + i) % s.players.length];
+            if (ids.includes(uid) && (s.mode !== 'countup' || s.turns[uid] < 8)) return uid;
+        }
+        return ids[0];
+    }
     function hit(base, mult) {
         if (base === 25 && (mult === 1 || mult === 2)) return { base: 25, mult: mult, score: 25 * mult,
             region: mult === 2 ? 'bullseye' : 'bull', miss: false, label: mult === 2 ? 'BULL' : 'OUTER BULL' };
@@ -50,15 +59,18 @@
             s.turns[uid] = 0;
             s.stats[uid] = { darts: 0, points: 0, bestRound: 0, bulls: 0, triple20s: 0 };
         });
-        s.active = s.players[(s.firstStarter + s.leg - 1) % s.players.length];
+        var index = (s.firstStarter + s.leg - 1) % s.players.length;
+        s.active = nextPlayer(s, s.leg > 1 && s.legStarter ? s.legStarter : s.players[(index + s.players.length - 1) % s.players.length]);
+        s.legStarter = s.active;
         s.dart = 0; s.turnPoints = 0; s.turnStartScore = s.scores[s.active];
         s.turnStartedAt = at; s.readyAt = at; s.status = 'playing'; s.legWinner = null; s.draw = false;
-        s.lastTurn = null; s.lastThrow = null;
+        s.lastTurn = null; s.lastThrow = null; s.turnDarts = [];
     }
     function create(input, players, at, firstStarter) {
-        if (!Array.isArray(players) || players.length < 1 || players.length > 2 || new Set(players).size !== players.length) throw new Error('Darts needs one or two players');
+        if (!Array.isArray(players) || players.length < 1 || players.length > 4 || new Set(players).size !== players.length) throw new Error('Darts needs one to four players');
         var s = Object.assign(options(input), { players: players.slice(), leg: 1, round: 1, seq: 0,
-            firstStarter: firstStarter === 1 && players.length === 2 ? 1 : 0,
+            firstStarter: Number.isInteger(firstStarter) && firstStarter >= 0 && firstStarter < players.length ? firstStarter : 0,
+            withdrawn: [],
             wins: Object.fromEntries(players.map(function (id) { return [id, 0]; })), winner: null });
         resetLeg(s, at || 0); return s;
     }
@@ -74,20 +86,22 @@
         var uid = s.active;
         s.turns[uid]++;
         s.stats[uid].bestRound = Math.max(s.stats[uid].bestRound, s.turnPoints);
-        s.lastTurn = { uid: uid, points: s.turnPoints, reason: reason };
-        if (s.mode === 'countup' && s.players.every(function (id) { return s.turns[id] >= 8; })) {
-            var highest = Math.max.apply(null, s.players.map(function (id) { return s.scores[id]; }));
-            var leaders = s.players.filter(function (id) { return s.scores[id] === highest; });
+        s.lastTurn = { uid: uid, points: s.turnPoints, reason: reason, darts: (s.turnDarts || []).slice() };
+        var ids = contenders(s);
+        if (s.mode === 'countup' && ids.every(function (id) { return s.turns[id] >= 8; })) {
+            var highest = Math.max.apply(null, ids.map(function (id) { return s.scores[id]; }));
+            var leaders = ids.filter(function (id) { return s.scores[id] === highest; });
             finishLeg(s, leaders.length === 1 ? leaders[0] : null); return;
         }
-        s.active = s.players[(s.players.indexOf(uid) + 1) % s.players.length];
-        s.round++; s.dart = 0; s.turnPoints = 0;
+        s.active = nextPlayer(s, uid);
+        s.round++; s.dart = 0; s.turnPoints = 0; s.turnDarts = [];
         s.turnStartScore = s.scores[s.active]; s.turnStartedAt = at;
     }
     function throwDart(state, uid, result, at) {
-        if (state.status !== 'playing' || state.active !== uid) return null;
+        if (state.status !== 'playing' || state.active !== uid || !contenders(state).includes(uid)) return null;
         var s = copy(state), r = normalize(result), stats = s.stats[uid];
         s.seq++; s.dart++; stats.darts++; stats.points += r.score;
+        s.turnDarts = (s.turnDarts || []).concat([r]);
         if (r.base === 25) stats.bulls++;
         if (r.base === 20 && r.mult === 3) stats.triple20s++;
         s.turnPoints += r.score;
@@ -105,12 +119,12 @@
             if (TARGETS.includes(r.base)) {
                 var previous = s.marks[uid][r.base], extra = Math.max(0, previous + r.mult - 3);
                 s.marks[uid][r.base] = Math.min(3, previous + r.mult);
-                if (s.players.some(function (id) { return id !== uid && s.marks[id][r.base] < 3; })) {
+                if (contenders(s).some(function (id) { return id !== uid && s.marks[id][r.base] < 3; })) {
                     s.scores[uid] += extra * r.base; s.turnPoints += extra * r.base;
                 }
             }
             if (TARGETS.every(function (n) { return s.marks[uid][n] === 3; }) &&
-                s.players.every(function (id) { return s.scores[uid] >= s.scores[id]; })) finishLeg(s, uid);
+                contenders(s).every(function (id) { return s.scores[uid] >= s.scores[id]; })) finishLeg(s, uid);
         } else s.scores[uid] += r.score;
         s.lastDart = { uid: uid, result: r, reason: reason, dart: s.dart, turnPoints: s.turnPoints };
         if (s.status === 'playing' && (reason === 'bust' || s.dart === 3)) endTurn(s, at || 0, reason);
@@ -124,6 +138,31 @@
         if (state.status !== 'between') return null;
         var s = copy(state); s.seq++; s.leg++; s.round++; resetLeg(s, at || 0); s.lastDart = null; return s;
     }
+    function withdraw(state, uid, at) {
+        if (!['playing', 'between'].includes(state.status) || !contenders(state).includes(uid)) return null;
+        var s = copy(state); s.seq++; s.withdrawn = (s.withdrawn || []).concat([uid]);
+        var ids = contenders(s);
+        if (ids.length < 2) {
+            s.status = 'over'; s.winner = ids[0] || null; s.legWinner = s.winner; s.draw = false; s.endReason = 'left'; return s;
+        }
+        if (s.status === 'playing') {
+            if (s.active === uid) {
+                endTurn(s, at || 0, 'left');
+                s.turnStartedAt = Math.max(s.turnStartedAt, s.readyAt || 0);
+            }
+            // Closing/point eligibility can change when an opponent leaves.
+            if (s.status === 'playing' && s.mode === 'countup' && ids.every(function (id) { return s.turns[id] >= 8; })) {
+                var high = Math.max.apply(null, ids.map(function (id) { return s.scores[id]; }));
+                var leaders = ids.filter(function (id) { return s.scores[id] === high; });
+                finishLeg(s, leaders.length === 1 ? leaders[0] : null);
+            } else if (s.status === 'playing' && s.mode === 'cricket') {
+                var winner = ids.find(function (id) { return TARGETS.every(function (n) { return s.marks[id][n] === 3; }) &&
+                    ids.every(function (other) { return s.scores[id] >= s.scores[other]; }); });
+                if (winner) finishLeg(s, winner);
+            }
+        }
+        return s;
+    }
     return { TARGETS: TARGETS, hit: hit, normalize: normalize, scoreAt: scoreAt, options: options,
-        create: create, throwDart: throwDart, timeout: timeout, nextLeg: nextLeg };
+        create: create, throwDart: throwDart, timeout: timeout, nextLeg: nextLeg, contenders: contenders, withdraw: withdraw };
 });

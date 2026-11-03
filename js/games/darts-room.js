@@ -11,21 +11,19 @@
         var onError = config.onError || function () {};
         var service = net.rooms.create({
             collection: 'darts_rooms', identity: 'tab', layout: 'slots', presenceField: 'presence',
-            minPlayers: 2, maxPlayers: 2, waitingStatus: 'waiting', occupiedStatus: 'playing', startMode: 'host',
+            minPlayers: 2, maxPlayers: 4, waitingStatus: 'waiting', occupiedStatus: 'waiting', startMode: 'host',
             isAvailable: function (uid) { return presence.isAvailable(uid); },
             isPlaying: function (data) { return !!(data.game && ['playing', 'between'].includes(data.game.status)); },
             onCreate: function (input) { return { options: Rules.options(input), seed: input.seed }; },
             onJoin: function () { return { game: {}, ready: {} }; },
             onLeave: function (data, player, remaining) {
                 var g = data.game || {};
-                if (['playing', 'between'].includes(g.status)) {
-                    g = Object.assign({}, g, { status: 'over', winner: remaining[0] || null,
-                        legWinner: remaining[0] || null, endReason: 'left', seq: g.seq + 1 });
-                }
-                return { status: 'waiting', ready: {}, game: g };
+                g = Rules.withdraw(g, player.uid, now()) || g;
+                return { status: ['playing', 'between'].includes(g.status) ? 'playing' : 'waiting', ready: {}, game: g };
             },
             startPatch: function (data, players) {
-                return { status: 'playing', game: Rules.create(data.options, players, now(), data.seed % 2) };
+                return { status: 'playing', game: Rules.create(data.options, players, now(), data.seed % players.length),
+                    roster: Object.fromEntries(players.map(function (id) { return [id, data.players[id].name || null]; })) };
             },
         });
         var session = service.session({

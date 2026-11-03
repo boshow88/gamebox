@@ -4,25 +4,56 @@ The existing relative mouse/touch flick, release smoothing, ballistics and camer
 remain in `js/games/darts.js`. `darts-rules.js` owns canonical dartboard results,
 mode rules and immutable turn/leg/match transitions. `darts-room.js` supplies the
 game policy for the existing `ArcadeNet.rooms` service and RTDB adapter.
+`darts-hud.js` maps shared state into player/turn/mode presentation data and renders
+the components; responsive composition lives in `css/darts.css`.
+
+## Gameplay viewport
+
+The same fixed viewport holds essential gameplay information in every mode.
+Above 760px, players occupy the left column, the board the centre and the mode
+panel the right. At narrower widths, a compact 2x2 player summary sits above the
+board and the mode panel sits below it. The mobile viewport is portrait (3:5),
+desktop is landscape (3:2); active play fits within the available viewport height.
+Starting play hides page settings/help and scrolls the game into view. Restart
+returns to setup. No mobile/desktop scoring branches are needed.
+
+Panel bounds stay constant across Practice, 501, Cricket and Count-Up. Primary
+scores appear only in the player summary. The mode panel shows three individual
+turn darts and subtotal, Cricket's seven-row mark matrix, or practice release
+feedback. Numbered/coloured seats link four-player marks to the player summary
+without long names in table headers. Current player, dart, mode, leg/round and
+optional timer remain visible. Completed turns retain their three results under
+an explicit "Last turn" label until the next player throws.
+
+Only a pointer-down in `#throw-surface` can begin a throw. HUDs, controls and result
+overlays are outside that input surface; movements/releases can continue across
+the window. Secondary pointers are ignored and resize cancels a gesture. The
+renderer is cropped around the existing board centre, without changing gesture
+maths, tuning or ballistics. Backing resolution follows its display size. Detailed
+Count-Up statistics are expandable after a leg, outside the live HUD.
 
 ## Modes and outcomes
 
 - Practice: unlimited throws; D toggles the original gesture/trajectory diagnostics.
-- Count-Up: solo or local/online 1v1; eight turns and at most 24 darts per player.
+- Count-Up: 1–4 local or 2–4 online players; eight turns and at most 24 darts per player.
   Outer Bull scores 25 and inner Bull 50. Solo results include average per three
   actual darts, best round, Bulls and Triple 20s.
-- 501: local/online 1v1, double-out including inner Bull. A negative remainder,
+- 501: 2–4 local/online players, double-out including inner Bull. A negative remainder,
   remainder of one, or zero without a double immediately restores the turn's
   starting score and passes play.
-- Cricket: local/online 1v1, 20–15 and Bull. Closing-dart excess marks score while
-  the other player has that target open. Close all targets with at least as many
-  points as the opponent to win.
+- Cricket: 2–4 local/online players, 20–15 and Bull. Closing-dart excess marks score
+  once while any remaining opponent has the target open. Close all targets with
+  at least as many points as every remaining opponent to win. Withdrawn players
+  do not block scoring or victory.
 
-Multiplayer/local matches support BO1 and BO3 (first to one/two leg wins). A
-Count-Up draw awards no leg win and offers a replay with the starter alternating.
-The leg counter includes drawn attempts, so a drawn BO3 can exceed three attempts.
+Multiplayer/local matches support first to one/two leg wins. First to two is BO3
+with two players; with four players it can take five decisive legs, so the UI uses
+"First to 2 legs" rather than promising a maximum of three. A Count-Up draw awards
+no leg win and offers a replay for all remaining players. The leg counter includes
+drawn attempts.
 Local solo Count-Up always plays one leg. The initial online starter is selected
-from the room's random seed; subsequent legs alternate, including drawn legs.
+from the room's random seed; subsequent legs rotate through remaining players,
+including drawn legs.
 Either player can continue from the persistent between-leg result screen.
 
 ## Online policy
@@ -32,10 +63,14 @@ using this version online. The new group is `/rooms/darts_rooms/R-XXXX`; public
 codes remain four characters. Firestore rules and shared room implementation do
 not need changes. A website deployment does not publish Firebase rules.
 
-The policy follows Rune Stones: two independent page seats, host Start after
-guest Ready, 3-second piggybacked heartbeats, 15-second missing-peer release,
-forfeit on departure, host migration and replacement players in the same room.
-Host Rematch resets the same room and readiness; the guest readies again before
+The policy uses four independent page seats, host Start after all guests Ready,
+3-second piggybacked heartbeats, 15-second missing-peer release and host migration.
+The room remains `waiting` while gathering 2–4 players, then changes to `playing`
+on Start. A departure skips that player and retains the running match while 2+
+remain; the last player wins by forfeit. Departed players stay in the match HUD
+with a muted "Left" indicator, and names are retained in the room's match roster.
+Replacement players can join after a rematch reset, not during a running leg/match.
+Host Rematch resets the same room and readiness; guests ready again before
 the next host Start. Opening the room panel during play does not pause a match.
 Closing the result room panel leaves the room and restores the local ready screen.
 Brief reconnects retain the seat and resume the authoritative snapshot. A released
@@ -81,5 +116,16 @@ canvas, shared lobby and modules with only Firebase SDK imports redirected to
 local fakes. It exercises practice, solo completion, online turn/leg/match flow,
 opponent presentation, rematches, result closing, translations and 320/768px
 layout. All game test hooks are injected by the local test server, never shipped
-in the game page. These checks never access production Firebase; published-rule
+in the game page. Four-client checks cover readiness, turn rotation, host migration
+and continued play after departure. Stress tests compare exact board/player/mode
+panel bounds across modes at 320/390/768/1200px, including four-player Cricket and
+HUD drags that must not initiate throws. Optional screenshot checks write ignored
+artifacts to `.cache/darts-mobile.png` and `.cache/darts-desktop.png`:
+
+```text
+node tools/rooms-browser-check.js --darts-mobile
+node tools/rooms-browser-check.js --darts-desktop
+```
+
+These checks never access production Firebase; published-rule
 authorization still needs the Firebase evaluator or a deployed two-tab check.

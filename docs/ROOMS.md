@@ -19,17 +19,17 @@ replace separate copies of room CRUD and readiness checks.
 | --- | --- | --- | --- |
 | Collection | `beam_rooms` | `duel_rooms` | `darts_rooms` |
 | Identity | One player per page instance; same account can occupy multiple seats | One player per page instance; same account can occupy both seats | Same as Rune Stones |
-| Capacity | 2–4 | Exactly 2 | Exactly 2 |
-| Seat layout | Join `order`, stable player colour indices | `slots`, host and guest | `slots`, host and guest |
-| Start | Host presses Start; guests must be ready | Host presses Start; guest must be ready | Same as Rune Stones |
+| Capacity | 2–4 | Exactly 2 | 2–4 |
+| Seat layout | Join `order`, stable player colour indices | `slots`, host and guest | Four `slots`; lobby remains joinable until Start |
+| Start | Host presses Start; guests must be ready | Host presses Start; guest must be ready | Host starts after every guest is ready |
 | Spectators | Watch without joining or consuming a seat | Disabled | Disabled |
-| Departure | Clear only the departing player's ready flag; match continues | Record a forfeit during play, clear both ready flags, preserve the room and wait for replacement | Same as Rune Stones, including between legs |
+| Departure | Clear only the departing player's ready flag; match continues | Record a forfeit during play, clear both ready flags, preserve the room and wait for replacement | Continue with 2+ players; skip departed seats; final survivor wins by forfeit |
 | Rematch | Host resets the same room; guests ready again, then host starts | Same flow | Same flow |
 | Closing results | Leave the room and return to solo ready screen | Same flow | Same flow |
 | Host availability | Game supplies heartbeat-based `isAvailable` | Per-player presence counters; release missing peers after 15 seconds | Same as Rune Stones |
 
 [Darts](DARTS.md) uses the same service with guarded turn/revision updates,
-canonical throw events, a configurable turn timer and BO1/BO3 leg transitions.
+canonical throw events, a configurable turn timer and first-to-one/two leg wins.
 
 The logical collection names and room layouts are retained, including
 Rune Stones' distinction between an occupied room (`status: 'playing'`) and a

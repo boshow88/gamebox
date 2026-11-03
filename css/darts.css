@@ -1,35 +1,112 @@
-.darts-settings { display: flex; flex-wrap: wrap; gap: 10px 16px; margin: 16px 0 10px; }
-.darts-settings label { display: flex; flex-direction: column; gap: 5px; flex: 1 1 120px; font-size: .8rem; color: var(--text-muted, #9ca3af); }
-.darts-settings select { min-width: 0; width: 100%; padding: 9px; border: 1px solid rgba(255,255,255,.16); border-radius: 8px; background: #151e29; color: #e5e7eb; font: inherit; }
-.darts-settings select:disabled { opacity: .65; }
-.darts-rule { color: var(--text-muted, #9ca3af); font-size: .8rem; line-height: 1.6; margin: 8px 0; }
-.darts-rule:empty { display: none; }
-.match-panel { border: 1px solid rgba(255,255,255,.14); border-radius: 12px; padding: 14px; margin: 14px 0; background: rgba(9,16,24,.7); }
-.darts-match-meta { font-size: .8rem; color: #9ca3af; }
-.darts-turn-line { display: flex; justify-content: space-between; gap: 8px; margin: 10px 0; color: #86efac; }
-#turn-timer { font-variant-numeric: tabular-nums; color: #fde68a; }
-.darts-player-scores { display: flex; gap: 10px; }
-.darts-player { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; text-align: center; padding: 10px 6px; border: 1px solid rgba(255,255,255,.12); border-radius: 8px; }
-.darts-player.active { border-color: #22c55e; background: rgba(34,197,94,.08); }
-.darts-player-name { overflow-wrap: anywhere; font-size: .9rem; }
-.darts-player-score { font-size: 2rem; font-variant-numeric: tabular-nums; }
-.darts-score-label, .darts-player-legs { font-size: .75rem; color: #9ca3af; }
-.cricket-table { width: 100%; border-collapse: collapse; table-layout: fixed; text-align: center; margin: 12px 0; }
-.cricket-table th { font-size: .8rem; font-weight: 500; overflow-wrap: anywhere; }
-.cricket-table td { font-size: 1.5rem; line-height: 1.15; }
-.cricket-table td, .cricket-table th { padding: 4px; border-bottom: 1px solid rgba(255,255,255,.08); }
+/* Stable viewport geometry: only panel contents change with the game mode. */
+.game-shell { max-width: 1240px; }
+.darts-settings { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin: 12px 0; }
+.darts-settings label { display: flex; flex-direction: column; gap: 5px; font-size: .8rem; color: var(--text-muted); }
+.darts-settings select { width: 100%; min-width: 0; padding: 8px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-secondary); color: var(--text-primary); font: inherit; }
+.darts-settings select:disabled { opacity: .5; }
+.darts-rule { font-size: .82rem; color: var(--text-secondary); line-height: 1.6; }
+.darts-viewport { position: relative; isolation: isolate; display: grid; grid-template-areas: 'header header header' 'players board mode'; grid-template-columns: minmax(0, 18fr) minmax(0, 54fr) minmax(0, 28fr); grid-template-rows: 68px minmax(0, 1fr); width: 100%; aspect-ratio: 3 / 2; overflow: hidden; border: 1px solid var(--border-strong); border-radius: 14px; background: #0a0f15; color: #e5e7eb; }
+.viewport-header { grid-area: header; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 14px; border-bottom: 1px solid var(--border-color); background: #101923; min-width: 0; z-index: 2; }
+.darts-game-status { flex: 1; min-width: 0; }
+.darts-match-meta { font-size: .72rem; line-height: 1.3; color: #9ca3af; }
+.darts-turn-line { display: flex; align-items: center; gap: 8px; margin-top: 3px; font-size: .85rem; color: #86efac; }
+#turn-status { display: flex; min-width: 0; gap: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.status-name { overflow: hidden; text-overflow: ellipsis; }
+.status-dart, .status-round { flex: none; }
+#turn-timer { flex: none; color: #fde68a; font-variant-numeric: tabular-nums; }
+.viewport-controls { display: flex; flex: none; gap: 5px; }
+.viewport-controls .btn { padding: 5px 8px; min-height: 30px; font-size: .72rem; }
+.viewport-controls .btn svg { width: 14px; height: 14px; }
+.viewport-controls #debug-btn span:not([data-icon]), .viewport-controls #pause-btn [data-role='pause-label'], .viewport-controls #restart-btn [data-i18n] { display: none; }
+.darts-players { grid-area: players; min-width: 0; padding: 16px 10px; background: #101923; border-right: 1px solid var(--border-color); }
+.panel-caption { color: #9ca3af; text-transform: uppercase; letter-spacing: .06em; font-size: .65rem; line-height: 1.4; }
+.darts-player-scores { display: grid; grid-template-rows: repeat(4, minmax(0, 1fr)); height: calc(100% - 28px); max-height: 420px; gap: 8px; margin-top: 10px; }
+.darts-player { position: relative; display: grid; grid-template-columns: 20px minmax(0, 1fr); grid-template-rows: auto 1fr auto; align-items: center; gap: 2px 6px; border: 1px solid #283240; border-radius: 8px; padding: 8px; min-width: 0; }
+.darts-player.active { border-color: var(--player-color); background: color-mix(in srgb, var(--player-color) 8%, transparent); }
+.player-seat { color: var(--player-color); font: 700 .72rem var(--font-mono); }
+.darts-player-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .8rem; }
+.darts-player-score { grid-column: 2; font: 700 clamp(20px, 2.8vw, 34px) var(--font-mono); line-height: 1.1; }
+.darts-player-legs { grid-column: 2; color: #9ca3af; font-size: .65rem; }
+.withdrawn { opacity: .4; }
+.board-region { grid-area: board; position: relative; min-width: 0; min-height: 0; overflow: hidden; background: radial-gradient(ellipse, #172531, #0a0f15 72%); }
+.stage-pad { position: absolute; inset: 0; container-type: size; touch-action: none; overflow: hidden; cursor: grab; }
+.stage-pad:active { cursor: grabbing; }
+/* Crop the original 480x600 renderer around its (240,250) board centre.
+   Ballistics, projection and gesture coordinates retain their original units. */
+.stage-canvas { position: absolute; left: 50%; top: 50%; display: block; width: 133.333333cqmin; height: 166.666667cqmin; max-width: none; transform: translate(-50%, -41.666667%); touch-action: none; pointer-events: none; }
+.hit-toast { position: absolute; bottom: 9%; left: 8%; right: 8%; text-align: center; pointer-events: none; font-size: clamp(16px, 2vw, 26px); font-weight: 800; color: #fde68a; text-shadow: 0 2px 10px #000; }
+.hit-toast.danger { color: #fca5a5; }
+.darts-mode-panel { grid-area: mode; min-width: 0; min-height: 0; padding: 14px 12px; border-left: 1px solid var(--border-color); background: #101923; display: flex; flex-direction: column; justify-content: center; gap: 12px; }
+.turn-panel { display: flex; flex-direction: column; gap: 18px; }
+.turn-darts { display: grid; gap: 10px; }
+.turn-dart { display: grid; grid-template-columns: 1fr 1fr auto; align-items: center; gap: 6px; padding: 10px 0; border-bottom: 1px solid #283240; font-size: .85rem; }
+.turn-dart-number { color: #9ca3af; font-size: .65rem; }
+.turn-dart-hit, .turn-dart-score { font-family: var(--font-mono); }
+.turn-dart-score { color: #fde68a; }
+#turn-score { font-size: .9rem; }
+.cricket-table { width: 100%; table-layout: fixed; border-collapse: collapse; text-align: center; }
+.cricket-table th { font-size: .7rem; color: #9ca3af; font-weight: 600; }
+.cricket-table thead th { padding-bottom: 9px; }
+.cricket-table td { font-size: 1.4rem; font-family: system-ui, sans-serif; line-height: 1.3; }
+.cricket-table tbody th, .cricket-table td { height: 34px; border-bottom: 1px solid #283240; }
 .cricket-table .closed { color: #86efac; }
-.cricket-table .fully-closed { opacity: .45; background: rgba(255,255,255,.04); }
-#dart-feedback { min-height: 1.5em; font-weight: 700; color: #fde68a; margin: 10px 0 4px; }
-#dart-feedback.bust { color: #fca5a5; }
-#turn-score, #result-summary { color: #9ca3af; font-size: .8rem; line-height: 1.6; }
-#leg-result { border-top: 1px solid rgba(255,255,255,.12); margin-top: 12px; padding-top: 8px; }
-.darts-settings [hidden], .match-panel [hidden], #session-hud[hidden], #match-panel[hidden] { display: none; }
-@media (max-width: 480px) {
+.cricket-table .fully-closed { opacity: .45; }
+.practice-panel { display: flex; flex-direction: column; gap: 8px; }
+#practice-hit { font-size: 1.3rem; color: #fde68a; }
+#practice-speed { font: .9rem var(--font-mono); }
+.practice-tip { margin-top: 18px; font-size: .75rem; line-height: 1.6; color: #9ca3af; }
+#dart-feedback, #network-status { margin: 0; font-size: .75rem; line-height: 1.4; color: #fde68a; overflow-wrap: anywhere; }
+#dart-feedback:empty, #network-status:empty { display: none; }
+#dart-feedback.bust, #network-status { color: #fca5a5; }
+.leg-result { position: absolute; z-index: 3; inset: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 12px; padding: 16px; background: rgba(7,13,20,.92); text-align: center; overflow: auto; }
+.leg-result h2 { margin: 0; font-size: clamp(18px, 2.5vw, 30px); }
+#result-winner { color: #86efac; overflow-wrap: anywhere; }
+#result-reason { font-size: .8rem; margin: 0; }
+.darts-postgame { margin-top: 12px; font-size: .8rem; color: var(--text-secondary); }
+.darts-active .game-shell { padding: 8px; }
+.darts-active .game-topbar, .darts-active .darts-page-controls { display: none; }
+.darts-active .darts-viewport { max-width: calc((100svh - 16px) * 1.5); margin-inline: auto; }
+.darts-active { overscroll-behavior: none; }
+@media (max-width: 760px) {
     .game-topbar { flex-wrap: wrap; gap: 8px; }
     .game-topbar .topbar-actions { margin-left: auto; }
-    .stage-pad { padding: 8px 0 20px; }
-    .darts-turn-line { font-size: .85rem; }
-    .match-panel { padding: 10px; }
-    .control-row { flex-wrap: wrap; }
+    .darts-settings { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .darts-viewport { grid-template-areas: 'header' 'players' 'board' 'mode'; grid-template-columns: minmax(0, 1fr); grid-template-rows: 64px 60px minmax(0, 1fr) 194px; aspect-ratio: 3 / 5; }
+    .darts-active .darts-viewport { max-width: calc((100svh - 16px) * .6); }
+    .viewport-header { flex-direction: column-reverse; justify-content: center; align-items: stretch; padding: 4px 8px; gap: 3px; }
+    .viewport-controls { justify-content: flex-end; gap: 4px; }
+    .viewport-controls .btn { min-height: 23px; padding: 2px 6px; font-size: .65rem; }
+    .viewport-controls .btn svg { width: 12px; height: 12px; }
+    .darts-game-status { display: flex; align-items: center; gap: 6px; flex: none; }
+    .darts-match-meta { font-size: .6rem; max-width: 34%; }
+    .darts-turn-line { min-width: 0; flex: 1; justify-content: space-between; margin: 0; font-size: .65rem; }
+    .darts-players { padding: 3px 8px 6px; border: 0; border-bottom: 1px solid var(--border-color); }
+    .darts-players > .panel-caption { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+    .darts-player-scores { height: 100%; margin: 0; gap: 4px 6px; grid-template: repeat(2, minmax(0, 1fr)) / repeat(2, minmax(0, 1fr)); }
+    .darts-player { grid-template: auto / 12px minmax(0, 1fr) auto; gap: 4px; padding: 2px 5px; border-radius: 5px; }
+    .darts-player-score { grid-column: 3; font-size: 15px; }
+    .darts-player-name { font-size: .65rem; }
+    .player-seat { font-size: .6rem; }
+    .darts-player-legs { display: none; }
+    .darts-mode-panel { padding: 8px 10px; border: 0; border-top: 1px solid var(--border-color); gap: 4px; }
+    .turn-panel { gap: 10px; }
+    .turn-darts { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+    .turn-dart { display: flex; flex-direction: column; gap: 4px; padding: 5px 0; }
+    .turn-dart-hit { font-size: 1rem; }
+    .turn-dart-hit.bull-hit { font-size: .8rem; }
+    .turn-dart-score { font-size: .8rem; }
+    #turn-score { font-size: .8rem; }
+    .cricket-table thead th { padding-bottom: 2px; }
+    .cricket-table tbody th, .cricket-table td { height: 19px; }
+    .cricket-table td { font-size: 1.05rem; line-height: 1; }
+    .cricket-table th { font-size: .65rem; }
+    .practice-panel { display: grid; grid-template-columns: 1fr 1fr; align-items: center; gap: 10px; }
+    .practice-panel .practice-tip { grid-column: 1 / -1; margin: 0; }
+    #practice-hit { font-size: 1rem; }
+    #dart-feedback, #network-status { font-size: .65rem; }
+}
+@media (max-width: 360px) {
+    .darts-viewport { grid-template-rows: 60px 56px minmax(0, 1fr) 180px; }
+    .darts-mode-panel { padding: 5px 8px; }
+    .cricket-table tbody th, .cricket-table td { height: 18px; }
 }

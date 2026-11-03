@@ -30,7 +30,8 @@
     var match = null, viewMatch = null, online = null, net = null, netUser = null;
     var room = null, lobby = null, sending = false, seenThrow = null, onlineMatchId = null;
     var stagedMode = 'practice', stagedBestOf = 1, stagedTurnMs = 60000;
-    var localIds = ['local-a', 'local-b'];
+    var localIds = ['local-a', 'local-b', 'local-c', 'local-d'];
+    var hud = null;
 
     // =================================================================
     // i18n (gameplay strings; launcher card strings live in launcher.js)
@@ -43,10 +44,10 @@
         dartsDebug: 'Debug',
         dartsReady: 'Darts',
         dartsIntro: 'Press and flick toward the board, then release to throw. The flick\u2019s direction and pace are the whole throw \u2014 no power meter, no crosshair. Find a flick you can repeat.',
-        dartsStartHintHtml: 'Drag <strong>anywhere</strong> \u2014 the press point doesn\u2019t matter \u00b7 <kbd>D</kbd> debug',
+        dartsStartHintHtml: 'Drag inside the <strong>board area</strong> \u2014 the press point doesn\u2019t matter \u00b7 <kbd>D</kbd> debug',
         dartsHelp1Html: 'Press, <strong>flick toward the board</strong>, and release. You throw from below the bull, so a gentle flick <strong>up</strong> aims at the centre.',
         dartsHelp2Html: 'The <strong>release</strong> is what counts: pull sideways at the last moment and the dart drifts that way; flick a touch harder and it flies flatter and higher. The same flick always lands the same \u2014 <strong>no random spread</strong>.',
-        dartsHelp3Html: 'Drag <strong>anywhere</strong> (the press point is ignored). <kbd>D</kbd> debug view \u00b7 <kbd>R</kbd> reset session \u00b7 <kbd>M</kbd> mute.',
+        dartsHelp3Html: 'Drag inside the <strong>board area</strong> (the press point is ignored). <kbd>D</kbd> debug view \u00b7 <kbd>R</kbd> reset session \u00b7 <kbd>M</kbd> mute.',
         dartsMiss: 'Miss',
         dartsBull: 'Bull',
         dartsOuterBull: 'Outer Bull',
@@ -62,10 +63,10 @@
         dartsDebug: '除錯',
         dartsReady: '飛鏢',
         dartsIntro: '按住並朝鏢靶輕甩，放開即擲出。甩的方向與快慢就是這一擲的全部——沒有力量條，也沒有準心。找到一個你能重複的甩法。',
-        dartsStartHintHtml: '在<strong>任意處</strong>拖曳——起始點不影響結果 \u00b7 <kbd>D</kbd> 除錯',
+        dartsStartHintHtml: '在<strong>鏢靶區內</strong>拖曳——起始點不影響結果 \u00b7 <kbd>D</kbd> 除錯',
         dartsHelp1Html: '按住、朝鏢靶<strong>輕甩</strong>、放開。出手點在紅心下方，所以向<strong>上</strong>輕甩就是瞄準中心。',
         dartsHelp2Html: '關鍵在<strong>放手的瞬間</strong>：最後一刻往側邊帶，鏢就往那偏；甩得稍重則飛得更平、落點更高。同樣的甩法永遠落在同一處——<strong>沒有隨機散佈</strong>。',
-        dartsHelp3Html: '在<strong>任意處</strong>拖曳（起始點會被忽略）。<kbd>D</kbd> 除錯視圖 \u00b7 <kbd>R</kbd> 重設本局 \u00b7 <kbd>M</kbd> 靜音。',
+        dartsHelp3Html: '在<strong>鏢靶區內</strong>拖曳（起始點會被忽略）。<kbd>D</kbd> 除錯視圖 \u00b7 <kbd>R</kbd> 重設本局 \u00b7 <kbd>M</kbd> 靜音。',
         dartsMiss: '脫靶',
         dartsBull: '紅心',
         dartsOuterBull: '外紅心',
@@ -77,9 +78,12 @@
 
     Object.assign(AC.i18n.STRINGS.en, {
         dartsMode: 'Mode', dartsPractice: 'Practice', darts501: '501', dartsCricket: 'Cricket', dartsCountup: 'Count-Up',
-        dartsMatch: 'Match', dartsBO1: 'Best of 1', dartsBO3: 'Best of 3', dartsTimer: 'Online turn timer',
+        dartsMatch: 'Match', dartsBO1: '1 leg', dartsBO3: 'First to 2 legs', dartsTimer: 'Online turn timer',
         darts30s: '30 seconds', darts60s: '60 seconds', darts90s: '90 seconds',
-        dartsSolo: 'Solo', dartsLocal: 'Local 1v1', dartsOnline: 'Online 1v1', dartsPlayerA: 'Player A', dartsPlayerB: 'Player B',
+        dartsSolo: 'Solo', dartsLocal: 'Local players', dartsOnline: 'Online', dartsRoom: 'Room', dartsPlayerA: 'Player A', dartsPlayerB: 'Player B',
+        dartsPlayerC: 'Player C', dartsPlayerD: 'Player D', dartsLocal2: '2 players', dartsLocal3: '3 players', dartsLocal4: '4 players',
+        dartsWithdrawn: 'Left', dartsThisTurn: 'This turn', dartsPreviousTurn: 'Last turn', dartsTarget: 'Target', dartsBullShort: 'Bull',
+        dartsReleaseSpeed: 'Release speed', dartsPracticeTip: 'Press, flick upward, release.', dartsStatistics: 'Statistics',
         dartsYou: 'You', dartsGuest: 'Guest', dartsTurn: 'Turn', dartsDart: 'Dart', dartsRound: 'Round', dartsLeg: 'Leg',
         dartsWaiting: 'Waiting for opponent', dartsYourTurn: 'Your turn', dartsBust: 'BUST — turn score cancelled',
         dartsCheckout: 'CHECKOUT', dartsTimeout: 'Time up — turn passed', dartsLegWon: 'LEG WON', dartsMatchWon: 'MATCH WON',
@@ -87,17 +91,17 @@
         dartsTurnScore: 'Turn score', dartsPoints: 'Points', dartsRemaining: 'Remaining', dartsClosed: 'Closed',
         dartsAverage: 'Average / 3 darts', dartsBestRound: 'Best round', dartsBulls: 'Bulls', dartsTriple20s: 'Triple 20s',
         dartsRule501: 'Start at 501. Reach exactly zero with a double or inner Bull. Below zero, one remaining, or a non-double finish busts the whole turn.',
-        dartsRuleCricket: 'Close 20–15 and Bull with three marks each. Extra marks score while your opponent has that target open. Close everything and match or beat their points to win.',
+        dartsRuleCricket: 'Close 20–15 and Bull with three marks each. Extra marks score while any opponent has that target open. Close everything and match or beat every opponent’s points to win.',
         dartsRuleCountup: '8 rounds, 3 darts each. Highest total wins. Outer Bull 25, inner Bull 50. A tied online/local leg is replayed with the starter alternating.',
         dartsRulePractice: 'Unlimited throws. D toggles the gesture and trajectory view.',
-        dartsLocalHint: '501 and Cricket use local 1v1. Count-Up supports solo or local 1v1. For online play, create or join a room.',
+        dartsLocalHint: '501 and Cricket support 2–4 players. Count-Up supports 1–4. Online rooms start with 2–4 players after every guest readies up.',
         dartsClose: 'Close', dartsGoogle: 'Sign in with Google', dartsGuestSignIn: 'Play as guest', dartsSignOut: 'Sign out',
         dartsSignInFirst: 'Sign in to create or join a room.', dartsCreate: 'Create room', dartsCode: 'Code', dartsJoin: 'Join',
         dartsCopy: 'Copy', dartsCopied: 'Copied!', dartsLeave: 'Leave room', dartsReadyUp: 'Ready', dartsReadyWait: 'Ready — waiting for host',
         dartsStartMatch: 'Start match', dartsHost: 'Host', dartsReadyTag: 'Ready', dartsOffline: 'Disconnected',
-        dartsHostStarts: 'The host starts when both players are here and the guest is ready.',
+        dartsHostStarts: '2–4 players. The host starts after every guest is ready.',
         dartsRematch: 'Rematch', dartsRematchWait: 'Waiting for the host to reset the match.',
-        dartsLeft: 'Opponent left — match won by forfeit.', dartsRoomGone: 'Room closed. Return to solo play.',
+        dartsLeft: 'Last player remaining — match won by forfeit.', dartsRoomGone: 'Room closed. Return to solo play.',
         dartsNetError: 'Connection failed. Check your connection and try again.', dartsNotFound: 'Room not found',
         dartsFull: 'Room is full', dartsStarted: 'Match already started', dartsUnavailable: 'Online is unavailable',
         dartsSaved: 'Room settings are fixed until you leave.', dartsThrowRejected: 'Throw not accepted. Check the turn and connection, then try again.',
@@ -106,9 +110,12 @@
     });
     Object.assign(AC.i18n.STRINGS.zh, {
         dartsMode: '模式', dartsPractice: '自由練習', darts501: '501', dartsCricket: 'Cricket', dartsCountup: 'Count-Up',
-        dartsMatch: '賽制', dartsBO1: '一局決勝', dartsBO3: '三戰兩勝', dartsTimer: '線上每回合時間',
+        dartsMatch: '賽制', dartsBO1: '一局決勝', dartsBO3: '先贏兩局', dartsTimer: '線上每回合時間',
         darts30s: '30 秒', darts60s: '60 秒', darts90s: '90 秒',
-        dartsSolo: '單人', dartsLocal: '同機雙人', dartsOnline: '線上雙人', dartsPlayerA: '玩家 A', dartsPlayerB: '玩家 B',
+        dartsSolo: '單人', dartsLocal: '同機遊玩', dartsOnline: '連線', dartsRoom: '房間', dartsPlayerA: '玩家 A', dartsPlayerB: '玩家 B',
+        dartsPlayerC: '玩家 C', dartsPlayerD: '玩家 D', dartsLocal2: '2 人', dartsLocal3: '3 人', dartsLocal4: '4 人',
+        dartsWithdrawn: '已離開', dartsThisTurn: '本回合', dartsPreviousTurn: '上一回合', dartsTarget: '目標', dartsBullShort: '紅心',
+        dartsReleaseSpeed: '放手速度', dartsPracticeTip: '按住、往上輕甩，再放開。', dartsStatistics: '詳細統計',
         dartsYou: '你', dartsGuest: '訪客', dartsTurn: '輪到', dartsDart: '第幾鏢', dartsRound: '回合', dartsLeg: '局',
         dartsWaiting: '等待對手投擲', dartsYourTurn: '輪到你投擲', dartsBust: '爆鏢——本回合得分取消',
         dartsCheckout: '成功結鏢', dartsTimeout: '時間到——換人投擲', dartsLegWon: '本局獲勝', dartsMatchWon: '對戰獲勝',
@@ -116,17 +123,17 @@
         dartsTurnScore: '本回合得分', dartsPoints: '分數', dartsRemaining: '剩餘分數', dartsClosed: '已關閉',
         dartsAverage: '每三鏢平均', dartsBestRound: '最佳回合', dartsBulls: '紅心次數', dartsTriple20s: '三倍 20 次數',
         dartsRule501: '從 501 分扣到恰好零分，最後一鏢必須是雙倍區或內紅心。低於零分、剩一分，或未以雙倍區結束，整個回合都不計分。',
-        dartsRuleCricket: '20 到 15 與紅心各需三個記號關閉。對手尚未關閉時，多出的記號可得分。關閉全部目標且分數不低於對手即獲勝。',
+        dartsRuleCricket: '20 到 15 與紅心各需三個記號關閉。仍有對手尚未關閉時，多出的記號可得分。關閉全部目標且分數不低於所有對手即獲勝。',
         dartsRuleCountup: '共八回合，每回合三鏢，總分最高者獲勝。外紅心 25 分、內紅心 50 分。雙人平手時重打，並交換先手。',
         dartsRulePractice: '不限次數投擲。按 D 可切換手勢與軌跡視圖。',
-        dartsLocalHint: '501 與 Cricket 採同機雙人；Count-Up 可選單人或同機雙人。線上遊玩請建立或加入房間。',
+        dartsLocalHint: '501 與 Cricket 支援 2–4 人，Count-Up 支援 1–4 人。線上房間可由 2–4 人開始，所有非房主玩家準備好後即可開局。',
         dartsClose: '關閉', dartsGoogle: '用 Google 登入', dartsGuestSignIn: '以訪客身分遊玩', dartsSignOut: '登出',
         dartsSignInFirst: '登入後即可建立或加入房間。', dartsCreate: '建立房間', dartsCode: '房號', dartsJoin: '加入',
         dartsCopy: '複製', dartsCopied: '已複製！', dartsLeave: '離開房間', dartsReadyUp: '準備好了', dartsReadyWait: '已準備，等待房主開始',
         dartsStartMatch: '開始對戰', dartsHost: '房主', dartsReadyTag: '準備', dartsOffline: '已離線',
-        dartsHostStarts: '兩人到齊且另一位玩家準備好後，由房主開始。',
+        dartsHostStarts: '支援 2–4 人，所有非房主玩家準備好後，由房主開始。',
         dartsRematch: '再來一場', dartsRematchWait: '等待房主重新開局。',
-        dartsLeft: '對手離開，由你獲勝。', dartsRoomGone: '房間已關閉，已返回本機遊玩。',
+        dartsLeft: '其他玩家都已離開，由你獲勝。', dartsRoomGone: '房間已關閉，已返回本機遊玩。',
         dartsNetError: '連線失敗，請確認網路後重試。', dartsNotFound: '找不到房間',
         dartsFull: '房間已滿', dartsStarted: '對戰已經開始', dartsUnavailable: '目前無法連線',
         dartsSaved: '離開房間後才能更改設定。', dartsThrowRejected: '這一鏢未被接受，請確認回合與連線後重試。',
@@ -251,9 +258,6 @@
     var canvas = document.getElementById('stage');
     var ctx = canvas.getContext('2d');
     var dom = {
-        last: document.getElementById('last-score'),
-        total: document.getElementById('session-total'),
-        darts: document.getElementById('dart-count'),
         debugBtn: document.getElementById('debug-btn'),
     };
     var fontCache = null;
@@ -267,7 +271,8 @@
     }
 
     function fitCanvas() {
-        var dpr = Math.min(window.devicePixelRatio || 1, 2);
+        var displayScale = Math.max(1, canvas.getBoundingClientRect().width / W);
+        var dpr = Math.min(window.devicePixelRatio || 1, 2) * displayScale;
         canvas.width = W * dpr;
         canvas.height = H * dpr;
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -452,6 +457,7 @@
     function beginGesture(e) {
         var rect = canvas.getBoundingClientRect();
         gesture = {
+            pointerId: e.pointerId,
             t0: performance.now(),
             sx: e.clientX, sy: e.clientY,
             scaleX: W / (rect.width || W),      // CSS px → logical px
@@ -529,7 +535,7 @@
         G.trajT = TUNING.trajShowSec;
         G.darts += 1;
         G.total += res.score;
-        G.last = { label: resultLabel(res), miss: res.miss, score: res.score };
+        G.last = Object.assign({}, res, { label: resultLabel(res) });
         G.landDolly = camDolly;   // freeze the current dolly so the pull-back eases from here (no snap on an early end)
         // Only stick a dart that actually landed on/near the board; a clear off-board miss just shows the text.
         if (Math.hypot(G.impact.x, G.impact.y) <= TUNING.stuckMaxRadiusMM) {
@@ -556,19 +562,19 @@
     // Pointer handlers. Down starts a recording anywhere in the play zone; move/up live on
     // the window so a gesture that strays off the board still completes (like Bullet Storm).
     function onPointerDown(e) {
-        if (!canThrow()) return;
+        if (!canThrow() || gesture || e.isPrimary === false || e.button > 0) return;
         if (e.target.closest && e.target.closest('button, a, .overlay')) return;
         AC.audio.unlock();
         beginGesture(e);
         if (e.cancelable) e.preventDefault();
     }
     function onPointerMove(e) {
-        if (!gesture) return;
+        if (!gesture || e.pointerId !== gesture.pointerId) return;
         recordGesture(e);
         if (e.cancelable) e.preventDefault();
     }
-    function onPointerUp() {
-        if (!gesture) return;
+    function onPointerUp(e) {
+        if (!gesture || e.pointerId !== gesture.pointerId) return;
         endGesture();
     }
     function onPointerCancel() { gesture = null; }
@@ -639,33 +645,16 @@
             if (G.trajT > 0) drawTrajectory();
             if (G.dartState === 'flying') drawFlyingDart();
         }
-        drawResultBanner();
-        drawPrompt();
+        syncThrowFeedback();
         if (TUNING.debug && !match) drawDebug();
     }
 
-    // A standing nudge before the first throw (so a tap-with-no-flick isn't a mystery),
-    // plus the transient "too soft" hint. Both sit where the result banner would.
-    function drawPrompt() {
-        var showStanding = canThrow() && G.dartState === 'ready' && G.darts === 0 && G.hintT <= 0;
-        if (G.hintT > 0) {
-            ctx.save();
-            ctx.globalAlpha = Math.min(1, G.hintT / 0.6);
-            ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-            ctx.font = '700 20px ' + getFont();
-            ctx.fillStyle = '#fca5a5';
-            ctx.shadowColor = 'rgba(0,0,0,0.6)'; ctx.shadowBlur = 8;
-            ctx.fillText(G.hint || '', W / 2, H - 46);
-            ctx.restore();
-        } else if (showStanding) {
-            ctx.save();
-            ctx.globalAlpha = 0.65;
-            ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-            ctx.font = '600 15px ' + getFont();
-            ctx.fillStyle = 'rgba(226,232,240,0.9)';
-            ctx.fillText(t('dartsFlickPrompt'), W / 2, H - 44);
-            ctx.restore();
-        }
+    function syncThrowFeedback() {
+        var toast = document.getElementById('hit-toast'); if (!toast) return;
+        var result = G.dartState === 'landed' && G.resultT > 0 && G.result;
+        toast.hidden = G.hintT <= 0 && !result;
+        toast.textContent = G.hintT > 0 ? G.hint : result ? resultLabel(result) : '';
+        toast.classList.toggle('danger', G.hintT > 0 || !!(result && result.miss));
     }
 
     function drawBackground() {
@@ -858,20 +847,6 @@
         drawDart(pr.sx, pr.sy, dlen, G.throwAngle, { color: '#fde68a', glow: true });
     }
 
-    function drawResultBanner() {
-        if (G.dartState !== 'landed' || !G.result) return;
-        var alpha = clamp(G.resultT / TUNING.resultHoldSec, 0, 1);
-        var label = resultLabel(G.result);
-        ctx.save();
-        ctx.globalAlpha = Math.min(1, alpha * 1.6);
-        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.font = '800 30px ' + getFont();
-        ctx.fillStyle = G.result.miss ? '#fca5a5' : G.result.region === 'bullseye' || G.result.mult === 3 ? '#86efac' : '#fde68a';
-        ctx.shadowColor = 'rgba(0,0,0,0.6)'; ctx.shadowBlur = 10;
-        ctx.fillText(label, W / 2, H - 46);
-        ctx.restore();
-    }
-
     // -----------------------------------------------------------------
     // Debug / practice visualisation (D)
     //
@@ -907,7 +882,7 @@
     // and the release-vector arrow. Press point is drawn at the panel centre (it's relative).
     function drawGesturePanel() {
         var an = G.analysis;
-        var pw = 150, ph = 128, px = 10, py = H - ph - 10;
+        var pw = 150, ph = 108, px = 70, py = 320;
         panelBox(px, py, pw, ph, 'gesture');
         if (!an || !an.samples || an.samples.length < 2) return;
 
@@ -963,9 +938,9 @@
     // Top view (lateral X vs forward Z) and side view (vertical Y vs forward Z) of the flight.
     function drawTrajPanels() {
         if (!G.traj || !G.impact) return;
-        var pw = 150, ph = 60, px = W - pw - 10;
-        drawTrajPanel(px, 56, pw, ph, 'top (L/R)', function (p) { return p.x; }, TUNING.boardRadiusMM);
-        drawTrajPanel(px, 56 + ph + 8, pw, ph, 'side (drop)', function (p) { return p.y; }, TUNING.boardRadiusMM);
+        var pw = 150, ph = 60, px = 260;
+        drawTrajPanel(px, 90, pw, ph, 'top (L/R)', function (p) { return p.x; }, TUNING.boardRadiusMM);
+        drawTrajPanel(px, 90 + ph + 8, pw, ph, 'side (drop)', function (p) { return p.y; }, TUNING.boardRadiusMM);
     }
     function drawTrajPanel(px, py, pw, ph, title, axis, range) {
         panelBox(px, py, pw, ph, title);
@@ -1012,7 +987,7 @@
         ctx.save();
         ctx.font = '600 11px ' + getFont();
         ctx.textAlign = 'left'; ctx.textBaseline = 'top';
-        var x = 12, y = 10;
+        var x = 70, y = 85;
         for (var i = 0; i < lines.length; i++) {
             ctx.fillStyle = 'rgba(0,0,0,0.5)';
             ctx.fillRect(x - 3, y - 2 + i * 15, ctx.measureText(lines[i]).width + 6, 14);
@@ -1027,12 +1002,6 @@
     // =================================================================
 
     function syncHud() {
-        if (dom.last) {
-            dom.last.textContent = G.last ? G.last.label : '\u2014';
-            dom.last.classList.toggle('danger', !!(G.last && G.last.miss));
-        }
-        if (dom.total) dom.total.textContent = AC.format.score(G.total);
-        if (dom.darts) dom.darts.textContent = String(G.darts);
         syncGameUi();
     }
 
@@ -1068,94 +1037,49 @@
     function modeName(mode) { return t({ practice: 'dartsPractice', '501': 'darts501', cricket: 'dartsCricket', countup: 'dartsCountup' }[mode]); }
     function ruleText(mode) { return t({ practice: 'dartsRulePractice', '501': 'dartsRule501', cricket: 'dartsRuleCricket', countup: 'dartsRuleCountup' }[mode]); }
     function playerName(uid) {
-        if (room && room.data) return ((room.data.players || {})[uid] || {}).name || (uid === (netUser || {}).uid ? t('dartsYou') : t('dartsGuest'));
+        if (room && room.data) return ((room.data.players || {})[uid] || {}).name || (room.data.roster || {})[uid] || (uid === (netUser || {}).uid ? t('dartsYou') : t('dartsGuest'));
         if (match && match.players.length === 1) return t('dartsYou');
-        return t(uid === localIds[0] ? 'dartsPlayerA' : 'dartsPlayerB');
+        return t(['dartsPlayerA', 'dartsPlayerB', 'dartsPlayerC', 'dartsPlayerD'][localIds.indexOf(uid)] || 'dartsGuest');
     }
     function textNode(tag, className, value) {
         var el = document.createElement(tag); if (className) el.className = className;
         if (value != null) el.textContent = value; return el;
     }
     function syncGameUi() {
-        var panel = document.getElementById('match-panel'); if (!panel) return;
-        var s = viewMatch || match, busy = G.dartState === 'flying', settings = room && room.data && room.data.options;
+        if (!hud) return;
+        var s = viewMatch || match, settings = room && room.data && room.data.options;
         var mode = s ? s.mode : settings ? settings.mode : stagedMode;
+        var locked = !!room || !!(shell && shell.state !== 'idle');
+        document.body.classList.toggle('darts-active', !!(shell && shell.state !== 'idle'));
         document.getElementById('mode-description').textContent = ruleText(mode);
-        var locked = !!room || !!(shell && shell.isPlaying());
         ['mode-select', 'match-select', 'players-select', 'timer-select'].forEach(function (id) { document.getElementById(id).disabled = locked; });
-        document.getElementById('players-setting').hidden = mode !== 'countup' || !!room;
-        document.getElementById('match-setting').hidden = mode === 'practice' || (!room && mode === 'countup' && document.getElementById('players-select').value === 'solo');
-        document.getElementById('timer-setting').hidden = mode === 'practice';
-        document.getElementById('local-hint').hidden = !!room;
+        var solo = document.getElementById('players-select').value === '1';
+        document.getElementById('players-select').disabled = locked || mode === 'practice';
+        document.getElementById('players-select').querySelector('option[value="1"]').disabled = mode === '501' || mode === 'cricket';
+        document.getElementById('match-select').disabled = locked || mode === 'practice' || (mode === 'countup' && solo);
+        document.getElementById('timer-select').disabled = locked || mode === 'practice';
         document.getElementById('debug-btn').hidden = !!s;
-        document.getElementById('session-hud').hidden = !!s;
-        var onlineBtn = document.getElementById('online-btn');
-        onlineBtn.textContent = t(room ? 'dartsResults' : 'dartsOnline');
+        document.getElementById('online-btn').textContent = t(room ? 'dartsRoom' : 'dartsOnline');
         if (settings) {
             document.getElementById('mode-select').value = settings.mode;
             document.getElementById('match-select').value = String(settings.bestOf);
             document.getElementById('timer-select').value = String(settings.turnMs);
         }
-        panel.hidden = !s;
-        if (!s) return;
-        document.getElementById('match-meta').textContent = modeName(s.mode) + ' · ' + t('dartsLeg') + ' ' + s.leg + ' · ' + t(s.bestOf === 3 ? 'dartsBO3' : 'dartsBO1');
-        var banner = document.getElementById('turn-status');
-        if (s.status === 'over' || s.status === 'between') banner.textContent = s.draw ? t('dartsDraw') :
-            t(s.status === 'over' ? 'dartsMatchWon' : 'dartsLegWon') + ' · ' + playerName(s.status === 'over' ? s.winner : s.legWinner);
-        else banner.textContent = (room ? t(s.active === (netUser || {}).uid ? 'dartsYourTurn' : 'dartsWaiting') + ' · ' : t('dartsTurn') + ' · ') +
-            playerName(s.active) + ' · ' + t('dartsDart') + ' ' + (s.dart + 1) + '/3' +
-            (s.mode === 'countup' ? ' · ' + t('dartsRound') + ' ' + Math.min(8, s.turns[s.active] + 1) + '/8' : '');
-        var timer = document.getElementById('turn-timer');
-        timer.hidden = !room || s.status !== 'playing';
-        timer.textContent = Math.min(s.turnMs / 1000, Math.max(0, Math.ceil((s.turnStartedAt + s.turnMs - Date.now()) / 1000))) + 's';
-        var feedback = document.getElementById('dart-feedback');
-        var last = s.lastDart;
-        feedback.textContent = last ? playerName(last.uid) + ' · ' + resultLabel(last.result) +
-            (last.reason === 'bust' ? ' · ' + t('dartsBust') : last.reason === 'checkout' ? ' · ' + t('dartsCheckout') : '') : '—';
-        feedback.classList.toggle('bust', !!(last && last.reason === 'bust'));
-        if (s.lastTurn && s.lastTurn.reason === 'timeout') feedback.textContent += ' · ' + t('dartsTimeout');
-        document.getElementById('turn-score').textContent = t('dartsTurnScore') + ' · ' + s.turnPoints +
-            (s.lastTurn ? ' / ' + playerName(s.lastTurn.uid) + ' ' + s.lastTurn.points : '');
-        var scores = document.getElementById('player-scores'); scores.replaceChildren();
-        s.players.forEach(function (uid) {
-            var card = textNode('div', 'darts-player' + (uid === s.active && s.status === 'playing' ? ' active' : ''), null);
-            card.append(textNode('span', 'darts-player-name', playerName(uid)), textNode('strong', 'darts-player-score', s.scores[uid]),
-                textNode('span', 'darts-score-label', t(s.mode === '501' ? 'dartsRemaining' : 'dartsPoints')),
-                textNode('span', 'darts-player-legs', t('dartsLegWins') + ' ' + s.wins[uid])); scores.append(card);
-        });
-        var cricket = document.getElementById('cricket-board'); cricket.hidden = s.mode !== 'cricket';
-        if (s.mode === 'cricket') {
-            var table = textNode('table', 'cricket-table'), header = textNode('tr');
-            header.append(textNode('th', '', ''));
-            s.players.forEach(function (uid) { header.append(textNode('th', '', playerName(uid))); });
-            var thead = textNode('thead'); thead.append(header); table.append(thead);
-            var tbody = textNode('tbody');
-            Rules.TARGETS.forEach(function (target) {
-                var fullyClosed = s.players.every(function (uid) { return s.marks[uid][target] === 3; });
-                var row = textNode('tr', fullyClosed ? 'fully-closed' : '');
-                var label = textNode('th', '', target === 25 ? t('dartsBull') : target); label.scope = 'row'; row.append(label);
-                s.players.forEach(function (uid) {
-                    var n = s.marks[uid][target], cell = textNode('td', n === 3 ? 'closed' : '', ['·', '/', '×', '⊗'][n]);
-                    cell.setAttribute('aria-label', t('dartsMark' + n)); cell.title = t('dartsMark' + n); row.append(cell);
-                }); tbody.append(row);
-            }); table.append(tbody); cricket.replaceChildren(table);
-        }
-        var result = document.getElementById('leg-result'); result.hidden = busy || s.status === 'playing';
-        var summary = document.getElementById('result-summary'); summary.replaceChildren();
-        if (!result.hidden) {
-            summary.append(textNode('p', '', s.endReason === 'left' ? t('dartsLeft') : s.draw ? t('dartsDraw') :
-                t('dartsLegWon') + ' · ' + playerName(s.legWinner)));
-            if (s.mode === 'countup') s.players.forEach(function (uid) {
-                var stats = s.stats[uid];
-                summary.append(textNode('p', '', playerName(uid) + ' · ' + t('dartsScoreFinal') + ' ' + s.scores[uid] + ' · ' +
-                    t('dartsAverage') + ' ' + (stats.darts ? stats.points / stats.darts * 3 : 0).toFixed(1) + ' · ' +
-                    t('dartsBestRound') + ' ' + stats.bestRound + ' · ' + t('dartsBulls') + ' ' + stats.bulls + ' · ' +
-                    t('dartsTriple20s') + ' ' + stats.triple20s));
+        hud.render(window.DartsHud.model({ state: s, online: !!room, now: Date.now(), name: playerName, you: t('dartsYou'),
+            practice: { darts: G.darts, result: G.last, speed: G.analysis && G.analysis.speed != null ? G.analysis.speed : null } }));
+        var nextBtn = document.getElementById('next-leg-btn');
+        nextBtn.disabled = G.dartState === 'flying' || sending || !!(room && match && Date.now() < match.readyAt);
+        var stats = document.getElementById('stats-details'), summary = document.getElementById('result-summary');
+        stats.hidden = !s || s.status === 'playing' || s.mode !== 'countup';
+        if (!stats.hidden) {
+            summary.replaceChildren();
+            s.players.forEach(function (uid) {
+                var p = s.stats[uid];
+                summary.append(textNode('p', '', playerName(uid) + ' · ' + t('dartsAverage') + ' ' +
+                    (p.darts ? p.points / p.darts * 3 : 0).toFixed(1) + ' · ' + t('dartsBestRound') + ' ' + p.bestRound +
+                    ' · ' + t('dartsBulls') + ' ' + p.bulls + ' · ' + t('dartsTriple20s') + ' ' + p.triple20s));
             });
         }
-        var nextBtn = document.getElementById('next-leg-btn'); nextBtn.hidden = s.status !== 'between';
-        nextBtn.disabled = busy || sending || !!(room && Date.now() < match.readyAt);
-        document.getElementById('play-again-btn').hidden = s.status !== 'over' || !!room;
     }
 
     function setupControls() {
@@ -1164,6 +1088,8 @@
             stagedMode = document.getElementById('mode-select').value;
             stagedBestOf = Number(document.getElementById('match-select').value);
             stagedTurnMs = Number(document.getElementById('timer-select').value);
+            var players = document.getElementById('players-select');
+            if (['501', 'cricket'].includes(stagedMode) && players.value === '1') players.value = '2';
             shell.goIdle();
         }
         ['mode-select', 'match-select', 'players-select', 'timer-select'].forEach(function (id) { document.getElementById(id).addEventListener('change', change); });
@@ -1172,6 +1098,7 @@
             else { match = Rules.nextLeg(match, Date.now()); viewMatch = match; clearBoard(); syncHud(); }
         });
         document.getElementById('play-again-btn').addEventListener('click', function () { shell.goIdle(); });
+        document.getElementById('result-room-btn').addEventListener('click', openLobby);
     }
     function clearBoard() {
         gesture = null; freshDart(); G.stuck = []; G.last = null; G.traj = null; G.analysis = null; camDolly = 0;
@@ -1294,9 +1221,10 @@
     }
 
     function resetSession() {
+        var count = stagedMode === 'practice' ? 1 : Number(document.getElementById('players-select').value);
+        if (['501', 'cricket'].includes(stagedMode)) count = Math.max(2, count);
         match = room ? (room.data && room.data.game && room.data.game.status ? room.data.game : null) :
-            stagedMode === 'practice' ? null : Rules.create({ mode: stagedMode, bestOf: stagedMode === 'countup' && document.getElementById('players-select').value === 'solo' ? 1 : stagedBestOf },
-                stagedMode === 'countup' && document.getElementById('players-select').value === 'solo' ? localIds.slice(0, 1) : localIds, Date.now());
+            stagedMode === 'practice' ? null : Rules.create({ mode: stagedMode, bestOf: count === 1 ? 1 : stagedBestOf }, localIds.slice(0, count), Date.now());
         viewMatch = match;
         G.dartState = 'ready';
         G.throw = null; G.analysis = null; G.impact = null; G.result = null; G.traj = null;
@@ -1306,11 +1234,15 @@
         G.hint = null; G.hintT = 0;
         gesture = null;
         syncHud();
+        queueMicrotask(function () { syncGameUi(); fitCanvas(); render(); });
     }
 
     function init() {
+        hud = window.DartsHud.create({ document: document, t: t, resultLabel: resultLabel, modeName: modeName,
+            locale: function () { return AC.i18n.locale; }, isOnline: function () { return !!room; },
+            myUid: function () { return (netUser || {}).uid; }, isFlying: function () { return G.dartState === 'flying'; } });
         fitCanvas();
-        window.addEventListener('resize', function () { fitCanvas(); render(); });
+        window.addEventListener('resize', function () { gesture = null; fitCanvas(); render(); });
 
         shell = AC.shell.create({
             gameId: 'darts',
@@ -1324,8 +1256,10 @@
             canPause: function () { return !room; },
             canRestart: function () { return !room; },
             onPause: function () { gesture = null; },
-            onStart: function () { syncGameUi(); if (room && !match) openLobby(); },
+            onStart: function () { syncGameUi(); fitCanvas(); window.scrollTo(0, 0); if (room && !match) openLobby(); },
         });
+        // The page topbar is hidden during a match; retain the shared sound control here.
+        document.getElementById('sound-btn').hidden = false;
 
         // Relative gesture: press anywhere in the play zone, move/release on the window so a
         // flick that leaves the board still throws.

@@ -78,6 +78,46 @@ s = R.nextLeg(s, 6000); assert.equal(s.active, 'A'); s.scores.A = s.turnStartSco
 s = dart(s, 25, 2); assert.equal(s.status, 'over'); assert.equal(s.winner, 'A'); assert.equal(s.wins.A, 2);
 assert.equal(R.nextLeg(s), null);
 
+// Four players rotate turns/starters, preserve per-turn darts and all finish Count-Up.
+const four = ['A', 'B', 'C', 'D'];
+s = create('501', 3, four);
+for (const uid of four) {
+    assert.equal(s.active, uid);
+    for (let i = 0; i < 3; i++) s = dart(s, 20);
+    assert.equal(s.lastTurn.darts.length, 3); assert.equal(s.lastTurn.points, 60);
+}
+assert.equal(s.active, 'A');
+s = create('countup', 1, four);
+for (let i = 0; i < 96; i++) s = dart(s, s.active === 'D' ? 20 : 1, 3);
+assert.equal(s.winner, 'D'); assert(four.every(uid => s.stats[uid].darts === 24 && s.turns[uid] === 8));
+s = create('501', 3, four);
+for (let leg = 0; leg < 4; leg++) {
+    assert.equal(s.active, four[leg]); s.scores[s.active] = s.turnStartScore = 40;
+    s = dart(s, 20, 2); assert.equal(s.status, 'between'); s = R.nextLeg(s, 3000 + leg);
+}
+assert.equal(s.active, 'A');
+s = create('cricket', 1, four); s.marks.A[20] = 2; s.marks.B[20] = s.marks.C[20] = 3;
+s = dart(s, 20, 3); assert.equal(s.scores.A, 40, 'One open opponent is sufficient; points are awarded once');
+s.marks.D[20] = 3; s = dart(s, 20, 3); assert.equal(s.scores.A, 40, 'All opponents closed prevents scoring');
+R.TARGETS.forEach(n => { s.marks.A[n] = 3; }); s.scores.D = 100;
+s = dart(s, 19, 3); assert.equal(s.status, 'playing', 'Must catch every opponent');
+s = R.withdraw(s, 'D', 5000); assert.equal(s.winner, 'A', 'Departed high score no longer blocks a Cricket winner');
+s = create('501', 3, four); s = dart(s, 20); s = R.withdraw(s, 'A', 4000);
+assert.equal(s.status, 'playing'); assert.equal(s.active, 'B'); assert.deepEqual(s.withdrawn, ['A']);
+assert.equal(R.throwDart(s, 'A', hit(20, 3)), null);
+s = R.withdraw(s, 'C', 5000); assert.equal(s.active, 'B');
+s.scores.B = s.turnStartScore = 40; s = dart(s, 20, 2); s = R.nextLeg(s, 6000);
+assert.equal(s.active, 'B', 'A departed starter is skipped');
+s = R.withdraw(s, 'B', 7000); assert.equal(s.winner, 'D'); assert.equal(s.endReason, 'left');
+s = create('countup', 1, four);
+for (let i = 0; i < 8; i++) for (const uid of four) {
+    if (i === 7 && uid === 'D') break;
+    assert.equal(s.active, uid); s = R.timeout(s, 6000 + i);
+}
+s = R.withdraw(s, 'D', 8000); assert.equal(s.status, 'between'); assert.equal(s.draw, true);
+assert.equal(R.create({}, four, 0, 3).active, 'D');
+assert.throws(() => create('501', 1, ['A', 'B', 'C', 'D', 'E']));
+
 // Execute the real physics independently of DOM/rendering and compare with the original
 // implementation's expected trajectory. This catches accidental changes to the skill mechanic.
 const sandbox = { window: { DartsRules: R, ArcadeCommon: { i18n: { STRINGS: { en: {}, zh: {} }, t: k => k },
