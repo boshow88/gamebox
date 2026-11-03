@@ -22,7 +22,7 @@ window.FIREBASE_CONFIG = {
 };
 
 // Rooms use RTDB. Account records and scores remain in Firestore.
-// Console rules must match database.rules.json; see docs/RTDB-SETUP.md.
+// Console rules must match database.rules.json; see docs/ROOMS.md.
 // Players use XXXX codes; the adapter preserves R-XXXX storage keys and rules.
 window.FIREBASE_ROOMS = {
     databaseURL: 'https://games-7e19b-default-rtdb.asia-southeast1.firebasedatabase.app/',

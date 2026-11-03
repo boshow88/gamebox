@@ -28,6 +28,103 @@ loaded manually by opening the file. Safe to ship, but they are dev surface:
 | `tools/hashi-gentest.html` | Self-test for Hashi (Bridges): drives the real `generate()` across sizes/difficulties — checks each shipped solution is valid, is **unique** (solver counter cross-validated against an independent brute-force counter on small boards), is solvable within its difficulty's reasoning budget and **hint-drivable** (the `nextStep`/`nextStepDeep` engine solves it from empty), that island numbers are within capacity, and that difficulty tier is monotonic; reports island counts + timing. |
 | `tools/hashi-view.html` | Visual check for Hashi rendering: draws a generated board solved (single/double bridges), won (green), with a hint band + ghost, and a conflict (crossing bridges + over-filled island) — reuses the real CSS classes to eyeball the board vocabulary. |
 | `tools/hashi-hintview.html` | Visual check for Hashi hints: finds a board state that surfaces a grounded deduce hint (e.g. "one short of full") and a Hard assume→contradiction walk-through, then renders each with its anchor rings, ghosts and numbered chain so the hint vocabulary can be eyeballed. |
+
+## Room checks
+
+```text
+node tools/rooms-check.js
+node tools/room-traffic-check.js
+node tools/beam-room-check.js
+node tools/rune-room-check.js
+node tools/rtdb-room-check.js
+# Optional: real Chrome pages with a local fake Firebase SDK
+node tools/rooms-browser-check.js
+node tools/rooms-browser-check.js --invalid-rtdb
+```
+
+For Darts-specific commands and coverage, see [Darts checks](#darts-checks).
+
+The core check uses the actual RTDB adapter and a serialized native-tree fixture
+for contention, capacity, policies, authority, subscription lifetime and cleanup.
+Game checks execute both games' actual handlers with DOM/drawing stubbed, covering
+independent tabs, spectators, host-controlled starts, readiness resets, departures,
+host migration, rematches, result closing, vanished rooms and single settlement.
+The core check also covers opt-in all-ready starts. Controlled clocks cover presence,
+recovery before eviction and native disconnect/reconnect.
+
+The optional browser check loads the real pages, modules and shared UI. It covers
+creation, joining, starts, results, rematches, rejoining, input preservation,
+320px/768px layout and Beam solo settlement. Firestore stubs reject room access;
+profile reads/writes still work even with invalid RTDB settings. All SDK calls
+are redirected locally; these checks never access production Firebase. Pass a
+Chrome executable as the first argument if the Windows default path is unavailable.
+Rules JSON is checked locally, but server-side authorization still requires the
+Firebase rule evaluator or a live-project check after publishing rules.
+
+## Darts checks
+
+```text
+node tools/darts-rules-check.js
+node tools/darts-room-check.js
+node tools/rooms-browser-check.js --darts
+node tools/rooms-browser-check.js --darts --invalid-rtdb
+```
+
+The first two checks run without packages or network. The room check uses the real
+room core, darts controller and RTDB adapter against the native-tree fixture,
+including contention, timer races, reconnect/eviction, forfeit, rematch, full
+Count-Up and a tied-leg replay. The browser check uses real pages, physics,
+canvas, shared lobby and modules with only Firebase SDK imports redirected to
+local fakes. It exercises practice, solo completion, online turn/leg/match flow,
+opponent presentation, rematches, result closing, translations and 320/768px
+layout. All game test hooks are injected by the local test server, never shipped
+in the game page. Four-client checks cover readiness, turn rotation, host migration
+and continued play after departure. Stress tests compare exact board/player/mode
+panel bounds across modes at 320/390/768/1200px, including four-player Cricket and
+HUD drags that must not initiate throws. Optional screenshot checks write ignored
+artifacts to `.cache/darts-mobile.png` and `.cache/darts-desktop.png`:
+
+```text
+node tools/rooms-browser-check.js --darts-mobile
+node tools/rooms-browser-check.js --darts-desktop
+```
+
+These checks never access production Firebase; published-rule
+authorization still needs the Firebase evaluator or a deployed two-tab check.
+
+## Birthday checks
+
+Run from the repository root:
+
+```text
+node tools/birthday-check.js
+node tools/birthday-browser-check.js
+node tools/birthday-browser-check.js --reduced-motion
+node tools/birthday-settings-browser-check.js
+```
+
+The Node check covers dates, directional wind/recovery, profile caching and
+account-switch safety. The Chrome checks use actual pages with fake accounts,
+profile writes and a fixed local clock. They verify birthday entry, candle
+controls, completion/repeat behavior, midnight expiry, manual settings and the
+absence of an anytime entry or birthday-eligibility bypass. They use no real
+Firebase data. Browser checks require Chrome and Node 22+.
+
+For a real local test, serve the site with `python -m http.server 8000`, sign in
+normally, and open **Menu > Personalization**. Save today's month/day. The entry
+updates immediately behind settings; automatic entry waits until the dialog closes.
+A different date, deleted/missing date or signed-out account must hide the entry
+and prevent direct ceremony access.
+Changing settings does not require Google birthday permissions or Console changes.
+
+To repeat a complete first-entry test on the same day, remove the current
+account/date's `entered` and `completed` keys from **both** localStorage and
+sessionStorage, then reload the homepage. The key formats and data flow are in
+[DEV.md](DEV.md#birthday-personalization). Removing only `entered` restores the
+automatic redirect while preserving completed-proceedings wording. Normal use
+does not reset markers when the birthday field changes. Localhost and the deployed
+site, different browsers and different devices have independent marker storage.
+
 ## Ungated console logging
 
 Not behind any flag — plain defensive/dev `console.warn` / `console.log` that

@@ -124,6 +124,7 @@
             signIn: 'Sign in',
             signOut: 'Sign out',
             account: 'Account',
+            personalization: 'Personalization',
             claimTitle: 'Add these games\u2019 scores to your account?',
             claimNote1: 'These are games your account doesn\u2019t have yet but this device has records for.',
             claimNote2: 'They\u2019ll be bound to this account and synced to your devices (hidden once you sign out). Each game is claimed only once; games you\u2019ve already played are left untouched.',
@@ -250,6 +251,7 @@
             signIn: '登入',
             signOut: '登出',
             account: '帳號',
+            personalization: '個人化設定',
             claimTitle: '把這些遊戲的成績歸入你的帳號？',
             claimNote1: '這些是你的帳號還沒有、但這台裝置上有紀錄的遊戲。',
             claimNote2: '歸入後會綁定在此帳號並同步到你的其他裝置，登出後就不會再顯示；每個遊戲只歸入一次，已經玩過的不受影響。',
@@ -452,6 +454,7 @@
     var wipJustUnlocked = false;  // the ?backstage link was used on THIS load (→ confirm with a toast)
     var adminUnlock = false;      // signed-in owner (config/admins) → WIP games open directly, no gate
     var accountUser = null;       // signed-in user (from ArcadeNet), or null
+    var personalization = null;
 
     function t(key) {
         var table = STRINGS[lang] || STRINGS.en;
@@ -493,6 +496,7 @@
         var idText = function (id, s) { var n = document.getElementById(id); if (n) n.textContent = s; };
         idText('drawer-title', t('menu'));
         idText('drawer-account-label', t('account'));
+        idText('drawer-personalization', t('personalization'));
         idText('drawer-records', t('myRecords'));
         idText('drawer-feedback', t('feedbackLink'));
         idText('drawer-feedback-admin', t('feedbackInbox'));
@@ -512,6 +516,7 @@
             btns[i].setAttribute('aria-checked', active ? 'true' : 'false');
         }
         renderAccount(accountUser);   // re-localise the account control on language change
+        if (personalization) personalization.refreshLocale();
     }
 
     function renderFilter() {
@@ -1116,6 +1121,8 @@
         var drawerClose = document.getElementById('drawer-close'); if (drawerClose) drawerClose.addEventListener('click', closeDrawer);
         var drawerScrim = document.getElementById('drawer-scrim'); if (drawerScrim) drawerScrim.addEventListener('click', closeDrawer);
         var drawerRec = document.getElementById('drawer-records'); if (drawerRec) drawerRec.addEventListener('click', showRecords);
+        var drawerPersonalization = document.getElementById('drawer-personalization');
+        if (drawerPersonalization) drawerPersonalization.addEventListener('click', function () { if (personalization) { closeDrawer(); personalization.show(); } });
         var drawerFb = document.getElementById('drawer-feedback'); if (drawerFb) drawerFb.addEventListener('click', showFeedback);
         var drawerAdmin = document.getElementById('drawer-feedback-admin'); if (drawerAdmin) drawerAdmin.addEventListener('click', showFeedbackAdmin);
         var drawerAdmins = document.getElementById('drawer-admins'); if (drawerAdmins) drawerAdmins.addEventListener('click', showAdminRoster);
@@ -1158,14 +1165,18 @@
         });
 
         var birthday = window.GameBoxBirthday && window.GameBoxBirthday.create({ getLocale: function () { return lang; } });
+        personalization = window.GameBoxBirthdaySettings && window.GameBoxBirthdaySettings.create({ getLocale: function () { return lang; }, openModal: openModal });
         // Account: reflect sign-in state once the Firebase layer reports in.
         whenNet(function (N) {
             if (N && N.ok && N.onAuth) {
-                N.onAuth(function (u) { accountUser = u; renderAccount(u); if (birthday) birthday.setUser(u); });
-                if (birthday && window.CloudSync && window.CloudSync.onProfile) {
+                N.onAuth(function (u) { accountUser = u; renderAccount(u); if (birthday) birthday.setUser(u); if (personalization) personalization.setUser(u); });
+                if (window.CloudSync && window.CloudSync.onProfile) {
                     window.CloudSync.onProfile(function (profile, uid) {
                         var u = N.currentUser();
-                        if (u && u.uid === uid) birthday.update(u, profile);
+                        if (u && u.uid === uid) {
+                            if (birthday) birthday.update(u, profile);
+                            if (personalization) { personalization.setUser(u); personalization.update(profile, uid); }
+                        }
                     });
                 }
             }

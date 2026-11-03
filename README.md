@@ -14,7 +14,7 @@ just a **theme**, chosen per page with `<body data-theme="arcade">` or
 index.html            Unified launcher (tag-driven game picker)
 favicon.svg           GameBox mark
 firestore.rules       Firestore security rules (profiles, records, admin and feedback)
-database.rules.json   RTDB room rules (setup: docs/RTDB-SETUP.md)
+database.rules.json   RTDB room rules (setup: docs/ROOMS.md#deployment-and-firebase-configuration)
 css/
   common.css          Shared base + BOTH themes, scoped under [data-theme="…"]
   launcher.css        Launcher-only hub theme
@@ -31,20 +31,30 @@ js/
   net/rtdb-rooms.mjs  Realtime Database room transport
   net/rtdb-values.mjs Lossless RTDB value encoding
   cloud-sync.js       Cross-device high-score sync (window.CloudSync)
-  birthday.js         Birthday-only homepage entry (setup: docs/BIRTHDAY.md)
+  birthday.js         Birthday-only homepage entry (see docs/DEV.md#birthday-personalization)
   birthday-cake.js    Reusable directional candle interaction
+  birthday-settings.js Optional manual birthday account settings
   games/*.js          One module per game (logic + rendering)
   games/unshackle/    Unshackle's isolated 3D engine, renderer and UI
   generators/*.js     Puzzle generators & solvers
-games/*.html          One page per game (all 14, each sets <body data-theme="…">)
+games/*.html          One page per game (each sets <body data-theme="…">)
 tools/*.html          Puzzle dev tools (generators/solvers test harnesses)
 tools/*.js            Node.js checks (run with node, no packages required)
 docs/
   rules.md            Full player-facing rules for every game (merged)
-  DEV.md              Arcade engine architecture & conventions
-  DEBUG.md            Puzzle generator/solver debug notes
-  UNSHACKLE.md        3D disassembly: generation, geometry & checks
+  DEV.md              Architecture, shared conventions & implementation
+  DEBUG.md            Test commands, fixtures & debugging/reset procedures
+  ROOMS.md            Shared online rooms, policies & Firebase deployment
+  UNSHACKLE.md        Isolated 3D engine, generation & compatibility
 ```
+
+## Documentation
+
+Start with [DEV.md](docs/DEV.md) for implementation and conventions,
+[DEBUG.md](docs/DEBUG.md) for checks, or [rules.md](docs/rules.md) for game rules.
+The [room reference](docs/ROOMS.md) owns online-room APIs and Firebase setup;
+[Unshackle](docs/UNSHACKLE.md) owns the isolated 3D engine. Feature changes update
+these references rather than creating a document per feature.
 
 ## Themes
 

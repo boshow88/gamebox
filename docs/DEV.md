@@ -3,13 +3,31 @@
 How this collection is put together, the conventions to follow, and how
 to add another game. For per-game *rules* see [`rules.md`](rules.md).
 
-> **Scope.** This file describes the **Arcade engine** (`js/arcade.js`,
-> `window.ArcadeCommon`) and arcade game pages (`games/<id>.html` with
-> `<body data-theme="arcade">`). The sibling **Puzzle engine** is `js/puzzle.js`
+> **Scope.** Shared development conventions, launcher/account features and game
+> implementation notes. The **Arcade engine** is `js/arcade.js`
+> (`window.ArcadeCommon`); the **Puzzle engine** is `js/puzzle.js`
 > (`window.PuzzleCommon`). Shared base + both themes live in `css/common.css`
-> (scoped under `[data-theme]`); arcade page chrome is `css/arcade.css`. For house
-> style across both engines see [`CONVENTIONS.md`](CONVENTIONS.md); for dev tools /
-> logging see [`DEBUG.md`](DEBUG.md).
+> (scoped under `[data-theme]`); arcade page chrome is `css/arcade.css`.
+> See [Shared conventions](#shared-conventions) for house style and
+> [`DEBUG.md`](DEBUG.md) for dev tools / logging.
+
+## Documentation ownership
+
+Keep maintained documentation in these five files:
+
+| Document | Owns |
+| --- | --- |
+| [DEV.md](DEV.md) | Architecture, shared conventions and implementation details |
+| [DEBUG.md](DEBUG.md) | Test commands, local fixtures and debugging/reset procedures |
+| [rules.md](rules.md) | Current player-facing game rules and controls |
+| [ROOMS.md](ROOMS.md) | Shared online-room API, policies and Firebase deployment |
+| [UNSHACKLE.md](UNSHACKLE.md) | The isolated 3D engine, generation and compatibility contracts |
+
+Update the relevant section when implementing a feature. Do not create a separate
+feature diary or retain a completed follow-up spec. Tests document expected
+behavior; these files explain ownership, contracts and how to run those tests.
+Create another document only when a substantial independent system needs its own
+maintained reference. Link to the owning section instead of copying setup or rules.
 
 ## Philosophy
 
@@ -38,15 +56,17 @@ js/arcade.js                 ArcadeCommon — all shared arcade plumbing (see be
 js/launcher.js               Game manifest (GAMES) + tags + render/filter + account UI
 js/net/net.js                Firebase room layer (window.ArcadeNet)
 js/net/rooms.mjs             Shared configurable matchmaking and room sessions
-js/net/rtdb-rooms.mjs        RTDB transport (see docs/RTDB-SETUP.md)
+js/net/rtdb-rooms.mjs        RTDB transport (deployment: docs/ROOMS.md)
 js/net/rtdb-values.mjs       Lossless RTDB encoding for logical JSON values
 js/net/room-lobby.mjs        Shared room lobby DOM and action layout
 css/room-lobby.css           Shared responsive lobby styling
 js/cloud-sync.js             Cross-device high-score sync (window.CloudSync)
 js/birthday.js               Birthday eligibility, homepage entry and first-entry routing
 js/birthday-cake.js          Local directional wind/candle interaction
+js/birthday-settings.js      Optional manual birthday account settings
+css/birthday-settings.css    Account settings modal styling
 js/games/birthday.js         Bilingual birthday-only ceremony and replayable candle game
-css/birthday.css             Birthday game/entry visuals (see docs/BIRTHDAY.md)
+css/birthday.css             Birthday ceremony and homepage entry visuals
 js/games/colour-ladder.js    One file per game: logic + Canvas 2D rendering
 docs/rules.md                Player-facing rules
 docs/DEV.md                  This file
@@ -110,9 +130,9 @@ membership, seats, readiness, starts and room subscriptions. `rooms.lobby()` ren
 their common lobby layout using game-supplied text, badges and actions.
 Both use guest readiness, host-controlled starts and same-room rematches; their
 different departure policies live in each game's configuration. See
-[`ROOMS.md`](ROOMS.md) for the API, policy comparison and offline checks.
-Rooms use RTDB exclusively. See [`RTDB-SETUP.md`](RTDB-SETUP.md) for database rules,
-deployment, verification and the final server-side retirement of Firestore rooms.
+[`ROOMS.md`](ROOMS.md) for the API, policy comparison, RTDB deployment and
+Firestore room retirement. Test commands live in [DEBUG.md](DEBUG.md#room-checks).
+Rooms use RTDB exclusively.
 Authentication, account records, admin settings and feedback remain unchanged.
 
 ### i18n conventions
@@ -124,6 +144,184 @@ Authentication, account records, admin settings and feedback remain unchanged.
   `ArcadeCommon.i18n.STRINGS.en` / `.zh` at load time (top of the game
   file, synchronously) — before the DOM-ready translate pass.
 - Dynamic text subscribes with `ArcadeCommon.i18n.subscribe(cb)`.
+
+## Shared conventions
+
+Both engines share these conventions; cross-cutting fixes must be kept in sync
+in `js/puzzle.js` and `js/arcade.js`.
+
+### iOS double-tap-to-zoom
+
+iOS Safari does **not** reliably honour CSS `touch-action` for double-tap-to-zoom
+— it ignores it outright on `<svg>` and `<canvas>`. So `touch-action: manipulation`
+on `body` (set per theme in `css/common.css`) is not enough on its own.
+
+Both shells therefore run a small JS guard that cancels the quick second
+`touchend` (killing the zoom and its synthesised click) and re-dispatches a real
+`click` so buttons/cells still fire:
+
+- `js/puzzle.js` — scoped to `#board` (SVG or canvas).
+- `js/arcade.js` — at the document level (covers the canvas stage, HUD and overlay
+  buttons).
+
+Unshackle also guards its numeric piece controls and serving plate locally in
+`js/games/unshackle/game.js`, with explicit `touch-action: manipulation` on the
+tray and buttons. Each area has independent tap state. The delegated guards
+survive new puzzles and replaced plate contents, ignore drags and multi-touch,
+and use `button.click()` so disabled pieces cannot be activated. Empty plate
+places also suppress double-tap zoom without dispatching a click to the board.
+
+**If you add a new shell or a standalone interactive page, add the same guard.**
+Keep the two copies in sync.
+
+### Staged settings & live preview
+
+Difficulty / size pickers **stage** a change rather than apply it at once — the
+running game isn't regenerated until the player commits (puzzle: *New Game*;
+arcade: *Start*). While a change is staged, show a live **"current → pending"**
+readout so the player sees what's running versus what they've picked, and that it
+hasn't taken effect yet:
+
+- Update on the control's `input` event (live while dragging), not `change`.
+- When staged equals applied (nothing pending), show the plain value.
+- When they differ, render `current → pending` — e.g. `9×9 → 11×11` or
+  `Normal II → Hard I` — with a `pending` class; style the current value muted,
+  the arrow fainter, and the pending value in the game colour.
+- Make the readout granular enough that **every** step previews a change (e.g.
+  Beam shows a Roman-numeral sub-step within a tier, so same-tier moves still read
+  as a change).
+
+Reference: `js/puzzle.js` → `syncSizeButtons` (`.size-readout`), and
+`js/games/beam.js` → `syncDiffControl` (`.diff-readout`).
+
+### Icons
+
+- **DOM icon registries** (`js/launcher.js`, `js/puzzle.js`, `js/arcade.js` → their
+  `ICONS` objects) are keyed by the Lucide icon name and hold the icon's inner SVG
+  verbatim where possible.
+- **Canvas icons** (e.g. Rune Stones' runes/UI in `js/games/rune-stones.js`) store
+  the Lucide path fed to `Path2D`. Every entry records its source in a comment:
+  - `// lucide: <kebab-name>` — the Lucide icon verbatim (re-fetch/verify at
+    `lucide.dev/icons/<name>`).
+  - `// lucide: <name> (modified)` — that icon, hand-edited.
+  - `// custom` — hand-drawn, no Lucide equivalent.
+  Keep the annotation accurate whenever an icon changes — it's the only way to tell
+  later what a path actually is.
+
+### Language & copy
+
+- **Player-facing text** lives in the i18n tables (English + Traditional Chinese).
+- **Code comments and docs are English.** Chinese appears *only* in player-facing
+  content — never in comments, identifiers, or internal docs.
+
+#### House style for copy
+
+- Calm, rational, concise, tidy. When in doubt, say less.
+- Don't narrate self-evident UI (e.g. "filter by tag", "tap to play"). Prefer a
+  confident identity line over an instruction.
+- Keep each game's in-game copy in the same voice as its siblings.
+- No emoji unless explicitly requested.
+- **Chinese copy uses full-width punctuation** (，。；：！？「」（）、…, and —— for a
+  dash), never half-width commas/periods. Write it as idiomatic Chinese — don't just
+  transliterate the English line word-for-word.
+- Prefer plain language over notation in player copy: say "the prime you fire", not a
+  symbol like "p". Math notation is for comments and docs, not the player.
+
+### Accounts & cloud sync
+
+Sign-in is **Google-only**, via `ArcadeNet` (`js/net/net.js`), surfaced globally on
+the launcher. One shared engine — `js/cloud-sync.js` (`window.CloudSync`) — does
+everything; it loads on the launcher and every arcade game (right after `net/net.js`).
+
+- **Cloud is the source of truth for an account; the live keys are a working copy.**
+  Only the **guest** identity is cached locally (a single "guest drawer"). On sign-in
+  CloudSync stashes the guest's live records, **clears the live keys** (so guest
+  scores can't bleed into the account), then pulls the account from the cloud; on
+  sign-out it brings the guest drawer back. Accounts are never mirrored to a local
+  drawer. Signing in on the launcher syncs **all** games at once.
+- **Descriptors** (in `cloud-sync.js`) define each record family: how to read/write
+  its slice of the game's own localStorage, how to merge two record objects (per
+  field **max** for scores, **min** for ranks/rounds), and how it maps to the profile
+  doc. Everything nests under `games.<id>`: generic high scores
+  (`games.<game>.bests[<mode>]`), Beam ranks (`games.beam.ranks[<notch>]`), Rune
+  Stones Sandbag (`games.rune-stones.sandbag[<level>]`).
+- Sync only **monotonic bests** (a max or a min). Cumulative counts (plays, wins)
+  stay device-local — they don't merge cleanly.
+- **Guest → account** is a per-game **claim** (move, not copy), offered only at the
+  moment of signing in and only for games the account doesn't have yet but the device
+  does. Accepting merges just those games in, pushes, and drops them from the guest
+  drawer; games the account already has are left in the drawer untouched. Because
+  "already has the game" is the gate, a game is claimable into a given account **at
+  most once**. Declining or ignoring the prompt just waits until the next sign-in.
+- Games stay out of it — they just `CloudSync.onApplied(repaint)` and call
+  `CloudSync.sync()` after writing a new best. Everything is guarded, so **guests and
+  offline play are unaffected**.
+- A game that syncs must load `firebase-config.js` + `net/net.js` + `cloud-sync.js`,
+  and `firestore.rules` must allow `profiles/{uid}` for its owner.
+- **Sign-in needs an authorized https domain.** Google OAuth uses a **popup on every
+  platform** — a full-page redirect would need the app and Firebase's `authDomain` to
+  share an origin, which GitHub Pages can't do, so browsers' cross-site storage
+  partitioning silently drops the redirected session. It only works on a domain in
+  Firebase's *Authorized domains* over https — i.e. `localhost` or the deployed site.
+  A phone hitting a LAN-IP `http` dev server **can't** sign in (the popup flashes and
+  vanishes); test sign-in on the deployed site or an https tunnel.
+
+### Git & local dev
+
+- Shell commands here are PowerShell: chain with `;`, not `&&`.
+- Work ships to the protected `main`. If the remote has moved, `git pull --rebase`
+  before pushing.
+
+## Birthday personalization
+
+The launcher menu's **Personalization** dialog lets a signed-in account manually
+set an optional month/day or delete the date. Saving a birthday is sufficient;
+there is no separate enable checkbox. Google is used for normal sign-in only;
+no birthday scope, People API or extra OAuth setup
+is involved. The dialog does not announce or link to the candle ceremony.
+
+Profile metadata lives alongside scores in `profiles/{uid}`:
+
+| Field | Value |
+| --- | --- |
+| `birthday` | `{ month: 11, day: 3 }`, or null when deleted |
+
+Only `birthday` is read or written by this feature. The earlier experimental
+`birthdayEnabled` and `birthdayUpdatedAt` fields are unused and are not cleaned
+up automatically; they may be removed manually from the test profile.
+
+Only a map containing integer `month` and `day` fields is accepted. Strings and
+maps containing a year are unsupported; no automatic data migration is performed.
+Saves replace the whole birthday field. February 29 matches only an actual leap
+day; invalid month/day pairs do not qualify. Dates and midnight use the device's
+local calendar. Existing owner-only Firestore profile rules suffice.
+
+`CloudSync.onProfile` reuses the normal profile read. Opening settings adds no
+read or write; explicit save/delete uses one targeted metadata write and notifies
+subscribers without rereading. Late reads cannot overwrite acknowledged settings,
+and account transitions discard old read/save results from the new account UI.
+
+The homepage entry and `games/birthday.html` are available only on a signed-in
+account's birthday. There is no anytime/practice route or query flag
+that bypasses this eligibility check. The first eligible homepage visit that day
+automatically opens the ceremony after any settings/claim dialog closes. Later
+visits remain on the homepage with a repeat-entry banner. Midnight or sign-out
+removes the active ceremony and cancels pending completion UI.
+
+Daily markers are local to the browser origin, account and local calendar date:
+
+- `gamebox:birthday:entered:<uid>:YYYY-MM-DD`: written before automatic navigation
+  or on manual/direct entry, preventing repeated automatic redirects that day.
+- `gamebox:birthday:completed:<uid>:YYYY-MM-DD`: written when all candles are out;
+  changes the banner/notice to acknowledge completed proceedings and allow repeats.
+
+Both markers are written to localStorage and sessionStorage, and either copy
+counts. Changing the birthday does not clear them; a new local day uses new keys.
+Old keys are currently retained but ignored. These flags never write to Firebase.
+For manual verification and first-entry resets, see [DEBUG.md](DEBUG.md#birthday-checks).
+The ceremony keeps its bilingual formal register, pointer/keyboard controls,
+mobile scroll cue and brief finished-cake pause; detailed mechanics live in
+`js/birthday-cake.js` and its checks rather than a duplicate feature manual.
 
 ## Adding a new game
 
@@ -253,6 +451,72 @@ on its page) and scale the backing store by `devicePixelRatio` in a
   part of a wave, so ~1 per `healEveryWaves` waves (scales with the rate). They
   fall `CONFIG.healSpeedMul×` the normal speed and draw with a trail + white `+`.
 - **Lives HUD** renders as pips via `renderLives` (easier to read at a glance).
+
+## Darts implementation
+
+The existing relative mouse/touch flick, release smoothing, ballistics and camera
+remain in `js/games/darts.js`. `darts-rules.js` owns canonical dartboard results,
+mode rules and immutable turn/leg/match transitions. `darts-room.js` supplies the
+game policy for the existing `ArcadeNet.rooms` service and RTDB adapter.
+`darts-hud.js` maps shared state into player/turn/mode presentation data and renders
+the components; responsive composition lives in `css/darts.css`.
+`darts-history.js` owns the accessible, scrollable player/all-player history dialog.
+
+### Gameplay viewport
+
+The same fixed viewport holds essential gameplay information in every mode.
+Above 760px, players occupy the left column, the board the centre and the mode
+panel the right. At narrower widths, a compact 2x2 player summary sits above the
+board and the mode panel sits below it. The mobile viewport is portrait (3:5),
+desktop is landscape (3:2). The page header stays visible and the game fits in the
+remaining screen height from the initial ready screen onward. Start/Restart do
+not hide page sections, change viewport geometry or force a scroll. Settings,
+rules/help and detailed post-leg statistics live in a Settings dialog available
+from the persistent game toolbar. No mobile/desktop scoring branches are needed.
+
+Panel bounds stay constant across Practice, 501, Cricket and Count-Up. Primary
+scores appear only in the player summary. The mode panel shows three individual
+turn darts and subtotal, Cricket's seven-row mark matrix, or practice release
+feedback. Numbered/coloured seats link four-player marks to the player summary
+without long names in table headers. Current player, dart, mode, leg/round and
+optional timer remain visible. Completed turns retain their three results under
+an explicit "Last turn" label until the next player throws.
+
+Pointer-downs in `#throw-surface` or `#mode-panel` can begin a throw, allowing a
+mobile flick to start below the board. Buttons, links, inputs, player cards and
+result overlays keep normal interaction. History/Settings dialogs block throwing
+behind them; history scrolling uses native vertical touch scrolling. Movements
+and releases can continue across the window. Secondary pointers are ignored and
+resize cancels a gesture. The
+renderer is cropped around the existing board centre, without changing gesture
+maths, tuning or ballistics. Backing resolution follows its display size. Detailed
+Count-Up statistics are expandable after a leg inside Settings.
+
+### Throw history
+
+Click a player card for that player's records, or History for the entire roster.
+The dialog filters by player and shows newest turns first: leg, per-player round,
+three individual hits, effective turn points, resulting score, and bust/checkout/
+timeout/departure/in-progress status. Reading history does not pause an online
+turn; a visible note explains this while its timer is running.
+
+Rules maintain `game.history` and `game.historyDropped` in the same guarded
+transaction as scoring. Each turn is appended once and updated as its darts land;
+rejected or duplicate submissions cannot create extra records. History survives
+leg changes and brief reconnects, but a new match/rematch clears it. Departed
+players keep their names through the existing match roster. Practice records
+landed throws in local session memory. There is no profile or permanent archive.
+
+To bound RTDB room payloads, retain the latest 500 turns per match, or 500 throws
+in Practice. A visible notice appears if older records were trimmed. An open
+history dialog refreshes without resetting its filter, focus or the visible row
+when new records arrive. Native modal focus trapping, Escape/Close and restored
+player-card focus support touch and keyboard use. Game shortcuts do not propagate
+out of these dialogs.
+
+Modes and scoring live in [rules.md](rules.md#darts); network guards and departure
+policy live in [ROOMS.md](ROOMS.md#darts-match-protocol). Run the checks listed in
+[DEBUG.md](DEBUG.md#darts-checks).
 
 ## Logging
 

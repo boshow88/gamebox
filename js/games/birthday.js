@@ -95,7 +95,7 @@
         if (scrollCueFrame === null) scrollCueFrame = requestAnimationFrame(updateScrollCue);
     }
     try { var saved = JSON.parse(localStorage.getItem('gamebox:lang')); if (saved === 'zh') locale = 'zh'; } catch (e) { /* default English */ }
-    function eligible() { return user && !user.anon && profile && B.isBirthday(profile.birthday, new Date()); }
+    function eligible() { return user && !user.anon && B.eligibleProfile(profile, new Date()); }
     function currentCopy() { return Object.assign({}, TEXT[locale], eligible() && B.hasCompleted(user.uid, new Date()) ? REPEAT[locale] : {}); }
     function cancelCompletion() { clearTimeout(completionTimer); completionTimer = null; pendingCompletion = null; }
     function cleanup() {
@@ -111,10 +111,9 @@
         document.querySelectorAll('[data-copy]').forEach(function (node) { node.textContent = copy[node.dataset.copy]; });
         document.querySelectorAll('[data-lang]').forEach(function (button) { button.setAttribute('aria-pressed', String(button.dataset.lang === locale)); });
         document.querySelector('.birthday-language').setAttribute('aria-label', locale === 'zh' ? '語言' : 'Language');
-        if (user) {
-            el('birthday-recipient').textContent = copy.recipient(user.name || copy.player);
-            el('birthday-player-name').textContent = user.name || copy.player;
-        }
+        var name = user && !user.anon && user.name || copy.player;
+        el('birthday-recipient').textContent = copy.recipient(name);
+        el('birthday-player-name').textContent = name;
         el('birthday-reference').textContent = copy.reference(B.dayKey(new Date()).replace(/-/g, ''));
         el('birthday-player-date').textContent = new Intl.DateTimeFormat(locale === 'zh' ? 'zh-TW' : 'en', { dateStyle: 'long' }).format(new Date());
         if (cake) cake.setCopy(copy);
@@ -144,9 +143,10 @@
         if (activeDay !== day) { activeDay = day; B.markEntered(user.uid, new Date()); }
         if (!decoration) decoration = B.confetti(el('birthday-decoration'));
         var photo = el('birthday-player-photo');
-        el('birthday-player-initial').textContent = Array.from(user.name || TEXT[locale].player)[0].toUpperCase();
-        if (user.photo && /^https:\/\//i.test(user.photo)) {
-            if (photo.getAttribute('src') !== user.photo) { photo.src = user.photo; photo.hidden = false; }
+        var attendee = user && !user.anon ? user : {};
+        el('birthday-player-initial').textContent = Array.from(attendee.name || TEXT[locale].player)[0].toUpperCase();
+        if (attendee.photo && /^https:\/\//i.test(attendee.photo)) {
+            if (photo.getAttribute('src') !== attendee.photo) { photo.src = attendee.photo; photo.hidden = false; }
         } else { photo.hidden = true; photo.removeAttribute('src'); }
     }
     function refresh() { clearTimeout(midnight); paint(); midnight = setTimeout(refresh, B.midnightDelay(new Date())); }
@@ -195,7 +195,10 @@
         var N = window.ArcadeNet;
         if (!N || !N.ok) { user = null; failed = true; paint(); return; }
         N.onAuth(function (next) {
-            if (!next || !user || next.uid !== user.uid || next.anon) { cleanup(); profile = null; activeDay = null; scene = 'notice'; }
+            if (!next || !user || next.uid !== user.uid || next.anon) {
+                cleanup(); scene = 'notice';
+                profile = null; activeDay = null;
+            }
             user = next; failed = false; clearTimeout(loadingTimer); refresh();
             if (user && !user.anon && !profile) loadingTimer = setTimeout(function () { if (!profile) { failed = true; paint(); } }, 8000);
         });

@@ -1043,7 +1043,7 @@
         // re-dispatch a click so buttons still fire. The canvas games act on pointer
         // events, so the synthetic click is a harmless no-op there.
         // Keep in sync with the equivalent guard in js/puzzle.js — see
-        // docs/CONVENTIONS.md ("iOS double-tap-to-zoom").
+        // docs/DEV.md ("iOS double-tap-to-zoom").
         (function () {
             let lastT = 0, lastX = 0, lastY = 0;
             document.addEventListener('touchend', (e) => {

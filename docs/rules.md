@@ -427,16 +427,16 @@ timings (`ANSWER_SEC`, `countSec`, memorise scaling), and the late-match speed-u
 
 ## Darts
 
-A **throwing-feel prototype**, not a full 501 game. It exists to answer one
-question: *does the mouse / touch gesture actually feel like throwing a dart?* So
-it's a free, endless practice board — throw, watch it fly, throw again.
+Gesture-based darts with Practice, Count-Up, 501 and Cricket. Multiplayer modes
+support local or online matches with up to four players.
 
 ### Throwing
 
 - **Press, flick toward the board, release.** Hold the left mouse button (or a
-  finger), move, and let go to throw. You can start the gesture **anywhere** — the
-  press point is the virtual hand, so only your *motion* matters (the same flick
-  throws the same whether you start top-left or bottom-right). This matters most on
+  finger), move, and let go to throw. Start on the board or mode panel; buttons,
+  player cards and dialogs keep their normal interaction. The press point is the
+  virtual hand, so only your *motion* matters (the same flick throws the same
+  whether you start top-left or bottom-right). This matters most on
   touch, where your hand never has to cover the board.
 - There is **no power meter, no angle meter, no crosshair, and no random spread.**
   The throw is built entirely from your gesture.
@@ -455,10 +455,46 @@ it's a free, endless practice board — throw, watch it fly, throw again.
 
 ### Scoring
 
-- A standard board: singles, the **triple** (inner) and **double** (outer) rings,
-  the **outer bull** (25) and the **bullseye** (50). The HUD shows your last dart,
-  a running session **total**, and the number of **darts** thrown. There's no match
-  or finish yet — just practice.
+A standard board has singles, the **triple** (inner) and **double** (outer) rings,
+the **outer bull** (25) and the **bullseye** (50). The player panel shows each
+player's score; the mode panel shows current-turn darts and mode-specific details.
+
+### Modes and outcomes
+
+- Practice: unlimited throws; D toggles the original gesture/trajectory diagnostics.
+- Count-Up: 1–4 local or 2–4 online players; eight turns and at most 24 darts per player.
+  Outer Bull scores 25 and inner Bull 50. Solo results include average per three
+  actual darts, best round, Bulls and Triple 20s.
+- 501: 2–4 local/online players, double-out including inner Bull. A negative remainder,
+  remainder of one, or zero without a double immediately restores the turn's
+  starting score and passes play.
+- Cricket: 2–4 local/online players, 20–15 and Bull. Closing-dart excess marks score
+  once while any remaining opponent has the target open. Close all targets with
+  at least as many points as every remaining opponent to win. Withdrawn players
+  do not block scoring or victory.
+
+Multiplayer/local matches support first to one/two leg wins. First to two is BO3
+with two players; with four players it can take five decisive legs, so the UI uses
+"First to 2 legs" rather than promising a maximum of three. A Count-Up draw awards
+no leg win and offers a replay for all remaining players. The leg counter includes
+drawn attempts.
+Local solo Count-Up always plays one leg. The initial online starter is selected
+from the room's random seed; subsequent legs rotate through remaining players,
+including drawn legs.
+Either player can continue from the persistent between-leg result screen.
+
+### Rooms and history
+
+Online play uses one seat per page, including separate tabs of the same account.
+Guests choose Ready, then the host starts. The host can reset the same room for
+a rematch; guests ready again. Leaving skips a player's future turns; the last
+remaining player wins by forfeit. The selected 30/60/90-second online timer
+forfeits unused darts on timeout and retains valid points already scored.
+
+Click a player card for that player's throw history or History for everyone.
+History includes turn results, busts, checkouts, timeouts and departures, and
+retains the latest 500 turns per match (500 throws in Practice). Viewing history
+or settings does not pause online play; a rematch starts a fresh history.
 
 ### Debug / practice view
 
@@ -471,7 +507,7 @@ it's a free, endless practice board — throw, watch it fly, throw again.
 
 ### Controls
 
-- **Throw**: hold + flick + release, anywhere in the play zone.
+- **Throw**: hold + flick + release on the board or mode panel.
 - **`D`** debug view · **`R`** reset the session · **`P`** / `Esc` pause · **`M`**
   mute.
 

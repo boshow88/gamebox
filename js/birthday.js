@@ -17,16 +17,19 @@
             body: function (name) { return name + ' 閣下：今日吹蠟燭儀式業已完成，祝賀函仍可閱覽；如有續辦需求，本處准予再次受理。'; },
             enter: '重返生日慶祝專案', seal: '辦理完竣' },
     };
-    function isBirthday(value, today) {
-        if (typeof value !== 'string') return false;
-        var match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
-        if (!match) return false;
-        var year = +match[1], month = +match[2], day = +match[3];
-        var birth = new Date(0); birth.setHours(0, 0, 0, 0); birth.setFullYear(year, month - 1, day);
-        today = today || new Date();
-        return year > 0 && birth.getFullYear() === year && birth.getMonth() === month - 1 && birth.getDate() === day
-            && birth <= today && today.getMonth() === month - 1 && today.getDate() === day;
+    function normalizeBirthday(value) {
+        if (!value || typeof value !== 'object' || Object.keys(value).some(function (key) { return key !== 'month' && key !== 'day'; })) return null;
+        var month = value.month, day = value.day;
+        var days = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+        if (!Number.isInteger(month) || !Number.isInteger(day) || month < 1 || month > 12 || day < 1 || day > days[month - 1]) return null;
+        return { month: month, day: day };
     }
+    function isBirthday(value, today) {
+        today = today || new Date();
+        var birthday = normalizeBirthday(value);
+        return !!birthday && today.getMonth() === birthday.month - 1 && today.getDate() === birthday.day;
+    }
+    function eligibleProfile(profile, today) { return !!profile && isBirthday(profile.birthday, today); }
     function dayKey(date) {
         return date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0') + '-' + String(date.getDate()).padStart(2, '0');
     }
@@ -66,7 +69,7 @@
         var user = null, profile = null, midnight = null, auto = null, observer = null, version = 0;
         var now = options.now || function () { return new Date(); };
         var navigate = options.navigate || function () { location.assign('./games/birthday.html'); };
-        function eligible() { return user && !user.anon && profile && isBirthday(profile.birthday, now()); }
+        function eligible() { return user && !user.anon && eligibleProfile(profile, now()); }
         function stopAuto() { clearTimeout(auto); auto = null; if (observer) observer.disconnect(); observer = null; }
         function render() {
             if (!root) return;
@@ -123,6 +126,6 @@
             destroy: function () { version++; stopAuto(); clearTimeout(midnight); document.removeEventListener('visibilitychange', visible); window.removeEventListener('pageshow', visible); window.removeEventListener('storage', stored); if (root) { root.hidden = true; root.replaceChildren(); } },
         };
     }
-    window.GameBoxBirthday = { isBirthday: isBirthday, dayKey: dayKey, midnightDelay: midnightDelay, hasEntered: hasEntered, markEntered: markEntered,
+    window.GameBoxBirthday = { isBirthday: isBirthday, normalizeBirthday: normalizeBirthday, eligibleProfile: eligibleProfile, dayKey: dayKey, midnightDelay: midnightDelay, hasEntered: hasEntered, markEntered: markEntered,
         hasCompleted: hasCompleted, markCompleted: markCompleted, confetti: confetti, create: create };
 })();

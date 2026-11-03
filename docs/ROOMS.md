@@ -3,7 +3,8 @@
 `js/net/rooms.mjs` owns room membership, seats, readiness, host selection,
 transactional starts, rematches and subscription lifetime. It has no Firebase or
 DOM dependency. `js/net/rtdb-rooms.mjs` provides the Realtime Database transport;
-[`RTDB-SETUP.md`](RTDB-SETUP.md) covers Console setup and Firestore room retirement.
+[Deployment and Firebase configuration](#deployment-and-firebase-configuration)
+covers Console setup and Firestore room retirement.
 `js/net/room-lobby.mjs` and `css/room-lobby.css` provide the shared lobby view.
 `js/net/net.js` handles authentication and exposes `ArcadeNet.rooms.create(options)`,
 `rooms.presence(options)` and `rooms.lobby(options)`.
@@ -28,7 +29,7 @@ replace separate copies of room CRUD and readiness checks.
 | Closing results | Leave the room and return to solo ready screen | Same flow | Same flow |
 | Host availability | Game supplies heartbeat-based `isAvailable` | Per-player presence counters; release missing peers after 15 seconds | Same as Rune Stones |
 
-[Darts](DARTS.md) uses the same service with guarded turn/revision updates,
+[Darts](DEV.md#darts-implementation) uses the same service with guarded turn/revision updates,
 canonical throw events, a configurable turn timer and first-to-one/two leg wins.
 
 The logical collection names and room layouts are retained, including
@@ -37,6 +38,49 @@ running match (`game.status: 'playing'`). Players see and share four-character
 codes such as `ABCD`. The adapter keeps the existing `R-ABCD` RTDB key and stored
 metadata, so active rooms and published rules need no migration. Firestore rooms
 remain retired; four-character input always addresses RTDB.
+
+## Darts match protocol
+
+Publish the updated **Realtime Database** rules from `database.rules.json` before
+using this version online. The new group is `/rooms/darts_rooms/R-XXXX`; public
+codes remain four characters. Firestore rules and shared room implementation do
+not need changes. A website deployment does not publish Firebase rules.
+
+The policy uses four independent page seats, host Start after all guests Ready,
+3-second piggybacked heartbeats, 15-second missing-peer release and host migration.
+The room remains `waiting` while gathering 2–4 players, then changes to `playing`
+on Start. A departure skips that player and retains the running match while 2+
+remain; the last player wins by forfeit. Departed players stay in the match HUD
+with a muted "Left" indicator, and names are retained in the room's match roster.
+Replacement players can join after a rematch reset, not during a running leg/match.
+Host Rematch resets the same room and readiness; guests ready again before
+the next host Start. Opening the room panel during play does not pause a match.
+Closing the result room panel leaves the room and restores the local ready screen.
+Brief reconnects retain the seat and resume the authoritative snapshot. A released
+page cannot enter or write a replacement match; it can join again explicitly.
+As with the existing games, reloading creates a new page identity rather than
+recovering the old page's seat; the old seat is released by presence handling.
+
+Every throw is an `updateMatch` transaction guarded by match ID, monotonically
+increasing turn `round`, revision `seq` and status. The transaction verifies the
+active player, presentation gate and turn deadline before calculating a result
+from the supplied flight and applying rules to the authoritative snapshot. This
+prevents stale/double submissions and competing turn advances. Between-leg state
+also counts as a running match, so it cannot be overwritten by Start/Rematch or
+joined mid-match. This uses the existing honor-system access policy, not a new
+server-authoritative anti-cheat implementation.
+
+The default online turn is 60 seconds; creation settings offer 30/60/90 seconds.
+Unused darts are forfeited on timeout; valid points already scored remain. Either
+peer's watchdog can advance an expired turn once. The next player's deadline
+starts after the previous flight/result presentation, giving a full turn to aim.
+Deadlines follow the existing games' client wall-clock convention.
+
+Accepted throws store one compact `lastThrow` event (flight, impact, canonical
+result and sequence). Both clients animate the same trajectory and reveal the
+committed scoreboard at impact. Rules are committed before presentation, so a
+throttled/hidden tab does not control scoring correctness. Presence snapshots do
+not replay a throw. No pointer samples or per-frame movement are networked.
 
 ## Creating a service
 
@@ -299,36 +343,95 @@ pasting an old prefixed code is normalized before input truncation. Malformed
 codes cannot initiate room reads, subscriptions or writes. Old clients can still
 use prefixed room codes; reload them to get the four-character input experience.
 
-## Offline checks
+## Verification
 
-```text
-node tools/rooms-check.js
-node tools/room-traffic-check.js
-node tools/beam-room-check.js
-node tools/rune-room-check.js
-node tools/darts-rules-check.js
-node tools/darts-room-check.js
-node tools/rtdb-room-check.js
-# Optional: real Chrome pages with a local fake Firebase SDK
-node tools/rooms-browser-check.js
-node tools/rooms-browser-check.js --invalid-rtdb
-node tools/rooms-browser-check.js --darts
-node tools/rooms-browser-check.js --darts --invalid-rtdb
+Local core, game and browser checks live in [DEBUG.md](DEBUG.md#room-checks).
+The two-tab procedure below verifies the deployed rules; local fakes cannot do so.
+
+## Deployment and Firebase configuration
+
+### Configure RTDB in a new environment
+
+Use the same Firebase project as the existing Auth/Firestore configuration.
+Check **Realtime Database > Data** for the existing database URL; create a new
+database in Locked mode only if no database exists. Publish the complete contents
+of [`database.rules.json`](../database.rules.json) in **Realtime Database > Rules**.
+This is separate from **Firestore Database > Rules**.
+
+The supplied rules allow authenticated users, including existing anonymous guest
+accounts, to use `/rooms/beam_rooms`, `/rooms/duel_rooms` and `/rooms/darts_rooms`. Publish
+the updated RTDB rules before enabling Darts online; see [Darts match protocol](#darts-match-protocol).
+They validate basic
+room metadata and index `lastActionAt` for cleanup. The project's existing
+honor-system room policy remains; these are not server-authoritative anti-cheat
+rules. Unknown roots are denied. Local JSON checks do not evaluate server rules.
+
+The public URL is configured in [`js/firebase-config.js`](../js/firebase-config.js):
+
+```js
+window.FIREBASE_ROOMS = {
+    databaseURL: 'https://games-7e19b-default-rtdb.asia-southeast1.firebasedatabase.app/',
+};
 ```
 
-The core check uses the actual RTDB adapter and a serialized native-tree fixture
-for contention, capacity, policies, authority, subscription lifetime and cleanup.
-Game checks execute both games' actual handlers with DOM/drawing stubbed, covering
-independent tabs, spectators, host-controlled starts, readiness resets, departures,
-host migration, rematches, result closing, vanished rooms and single settlement.
-The core check also covers opt-in all-ready starts. Controlled clocks cover presence,
-recovery before eviction and native disconnect/reconnect.
+Use the exact Console URL, without a `/rooms` path, `.json` suffix or query.
+Account/project configuration remains in `FIREBASE_CONFIG`. A missing/invalid
+room URL disables online rooms while account sync and solo play continue.
+RTDB permission/network errors propagate to the caller; they cannot select a
+different database or create a fallback room. Deploy all changed modules together.
 
-The optional browser check loads the real pages, modules and shared UI. It covers
-creation, joining, starts, results, rematches, rejoining, input preservation,
-320px/768px layout and Beam solo settlement. Firestore stubs reject room access;
-profile reads/writes still work even with invalid RTDB settings. All SDK calls
-are redirected locally; these checks never access production Firebase. Pass a
-Chrome executable as the first argument if the Windows default path is unavailable.
-Rules JSON is checked locally, but server-side authorization still requires the
-Firebase rule evaluator or a live-project check after publishing rules.
+### Verify in two fresh tabs
+
+1. Reload the deployed page and sign in through the existing Google/guest flow.
+2. Create a Beam room, confirm a code such as `ABCD`, and join from a second
+   tab. Same-account tabs must occupy separate seats. Test readiness, starting,
+   finishing, same-room rematch, leave/rejoin and disconnect recovery.
+3. Repeat with Rune Stones. As in Beam, the guest readies up and the host presses
+   Start. After results, the host chooses Rematch in the same room; the guest
+   readies again and the host starts. Closing results leaves the room and restores
+   the solo ready screen. A survivor retains the room when the other leaves or
+   disconnects.
+4. Confirm RTDB data appears under `rooms/beam_rooms/R-ABCD` or
+   `rooms/duel_rooms/R-EFGH`. Existing RTDB rooms need no migration.
+5. Check account records/scores still appear; they remain in Firestore profiles.
+6. Copied codes must omit `R-`; pasting a previous `R-ABCD` code must normalize to
+   `ABCD` and join the same RTDB room. After publishing Firestore rules, a stale
+   Firestore client must no longer be able to read or write Firestore rooms.
+7. Observe RTDB Usage for connections/downloads and Firestore Usage for accounts.
+   Current room clients perform no Firestore room operations. Server rule changes
+   are needed to stop stale clients from continuing the old transport.
+
+`window.ArcadeNet.rooms.backend` reports `rtdb`. Successful room creation/joining
+is the permissions test; the reported backend alone is not.
+
+### Retired Firestore room access
+
+The following steps complete the server-side cutoff. A website deployment alone
+does not publish Firebase rules, and already-loaded old clients retain their old
+JavaScript until refreshed.
+
+1. Deploy this code through the existing GitHub Pages branch-based deployment.
+   Refresh or close old game tabs. New clients only use RTDB rooms.
+2. In Firebase Console, select `games-7e19b`, open **Firestore Database > Rules**,
+   replace the complete rules with [`firestore.rules`](../firestore.rules), and
+   publish. This file no longer permits `beam_rooms` or `duel_rooms`; unmatched
+   paths are denied. Existing profile, admin and feedback rules remain intact.
+   Old clients will lose Firestore room access and should reload the website.
+3. Verify both games with the [two-tab checks](#verify-in-two-fresh-tabs) and confirm profile records
+   still load. Publishing rules ends access to active Firestore matches, so do
+   not expect an old Firestore room to continue after this cutoff.
+4. If old room data is no longer needed, back up and remove only the Firestore
+   collections `beam_rooms` and `duel_rooms` from the Console. Rule publication
+   does not delete documents. This code does not delete production data.
+
+No RTDB rule change is needed for this retirement: [`database.rules.json`](../database.rules.json)
+already uses the current paths and `R-XXXX` format. Do not remove either database
+or change Firestore account collections. There is no `legacyFirestore` flag,
+backend selector or built-in Firestore room rollback anymore. Reintroducing that
+transport would require restoring compatible code and rules together.
+
+Official references: [setup](https://firebase.google.com/docs/database/web/start),
+[transactions](https://firebase.google.com/docs/database/web/read-and-write),
+[presence](https://firebase.google.com/docs/database/web/offline-capabilities),
+[RTDB rules](https://firebase.google.com/docs/database/security),
+[Firestore rules](https://firebase.google.com/docs/firestore/security/get-started).

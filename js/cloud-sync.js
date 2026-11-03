@@ -220,6 +220,7 @@
     // --- state + callbacks -----------------------------------------------------
     var appliedCbs = [], claimCbs = [], claimOffered = false, pendingOffer = null;
     var profileCbs = [], lastProfile = null;
+    var profileEpoch = 0, profileRevision = 0, profileEdits = {};
     function fireProfile(uid, profile) {
         var current = account();
         if (!current || current.uid !== uid) return;
@@ -236,7 +237,7 @@
     // local holds better. Resolves with the profile doc (or null). No-op for guests.
     function pullMergePush() {
         var acct = account(); if (!acct) return Promise.resolve(null);
-        var N = net();
+        var N = net(), epoch = profileEpoch, revision = profileRevision;
         return N.profile.get(acct.uid).then(function (prof) {
             prof = prof || {};
             var cloudMark = +(prof.recordsMigratedAt || 0) || 0, runMigr = cloudMark < migrationsLatestAt();
@@ -261,11 +262,34 @@
             if (runMigr) save.recordsMigratedAt = migrationsLatestAt();
             if (Object.keys(games).length || runMigr) { try { N.profile.save(acct.uid, save); } catch (e) { /* ignore */ } }
             if (changed) fireApplied();
-            fireProfile(acct.uid, prof);
+            if (epoch === profileEpoch) {
+                // A read started before an acknowledged settings save must not
+                // replace the newer metadata with its older response.
+                var metadata = Object.assign({}, prof);
+                Object.keys(profileEdits).forEach(function (key) { if (profileEdits[key].revision > revision) metadata[key] = profileEdits[key].value; });
+                fireProfile(acct.uid, metadata);
+            }
             return prof;
         }).catch(function () { return null; });
     }
     function sync() { return pullMergePush().then(function (prof) { return !!prof; }); }
+    function saveProfileFields(patch, expectedUid) {
+        var acct = account(), N = net(), epoch = profileEpoch;
+        if (!acct || expectedUid && acct.uid !== expectedUid) return Promise.reject(new Error('profile/account-changed'));
+        // Keep score payloads under the record engine; this API saves flat metadata.
+        var allowed = ['birthday'];
+        if (!patch || Object.keys(patch).some(function (key) { return allowed.indexOf(key) === -1; })) return Promise.reject(new Error('profile/invalid-fields'));
+        var save = Object.assign({}, patch);
+        if (!N.profile.saveFields) return Promise.reject(new Error('profile/unavailable'));
+        return Promise.resolve(N.profile.saveFields(acct.uid, save)).then(function () {
+            if (epoch !== profileEpoch || !account() || account().uid !== acct.uid) return false;
+            profileRevision++;
+            Object.keys(save).forEach(function (key) { profileEdits[key] = { revision: profileRevision, value: save[key] }; });
+            var metadata = Object.assign({}, lastProfile && lastProfile.uid === acct.uid ? lastProfile.data : {}, save);
+            fireProfile(acct.uid, metadata);
+            return true;
+        });
+    }
 
     // Which of the guest drawer's games does the signed-in account NOT have yet? Those
     // are the only ones worth claiming ("has a game" = any record for it, so a game is
@@ -320,6 +344,7 @@
         }
         // --- identity transition (an actual sign-in or sign-out) ---
         lastProfile = null;
+        profileEpoch++; profileRevision = 0; profileEdits = {};
         claimOffered = false; pendingOffer = null;
         if (cur === 'guest') bucketSet('guest', snapshot());   // keep the guest's records for later / for the claim
         if (newScope === 'guest') {                 // signing out → bring the guest drawer back
@@ -356,6 +381,7 @@
         },
         // games: call after writing a new local best so it reaches the cloud
         sync: sync,
+        saveProfileFields: saveProfileFields,
         // launcher: receive the per-game claim offer, { games: [displayId], claim: fn }
         onClaimOffer: function (fn) { if (typeof fn !== 'function') return; claimCbs.push(fn); if (pendingOffer) { try { fn(pendingOffer); } catch (e) { /* ignore */ } } },
         hasGuestRecords: function () { return bucketHasRecords('guest'); },

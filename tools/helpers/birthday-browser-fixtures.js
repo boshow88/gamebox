@@ -13,7 +13,7 @@ window.profileReads = 0; window.feedbackWrites = 0;
 window.setTestUser = next => { user = next; callbacks.forEach(fn => fn(user)); };
 window.ArcadeNet = { ok: true, currentUser: () => user, onAuth: fn => { callbacks.push(fn); queueMicrotask(() => fn(user)); },
     field: { delete: () => null }, profile: {
-        get: async id => { window.profileReads++; return { birthday: sessionStorage.getItem('birthday-test-dob:' + id) || '2000-11-03', recordsMigratedAt: Date.now() }; },
+        get: async id => { window.profileReads++; const saved = sessionStorage.getItem('birthday-test-dob:' + id); return { birthday: saved ? JSON.parse(saved) : { month: 11, day: 3 }, recordsMigratedAt: Date.now() }; },
         save: async (_id, data) => { if ('birthday' in data) throw new Error('Birthday overwritten'); },
     }, isOwner: async () => false, signOut: async () => window.setTestUser(null), signInGoogle: async () => {},
     feedback: async () => { window.feedbackWrites++; throw new Error('Birthday must not submit feedback'); },
@@ -225,7 +225,7 @@ function setDate(f, date) { f.contentWindow.birthdayTestDate = date; f.contentDo
     setDate(reload, [2026, 10, 4, 0, 0, 1]);
     if (!reload.contentDocument.getElementById('birthday-entry').hidden) throw new Error('Homepage entry did not expire');
     reload.remove();
-    for (const [uid, extra] of [['not-today', '&birthday=2000-11-04'], ['invalid', '&birthday=2000-02-30'], ['guest', '&anonymous=1']]) {
+    for (const [uid, extra] of [['not-today', '&birthday=' + encodeURIComponent(JSON.stringify({ month: 11, day: 4 }))], ['invalid', '&birthday=' + encodeURIComponent(JSON.stringify({ month: 2, day: 30 }))], ['guest', '&anonymous=1']]) {
         const f = frame(uid, '/index.html', extra);
         await until(() => f.contentWindow.GameBoxBirthday && f.contentWindow.ArcadeNet, uid + ' boot'); await sleep(500);
         if (!f.contentDocument.getElementById('birthday-entry').hidden || f.contentWindow.location.pathname !== '/index.html') throw new Error('Ineligible homepage exposed birthday entry');

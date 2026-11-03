@@ -100,6 +100,12 @@ function fail(err) {
             profile: {
                 get(uid) { return getDoc(doc(db, 'profiles', uid)).then((s) => (s.exists() ? s.data() : null)); },
                 save(uid, data) { return setDoc(doc(db, 'profiles', uid), Object.assign({ updatedAt: serverTimestamp() }, data), { merge: true }); },
+                // Replace each named metadata field as a whole, so a birthday map
+                // cannot retain a previously stored year through recursive merging.
+                saveFields(uid, data) {
+                    const patch = Object.assign({ updatedAt: serverTimestamp() }, data);
+                    return setDoc(doc(db, 'profiles', uid), patch, { mergeFields: Object.keys(patch) });
+                },
             },
             // write-only feedback drop box — anyone signed in may submit; only the owner
             // manages it in the inbox (see firestore.rules). Auto-generated id.

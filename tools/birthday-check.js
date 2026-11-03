@@ -94,21 +94,29 @@ assert.equal(api.hasCompleted('account-a', today), true);
 assert.equal(api.hasCompleted('account-b', today), false, 'Completion is per account');
 assert.equal(api.hasCompleted('account-a', new Date(2026, 10, 4)), false, 'Completion expires with the local day');
 assert.equal(api.hasCompleted('account-a', new Date(2027, 10, 3)), false, 'Next birthday starts with first-play wording');
-assert(birthday('2000-11-03', today));
-assert(!birthday('2000-11-03', new Date(2026, 10, 2, 23, 59)));
-assert(!birthday('2000-11-03', new Date(2026, 10, 4, 0, 1)));
-for (const value of [undefined, null, 20001103, '', '2000/11/3', '2000-13-03', '2000-02-30', '1900-02-29', '2027-11-03', '<script>']) assert(!birthday(value, today));
-assert(birthday('2000-02-29', new Date(2028, 1, 29, 12)));
-assert(!birthday('2000-02-29', new Date(2027, 1, 28, 12)));
+assert(!birthday({ month: 11, day: 3 }, new Date(2026, 10, 2, 23, 59)));
+assert(!birthday({ month: 11, day: 3 }, new Date(2026, 10, 4, 0, 1)));
+for (const value of [undefined, null, 20001103, '', '2000/11/3', '2000-11-03', '<script>',
+    { year: 2000, month: 11, day: 3 }, { year: 0, month: 11, day: 3 },
+    { month: 0, day: 3 }, { month: 13, day: 3 }, { month: 11, day: 0 }, { month: 11, day: 31 }]) assert(!birthday(value, today));
+assert(birthday({ month: 2, day: 29 }, new Date(2028, 1, 29, 12)));
+assert(!birthday({ month: 2, day: 29 }, new Date(2027, 1, 28, 12)));
+assert(birthday({ month: 11, day: 3 }, today));
+assert(!birthday({ month: 2, day: 30 }, today));
+assert(!birthday({ month: '11', day: 3 }, today));
+assert(api.eligibleProfile({ birthday: { month: 11, day: 3 } }, today));
+assert(api.eligibleProfile({ birthday: { month: 11, day: 3 }, birthdayEnabled: false }, today), 'Obsolete flags must not override the birthday');
+assert(!api.eligibleProfile({ birthday: null }, today));
 
 (async () => {
     let user = { uid: 'birthday-player', anon: false, name: 'Player' }, auth, reads = 0;
-    const waiters = [], saves = [];
+    const waiters = [], saves = [], metadataSaves = [];
     const context = { localStorage: storage(), console, Promise, Date, JSON, Object, window: {
         ArcadeNet: { ok: true, onAuth: fn => { auth = fn; }, currentUser: () => user,
             field: { delete: () => null },
             profile: { get: async uid => { reads++; return new Promise(resolve => waiters.push({ uid, resolve })); },
-                save: (uid, data) => { saves.push({ uid, data }); return Promise.resolve(); } },
+                save: (uid, data) => { saves.push({ uid, data }); return Promise.resolve(); },
+                saveFields: (uid, data) => { metadataSaves.push({ uid, data }); return Promise.resolve(); } },
         }, addEventListener() {},
     } };
     vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../js/cloud-sync.js'), 'utf8'), context);
@@ -116,24 +124,44 @@ assert(!birthday('2000-02-29', new Date(2027, 1, 28, 12)));
     context.window.CloudSync.onProfile((profile, uid) => events.push({ profile, uid }));
     auth(user);
     assert.equal(reads, 1, 'Metadata subscriptions must reuse the existing login profile read');
-    waiters.shift().resolve({ birthday: '2000-11-03', name: 'Player' });
+    waiters.shift().resolve({ birthday: { month: 11, day: 3 }, name: 'Player' });
     await new Promise(setImmediate);
     assert.equal(events.length, 1);
-    assert.equal(events[0].profile.birthday, '2000-11-03');
+    assert.deepEqual(events[0].profile.birthday, { month: 11, day: 3 });
     assert.equal(events[0].uid, user.uid);
     let replay;
     context.window.CloudSync.onProfile((profile, uid) => { replay = { profile, uid }; });
-    assert.equal(replay.profile.birthday, '2000-11-03', 'A late launcher listener receives the loaded profile');
+    assert.deepEqual(replay.profile.birthday, { month: 11, day: 3 }, 'A late launcher listener receives the loaded profile');
     assert.equal(reads, 1, 'Replaying metadata must not perform another read');
     assert(saves.every(item => !Object.hasOwn(item.data, 'birthday')), 'Record sync must not overwrite birthday metadata');
 
+    const staleSettingsRead = context.window.CloudSync.sync(), staleSettings = waiters.shift(), beforeSaveReads = reads;
+    await context.window.CloudSync.saveProfileFields({ birthday: { month: 4, day: 5 } }, user.uid);
+    assert.equal(reads, beforeSaveReads, 'Saving metadata must not add a read');
+    assert.equal(metadataSaves.length, 1);
+    assert.equal(events.at(-1).profile.birthday.month, 4);
+    staleSettings.resolve({ birthday: { month: 11, day: 3 } }); await staleSettingsRead;
+    assert.equal(events.at(-1).profile.birthday.month, 4, 'An earlier profile read must not overwrite acknowledged settings');
+    assert.deepEqual(Object.keys(metadataSaves[0].data), ['birthday'], 'Birthday saves must not write extra metadata or cleanup fields');
+    await assert.rejects(context.window.CloudSync.saveProfileFields({ games: {} }, user.uid));
+    await assert.rejects(context.window.CloudSync.saveProfileFields({ birthday: null }, 'wrong-account'));
+    assert.equal(metadataSaves.length, 1, 'Invalid fields and account mismatches must not write');
+    const freshSettingsRead = context.window.CloudSync.sync();
+    waiters.shift().resolve({ birthday: { month: 6, day: 7 } }); await freshSettingsRead;
+    assert.equal(events.at(-1).profile.birthday.month, 6, 'A later explicit read may adopt newer cloud settings');
+
     const oldRead = context.window.CloudSync.sync();
     const late = waiters.shift();
+    let finishOldSave;
+    context.window.ArcadeNet.profile.saveFields = () => new Promise(resolve => { finishOldSave = resolve; });
+    const oldSave = context.window.CloudSync.saveProfileFields({ birthday: null }, user.uid);
     user = { uid: 'other-player', name: 'Other', anon: false }; auth(user);
     const next = waiters.shift();
     const before = events.length;
-    late.resolve({ birthday: '2000-11-03' }); await oldRead;
+    late.resolve({ birthday: { month: 11, day: 3 } }); await oldRead;
     assert.equal(events.length, before, 'A late old-account response must not greet the new account');
+    finishOldSave(); assert.equal(await oldSave, false);
+    assert.equal(events.length, before, 'A late metadata save must not replace the new account profile');
     next.resolve({ name: 'Other' }); await new Promise(setImmediate);
     assert.equal(events.at(-1).uid, 'other-player');
     user = null; auth(null);
