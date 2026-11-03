@@ -9,6 +9,7 @@ const { spawn } = require('node:child_process');
 const root = path.resolve(__dirname, '..');
 const args = process.argv.slice(2);
 const mode = args.includes('--invalid-rtdb') ? 'invalid' : 'rtdb';
+const dartsOnly = args.includes('--darts');
 const chrome = args.find(arg => !arg.startsWith('--')) || 'C:/Program Files/Google/Chrome/Application/chrome.exe';
 const database = require('./helpers/browser-rtdb.js');
 
@@ -36,6 +37,7 @@ export const signInAnonymously = async () => {}, signOut = async () => {}, signI
 const runner = `<!doctype html><meta charset="utf-8"><pre id="result">RUNNING</pre><script>
 const errors = [];
 const mode = '${mode}';
+const dartsOnly = ${dartsOnly};
 let encode = value => value, decode = value => value;
 addEventListener('message', event => { if (event.data && event.data.roomError) errors.push(event.data.roomError); });
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -160,9 +162,97 @@ async function check(game, group, prefix) {
     if (!b.contentDocument.getElementById('lobby').hidden || b.contentDocument.getElementById('overlay').hidden) throw new Error('Closing results must restore the solo ready screen');
     a.remove(); b.remove(); await sleep(50);
 }
+async function checkDarts() {
+    const a = frame('darts', 'same-account'), b = frame('darts', 'same-account');
+    const api = f => f.contentWindow.__dartsTest;
+    for (const f of [a,b]) {
+        await until(() => api(f) && f.contentWindow.ArcadeNet && f.contentDocument.getElementById('lobby'), 'darts boot');
+        f.contentWindow.ArcadeCommon.i18n.setLocale('en');
+    }
+    const setMode = (f, mode) => { const s=f.contentDocument.getElementById('mode-select'); s.value=mode; s.dispatchEvent(new f.contentWindow.Event('change')); };
+    // Actual gesture -> physics -> rendering -> local rules. No mocked game handlers.
+    a.contentDocument.getElementById('overlay-btn').click();
+    const canvas=a.contentDocument.getElementById('stage');
+    canvas.dispatchEvent(new a.contentWindow.PointerEvent('pointerdown',{bubbles:true,clientX:200,clientY:400,pointerId:1,isPrimary:true}));
+    await sleep(60);a.contentWindow.dispatchEvent(new a.contentWindow.PointerEvent('pointermove',{clientX:200,clientY:330,pointerId:1,isPrimary:true}));
+    await sleep(60);a.contentWindow.dispatchEvent(new a.contentWindow.PointerEvent('pointermove',{clientX:200,clientY:230,pointerId:1,isPrimary:true}));
+    a.contentWindow.dispatchEvent(new a.contentWindow.PointerEvent('pointerup',{clientX:200,clientY:230,pointerId:1,isPrimary:true}));
+    api(a).land();
+    if (api(a).snapshot().darts !== 1 || api(a).snapshot().match) throw new Error('Practice gesture failed');
+    a.contentDocument.getElementById('restart-btn').click();
+    setMode(a, 'countup'); a.contentDocument.getElementById('overlay-btn').click();
+    for (let i=0;i<24;i++) { api(a).gesture(); api(a).land(); }
+    if (api(a).snapshot().match.status !== 'over' || api(a).snapshot().match.stats['local-a'].darts !== 24) throw new Error('Solo Count-Up did not finish');
+    if (a.contentDocument.getElementById('leg-result').hidden || !a.contentDocument.getElementById('turn-status').textContent.includes('MATCH WON')) throw new Error('Missing solo results');
+    a.contentDocument.getElementById('play-again-btn').click(); setMode(a, '501');
+    a.contentDocument.getElementById('match-select').value='3'; a.contentDocument.getElementById('match-select').dispatchEvent(new a.contentWindow.Event('change'));
+    for (const f of [a,b]) { f.contentDocument.getElementById('online-btn').click(); layout(f,true); }
+    button(a,'dartsCreate'); await until(()=>a.contentDocument.querySelector('.lobby-code'),'darts create');
+    const code=a.contentDocument.querySelector('.lobby-code').textContent;
+    b.contentDocument.querySelector('#lobby input').value=code; button(b,'dartsJoin');
+    const roomKey='rooms/darts_rooms/R-'+code;
+    const read=()=>decode(JSON.parse(localStorage.getItem('__rooms-browser-db')||'{}')[roomKey]);
+    const mutate=fn=>{ const tree=JSON.parse(localStorage.getItem('__rooms-browser-db')||'{}');const data=decode(tree[roomKey]);fn(data);tree[roomKey]=encode(data);localStorage.setItem('__rooms-browser-db',JSON.stringify(tree)); };
+    await until(()=>enabled(b,'dartsReadyUp'),'darts ready'); button(b,'dartsReadyUp');
+    await until(()=>enabled(a,'dartsStartMatch'),'darts start');button(a,'dartsStartMatch');
+    await until(()=>api(a).snapshot().match && api(b).snapshot().match,'darts match');
+    const owner=read().game.active, active=()=>read().game.active===api(a).snapshot().uid?a:b;
+    const flight=(x,y)=>{ const t=2370/12600;return {pos:{x:0,y:-292,z:0},vel:{x:x/t,y:(y+292+2450*t*t)/t,z:12600},tempo:1}; };
+    const syncClock=()=>{const stamp=Math.max(a.contentWindow.__dartsNow,b.contentWindow.__dartsNow,read().game.readyAt)+1;for(const f of [a,b])f.contentWindow.__dartsNow=stamp;};
+    async function throwAt(x,y) {
+        syncClock(); const old=read().game.seq;
+        if (!await api(active()).controller().submit(flight(x,y))) throw new Error('Darts throw rejected');
+        await until(()=>api(a).snapshot().match.seq>old&&api(b).snapshot().match.seq>old,'darts throw sync');
+        for(const f of [a,b])api(f).land();
+    }
+    const other=active()===a?b:a;
+    if(await api(other).controller().submit(flight(0,103)))throw new Error('Opponent scored out of turn');
+    await throwAt(0,103);
+    if(read().game.scores[owner]!==441)throw new Error('Online T20 score mismatch');
+    for(const f of [a,b])if(!f.contentDocument.getElementById('dart-feedback').textContent.includes('T20'))throw new Error('Opponent impact was not shown');
+    for(const f of [a,b])if(api(f).snapshot().dartState!=='landed')throw new Error('Opponent flight did not land');
+    await api(a).controller().tick();await sleep(10);
+    if(api(a).snapshot().dartState==='flying')throw new Error('Presence snapshot replayed a flight');
+    await throwAt(0,80);await throwAt(0,80);
+    if(read().game.active===owner)throw new Error('Third dart did not pass turn');
+    // Both clients observe checkout, next-leg reset and a match victory.
+    mutate(data=>{data.game.scores[data.game.active]=40;data.game.turnStartScore=40;});
+    await until(()=>api(active()).snapshot().match.scores[read().game.active]===40,'checkout fixture');
+    const winner=read().game.active;await throwAt(0,165);
+    if(read().game.status!=='between')throw new Error('Missing leg result');
+    for(const f of [a,b])if(f.contentDocument.getElementById('leg-result').hidden)throw new Error('Leg result hidden');
+    syncClock();if(!await api(a).controller().nextLeg())throw new Error('Next leg failed');
+    await until(()=>api(a).snapshot().match.leg===2&&api(b).snapshot().match.leg===2,'next leg');
+    if(read().game.active===owner||read().game.scores[winner]!==501)throw new Error('Starter/reset failed');
+    mutate(data=>{data.game.active=winner;data.game.scores[winner]=50;data.game.turnStartScore=50;});
+    await until(()=>api(active()).snapshot().match.scores[winner]===50,'bull fixture');await throwAt(0,0);
+    if(read().game.status!=='over'||read().game.winner!==winner)throw new Error('BO3 did not finish');
+    for(const f of [a,b]){
+        if(!f.contentDocument.getElementById('turn-status').textContent.includes('MATCH WON'))throw new Error('Missing match result');
+        f.contentDocument.getElementById('online-btn').click();
+    }
+    const matchId=read().game.matchId;button(a,'dartsRematch');
+    await until(()=>enabled(b,'dartsReadyUp'),'rematch ready');button(b,'dartsReadyUp');
+    await until(()=>enabled(a,'dartsStartMatch'),'rematch start');button(a,'dartsStartMatch');
+    await until(()=>read().game.matchId!==matchId&&read().game.status==='playing','new match');
+    for(const width of [320,768]){
+        a.style.width=width+'px';a.contentDocument.getElementById('online-btn').click();await sleep(30);layout(a);
+        const doc=a.contentDocument;if(doc.documentElement.scrollWidth>doc.documentElement.clientWidth+1)throw new Error('Darts page overflows '+width+': '+[...doc.querySelectorAll('body *')].filter(el=>el.getBoundingClientRect().right>doc.documentElement.clientWidth+1).map(el=>el.tagName+'.'+el.className).slice(0,12).join(', '));
+    }
+    // Verify translated Cricket marks and result-close/leave lifecycle.
+    button(a,'dartsLeave');await until(()=>Object.keys(read().players).length===1,'darts forfeit');
+    await until(()=>api(b).snapshot().match.status==='over','survivor result');
+    b.contentDocument.getElementById('online-btn').click();button(b,'dartsClose');
+    await until(()=>!localStorage.getItem('__rooms-browser-db')||!JSON.parse(localStorage.getItem('__rooms-browser-db'))[roomKey],'last player leave');
+    await until(()=>!api(b).snapshot().room,'solo restored');
+    setMode(b,'cricket');b.contentWindow.ArcadeCommon.i18n.setLocale('zh');b.contentDocument.getElementById('overlay-btn').click();
+    if(b.contentDocument.querySelectorAll('.cricket-table tbody tr').length!==7)throw new Error('Cricket targets missing');
+    if(!b.contentDocument.querySelector('.cricket-table td').getAttribute('aria-label').includes('記號'))throw new Error('Cricket localization missing');
+    a.remove();b.remove();
+}
 (async () => {
     if (mode === 'invalid') {
-        for (const game of ['beam', 'rune-stones']) {
+        for (const game of (dartsOnly ? ['darts'] : ['beam', 'rune-stones'])) {
             const f = frame(game, 'same-account');
             await until(() => f.contentWindow.ArcadeNet && f.contentWindow.ArcadeNet.ok, 'auth boot');
             const net = f.contentWindow.ArcadeNet;
@@ -173,9 +263,10 @@ async function check(game, group, prefix) {
         }
     } else {
         const codec = await import('/js/net/rtdb-values.mjs'); encode = codec.encodeRoomValue; decode = codec.decodeRoomValue;
-        await check('beam', 'beam_rooms', 'beam'); await check('rune-stones', 'duel_rooms', 'rd');
+        if(dartsOnly) await checkDarts();
+        else { await check('beam', 'beam_rooms', 'beam'); await check('rune-stones', 'duel_rooms', 'rd'); }
     }
-    document.getElementById('result').textContent = 'PASS (' + mode + '): real browser room flows, backend selection and account isolation.';
+    document.getElementById('result').textContent = 'PASS (' + mode + '): ' + (mode === 'invalid' ? 'disabled online rooms and working account profiles.' : dartsOnly ? 'Darts pointer gesture, solo completion, online turns/animations/BO3/rematch, room lifecycle, translations and responsive layout.' : 'real browser room flows, backend selection and account isolation.');
 })().catch(error => { document.getElementById('result').textContent = 'FAIL: ' + error.stack; });
 </script>`;
 
@@ -196,9 +287,16 @@ async function main() {
             if (file.endsWith('firebase-config.js')) body = body.toString()
                 + '\nwindow.FIREBASE_ROOMS = ' + JSON.stringify({ databaseURL: mode === 'invalid' ? '' : 'https://demo-local-test.firebaseio.com' }) + ';';
             if (file.endsWith('net.js')) body = body.toString().replace('const BASE = `https://www.gstatic.com/firebasejs/${SDK}`;', "const BASE = location.origin + '/__sdk';");
+            if (file.endsWith('darts.js') && dartsOnly) body = body.toString().replace(/\}\)\(\);\s*$/, `
+                window.__dartsTest = {
+                    gesture: function () { if (G.dartState === 'landed') freshDart(); launchThrow(analyseGesture([{t:0,x:0,y:0},{t:.05,x:0,y:50},{t:.1,x:0,y:140},{t:.15,x:0,y:230}])); },
+                    land: function () { update(1); }, controller: function () { return online; },
+                    snapshot: function () { return {match:match,room:room,uid:netUser&&netUser.uid,darts:G.darts,dartState:G.dartState}; }
+                }; })();`);
             if (file.endsWith('.html')) {
                 type = 'text/html';
                 body = body.toString().replace('<head>', '<head><script>addEventListener("error",e=>parent.postMessage({roomError:e.message},location.origin));addEventListener("unhandledrejection",e=>parent.postMessage({roomError:String(e.reason)},location.origin));</script>');
+                if (file.endsWith('darts.html') && dartsOnly) body = body.toString().replace('<head>', '<head><script>window.__dartsNow=Date.now();Date.now=function(){return window.__dartsNow;};</script>');
             } else if (file.endsWith('.css')) type = 'text/css';
             else if (file.endsWith('.svg')) type = 'image/svg+xml';
         }

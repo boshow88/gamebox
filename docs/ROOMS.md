@@ -15,18 +15,21 @@ replace separate copies of room CRUD and readiness checks.
 
 ## Existing game policies
 
-| Policy | Beam | Rune Stones |
-| --- | --- | --- |
-| Collection | `beam_rooms` | `duel_rooms` |
-| Identity | One player per page instance; same account can occupy multiple seats | One player per page instance; same account can occupy both seats |
-| Capacity | 2–4 | Exactly 2 |
-| Seat layout | Join `order`, stable player colour indices | `slots`, host and guest |
-| Start | Host presses Start; guests must be ready | Host presses Start; guest must be ready |
-| Spectators | Watch without joining or consuming a seat | Disabled |
-| Departure | Clear only the departing player's ready flag; match continues | Record a forfeit during play, clear both ready flags, preserve the room and wait for replacement |
-| Rematch | Host resets the same room; guests ready again, then host starts | Same flow |
-| Closing results | Leave the room and return to solo ready screen | Same flow |
-| Host availability | Game supplies heartbeat-based `isAvailable` | Per-player presence counters; release missing peers after 15 seconds |
+| Policy | Beam | Rune Stones | Darts |
+| --- | --- | --- | --- |
+| Collection | `beam_rooms` | `duel_rooms` | `darts_rooms` |
+| Identity | One player per page instance; same account can occupy multiple seats | One player per page instance; same account can occupy both seats | Same as Rune Stones |
+| Capacity | 2–4 | Exactly 2 | Exactly 2 |
+| Seat layout | Join `order`, stable player colour indices | `slots`, host and guest | `slots`, host and guest |
+| Start | Host presses Start; guests must be ready | Host presses Start; guest must be ready | Same as Rune Stones |
+| Spectators | Watch without joining or consuming a seat | Disabled | Disabled |
+| Departure | Clear only the departing player's ready flag; match continues | Record a forfeit during play, clear both ready flags, preserve the room and wait for replacement | Same as Rune Stones, including between legs |
+| Rematch | Host resets the same room; guests ready again, then host starts | Same flow | Same flow |
+| Closing results | Leave the room and return to solo ready screen | Same flow | Same flow |
+| Host availability | Game supplies heartbeat-based `isAvailable` | Per-player presence counters; release missing peers after 15 seconds | Same as Rune Stones |
+
+[Darts](DARTS.md) uses the same service with guarded turn/revision updates,
+canonical throw events, a configurable turn timer and BO1/BO3 leg transitions.
 
 The logical collection names and room layouts are retained, including
 Rune Stones' distinction between an occupied room (`status: 'playing'`) and a
@@ -303,10 +306,14 @@ node tools/rooms-check.js
 node tools/room-traffic-check.js
 node tools/beam-room-check.js
 node tools/rune-room-check.js
+node tools/darts-rules-check.js
+node tools/darts-room-check.js
 node tools/rtdb-room-check.js
 # Optional: real Chrome pages with a local fake Firebase SDK
 node tools/rooms-browser-check.js
 node tools/rooms-browser-check.js --invalid-rtdb
+node tools/rooms-browser-check.js --darts
+node tools/rooms-browser-check.js --darts --invalid-rtdb
 ```
 
 The core check uses the actual RTDB adapter and a serialized native-tree fixture

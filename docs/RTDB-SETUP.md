@@ -41,7 +41,9 @@ of [`database.rules.json`](../database.rules.json) in **Realtime Database > Rule
 This is separate from the Firestore Rules editor above.
 
 The supplied rules allow authenticated users, including existing anonymous guest
-accounts, to use `/rooms/beam_rooms` and `/rooms/duel_rooms`. They validate basic
+accounts, to use `/rooms/beam_rooms`, `/rooms/duel_rooms` and `/rooms/darts_rooms`. Publish
+the updated RTDB rules before enabling Darts online; see [DARTS.md](DARTS.md).
+They validate basic
 room metadata and index `lastActionAt` for cleanup. The project's existing
 honor-system room policy remains; these are not server-authoritative anti-cheat
 rules. Unknown roots are denied. Local JSON checks do not evaluate server rules.

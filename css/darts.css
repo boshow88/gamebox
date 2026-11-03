@@ -1,0 +1,35 @@
+.darts-settings { display: flex; flex-wrap: wrap; gap: 10px 16px; margin: 16px 0 10px; }
+.darts-settings label { display: flex; flex-direction: column; gap: 5px; flex: 1 1 120px; font-size: .8rem; color: var(--text-muted, #9ca3af); }
+.darts-settings select { min-width: 0; width: 100%; padding: 9px; border: 1px solid rgba(255,255,255,.16); border-radius: 8px; background: #151e29; color: #e5e7eb; font: inherit; }
+.darts-settings select:disabled { opacity: .65; }
+.darts-rule { color: var(--text-muted, #9ca3af); font-size: .8rem; line-height: 1.6; margin: 8px 0; }
+.darts-rule:empty { display: none; }
+.match-panel { border: 1px solid rgba(255,255,255,.14); border-radius: 12px; padding: 14px; margin: 14px 0; background: rgba(9,16,24,.7); }
+.darts-match-meta { font-size: .8rem; color: #9ca3af; }
+.darts-turn-line { display: flex; justify-content: space-between; gap: 8px; margin: 10px 0; color: #86efac; }
+#turn-timer { font-variant-numeric: tabular-nums; color: #fde68a; }
+.darts-player-scores { display: flex; gap: 10px; }
+.darts-player { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; text-align: center; padding: 10px 6px; border: 1px solid rgba(255,255,255,.12); border-radius: 8px; }
+.darts-player.active { border-color: #22c55e; background: rgba(34,197,94,.08); }
+.darts-player-name { overflow-wrap: anywhere; font-size: .9rem; }
+.darts-player-score { font-size: 2rem; font-variant-numeric: tabular-nums; }
+.darts-score-label, .darts-player-legs { font-size: .75rem; color: #9ca3af; }
+.cricket-table { width: 100%; border-collapse: collapse; table-layout: fixed; text-align: center; margin: 12px 0; }
+.cricket-table th { font-size: .8rem; font-weight: 500; overflow-wrap: anywhere; }
+.cricket-table td { font-size: 1.5rem; line-height: 1.15; }
+.cricket-table td, .cricket-table th { padding: 4px; border-bottom: 1px solid rgba(255,255,255,.08); }
+.cricket-table .closed { color: #86efac; }
+.cricket-table .fully-closed { opacity: .45; background: rgba(255,255,255,.04); }
+#dart-feedback { min-height: 1.5em; font-weight: 700; color: #fde68a; margin: 10px 0 4px; }
+#dart-feedback.bust { color: #fca5a5; }
+#turn-score, #result-summary { color: #9ca3af; font-size: .8rem; line-height: 1.6; }
+#leg-result { border-top: 1px solid rgba(255,255,255,.12); margin-top: 12px; padding-top: 8px; }
+.darts-settings [hidden], .match-panel [hidden], #session-hud[hidden], #match-panel[hidden] { display: none; }
+@media (max-width: 480px) {
+    .game-topbar { flex-wrap: wrap; gap: 8px; }
+    .game-topbar .topbar-actions { margin-left: auto; }
+    .stage-pad { padding: 8px 0 20px; }
+    .darts-turn-line { font-size: .85rem; }
+    .match-panel { padding: 10px; }
+    .control-row { flex-wrap: wrap; }
+}

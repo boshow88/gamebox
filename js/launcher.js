@@ -62,7 +62,7 @@
         {
             id: 'darts', theme: 'arcade', icon: 'darts', color: '#22c55e',
             href: './games/darts.html',
-            tags: ['action', 'single'], wip: true,
+            tags: ['action', 'single', 'multi'],
         },
         {
             id: 'patches', theme: 'puzzle', icon: 'layout-template-ccw', color: '#e5484d',
@@ -215,7 +215,7 @@
             pzrec_vortex: 'Vortex', pzrec_box: 'Box', pzrec_serpent: 'Serpent', pzrec_star: 'Star', pzrec_twin: 'Twin', pzrec_tri: 'Tri', pzrec_maze: 'Maze', pzrec_duo: 'Duo', pzrec_trine: 'Trine',
             'darts_name': 'Darts',
             'darts_tagline': 'Flick the throw, find your groove.',
-            'darts_body': 'A throwing-feel prototype: press and flick toward the board, then release. The flick\u2019s direction and pace are the whole throw — no power meter, no random spread. A debug view shows exactly why each dart landed where it did.',
+            'darts_body': 'Flick to throw in 501, Cricket or Count-Up. Play online 1v1, share a local match, or finish a solo eight-round Count-Up. Double-out, busts and best-of-three matches use the same repeatable throwing mechanic as unlimited practice.',
             'patches_name': 'Patches',
             'patches_tagline': 'Tile the grid with shapes.',
             'patches_body': "Split the grid into rectangles \u2014 one per clue \u2014 matching each clue\u2019s shape and size.",
@@ -341,7 +341,7 @@
             pzrec_vortex: '漩渦', pzrec_box: '方陣', pzrec_serpent: '蛇行', pzrec_star: '星形', pzrec_twin: '雙生', pzrec_tri: '三角', pzrec_maze: '迷宮', pzrec_duo: '雙環', pzrec_trine: '三環',
             'darts_name': '飛鏢',
             'darts_tagline': '甩出手感，練成自己的節奏。',
-            'darts_body': '一個專注於「擲鏢手感」的原型：按住並朝鏢靶輕甩，放開即擲出。甩的方向與快慢就是這一擲的全部——沒有力量條，也沒有隨機散佈。除錯視圖會清楚呈現每一鏢為何如此落點。',
+            'darts_body': '甩鏢挑戰 501、Cricket 與 Count-Up。支援線上雙人、同機對戰及單人八回合計分；雙倍結鏢、爆鏢與三戰兩勝，都沿用自由練習中可重複掌握的投擲手感。',
             'patches_name': 'Patches',
             'patches_tagline': '用形狀鋪滿整個盤面。',
             'patches_body': '把盤面切成一個個矩形 \u2014 每個提示對應一個 \u2014 並符合該提示的形狀與大小。',

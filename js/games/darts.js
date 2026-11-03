@@ -1,8 +1,5 @@
-/* Darts — a throwing-mechanic prototype.
- *
- * The whole point of this first version is NOT a full 501 game: it exists to answer one
- * question — "does the mouse/touch gesture actually feel like throwing a dart?" So it is a
- * free, endless practice board: press, flick, release, watch it fly, throw again.
+/* Darts — deterministic throwing physics with separate rules and shared RTDB rooms.
+ * Rules live in darts-rules.js; room policy lives in darts-room.js.
  *
  * The gesture is RELATIVE. The press point is the virtual hand origin (0,0,0); only the
  * subsequent motion matters, so an identical flick started anywhere on the screen throws
@@ -29,6 +26,11 @@
     var t = AC.i18n.t;
     var clamp = AC.math.clamp;
     var PI2 = Math.PI * 2;
+    var Rules = window.DartsRules;
+    var match = null, viewMatch = null, online = null, net = null, netUser = null;
+    var room = null, lobby = null, sending = false, seenThrow = null, onlineMatchId = null;
+    var stagedMode = 'practice', stagedBestOf = 1, stagedTurnMs = 60000;
+    var localIds = ['local-a', 'local-b'];
 
     // =================================================================
     // i18n (gameplay strings; launcher card strings live in launcher.js)
@@ -39,7 +41,7 @@
         dartsTotal: 'Total',
         dartsDarts: 'Darts',
         dartsDebug: 'Debug',
-        dartsReady: 'Darts \u00b7 practice',
+        dartsReady: 'Darts',
         dartsIntro: 'Press and flick toward the board, then release to throw. The flick\u2019s direction and pace are the whole throw \u2014 no power meter, no crosshair. Find a flick you can repeat.',
         dartsStartHintHtml: 'Drag <strong>anywhere</strong> \u2014 the press point doesn\u2019t matter \u00b7 <kbd>D</kbd> debug',
         dartsHelp1Html: 'Press, <strong>flick toward the board</strong>, and release. You throw from below the bull, so a gentle flick <strong>up</strong> aims at the centre.',
@@ -47,6 +49,7 @@
         dartsHelp3Html: 'Drag <strong>anywhere</strong> (the press point is ignored). <kbd>D</kbd> debug view \u00b7 <kbd>R</kbd> reset session \u00b7 <kbd>M</kbd> mute.',
         dartsMiss: 'Miss',
         dartsBull: 'Bull',
+        dartsOuterBull: 'Outer Bull',
         dartsBullseye: 'Bullseye',
         dartsShort: 'Too soft — flick to throw',
         dartsThrowUp: 'Flick upward to throw',
@@ -57,18 +60,78 @@
         dartsTotal: '累計',
         dartsDarts: '鏢數',
         dartsDebug: '除錯',
-        dartsReady: '飛鏢 \u00b7 練習',
+        dartsReady: '飛鏢',
         dartsIntro: '按住並朝鏢靶輕甩，放開即擲出。甩的方向與快慢就是這一擲的全部——沒有力量條，也沒有準心。找到一個你能重複的甩法。',
         dartsStartHintHtml: '在<strong>任意處</strong>拖曳——起始點不影響結果 \u00b7 <kbd>D</kbd> 除錯',
         dartsHelp1Html: '按住、朝鏢靶<strong>輕甩</strong>、放開。出手點在紅心下方，所以向<strong>上</strong>輕甩就是瞄準中心。',
         dartsHelp2Html: '關鍵在<strong>放手的瞬間</strong>：最後一刻往側邊帶，鏢就往那偏；甩得稍重則飛得更平、落點更高。同樣的甩法永遠落在同一處——<strong>沒有隨機散佈</strong>。',
         dartsHelp3Html: '在<strong>任意處</strong>拖曳（起始點會被忽略）。<kbd>D</kbd> 除錯視圖 \u00b7 <kbd>R</kbd> 重設本局 \u00b7 <kbd>M</kbd> 靜音。',
         dartsMiss: '脫靶',
-        dartsBull: '外紅心',
+        dartsBull: '紅心',
+        dartsOuterBull: '外紅心',
         dartsBullseye: '紅心',
         dartsShort: '太輕——用甩的',
         dartsThrowUp: '要往上甩才會射出',
         dartsFlickPrompt: '朝鏢靶往上輕甩即可擲出',
+    });
+
+    Object.assign(AC.i18n.STRINGS.en, {
+        dartsMode: 'Mode', dartsPractice: 'Practice', darts501: '501', dartsCricket: 'Cricket', dartsCountup: 'Count-Up',
+        dartsMatch: 'Match', dartsBO1: 'Best of 1', dartsBO3: 'Best of 3', dartsTimer: 'Online turn timer',
+        darts30s: '30 seconds', darts60s: '60 seconds', darts90s: '90 seconds',
+        dartsSolo: 'Solo', dartsLocal: 'Local 1v1', dartsOnline: 'Online 1v1', dartsPlayerA: 'Player A', dartsPlayerB: 'Player B',
+        dartsYou: 'You', dartsGuest: 'Guest', dartsTurn: 'Turn', dartsDart: 'Dart', dartsRound: 'Round', dartsLeg: 'Leg',
+        dartsWaiting: 'Waiting for opponent', dartsYourTurn: 'Your turn', dartsBust: 'BUST — turn score cancelled',
+        dartsCheckout: 'CHECKOUT', dartsTimeout: 'Time up — turn passed', dartsLegWon: 'LEG WON', dartsMatchWon: 'MATCH WON',
+        dartsDraw: 'DRAW — replay this leg', dartsNextLeg: 'Next leg', dartsAgain: 'Play again', dartsResults: 'Results / room',
+        dartsTurnScore: 'Turn score', dartsPoints: 'Points', dartsRemaining: 'Remaining', dartsClosed: 'Closed',
+        dartsAverage: 'Average / 3 darts', dartsBestRound: 'Best round', dartsBulls: 'Bulls', dartsTriple20s: 'Triple 20s',
+        dartsRule501: 'Start at 501. Reach exactly zero with a double or inner Bull. Below zero, one remaining, or a non-double finish busts the whole turn.',
+        dartsRuleCricket: 'Close 20–15 and Bull with three marks each. Extra marks score while your opponent has that target open. Close everything and match or beat their points to win.',
+        dartsRuleCountup: '8 rounds, 3 darts each. Highest total wins. Outer Bull 25, inner Bull 50. A tied online/local leg is replayed with the starter alternating.',
+        dartsRulePractice: 'Unlimited throws. D toggles the gesture and trajectory view.',
+        dartsLocalHint: '501 and Cricket use local 1v1. Count-Up supports solo or local 1v1. For online play, create or join a room.',
+        dartsClose: 'Close', dartsGoogle: 'Sign in with Google', dartsGuestSignIn: 'Play as guest', dartsSignOut: 'Sign out',
+        dartsSignInFirst: 'Sign in to create or join a room.', dartsCreate: 'Create room', dartsCode: 'Code', dartsJoin: 'Join',
+        dartsCopy: 'Copy', dartsCopied: 'Copied!', dartsLeave: 'Leave room', dartsReadyUp: 'Ready', dartsReadyWait: 'Ready — waiting for host',
+        dartsStartMatch: 'Start match', dartsHost: 'Host', dartsReadyTag: 'Ready', dartsOffline: 'Disconnected',
+        dartsHostStarts: 'The host starts when both players are here and the guest is ready.',
+        dartsRematch: 'Rematch', dartsRematchWait: 'Waiting for the host to reset the match.',
+        dartsLeft: 'Opponent left — match won by forfeit.', dartsRoomGone: 'Room closed. Return to solo play.',
+        dartsNetError: 'Connection failed. Check your connection and try again.', dartsNotFound: 'Room not found',
+        dartsFull: 'Room is full', dartsStarted: 'Match already started', dartsUnavailable: 'Online is unavailable',
+        dartsSaved: 'Room settings are fixed until you leave.', dartsThrowRejected: 'Throw not accepted. Check the turn and connection, then try again.',
+        dartsScoreFinal: 'Final score', dartsOfflineSolo: 'Play locally', dartsLegWins: 'Leg wins',
+        dartsMark0: 'Open — no marks', dartsMark1: 'One mark', dartsMark2: 'Two marks', dartsMark3: 'Closed — three marks',
+    });
+    Object.assign(AC.i18n.STRINGS.zh, {
+        dartsMode: '模式', dartsPractice: '自由練習', darts501: '501', dartsCricket: 'Cricket', dartsCountup: 'Count-Up',
+        dartsMatch: '賽制', dartsBO1: '一局決勝', dartsBO3: '三戰兩勝', dartsTimer: '線上每回合時間',
+        darts30s: '30 秒', darts60s: '60 秒', darts90s: '90 秒',
+        dartsSolo: '單人', dartsLocal: '同機雙人', dartsOnline: '線上雙人', dartsPlayerA: '玩家 A', dartsPlayerB: '玩家 B',
+        dartsYou: '你', dartsGuest: '訪客', dartsTurn: '輪到', dartsDart: '第幾鏢', dartsRound: '回合', dartsLeg: '局',
+        dartsWaiting: '等待對手投擲', dartsYourTurn: '輪到你投擲', dartsBust: '爆鏢——本回合得分取消',
+        dartsCheckout: '成功結鏢', dartsTimeout: '時間到——換人投擲', dartsLegWon: '本局獲勝', dartsMatchWon: '對戰獲勝',
+        dartsDraw: '平手——重打本局', dartsNextLeg: '開始下一局', dartsAgain: '再玩一次', dartsResults: '結果／房間',
+        dartsTurnScore: '本回合得分', dartsPoints: '分數', dartsRemaining: '剩餘分數', dartsClosed: '已關閉',
+        dartsAverage: '每三鏢平均', dartsBestRound: '最佳回合', dartsBulls: '紅心次數', dartsTriple20s: '三倍 20 次數',
+        dartsRule501: '從 501 分扣到恰好零分，最後一鏢必須是雙倍區或內紅心。低於零分、剩一分，或未以雙倍區結束，整個回合都不計分。',
+        dartsRuleCricket: '20 到 15 與紅心各需三個記號關閉。對手尚未關閉時，多出的記號可得分。關閉全部目標且分數不低於對手即獲勝。',
+        dartsRuleCountup: '共八回合，每回合三鏢，總分最高者獲勝。外紅心 25 分、內紅心 50 分。雙人平手時重打，並交換先手。',
+        dartsRulePractice: '不限次數投擲。按 D 可切換手勢與軌跡視圖。',
+        dartsLocalHint: '501 與 Cricket 採同機雙人；Count-Up 可選單人或同機雙人。線上遊玩請建立或加入房間。',
+        dartsClose: '關閉', dartsGoogle: '用 Google 登入', dartsGuestSignIn: '以訪客身分遊玩', dartsSignOut: '登出',
+        dartsSignInFirst: '登入後即可建立或加入房間。', dartsCreate: '建立房間', dartsCode: '房號', dartsJoin: '加入',
+        dartsCopy: '複製', dartsCopied: '已複製！', dartsLeave: '離開房間', dartsReadyUp: '準備好了', dartsReadyWait: '已準備，等待房主開始',
+        dartsStartMatch: '開始對戰', dartsHost: '房主', dartsReadyTag: '準備', dartsOffline: '已離線',
+        dartsHostStarts: '兩人到齊且另一位玩家準備好後，由房主開始。',
+        dartsRematch: '再來一場', dartsRematchWait: '等待房主重新開局。',
+        dartsLeft: '對手離開，由你獲勝。', dartsRoomGone: '房間已關閉，已返回本機遊玩。',
+        dartsNetError: '連線失敗，請確認網路後重試。', dartsNotFound: '找不到房間',
+        dartsFull: '房間已滿', dartsStarted: '對戰已經開始', dartsUnavailable: '目前無法連線',
+        dartsSaved: '離開房間後才能更改設定。', dartsThrowRejected: '這一鏢未被接受，請確認回合與連線後重試。',
+        dartsScoreFinal: '最終分數', dartsOfflineSolo: '本機遊玩', dartsLegWins: '勝局',
+        dartsMark0: '尚無記號', dartsMark1: '一個記號', dartsMark2: '兩個記號', dartsMark3: '三個記號，已關閉',
     });
 
     // =================================================================
@@ -358,28 +421,15 @@
     // =================================================================
 
     function scoreAt(bx, by) {
-        var T = TUNING;
-        var r = Math.hypot(bx, by);
-        if (r <= T.rInnerBull) return { score: 50, mult: 1, base: 50, region: 'bullseye', miss: false };
-        if (r <= T.rOuterBull) return { score: 25, mult: 1, base: 25, region: 'bull', miss: false };
-        if (r > T.rDoubleOuter) return { score: 0, mult: 0, base: 0, region: 'miss', miss: true };
-        // sector by angle, clockwise from the 20 at the top
-        var deg = Math.atan2(bx, by) * 180 / Math.PI;    // 0 = up, +90 = right, 180 = down
-        if (deg < 0) deg += 360;
-        var sector = Math.round(deg / 18) % 20;
-        var base = SECTORS[sector];
-        var mult = 1, region = 'single';
-        if (r >= T.rDoubleInner) { mult = 2; region = 'double'; }
-        else if (r >= T.rTripleInner && r <= T.rTripleOuter) { mult = 3; region = 'triple'; }
-        return { score: base * mult, mult: mult, base: base, region: region, miss: false };
+        return Rules.scoreAt(bx, by, TUNING);
     }
 
     function resultLabel(res) {
         if (!res) return '';
         if (res.region === 'miss') return t('dartsMiss');
         if (res.region === 'bullseye') return t('dartsBullseye') + ' 50';
-        if (res.region === 'bull') return t('dartsBull') + ' 25';
-        var prefix = res.mult === 3 ? 'T' : res.mult === 2 ? 'D' : '';
+        if (res.region === 'bull') return t('dartsOuterBull') + ' 25';
+        var prefix = res.mult === 3 ? 'T' : res.mult === 2 ? 'D' : 'S';
         return prefix + res.base + ' = ' + res.score;
     }
 
@@ -393,7 +443,10 @@
     // =================================================================
 
     function canThrow() {
-        return shell && shell.isPlaying() && (G.dartState === 'ready' || G.dartState === 'landed');
+        return shell && shell.isPlaying() && !sending && !(lobby && !lobby.element.hidden) &&
+            (!room || (match && match.status === 'playing' && netUser && match.active === netUser.uid &&
+                Date.now() >= match.readyAt && Date.now() < match.turnStartedAt + match.turnMs)) &&
+            (!match || match.status === 'playing') && (G.dartState === 'ready' || G.dartState === 'landed');
     }
 
     function beginGesture(e) {
@@ -419,6 +472,7 @@
         if (!gesture) return;
         var samples = gesture.samples;
         gesture = null;
+        if (!canThrow()) return;
         var an = analyseGesture(samples);
         if (!an.valid) {
             // Not a throw (tap / too soft / not upward) — keep the dart, but remember it for debug.
@@ -441,6 +495,18 @@
         var th = computeThrow(an);
         var impact = computeImpact(th);
         G.analysis = an;
+        if (room) {
+            sending = true;
+            online.submit(th).then(function (accepted) {
+                if (!accepted) flashHint(t('dartsThrowRejected'));
+            }).catch(showNetError).finally(function () { sending = false; syncGameUi(); });
+            return;
+        }
+        presentThrow(th, impact);
+    }
+
+    function presentThrow(th, impact) {
+        gesture = null;
         G.throw = th;
         G.impact = impact;
         G.traj = sampleTrajectory(th, impact.t);
@@ -471,7 +537,12 @@
             if (G.stuck.length > TUNING.maxStuckDarts) G.stuck.shift();
         }
         sndHit(res);
+        if (match && !room) {
+            match = Rules.throwDart(match, match.active, res, Date.now());
+            viewMatch = match;
+        } else if (room) viewMatch = match;
         syncHud();
+        syncGameUi();
     }
 
     function freshDart() {
@@ -570,13 +641,13 @@
         }
         drawResultBanner();
         drawPrompt();
-        if (TUNING.debug) drawDebug();
+        if (TUNING.debug && !match) drawDebug();
     }
 
     // A standing nudge before the first throw (so a tap-with-no-flick isn't a mystery),
     // plus the transient "too soft" hint. Both sit where the result banner would.
     function drawPrompt() {
-        var showStanding = G.dartState === 'ready' && G.darts === 0 && G.hintT <= 0;
+        var showStanding = canThrow() && G.dartState === 'ready' && G.darts === 0 && G.hintT <= 0;
         if (G.hintT > 0) {
             ctx.save();
             ctx.globalAlpha = Math.min(1, G.hintT / 0.6);
@@ -962,6 +1033,7 @@
         }
         if (dom.total) dom.total.textContent = AC.format.score(G.total);
         if (dom.darts) dom.darts.textContent = String(G.darts);
+        syncGameUi();
     }
 
     function syncDebugBtn() {
@@ -970,6 +1042,7 @@
         dom.debugBtn.setAttribute('aria-pressed', TUNING.debug ? 'true' : 'false');
     }
     function toggleDebug() {
+        if (match) return;
         TUNING.debug = !TUNING.debug;
         syncDebugBtn();
         render();
@@ -979,8 +1052,8 @@
         if (state === 'idle') {
             return {
                 badge: 'target',
-                title: t('dartsReady'),
-                message: t('dartsIntro'),
+                title: t('dartsReady') + ' · ' + modeName(stagedMode),
+                message: t('dartsIntro') + '<br><br>' + ruleText(stagedMode),
                 button: t('play'),
                 hint: t('dartsStartHintHtml'),
             };
@@ -992,7 +1065,239 @@
     // Reset + boot
     // =================================================================
 
+    function modeName(mode) { return t({ practice: 'dartsPractice', '501': 'darts501', cricket: 'dartsCricket', countup: 'dartsCountup' }[mode]); }
+    function ruleText(mode) { return t({ practice: 'dartsRulePractice', '501': 'dartsRule501', cricket: 'dartsRuleCricket', countup: 'dartsRuleCountup' }[mode]); }
+    function playerName(uid) {
+        if (room && room.data) return ((room.data.players || {})[uid] || {}).name || (uid === (netUser || {}).uid ? t('dartsYou') : t('dartsGuest'));
+        if (match && match.players.length === 1) return t('dartsYou');
+        return t(uid === localIds[0] ? 'dartsPlayerA' : 'dartsPlayerB');
+    }
+    function textNode(tag, className, value) {
+        var el = document.createElement(tag); if (className) el.className = className;
+        if (value != null) el.textContent = value; return el;
+    }
+    function syncGameUi() {
+        var panel = document.getElementById('match-panel'); if (!panel) return;
+        var s = viewMatch || match, busy = G.dartState === 'flying', settings = room && room.data && room.data.options;
+        var mode = s ? s.mode : settings ? settings.mode : stagedMode;
+        document.getElementById('mode-description').textContent = ruleText(mode);
+        var locked = !!room || !!(shell && shell.isPlaying());
+        ['mode-select', 'match-select', 'players-select', 'timer-select'].forEach(function (id) { document.getElementById(id).disabled = locked; });
+        document.getElementById('players-setting').hidden = mode !== 'countup' || !!room;
+        document.getElementById('match-setting').hidden = mode === 'practice' || (!room && mode === 'countup' && document.getElementById('players-select').value === 'solo');
+        document.getElementById('timer-setting').hidden = mode === 'practice';
+        document.getElementById('local-hint').hidden = !!room;
+        document.getElementById('debug-btn').hidden = !!s;
+        document.getElementById('session-hud').hidden = !!s;
+        var onlineBtn = document.getElementById('online-btn');
+        onlineBtn.textContent = t(room ? 'dartsResults' : 'dartsOnline');
+        if (settings) {
+            document.getElementById('mode-select').value = settings.mode;
+            document.getElementById('match-select').value = String(settings.bestOf);
+            document.getElementById('timer-select').value = String(settings.turnMs);
+        }
+        panel.hidden = !s;
+        if (!s) return;
+        document.getElementById('match-meta').textContent = modeName(s.mode) + ' · ' + t('dartsLeg') + ' ' + s.leg + ' · ' + t(s.bestOf === 3 ? 'dartsBO3' : 'dartsBO1');
+        var banner = document.getElementById('turn-status');
+        if (s.status === 'over' || s.status === 'between') banner.textContent = s.draw ? t('dartsDraw') :
+            t(s.status === 'over' ? 'dartsMatchWon' : 'dartsLegWon') + ' · ' + playerName(s.status === 'over' ? s.winner : s.legWinner);
+        else banner.textContent = (room ? t(s.active === (netUser || {}).uid ? 'dartsYourTurn' : 'dartsWaiting') + ' · ' : t('dartsTurn') + ' · ') +
+            playerName(s.active) + ' · ' + t('dartsDart') + ' ' + (s.dart + 1) + '/3' +
+            (s.mode === 'countup' ? ' · ' + t('dartsRound') + ' ' + Math.min(8, s.turns[s.active] + 1) + '/8' : '');
+        var timer = document.getElementById('turn-timer');
+        timer.hidden = !room || s.status !== 'playing';
+        timer.textContent = Math.min(s.turnMs / 1000, Math.max(0, Math.ceil((s.turnStartedAt + s.turnMs - Date.now()) / 1000))) + 's';
+        var feedback = document.getElementById('dart-feedback');
+        var last = s.lastDart;
+        feedback.textContent = last ? playerName(last.uid) + ' · ' + resultLabel(last.result) +
+            (last.reason === 'bust' ? ' · ' + t('dartsBust') : last.reason === 'checkout' ? ' · ' + t('dartsCheckout') : '') : '—';
+        feedback.classList.toggle('bust', !!(last && last.reason === 'bust'));
+        if (s.lastTurn && s.lastTurn.reason === 'timeout') feedback.textContent += ' · ' + t('dartsTimeout');
+        document.getElementById('turn-score').textContent = t('dartsTurnScore') + ' · ' + s.turnPoints +
+            (s.lastTurn ? ' / ' + playerName(s.lastTurn.uid) + ' ' + s.lastTurn.points : '');
+        var scores = document.getElementById('player-scores'); scores.replaceChildren();
+        s.players.forEach(function (uid) {
+            var card = textNode('div', 'darts-player' + (uid === s.active && s.status === 'playing' ? ' active' : ''), null);
+            card.append(textNode('span', 'darts-player-name', playerName(uid)), textNode('strong', 'darts-player-score', s.scores[uid]),
+                textNode('span', 'darts-score-label', t(s.mode === '501' ? 'dartsRemaining' : 'dartsPoints')),
+                textNode('span', 'darts-player-legs', t('dartsLegWins') + ' ' + s.wins[uid])); scores.append(card);
+        });
+        var cricket = document.getElementById('cricket-board'); cricket.hidden = s.mode !== 'cricket';
+        if (s.mode === 'cricket') {
+            var table = textNode('table', 'cricket-table'), header = textNode('tr');
+            header.append(textNode('th', '', ''));
+            s.players.forEach(function (uid) { header.append(textNode('th', '', playerName(uid))); });
+            var thead = textNode('thead'); thead.append(header); table.append(thead);
+            var tbody = textNode('tbody');
+            Rules.TARGETS.forEach(function (target) {
+                var fullyClosed = s.players.every(function (uid) { return s.marks[uid][target] === 3; });
+                var row = textNode('tr', fullyClosed ? 'fully-closed' : '');
+                var label = textNode('th', '', target === 25 ? t('dartsBull') : target); label.scope = 'row'; row.append(label);
+                s.players.forEach(function (uid) {
+                    var n = s.marks[uid][target], cell = textNode('td', n === 3 ? 'closed' : '', ['·', '/', '×', '⊗'][n]);
+                    cell.setAttribute('aria-label', t('dartsMark' + n)); cell.title = t('dartsMark' + n); row.append(cell);
+                }); tbody.append(row);
+            }); table.append(tbody); cricket.replaceChildren(table);
+        }
+        var result = document.getElementById('leg-result'); result.hidden = busy || s.status === 'playing';
+        var summary = document.getElementById('result-summary'); summary.replaceChildren();
+        if (!result.hidden) {
+            summary.append(textNode('p', '', s.endReason === 'left' ? t('dartsLeft') : s.draw ? t('dartsDraw') :
+                t('dartsLegWon') + ' · ' + playerName(s.legWinner)));
+            if (s.mode === 'countup') s.players.forEach(function (uid) {
+                var stats = s.stats[uid];
+                summary.append(textNode('p', '', playerName(uid) + ' · ' + t('dartsScoreFinal') + ' ' + s.scores[uid] + ' · ' +
+                    t('dartsAverage') + ' ' + (stats.darts ? stats.points / stats.darts * 3 : 0).toFixed(1) + ' · ' +
+                    t('dartsBestRound') + ' ' + stats.bestRound + ' · ' + t('dartsBulls') + ' ' + stats.bulls + ' · ' +
+                    t('dartsTriple20s') + ' ' + stats.triple20s));
+            });
+        }
+        var nextBtn = document.getElementById('next-leg-btn'); nextBtn.hidden = s.status !== 'between';
+        nextBtn.disabled = busy || sending || !!(room && Date.now() < match.readyAt);
+        document.getElementById('play-again-btn').hidden = s.status !== 'over' || !!room;
+    }
+
+    function setupControls() {
+        function change() {
+            if (room) return;
+            stagedMode = document.getElementById('mode-select').value;
+            stagedBestOf = Number(document.getElementById('match-select').value);
+            stagedTurnMs = Number(document.getElementById('timer-select').value);
+            shell.goIdle();
+        }
+        ['mode-select', 'match-select', 'players-select', 'timer-select'].forEach(function (id) { document.getElementById(id).addEventListener('change', change); });
+        document.getElementById('next-leg-btn').addEventListener('click', function () {
+            if (room) online.nextLeg().catch(showNetError);
+            else { match = Rules.nextLeg(match, Date.now()); viewMatch = match; clearBoard(); syncHud(); }
+        });
+        document.getElementById('play-again-btn').addEventListener('click', function () { shell.goIdle(); });
+    }
+    function clearBoard() {
+        gesture = null; freshDart(); G.stuck = []; G.last = null; G.traj = null; G.analysis = null; camDolly = 0;
+    }
+    function hideShellOverlay() { var overlay = document.getElementById('overlay'); if (overlay) overlay.hidden = true; }
+    function showNetError(error) {
+        var key = { 'room/not-found': 'dartsNotFound', 'room/full': 'dartsFull', 'room/started': 'dartsStarted' }[(error || {}).code] || 'dartsNetError';
+        if (lobby) lobby.refs.status.textContent = t(key);
+        flashHint(t(key));
+        document.getElementById('network-status').textContent = t(key);
+    }
+    function renderLobby() {
+        if (!lobby || !online) return;
+        var service = online.service, data = room && room.data;
+        var model = { title: t('dartsOnline'), closeLabel: t('dartsClose'),
+            status: netUser ? t('dartsHostStarts') : t('dartsSignInFirst'),
+            auth: { text: netUser ? netUser.name || t('dartsGuest') : '', actions: netUser ? [
+                { id: 'sign-out', label: t('dartsSignOut'), onClick: async function () { await leaveRoom(); await net.signOut(); } },
+            ] : [
+                { id: 'sign-in-google', label: t('dartsGoogle'), primary: true, onClick: function () { return net.signInGoogle(); } },
+                { id: 'sign-in-guest', label: t('dartsGuestSignIn'), onClick: function () { return net.signInGuest(); } },
+            ] } };
+        if (netUser && !data) model.entry = { codeLabel: t('dartsCode'),
+            create: { label: t('dartsCreate'), primary: true, onClick: function () {
+                return online.create({ mode: stagedMode === 'practice' ? '501' : stagedMode, bestOf: stagedBestOf, turnMs: stagedTurnMs });
+            } }, join: { label: t('dartsJoin'), onClick: function (code) { return online.join(code); } } };
+        else if (netUser && data) {
+            var action = service.primaryAction(data), primary = null;
+            var actions = { start: ['dartsStartMatch', function () { return online.start(); }],
+                ready: ['dartsReadyUp', function () { return online.ready(); }], rematch: ['dartsRematch', function () { return online.rematch(); }] };
+            if (action && actions[action.kind]) primary = { label: t(actions[action.kind][0]), onClick: actions[action.kind][1], primary: true, disabled: action.disabled };
+            else if (action) primary = { text: t(action.kind === 'wait-rematch' ? 'dartsRematchWait' : 'dartsReadyWait') };
+            if (data.game && data.game.status === 'over') model.title = t('dartsMatchWon') + ' · ' + playerName(data.game.winner);
+            var opts = data.options || {};
+            model.room = { code: room.code, primary: primary,
+                players: service.playerIds(data).map(function (uid) {
+                    var badges = [];
+                    if (uid === service.host(data)) badges.push({ label: t('dartsHost'), tone: 'host' });
+                    if ((data.ready || {})[uid]) badges.push({ label: t('dartsReadyTag'), tone: 'ready' });
+                    if (!online.presence.isAvailable(uid)) badges.push({ label: t('dartsOffline') });
+                    return { uid: uid, name: playerName(uid) + (uid === netUser.uid ? ' (' + t('dartsYou') + ')' : ''), badges: badges };
+                }), notes: [modeName(opts.mode || '501') + ' · ' + t(opts.bestOf === 3 ? 'dartsBO3' : 'dartsBO1') + ' · ' + (opts.turnMs || 60000) / 1000 + 's',
+                    data.game && data.game.endReason === 'left' ? t('dartsLeft') : t('dartsSaved')],
+                copy: { label: t('dartsCopy'), onClick: async function () {
+                    await navigator.clipboard.writeText(room.code); lobby.refs.status.textContent = t('dartsCopied');
+                } }, leave: { label: t('dartsLeave'), onClick: leaveRoom } };
+        }
+        lobby.render(model);
+    }
+    function openLobby() {
+        if (!lobby) return;
+        gesture = null;
+        if (!room && shell.isPlaying()) shell.pause();
+        lobby.element.hidden = false; hideShellOverlay(); renderLobby();
+    }
+    function closeLobby() {
+        lobby.element.hidden = true;
+        if (room && match && match.status === 'over') { leaveRoom().catch(showNetError); return; }
+        if (!room) shell.refreshOverlay();
+    }
+    async function leaveRoom() {
+        var pending = online.leave();
+        room = null; onlineMatchId = null; seenThrow = null; match = null; viewMatch = null; sending = false;
+        document.getElementById('mode-select').value = stagedMode;
+        document.getElementById('match-select').value = String(stagedBestOf);
+        document.getElementById('timer-select').value = String(stagedTurnMs);
+        shell.goIdle(); if (lobby && !lobby.element.hidden) hideShellOverlay(); renderLobby();
+        await pending;
+    }
+    function onRoom(data, activeRoom) {
+        room = activeRoom;
+        document.getElementById('network-status').textContent = '';
+        if (!data || !netUser || !(data.players || {})[netUser.uid]) {
+            if (online) online.leave().catch(showNetError);
+            match = null; viewMatch = null; onlineMatchId = null; seenThrow = null; room = null;
+            shell.goIdle(); document.getElementById('network-status').textContent = t('dartsRoomGone');
+            renderLobby(); return;
+        }
+        var g = data.game || {};
+        if (!g.status) {
+            match = null; viewMatch = null; onlineMatchId = null; seenThrow = null;
+            shell.goIdle(); hideShellOverlay(); lobby.element.hidden = false; renderLobby(); syncGameUi(); return;
+        }
+        var changedMatch = onlineMatchId !== g.matchId;
+        var changedLeg = match && match.leg !== g.leg;
+        match = g;
+        if (changedMatch || changedLeg) {
+            onlineMatchId = g.matchId; seenThrow = null; clearBoard(); G.total = 0; G.darts = 0;
+            viewMatch = g;
+        }
+        if (!shell.isPlaying()) shell.start();
+        // Presence-only snapshots must not replay a flight or close an opened room panel.
+        var event = g.lastThrow;
+        if (event && event.seq !== seenThrow) {
+            seenThrow = event.seq;
+            presentThrow(event.flight, event.impact);
+        } else if (G.dartState !== 'flying') viewMatch = g;
+        if (changedMatch || changedLeg) lobby.element.hidden = true;
+        if (g.endReason === 'left') { viewMatch = g; clearBoard(); }
+        hideShellOverlay(); syncHud(); renderLobby(); shell.syncButtons();
+    }
+    function setupOnline() {
+        function ready() {
+            net = window.ArcadeNet;
+            var btn = document.getElementById('online-btn');
+            if (!net || !net.ok || net.rooms.ok === false) {
+                btn.disabled = true; btn.hidden = true; document.getElementById('network-status').textContent = t('dartsUnavailable'); return;
+            }
+            lobby = net.rooms.lobby({ onClose: closeLobby, onError: showNetError });
+            online = window.createDartsRoom({ net: net, onChange: onRoom, onError: showNetError,
+                resolveThrow: function (th) { var impact = computeImpact(th); return { impact: impact, result: scoreAt(impact.x, impact.y) }; } });
+            net.onAuth(function (user) {
+                if (!user && room) leaveRoom().catch(showNetError);
+                netUser = user ? online.service.currentPlayer() : null; renderLobby();
+            });
+            btn.disabled = false; btn.addEventListener('click', openLobby);
+        }
+        if (window.ArcadeNet) ready(); else window.addEventListener('arcade-net-ready', ready, { once: true });
+        window.addEventListener('pagehide', function () { if (online && room) online.leave().catch(function () {}); });
+    }
+
     function resetSession() {
+        match = room ? (room.data && room.data.game && room.data.game.status ? room.data.game : null) :
+            stagedMode === 'practice' ? null : Rules.create({ mode: stagedMode, bestOf: stagedMode === 'countup' && document.getElementById('players-select').value === 'solo' ? 1 : stagedBestOf },
+                stagedMode === 'countup' && document.getElementById('players-select').value === 'solo' ? localIds.slice(0, 1) : localIds, Date.now());
+        viewMatch = match;
         G.dartState = 'ready';
         G.throw = null; G.analysis = null; G.impact = null; G.result = null; G.traj = null;
         G.flightT = 0; G.resultT = 0; G.trajT = 0;
@@ -1016,6 +1321,10 @@
             reset: resetSession,
             restartToReady: true,
             overlayContent: overlayContent,
+            canPause: function () { return !room; },
+            canRestart: function () { return !room; },
+            onPause: function () { gesture = null; },
+            onStart: function () { syncGameUi(); if (room && !match) openLobby(); },
         });
 
         // Relative gesture: press anywhere in the play zone, move/release on the window so a
@@ -1031,7 +1340,14 @@
             if (e.key === 'd' || e.key === 'D') { toggleDebug(); }
         });
 
-        AC.i18n.subscribe(function () { syncHud(); if (!shell.isPlaying()) shell.refreshOverlay && shell.refreshOverlay(); });
+        AC.i18n.subscribe(function () { syncHud(); renderLobby(); if (lobby && !lobby.element.hidden) hideShellOverlay(); else if (!shell.isPlaying()) shell.refreshOverlay && shell.refreshOverlay(); });
+
+        setupControls();
+        setupOnline();
+        setInterval(function () {
+            if (online) online.tick().catch(showNetError);
+            syncGameUi();
+        }, 1000);
 
         syncDebugBtn();
         resetSession();
