@@ -8,7 +8,21 @@
     'use strict';
     var SECTORS = [20, 1, 18, 4, 13, 6, 10, 15, 2, 17, 3, 19, 7, 16, 8, 11, 14, 9, 12, 5];
     var TARGETS = [20, 19, 18, 17, 16, 15, 25];
+    var HISTORY_LIMIT = 500;
     function copy(value) { return JSON.parse(JSON.stringify(value)); }
+    function recordTurn(s, uid, reason, finished) {
+        var history = s.history || [], entry = { uid: uid, leg: s.leg, turn: s.round,
+            round: s.turns[uid] + 1, darts: (s.turnDarts || []).slice(), points: s.turnPoints,
+            score: s.scores[uid], reason: reason, finished: finished };
+        var last = history[history.length - 1];
+        if (last && last.leg === entry.leg && last.turn === entry.turn && last.uid === uid) history[history.length - 1] = entry;
+        else history.push(entry);
+        if (history.length > HISTORY_LIMIT) {
+            s.historyDropped = (s.historyDropped || 0) + history.length - HISTORY_LIMIT;
+            history = history.slice(-HISTORY_LIMIT);
+        }
+        s.history = history;
+    }
     function contenders(s) { return s.players.filter(function (id) { return !(s.withdrawn || []).includes(id); }); }
     function nextPlayer(s, after) {
         var ids = contenders(s), start = s.players.indexOf(after);
@@ -71,6 +85,7 @@
         var s = Object.assign(options(input), { players: players.slice(), leg: 1, round: 1, seq: 0,
             firstStarter: Number.isInteger(firstStarter) && firstStarter >= 0 && firstStarter < players.length ? firstStarter : 0,
             withdrawn: [],
+            history: [], historyDropped: 0,
             wins: Object.fromEntries(players.map(function (id) { return [id, 0]; })), winner: null });
         resetLeg(s, at || 0); return s;
     }
@@ -84,6 +99,7 @@
     }
     function endTurn(s, at, reason) {
         var uid = s.active;
+        recordTurn(s, uid, reason, true);
         s.turns[uid]++;
         s.stats[uid].bestRound = Math.max(s.stats[uid].bestRound, s.turnPoints);
         s.lastTurn = { uid: uid, points: s.turnPoints, reason: reason, darts: (s.turnDarts || []).slice() };
@@ -127,6 +143,8 @@
                 contenders(s).every(function (id) { return s.scores[uid] >= s.scores[id]; })) finishLeg(s, uid);
         } else s.scores[uid] += r.score;
         s.lastDart = { uid: uid, result: r, reason: reason, dart: s.dart, turnPoints: s.turnPoints };
+        recordTurn(s, uid, reason === 'complete' && s.status !== 'playing' ? 'leg-won' : reason,
+            s.status !== 'playing' || reason === 'bust' || s.dart === 3);
         if (s.status === 'playing' && (reason === 'bust' || s.dart === 3)) endTurn(s, at || 0, reason);
         return s;
     }
@@ -163,6 +181,6 @@
         }
         return s;
     }
-    return { TARGETS: TARGETS, hit: hit, normalize: normalize, scoreAt: scoreAt, options: options,
+    return { TARGETS: TARGETS, HISTORY_LIMIT: HISTORY_LIMIT, hit: hit, normalize: normalize, scoreAt: scoreAt, options: options,
         create: create, throwDart: throwDart, timeout: timeout, nextLeg: nextLeg, contenders: contenders, withdraw: withdraw };
 });

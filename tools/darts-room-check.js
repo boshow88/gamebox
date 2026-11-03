@@ -38,9 +38,11 @@ const createRoom = require('../js/games/darts-room.js');
     const owner = game().active;
     const concurrency = await Promise.all([active().submit(flight()), active().submit(flight())]); await db.flush();
     assert.equal(concurrency.filter(Boolean).length, 1); assert.equal(game().scores[owner], 441); assert.equal(game().dart, 1);
+    assert.equal(game().history.length, 1); assert.equal(game().history[0].darts.length, 1, 'Duplicate submissions cannot duplicate history');
     assert.equal(game().lastThrow.result.label, 'T20'); assert.equal(game().lastThrow.flight.vel.z, 12600);
     assert.equal(await active().submit(flight()), false, 'Presentation cannot be skipped by another write');
     await shoot(20, 3); await shoot(20, 3); assert.notEqual(game().active, owner); assert.equal(game().round, 2);
+    assert.equal(game().history[0].darts.length, 3); assert.equal(game().history[0].finished, true);
     assert.equal(await a.submit(flight(), firstMatch), false, 'Delayed throw from old round is rejected');
     assert.equal(await b.rematch(), false); assert.equal(await a.rematch(), false, 'No rematches during play');
 
@@ -67,6 +69,7 @@ const createRoom = require('../js/games/darts-room.js');
     assert.equal(await b.rematch(), false); assert.equal(await a.rematch(), true); await db.flush();
     assert.deepEqual(get().ready, {}); assert.equal(game().status, undefined);
     await b.ready(); await a.start(); await db.flush(); assert.notEqual(game().matchId, firstMatch.matchId);
+    assert.deepEqual(game().history, [], 'Rematch starts a fresh history in the same room');
     assert.equal(await a.submit(flight(), firstMatch), false);
 
     // Simultaneous watchdogs advance a timed-out turn once and retain landed darts.
@@ -132,6 +135,8 @@ const createRoom = require('../js/games/darts-room.js');
         for (let j = 0; j < 3; j++) { wait(); await clients[game().active].submit(flight(20, 3)); await db.flush(); }
     }
     assert.equal(new Set(seen).size, 4); assert.equal(game().active, seen[0]);
+    assert.equal(game().history.length, 4); assert.equal(new Set(game().history.map(row => row.uid)).size, 4);
+    assert.deepEqual(a.current().data.game.history, b.current().data.game.history, 'All players receive the same accepted history');
     const departed = game().active, departureClient = clients[departed], delayed = { ...game() };
     await departureClient.leave(); await db.flush();
     assert.equal(game().status, 'playing'); assert.equal(Object.keys(get().players).length, 3); assert.notEqual(game().active, departed);

@@ -39,7 +39,7 @@
             if (text != null) node.textContent = text; return node;
         }
         function get(id) { return doc.getElementById(id); }
-        var lastKey = '';
+        var lastKey = '', lastPlayersKey = '';
         function render(m) {
             // Clock updates should not rebuild the table, reset focus, or repeat live announcements.
             get('turn-timer').hidden = m.timer === null;
@@ -62,9 +62,16 @@
                     el('span', 'status-dart', t('dartsDart') + ' ' + m.dart + '/3'));
                 if (m.round) indicator.append(el('span', 'status-round', t('dartsRound') + ' ' + m.round + '/8'));
             }
-            var players = get('player-scores'); players.replaceChildren();
-            m.players.forEach(function (p) {
-                var card = el('div', 'darts-player' + (p.active ? ' active' : '') + (p.left ? ' withdrawn' : ''));
+            var playersKey = JSON.stringify([m.players, m.mode, options.locale()]);
+            if (playersKey !== lastPlayersKey) {
+                lastPlayersKey = playersKey;
+                var focused = doc.activeElement && doc.activeElement.closest('.darts-player');
+                var focusedUid = focused && focused.dataset.playerUid;
+                var players = get('player-scores'); players.replaceChildren();
+                m.players.forEach(function (p) {
+                var card = el('button', 'darts-player' + (p.active ? ' active' : '') + (p.left ? ' withdrawn' : ''));
+                card.type = 'button'; card.setAttribute('aria-haspopup', 'dialog');
+                card.setAttribute('aria-label', p.name + ' · ' + t('dartsHistory'));
                 card.style.setProperty('--player-color', p.color); card.dataset.playerUid = p.id;
                 if (p.active) card.setAttribute('aria-current', 'true');
                 var seat = el('span', 'player-seat', p.seat); seat.setAttribute('aria-hidden', 'true');
@@ -74,7 +81,12 @@
                 card.append(seat, name, score);
                 if (m.mode !== 'practice') card.append(el('span', 'darts-player-legs', p.left ? t('dartsWithdrawn') : t('dartsLegWins') + ' ' + p.legs));
                 players.append(card);
-            });
+                });
+                if (focusedUid) {
+                    var replacement = Array.from(players.children).find(function (card) { return card.dataset.playerUid === focusedUid; });
+                    if (replacement) replacement.focus({ preventScroll: true });
+                }
+            }
             get('player-score-label').textContent = t(m.mode === '501' ? 'dartsRemaining' : m.mode === 'practice' ? 'dartsDarts' : 'dartsPoints');
             var cricket = m.mode === 'cricket';
             get('cricket-board').hidden = !cricket; get('turn-panel').hidden = cricket || m.mode === 'practice';

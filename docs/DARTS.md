@@ -6,6 +6,7 @@ mode rules and immutable turn/leg/match transitions. `darts-room.js` supplies th
 game policy for the existing `ArcadeNet.rooms` service and RTDB adapter.
 `darts-hud.js` maps shared state into player/turn/mode presentation data and renders
 the components; responsive composition lives in `css/darts.css`.
+`darts-history.js` owns the accessible, scrollable player/all-player history dialog.
 
 ## Gameplay viewport
 
@@ -13,9 +14,11 @@ The same fixed viewport holds essential gameplay information in every mode.
 Above 760px, players occupy the left column, the board the centre and the mode
 panel the right. At narrower widths, a compact 2x2 player summary sits above the
 board and the mode panel sits below it. The mobile viewport is portrait (3:5),
-desktop is landscape (3:2); active play fits within the available viewport height.
-Starting play hides page settings/help and scrolls the game into view. Restart
-returns to setup. No mobile/desktop scoring branches are needed.
+desktop is landscape (3:2). The page header stays visible and the game fits in the
+remaining screen height from the initial ready screen onward. Start/Restart do
+not hide page sections, change viewport geometry or force a scroll. Settings,
+rules/help and detailed post-leg statistics live in a Settings dialog available
+from the persistent game toolbar. No mobile/desktop scoring branches are needed.
 
 Panel bounds stay constant across Practice, 501, Cricket and Count-Up. Primary
 scores appear only in the player summary. The mode panel shows three individual
@@ -25,12 +28,37 @@ without long names in table headers. Current player, dart, mode, leg/round and
 optional timer remain visible. Completed turns retain their three results under
 an explicit "Last turn" label until the next player throws.
 
-Only a pointer-down in `#throw-surface` can begin a throw. HUDs, controls and result
-overlays are outside that input surface; movements/releases can continue across
-the window. Secondary pointers are ignored and resize cancels a gesture. The
+Pointer-downs in `#throw-surface` or `#mode-panel` can begin a throw, allowing a
+mobile flick to start below the board. Buttons, links, inputs, player cards and
+result overlays keep normal interaction. History/Settings dialogs block throwing
+behind them; history scrolling uses native vertical touch scrolling. Movements
+and releases can continue across the window. Secondary pointers are ignored and
+resize cancels a gesture. The
 renderer is cropped around the existing board centre, without changing gesture
 maths, tuning or ballistics. Backing resolution follows its display size. Detailed
-Count-Up statistics are expandable after a leg, outside the live HUD.
+Count-Up statistics are expandable after a leg inside Settings.
+
+## Throw history
+
+Click a player card for that player's records, or History for the entire roster.
+The dialog filters by player and shows newest turns first: leg, per-player round,
+three individual hits, effective turn points, resulting score, and bust/checkout/
+timeout/departure/in-progress status. Reading history does not pause an online
+turn; a visible note explains this while its timer is running.
+
+Rules maintain `game.history` and `game.historyDropped` in the same guarded
+transaction as scoring. Each turn is appended once and updated as its darts land;
+rejected or duplicate submissions cannot create extra records. History survives
+leg changes and brief reconnects, but a new match/rematch clears it. Departed
+players keep their names through the existing match roster. Practice records
+landed throws in local session memory. There is no profile or permanent archive.
+
+To bound RTDB room payloads, retain the latest 500 turns per match, or 500 throws
+in Practice. A visible notice appears if older records were trimmed. An open
+history dialog refreshes without resetting its filter, focus or the visible row
+when new records arrive. Native modal focus trapping, Escape/Close and restored
+player-card focus support touch and keyboard use. Game shortcuts do not propagate
+out of these dialogs.
 
 ## Modes and outcomes
 

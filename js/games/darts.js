@@ -31,7 +31,7 @@
     var room = null, lobby = null, sending = false, seenThrow = null, onlineMatchId = null;
     var stagedMode = 'practice', stagedBestOf = 1, stagedTurnMs = 60000;
     var localIds = ['local-a', 'local-b', 'local-c', 'local-d'];
-    var hud = null;
+    var hud = null, historyView = null;
 
     // =================================================================
     // i18n (gameplay strings; launcher card strings live in launcher.js)
@@ -44,10 +44,10 @@
         dartsDebug: 'Debug',
         dartsReady: 'Darts',
         dartsIntro: 'Press and flick toward the board, then release to throw. The flick\u2019s direction and pace are the whole throw \u2014 no power meter, no crosshair. Find a flick you can repeat.',
-        dartsStartHintHtml: 'Drag inside the <strong>board area</strong> \u2014 the press point doesn\u2019t matter \u00b7 <kbd>D</kbd> debug',
+        dartsStartHintHtml: 'Drag in the <strong>board or mode panel</strong> \u2014 the press point doesn\u2019t matter \u00b7 <kbd>D</kbd> debug',
         dartsHelp1Html: 'Press, <strong>flick toward the board</strong>, and release. You throw from below the bull, so a gentle flick <strong>up</strong> aims at the centre.',
         dartsHelp2Html: 'The <strong>release</strong> is what counts: pull sideways at the last moment and the dart drifts that way; flick a touch harder and it flies flatter and higher. The same flick always lands the same \u2014 <strong>no random spread</strong>.',
-        dartsHelp3Html: 'Drag inside the <strong>board area</strong> (the press point is ignored). <kbd>D</kbd> debug view \u00b7 <kbd>R</kbd> reset session \u00b7 <kbd>M</kbd> mute.',
+        dartsHelp3Html: 'Start a throw in the <strong>board or mode panel</strong>. Player cards and History open scrollable records. <kbd>D</kbd> debug \u00b7 <kbd>R</kbd> reset \u00b7 <kbd>M</kbd> mute.',
         dartsMiss: 'Miss',
         dartsBull: 'Bull',
         dartsOuterBull: 'Outer Bull',
@@ -63,10 +63,10 @@
         dartsDebug: '除錯',
         dartsReady: '飛鏢',
         dartsIntro: '按住並朝鏢靶輕甩，放開即擲出。甩的方向與快慢就是這一擲的全部——沒有力量條，也沒有準心。找到一個你能重複的甩法。',
-        dartsStartHintHtml: '在<strong>鏢靶區內</strong>拖曳——起始點不影響結果 \u00b7 <kbd>D</kbd> 除錯',
+        dartsStartHintHtml: '在<strong>鏢靶或模式欄內</strong>拖曳——起始點不影響結果 \u00b7 <kbd>D</kbd> 除錯',
         dartsHelp1Html: '按住、朝鏢靶<strong>輕甩</strong>、放開。出手點在紅心下方，所以向<strong>上</strong>輕甩就是瞄準中心。',
         dartsHelp2Html: '關鍵在<strong>放手的瞬間</strong>：最後一刻往側邊帶，鏢就往那偏；甩得稍重則飛得更平、落點更高。同樣的甩法永遠落在同一處——<strong>沒有隨機散佈</strong>。',
-        dartsHelp3Html: '在<strong>鏢靶區內</strong>拖曳（起始點會被忽略）。<kbd>D</kbd> 除錯視圖 \u00b7 <kbd>R</kbd> 重設本局 \u00b7 <kbd>M</kbd> 靜音。',
+        dartsHelp3Html: '可從<strong>鏢靶或模式欄內</strong>開始甩鏢。點玩家字卡或「紀錄」可查看並捲動投擲紀錄。<kbd>D</kbd> 除錯 \u00b7 <kbd>R</kbd> 重設 \u00b7 <kbd>M</kbd> 靜音。',
         dartsMiss: '脫靶',
         dartsBull: '紅心',
         dartsOuterBull: '外紅心',
@@ -107,6 +107,11 @@
         dartsSaved: 'Room settings are fixed until you leave.', dartsThrowRejected: 'Throw not accepted. Check the turn and connection, then try again.',
         dartsScoreFinal: 'Final score', dartsOfflineSolo: 'Play locally', dartsLegWins: 'Leg wins',
         dartsMark0: 'Open — no marks', dartsMark1: 'One mark', dartsMark2: 'Two marks', dartsMark3: 'Closed — three marks',
+        dartsSettings: 'Settings', dartsHistory: 'History', dartsPlayers: 'Players', dartsAllPlayers: 'All players',
+        dartsSettingsHint: 'Restart to change settings during a game. Online room settings are fixed until you leave.',
+        dartsHistoryEmpty: 'No throws recorded yet.', dartsThrow: 'Throw', dartsInProgress: 'Turn in progress',
+        dartsHistoryClock: 'The online turn timer continues while viewing history.',
+        dartsHistoryLimit: 'Older records were trimmed. Showing the latest 500 turns, or 500 throws in Practice.',
     });
     Object.assign(AC.i18n.STRINGS.zh, {
         dartsMode: '模式', dartsPractice: '自由練習', darts501: '501', dartsCricket: 'Cricket', dartsCountup: 'Count-Up',
@@ -139,6 +144,11 @@
         dartsSaved: '離開房間後才能更改設定。', dartsThrowRejected: '這一鏢未被接受，請確認回合與連線後重試。',
         dartsScoreFinal: '最終分數', dartsOfflineSolo: '本機遊玩', dartsLegWins: '勝局',
         dartsMark0: '尚無記號', dartsMark1: '一個記號', dartsMark2: '兩個記號', dartsMark3: '三個記號，已關閉',
+        dartsSettings: '設定', dartsHistory: '紀錄', dartsPlayers: '玩家', dartsAllPlayers: '所有玩家',
+        dartsSettingsHint: '遊戲中需先重新開始才能修改設定；線上房間需先離開才能更改設定。',
+        dartsHistoryEmpty: '尚無投擲紀錄。', dartsThrow: '投擲', dartsInProgress: '本回合進行中',
+        dartsHistoryClock: '查看紀錄時，線上回合仍會繼續倒數。',
+        dartsHistoryLimit: '較舊紀錄已省略，目前顯示最近 500 個回合；自由練習則為最近 500 鏢。',
     });
 
     // =================================================================
@@ -247,6 +257,8 @@
         total: 0,             // session points
         darts: 0,             // session throws
         last: null,           // last result (for the HUD)
+        practiceHistory: [],
+        practiceHistoryDropped: 0,
         hint: null,           // transient on-canvas message (e.g. "too soft")
         hintT: 0,             // seconds the hint lingers
     };
@@ -448,7 +460,7 @@
     // =================================================================
 
     function canThrow() {
-        return shell && shell.isPlaying() && !sending && !(lobby && !lobby.element.hidden) &&
+        return shell && shell.isPlaying() && !sending && !document.querySelector('.darts-dialog[open]') && !(lobby && !lobby.element.hidden) &&
             (!room || (match && match.status === 'playing' && netUser && match.active === netUser.uid &&
                 Date.now() >= match.readyAt && Date.now() < match.turnStartedAt + match.turnMs)) &&
             (!match || match.status === 'playing') && (G.dartState === 'ready' || G.dartState === 'landed');
@@ -547,6 +559,11 @@
             match = Rules.throwDart(match, match.active, res, Date.now());
             viewMatch = match;
         } else if (room) viewMatch = match;
+        else {
+            G.practiceHistory.push({ uid: 'practice', leg: 0, turn: G.darts, round: 0, darts: [res],
+                points: res.score, score: G.total, reason: 'complete', finished: true });
+            if (G.practiceHistory.length > Rules.HISTORY_LIMIT) { G.practiceHistory.shift(); G.practiceHistoryDropped++; }
+        }
         syncHud();
         syncGameUi();
     }
@@ -563,7 +580,8 @@
     // the window so a gesture that strays off the board still completes (like Bullet Storm).
     function onPointerDown(e) {
         if (!canThrow() || gesture || e.isPrimary === false || e.button > 0) return;
-        if (e.target.closest && e.target.closest('button, a, .overlay')) return;
+        if (!e.target.closest || !e.target.closest('#throw-surface, #mode-panel')) return;
+        if (e.target.closest('button, a, input, select, textarea, summary, [role="button"], .overlay, .leg-result')) return;
         AC.audio.unlock();
         beginGesture(e);
         if (e.cancelable) e.preventDefault();
@@ -1022,7 +1040,7 @@
             return {
                 badge: 'target',
                 title: t('dartsReady') + ' · ' + modeName(stagedMode),
-                message: t('dartsIntro') + '<br><br>' + ruleText(stagedMode),
+                message: t('dartsPracticeTip'),
                 button: t('play'),
                 hint: t('dartsStartHintHtml'),
             };
@@ -1050,7 +1068,6 @@
         var s = viewMatch || match, settings = room && room.data && room.data.options;
         var mode = s ? s.mode : settings ? settings.mode : stagedMode;
         var locked = !!room || !!(shell && shell.state !== 'idle');
-        document.body.classList.toggle('darts-active', !!(shell && shell.state !== 'idle'));
         document.getElementById('mode-description').textContent = ruleText(mode);
         ['mode-select', 'match-select', 'players-select', 'timer-select'].forEach(function (id) { document.getElementById(id).disabled = locked; });
         var solo = document.getElementById('players-select').value === '1';
@@ -1080,6 +1097,7 @@
                     ' · ' + t('dartsBulls') + ' ' + p.bulls + ' · ' + t('dartsTriple20s') + ' ' + p.triple20s));
             });
         }
+        if (historyView) historyView.refresh();
     }
 
     function setupControls() {
@@ -1099,6 +1117,19 @@
         });
         document.getElementById('play-again-btn').addEventListener('click', function () { shell.goIdle(); });
         document.getElementById('result-room-btn').addEventListener('click', openLobby);
+        document.getElementById('history-btn').addEventListener('click', function () { historyView.open(); });
+        document.getElementById('player-scores').addEventListener('click', function (event) {
+            var card = event.target.closest('.darts-player');
+            if (card) historyView.open(card.dataset.playerUid);
+        });
+        var settings = document.getElementById('settings-dialog');
+        function closeSettings() { settings.close(); document.getElementById('settings-btn').focus({ preventScroll: true }); }
+        document.getElementById('settings-btn').addEventListener('click', function () { gesture = null; if (!settings.open) settings.showModal(); });
+        document.getElementById('settings-close-btn').addEventListener('click', closeSettings);
+        settings.addEventListener('cancel', function (event) { event.preventDefault(); closeSettings(); });
+        document.querySelectorAll('.darts-dialog').forEach(function (dialog) {
+            dialog.addEventListener('keydown', function (event) { event.stopPropagation(); });
+        });
     }
     function clearBoard() {
         gesture = null; freshDart(); G.stuck = []; G.last = null; G.traj = null; G.analysis = null; camDolly = 0;
@@ -1231,6 +1262,7 @@
         G.flightT = 0; G.resultT = 0; G.trajT = 0;
         G.stuck = [];
         G.total = 0; G.darts = 0; G.last = null;
+        G.practiceHistory = []; G.practiceHistoryDropped = 0;
         G.hint = null; G.hintT = 0;
         gesture = null;
         syncHud();
@@ -1241,6 +1273,14 @@
         hud = window.DartsHud.create({ document: document, t: t, resultLabel: resultLabel, modeName: modeName,
             locale: function () { return AC.i18n.locale; }, isOnline: function () { return !!room; },
             myUid: function () { return (netUser || {}).uid; }, isFlying: function () { return G.dartState === 'flying'; } });
+        historyView = window.createDartsHistory({ document: document, t: t, resultLabel: resultLabel,
+            locale: function () { return AC.i18n.locale; }, cancelGesture: function () { gesture = null; },
+            data: function () {
+                var s = viewMatch || match;
+                return { players: s ? s.players.map(function (id) { return { id: id, name: playerName(id) }; }) : [{ id: 'practice', name: t('dartsYou') }],
+                    mode: s ? s.mode : 'practice', online: !!room && !!s && s.status === 'playing', entries: s ? s.history || [] : G.practiceHistory,
+                    dropped: s ? s.historyDropped || 0 : G.practiceHistoryDropped };
+            } });
         fitCanvas();
         window.addEventListener('resize', function () { gesture = null; fitCanvas(); render(); });
 
@@ -1256,14 +1296,10 @@
             canPause: function () { return !room; },
             canRestart: function () { return !room; },
             onPause: function () { gesture = null; },
-            onStart: function () { syncGameUi(); fitCanvas(); window.scrollTo(0, 0); if (room && !match) openLobby(); },
+            onStart: function () { syncGameUi(); fitCanvas(); if (room && !match) openLobby(); },
         });
-        // The page topbar is hidden during a match; retain the shared sound control here.
-        document.getElementById('sound-btn').hidden = false;
-
-        // Relative gesture: press anywhere in the play zone, move/release on the window so a
-        // flick that leaves the board still throws.
-        var pad = document.querySelector('.stage-pad') || canvas;
+        // Delegate only board/mode-panel presses; controls and dialogs retain normal input.
+        var pad = document.getElementById('match-panel');
         pad.addEventListener('pointerdown', onPointerDown, { passive: false });
         window.addEventListener('pointermove', onPointerMove, { passive: false });
         window.addEventListener('pointerup', onPointerUp);

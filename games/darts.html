@@ -32,105 +32,118 @@
             </div>
         </header>
 
-        <section class="darts-settings darts-page-controls" aria-label="Game settings">
-            <label><span data-i18n="dartsMode">Mode</span>
-                <select id="mode-select">
-                    <option value="practice" data-i18n="dartsPractice">Practice</option>
-                    <option value="501" data-i18n="darts501">501</option>
-                    <option value="cricket" data-i18n="dartsCricket">Cricket</option>
-                    <option value="countup" data-i18n="dartsCountup">Count-Up</option>
-                </select>
-            </label>
-            <label id="players-setting"><span data-i18n="dartsOfflineSolo">Play locally</span>
-                <select id="players-select"><option value="1" data-i18n="dartsSolo">Solo</option><option value="2" data-i18n="dartsLocal2">2 players</option><option value="3" data-i18n="dartsLocal3">3 players</option><option value="4" data-i18n="dartsLocal4">4 players</option></select>
-            </label>
-            <label id="match-setting"><span data-i18n="dartsMatch">Match</span>
-                <select id="match-select"><option value="1" data-i18n="dartsBO1">Best of 1</option><option value="3" data-i18n="dartsBO3">Best of 3</option></select>
-            </label>
-            <label id="timer-setting"><span data-i18n="dartsTimer">Turn timer</span>
-                <select id="timer-select"><option value="30000" data-i18n="darts30s">30 seconds</option><option value="60000" selected data-i18n="darts60s">60 seconds</option><option value="90000" data-i18n="darts90s">90 seconds</option></select>
-            </label>
-        </section>
-        <section class="darts-viewport" id="match-panel" aria-label="Darts game">
-            <header class="viewport-header">
-                <div class="darts-game-status">
-                    <div class="darts-match-meta" id="match-meta"></div>
-                    <div class="darts-turn-line"><strong id="turn-status" role="status" aria-live="polite"></strong><span id="turn-timer" hidden></span></div>
+        <div class="darts-stage-slot">
+            <section class="darts-viewport" id="match-panel" aria-label="Darts game">
+                <header class="viewport-header">
+                    <div class="darts-game-status">
+                        <div class="darts-match-meta" id="match-meta"></div>
+                        <div class="darts-turn-line"><strong id="turn-status" role="status" aria-live="polite"></strong><span id="turn-timer" hidden></span></div>
+                    </div>
+                    <div class="viewport-controls">
+                        <button class="btn" id="settings-btn" type="button" aria-haspopup="dialog" data-i18n="dartsSettings">Settings</button>
+                        <button class="btn" id="history-btn" type="button" aria-haspopup="dialog" data-i18n="dartsHistory">History</button>
+                        <button class="btn" id="online-btn" type="button" disabled data-i18n="dartsOnline">Online</button>
+                        <button class="btn toggle" id="debug-btn" type="button" aria-pressed="false" data-i18n-aria-label="dartsDebug" data-i18n-title="dartsDebug" title="Debug">
+                            <span data-icon="target" aria-hidden="true"></span>
+                            <span data-i18n="dartsDebug">Debug</span>
+                        </button>
+                        <button class="btn" id="pause-btn" type="button" data-i18n-aria-label="pause" disabled>
+                            <span data-icon="pause" aria-hidden="true"></span>
+                            <span data-role="pause-label" data-i18n="pause">Pause</span>
+                        </button>
+                        <button class="btn" id="restart-btn" type="button" data-i18n-aria-label="restart" disabled>
+                            <span data-icon="rotate-ccw" aria-hidden="true"></span>
+                            <span data-i18n="restart">Restart</span>
+                        </button>
+                        <button class="btn btn-icon toggle" id="sound-btn" type="button" aria-pressed="true" data-i18n-title="sound" title="Sound">
+                            <span data-role="sound-icon" aria-hidden="true"></span>
+                        </button>
+                    </div>
+                </header>
+                <aside class="darts-players" aria-label="Players">
+                    <div class="panel-caption" id="player-score-label"></div>
+                    <div class="darts-player-scores" id="player-scores"></div>
+                </aside>
+                <div class="board-region">
+                    <div class="stage-pad" id="throw-surface" aria-label="Throw area">
+                        <canvas class="stage-canvas drag-stage" id="stage" width="480" height="600" role="img" aria-label="Dartboard"></canvas>
+                    </div>
+                    <div class="hit-toast" id="hit-toast" aria-hidden="true" hidden></div>
+                    <div class="leg-result" id="leg-result" hidden>
+                        <h2 id="result-title"></h2><strong id="result-winner"></strong><p id="result-reason"></p>
+                        <button class="btn btn-primary" id="next-leg-btn" type="button" data-i18n="dartsNextLeg">Next leg</button>
+                        <button class="btn btn-primary" id="play-again-btn" type="button" data-i18n="dartsAgain">Play again</button>
+                        <button class="btn btn-primary" id="result-room-btn" type="button" data-i18n="dartsResults">Results / room</button>
+                    </div>
+                    <div class="overlay" id="overlay" hidden>
+                        <div class="overlay-card">
+                            <span class="overlay-badge" id="overlay-badge" aria-hidden="true"></span>
+                            <h2 class="overlay-title" id="overlay-title"></h2>
+                            <p class="overlay-message" id="overlay-message"></p>
+                            <button class="btn btn-primary overlay-btn" id="overlay-btn" type="button"></button>
+                            <p class="overlay-hint" id="overlay-hint"></p>
+                        </div>
                 </div>
-                <div class="viewport-controls">
-                    <a class="btn btn-icon" href="../index.html" data-i18n-title="menu"><span data-icon="arrow-left" aria-hidden="true"></span></a>
-                    <button class="btn" id="online-btn" type="button" disabled data-i18n="dartsOnline">Online</button>
-                    <button class="btn toggle" id="debug-btn" type="button" aria-pressed="false" data-i18n-aria-label="dartsDebug" data-i18n-title="dartsDebug" title="Debug">
-                        <span data-icon="target" aria-hidden="true"></span>
-                        <span data-i18n="dartsDebug">Debug</span>
-                    </button>
-                    <button class="btn" id="pause-btn" type="button" data-i18n-aria-label="pause" disabled>
-                        <span data-icon="pause" aria-hidden="true"></span>
-                        <span data-role="pause-label" data-i18n="pause">Pause</span>
-                    </button>
-                    <button class="btn" id="restart-btn" type="button" data-i18n-aria-label="restart" disabled>
-                        <span data-icon="rotate-ccw" aria-hidden="true"></span>
-                        <span data-i18n="restart">Restart</span>
-                    </button>
-                    <button class="btn btn-icon toggle" id="sound-btn" type="button" aria-pressed="true" data-i18n-title="sound" title="Sound">
-                        <span data-role="sound-icon" aria-hidden="true"></span>
-                    </button>
                 </div>
-            </header>
-            <aside class="darts-players" aria-label="Players">
-                <div class="panel-caption" id="player-score-label"></div>
-                <div class="darts-player-scores" id="player-scores"></div>
-            </aside>
-            <div class="board-region">
-                <div class="stage-pad" id="throw-surface" aria-label="Throw area">
-                    <canvas class="stage-canvas drag-stage" id="stage" width="480" height="600" role="img" aria-label="Dartboard"></canvas>
-                </div>
-                <div class="hit-toast" id="hit-toast" aria-hidden="true" hidden></div>
-                <div class="leg-result" id="leg-result" hidden>
-                    <h2 id="result-title"></h2><strong id="result-winner"></strong><p id="result-reason"></p>
-                    <button class="btn btn-primary" id="next-leg-btn" type="button" data-i18n="dartsNextLeg">Next leg</button>
-                    <button class="btn btn-primary" id="play-again-btn" type="button" data-i18n="dartsAgain">Play again</button>
-                    <button class="btn btn-primary" id="result-room-btn" type="button" data-i18n="dartsResults">Results / room</button>
-                </div>
-            </div>
-            <aside class="darts-mode-panel" id="mode-panel" aria-label="Mode information">
-                <div id="cricket-board" hidden></div>
-                <div class="turn-panel" id="turn-panel">
-                    <div class="panel-caption" id="turn-owner"></div>
-                    <div class="turn-darts" id="turn-darts"></div>
-                    <strong id="turn-score"></strong>
-                </div>
-                <div class="practice-panel" id="practice-panel">
-                    <span class="panel-caption" data-i18n="dartsLast">Last</span><strong id="practice-hit">—</strong>
-                    <span class="panel-caption" data-i18n="dartsReleaseSpeed">Release speed</span><span id="practice-speed">—</span>
-                    <span class="practice-tip" data-i18n="dartsPracticeTip">Press, flick upward, release.</span>
-                </div>
-                <p id="dart-feedback" role="status" aria-live="polite"></p>
-                <p id="network-status" role="status"></p>
-            </aside>
-            <div class="overlay" id="overlay" hidden>
-                <div class="overlay-card">
-                    <span class="overlay-badge" id="overlay-badge" aria-hidden="true"></span>
-                    <h2 class="overlay-title" id="overlay-title"></h2>
-                    <p class="overlay-message" id="overlay-message"></p>
-                    <button class="btn btn-primary overlay-btn" id="overlay-btn" type="button"></button>
-                    <p class="overlay-hint" id="overlay-hint"></p>
-                </div>
-            </div>
-        </section>
+                <aside class="darts-mode-panel" id="mode-panel" aria-label="Mode information">
+                    <div id="cricket-board" hidden></div>
+                    <div class="turn-panel" id="turn-panel">
+                        <div class="panel-caption" id="turn-owner"></div>
+                        <div class="turn-darts" id="turn-darts"></div>
+                        <strong id="turn-score"></strong>
+                    </div>
+                    <div class="practice-panel" id="practice-panel">
+                        <span class="panel-caption" data-i18n="dartsLast">Last</span><strong id="practice-hit">—</strong>
+                        <span class="panel-caption" data-i18n="dartsReleaseSpeed">Release speed</span><span id="practice-speed">—</span>
+                        <span class="practice-tip" data-i18n="dartsPracticeTip">Press, flick upward, release.</span>
+                    </div>
+                    <p id="dart-feedback" role="status" aria-live="polite"></p>
+                    <p id="network-status" role="status"></p>
+                </aside>
+            </section>
+        </div>
 
-        <details class="darts-postgame" id="stats-details" hidden><summary data-i18n="dartsStatistics">Statistics</summary><div id="result-summary"></div></details>
-
-        <section class="game-footer darts-page-controls">
-            <h4 data-i18n="howToPlay">How to play</h4>
-            <p class="darts-rule" id="mode-description"></p>
-            <p class="darts-rule" id="local-hint" data-i18n="dartsLocalHint"></p>
-            <ul>
-                <li data-i18n="dartsHelp1Html">Press, <strong>flick toward the board</strong>, and release. You throw from below the bull, so a gentle flick <strong>up</strong> aims at the centre.</li>
-                <li data-i18n="dartsHelp2Html">The <strong>release</strong> is what counts: pull sideways at the last moment and the dart drifts that way; flick a touch harder and it flies flatter and higher. The same flick always lands the same — <strong>no random spread</strong>.</li>
-                <li data-i18n="dartsHelp3Html">Drag <strong>anywhere</strong> (the press point is ignored). <kbd>D</kbd> debug view · <kbd>R</kbd> reset session · <kbd>M</kbd> mute.</li>
-            </ul>
-        </section>
+        <dialog class="darts-dialog" id="settings-dialog" aria-labelledby="settings-title">
+            <header class="dialog-header"><h2 id="settings-title" data-i18n="dartsSettings">Settings</h2><button class="btn" id="settings-close-btn" type="button" data-i18n="dartsClose" autofocus>Close</button></header>
+            <section class="darts-settings" aria-label="Game settings">
+                <label><span data-i18n="dartsMode">Mode</span>
+                    <select id="mode-select">
+                        <option value="practice" data-i18n="dartsPractice">Practice</option>
+                        <option value="501" data-i18n="darts501">501</option>
+                        <option value="cricket" data-i18n="dartsCricket">Cricket</option>
+                        <option value="countup" data-i18n="dartsCountup">Count-Up</option>
+                    </select>
+                </label>
+                <label id="players-setting"><span data-i18n="dartsOfflineSolo">Play locally</span>
+                    <select id="players-select"><option value="1" data-i18n="dartsSolo">Solo</option><option value="2" data-i18n="dartsLocal2">2 players</option><option value="3" data-i18n="dartsLocal3">3 players</option><option value="4" data-i18n="dartsLocal4">4 players</option></select>
+                </label>
+                <label id="match-setting"><span data-i18n="dartsMatch">Match</span>
+                    <select id="match-select"><option value="1" data-i18n="dartsBO1">Best of 1</option><option value="3" data-i18n="dartsBO3">Best of 3</option></select>
+                </label>
+                <label id="timer-setting"><span data-i18n="dartsTimer">Turn timer</span>
+                    <select id="timer-select"><option value="30000" data-i18n="darts30s">30 seconds</option><option value="60000" selected data-i18n="darts60s">60 seconds</option><option value="90000" data-i18n="darts90s">90 seconds</option></select>
+                </label>
+            </section>
+            <p class="darts-rule" data-i18n="dartsSettingsHint">Restart to change settings during a game.</p>
+            <details class="darts-postgame" id="stats-details" hidden><summary data-i18n="dartsStatistics">Statistics</summary><div id="result-summary"></div></details>
+            <section class="game-footer">
+                <h4 data-i18n="howToPlay">How to play</h4>
+                <p class="darts-rule" id="mode-description"></p>
+                <p class="darts-rule" id="local-hint" data-i18n="dartsLocalHint"></p>
+                <ul>
+                    <li data-i18n="dartsHelp1Html">Press, <strong>flick toward the board</strong>, and release. You throw from below the bull, so a gentle flick <strong>up</strong> aims at the centre.</li>
+                    <li data-i18n="dartsHelp2Html">The <strong>release</strong> is what counts: pull sideways at the last moment and the dart drifts that way; flick a touch harder and it flies flatter and higher. The same flick always lands the same — <strong>no random spread</strong>.</li>
+                    <li data-i18n="dartsHelp3Html">Drag <strong>anywhere</strong> (the press point is ignored). <kbd>D</kbd> debug view · <kbd>R</kbd> reset session · <kbd>M</kbd> mute.</li>
+                </ul>
+            </section>
+        </dialog>
+        <dialog class="darts-dialog history-dialog" id="history-dialog" aria-labelledby="history-title">
+            <header class="dialog-header"><h2 id="history-title" data-i18n="dartsHistory">History</h2><button class="btn" id="history-close-btn" type="button" data-i18n="dartsClose" autofocus>Close</button></header>
+            <label class="history-filter"><span data-i18n="dartsPlayers">Players</span><select id="history-player"></select></label>
+            <p class="darts-rule" id="history-clock-note" data-i18n="dartsHistoryClock" hidden>The online turn timer continues while viewing history.</p>
+            <p class="darts-rule" id="history-limit-note"></p>
+            <div class="history-list" id="history-list" tabindex="0" role="region" data-i18n-aria-label="dartsHistory"></div>
+        </dialog>
     </div>
 
     <script src="../js/arcade.js"></script>
@@ -139,6 +152,7 @@
     <script src="../js/games/darts-rules.js"></script>
     <script src="../js/games/darts-room.js"></script>
     <script src="../js/games/darts-hud.js"></script>
+    <script src="../js/games/darts-history.js"></script>
     <script src="../js/games/darts.js"></script>
 </body>
 

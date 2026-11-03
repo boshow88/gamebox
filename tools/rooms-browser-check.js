@@ -267,9 +267,11 @@ async function checkDartsLayouts() {
         let baseline;
         for(const [mode,players] of cases){
             doc.getElementById('restart-btn').click();change('mode-select',mode);change('players-select',players);
+            await sleep(20);const ready=box('#match-panel'),readyBoard=box('#throw-surface'),readyHeader=box('.game-topbar');
             doc.getElementById('overlay-btn').click();await sleep(30);
             if(mode==='cricket')api.previewCricket();
             const viewport=box('#match-panel'),board=box('#throw-surface'),panel=box('#mode-panel'),summary=box('.darts-players');
+            if([...viewport,...board,...box('.game-topbar')].some((value,i)=>Math.abs(value-[...ready,...readyBoard,...readyHeader][i])>.6))throw new Error('Start changed page geometry at '+width+' '+mode);
             within(viewport,[0,0,w.innerWidth,w.innerHeight],width+' '+mode);
             within(board,viewport,'board');within(panel,viewport,'mode panel');within(summary,viewport,'player summary');
             const dimensions=[...board,...panel,...summary];
@@ -284,8 +286,8 @@ async function checkDartsLayouts() {
                 if(doc.getElementById('mode-panel').scrollHeight>doc.getElementById('mode-panel').clientHeight+1)throw new Error('Cricket panel overflows');
             }
             if(mode!=='practice'&&!doc.querySelector('.status-dart').textContent.includes('1/3'))throw new Error('Dart count is not visible');
-            // HUD drags do not start a gesture or spend a dart.
-            doc.getElementById('mode-panel').dispatchEvent(new w.PointerEvent('pointerdown',{bubbles:true,clientX:40,clientY:400,pointerId:1,isPrimary:true}));
+            // The player/header HUD stays outside the expanded throw surface.
+            doc.querySelector('.darts-players').dispatchEvent(new w.PointerEvent('pointerdown',{bubbles:true,clientX:40,clientY:400,pointerId:1,isPrimary:true}));
             w.dispatchEvent(new w.PointerEvent('pointermove',{clientX:40,clientY:100,pointerId:1,isPrimary:true}));
             w.dispatchEvent(new w.PointerEvent('pointerup',{clientX:40,clientY:100,pointerId:1,isPrimary:true}));
             if(api.snapshot().darts!==0||api.snapshot().dartState==='flying')throw new Error('HUD interaction threw a dart');
@@ -297,6 +299,60 @@ async function checkDartsLayouts() {
         doc.getElementById('overlay-btn').click();await sleep(100);
         api.previewCricket();await sleep(30);
     }else f.remove();
+}
+async function checkDartsInteractions() {
+    const f=frame('darts','history-player');f.style.width='390px';f.style.height='844px';
+    await until(()=>f.contentWindow.__dartsTest&&f.contentDocument.getElementById('lobby'),'interaction boot');
+    const w=f.contentWindow,doc=f.contentDocument,api=w.__dartsTest;
+    w.focus();
+    w.ArcadeCommon.i18n.setLocale('en');
+    async function flick(target){
+        const r=target.getBoundingClientRect(),x=r.left+r.width/2,y=r.bottom-8;
+        target.dispatchEvent(new w.PointerEvent('pointerdown',{bubbles:true,clientX:x,clientY:y,pointerId:1,isPrimary:true}));
+        await sleep(60);w.dispatchEvent(new w.PointerEvent('pointermove',{clientX:x,clientY:y-60,pointerId:1,isPrimary:true}));
+        await sleep(60);w.dispatchEvent(new w.PointerEvent('pointermove',{clientX:x,clientY:y-140,pointerId:1,isPrimary:true}));
+        w.dispatchEvent(new w.PointerEvent('pointerup',{clientX:x,clientY:y-140,pointerId:1,isPrimary:true}));api.land();
+    }
+    doc.getElementById('overlay-btn').click();
+    await flick(doc.getElementById('mode-panel'));if(api.snapshot().darts!==1)throw new Error('Bottom mode panel cannot start a throw');
+    await flick(doc.getElementById('throw-surface'));if(api.snapshot().darts!==2)throw new Error('Board input regression');
+    doc.querySelector('.darts-player').click();
+    if(!doc.getElementById('history-dialog').open||doc.getElementById('history-player').value!=='practice'||doc.querySelectorAll('.history-turn').length!==2)throw new Error('Practice/player history');
+    if(w.getComputedStyle(doc.getElementById('history-list')).touchAction!=='pan-y')throw new Error('History list must scroll');
+    await flick(doc.getElementById('mode-panel'));if(api.snapshot().darts!==2)throw new Error('History modal allowed a background throw');
+    doc.getElementById('history-dialog').dispatchEvent(new w.KeyboardEvent('keydown',{key:'r',bubbles:true}));
+    if(api.snapshot().darts!==2)throw new Error('History shortcut restarted game');
+    doc.getElementById('history-close-btn').click();
+    await until(()=>doc.activeElement.classList.contains('darts-player'),'history player focus restored');
+    doc.getElementById('restart-btn').click();doc.getElementById('settings-btn').click();
+    if(!doc.getElementById('settings-dialog').open)throw new Error('Settings are inaccessible');
+    for(const [id,value] of [['mode-select','countup'],['players-select','4']]){doc.getElementById(id).value=value;doc.getElementById(id).dispatchEvent(new w.Event('change'));}
+    doc.getElementById('settings-close-btn').click();doc.getElementById('overlay-btn').click();
+    for(let i=0;i<72;i++){api.gesture();api.land();}
+    if(api.snapshot().match.history.length!==24)throw new Error('History duplicated per-dart records instead of updating turn');
+    doc.querySelector('.darts-player').click();
+    if(doc.querySelectorAll('.history-turn').length!==6)throw new Error('Player history filter');
+    const filter=doc.getElementById('history-player');filter.value='all';filter.dispatchEvent(new w.Event('change'));
+    if(doc.querySelectorAll('.history-turn').length!==24)throw new Error('All-player history');
+    const list=doc.getElementById('history-list');
+    if(list.scrollHeight<=list.clientHeight)throw new Error('History does not have a scrollable body');
+    list.scrollTop=200;const anchor=[...list.children].find(el=>el.getBoundingClientRect().bottom>list.getBoundingClientRect().top);
+    const key=anchor.dataset.historyKey,offset=anchor.getBoundingClientRect().top;
+    // Feed an accepted update while the reader is inspecting an older row.
+    api.gesture();api.land();
+    const kept=[...list.children].find(el=>el.dataset.historyKey===key);
+    if(Math.abs(kept.getBoundingClientRect().top-offset)>1)throw new Error('Live history update jumped the scroll position');
+    const before=api.snapshot().darts;await flick(list);if(api.snapshot().darts!==before)throw new Error('History scrolling threw a dart');
+    doc.getElementById('history-close-btn').click();doc.getElementById('history-btn').click();
+    if(filter.value!=='all')throw new Error('Global History button must show all players');
+    doc.getElementById('history-dialog').dispatchEvent(new w.Event('cancel',{cancelable:true}));
+    if(doc.getElementById('history-dialog').open||doc.activeElement.id!=='history-btn')throw new Error('Escape/cancel did not close history and restore toolbar focus');
+    doc.getElementById('settings-btn').click();if(!doc.getElementById('mode-select').disabled)throw new Error('Active settings changed rules');
+    await flick(doc.getElementById('mode-panel'));if(api.snapshot().darts!==before)throw new Error('Settings modal allowed a throw');
+    doc.getElementById('settings-close-btn').click();
+    doc.getElementById('restart-btn').click();doc.getElementById('history-btn').click();
+    if(doc.querySelectorAll('.history-turn').length)throw new Error('Reset retained old history');
+    doc.getElementById('history-close-btn').click();f.remove();
 }
 async function checkDartsFour() {
     const frames=[0,1,2,3].map(i=>frame('darts','four-'+i));
@@ -330,6 +386,11 @@ async function checkDartsFour() {
         }
     }
     if(new Set(seen).size!==4)throw new Error('Turns did not rotate through four players');
+    for(const f of frames){
+        f.contentDocument.getElementById('history-btn').click();
+        if(f.contentDocument.querySelectorAll('.history-turn').length!==4||f.contentDocument.getElementById('history-clock-note').hidden)throw new Error('Four-player synchronized history');
+        f.contentDocument.getElementById('history-close-btn').click();
+    }
     const hostId=api(frames[0]).snapshot().uid;
     await api(frames[0]).controller().leave();
     await until(()=>read().hostUid!==hostId&&read().game.withdrawn.includes(hostId),'multi-player host departure');
@@ -354,10 +415,10 @@ async function checkDartsFour() {
         }
     } else {
         const codec = await import('/js/net/rtdb-values.mjs'); encode = codec.encodeRoomValue; decode = codec.decodeRoomValue;
-        if(dartsOnly) { await checkDarts(); await checkDartsFour(); await checkDartsLayouts(); }
+        if(dartsOnly) { await checkDarts(); await checkDartsFour(); await checkDartsInteractions(); await checkDartsLayouts(); }
         else { await check('beam', 'beam_rooms', 'beam'); await check('rune-stones', 'duel_rooms', 'rd'); }
     }
-    document.getElementById('result').textContent = 'PASS (' + mode + '): ' + (mode === 'invalid' ? 'disabled online rooms and working account profiles.' : dartsOnly ? 'Darts pointer gesture, solo completion, 2/4-player online flow, rematches/departures, translations, HUD interaction safety and stable 320/390/768/1200px layouts across modes.' : 'real browser room flows, backend selection and account isolation.');
+    document.getElementById('result').textContent = 'PASS (' + mode + '): ' + (mode === 'invalid' ? 'disabled online rooms and working account profiles.' : dartsOnly ? 'Darts board/bottom-panel flicks, stable ready/playing layouts, settings, player/all-player history, live scrolling/focus safety, and 2/4-player room flows.' : 'real browser room flows, backend selection and account isolation.');
 })().catch(error => { document.getElementById('result').textContent = 'FAIL: ' + error.stack; });
 </script>`;
 

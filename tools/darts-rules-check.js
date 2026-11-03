@@ -118,6 +118,27 @@ s = R.withdraw(s, 'D', 8000); assert.equal(s.status, 'between'); assert.equal(s.
 assert.equal(R.create({}, four, 0, 3).active, 'D');
 assert.throws(() => create('501', 1, ['A', 'B', 'C', 'D', 'E']));
 
+// History is updated once per turn, retains prior legs and records effective scoring.
+s = remaining(60, 3); s = dart(s, 20); s = dart(s, 20);
+assert.equal(s.history.length, 1); assert.equal(s.history[0].darts.length, 2); assert.equal(s.history[0].finished, false);
+s = dart(s, 20, 3);
+assert.equal(s.history.length, 1); assert.equal(s.history[0].reason, 'bust'); assert.equal(s.history[0].points, 0);
+assert.equal(s.history[0].score, 60); assert.equal(s.history[0].darts.length, 3); assert.equal(s.history[0].finished, true);
+s.scores.B = s.turnStartScore = 40; s = dart(s, 20, 2);
+assert.equal(s.history[1].reason, 'checkout'); assert.equal(s.history[1].score, 0);
+s = R.nextLeg(s, 9000); assert.equal(s.history.length, 2); s = dart(s, 1);
+assert.equal(s.history[2].leg, 2); assert.equal(s.history[2].round, 1);
+s = create('cricket', 1, four); s = dart(s, 20, 3);
+assert.equal(s.history[0].points, 0, 'Cricket closing marks do not duplicate raw board points');
+s = dart(s, 20, 3); assert.equal(s.history[0].points, 60); assert.equal(s.history[0].score, 60);
+s = R.timeout(s, 9000); assert.equal(s.history[0].reason, 'timeout'); assert.equal(s.history[0].points, 60);
+s = R.withdraw(s, s.active, 10000); assert.equal(s.history[1].reason, 'left'); assert.equal(s.history[1].darts.length, 0);
+s = create('501');
+for (let i = 0; i < R.HISTORY_LIMIT + 2; i++) s = R.timeout(s, i * 60000);
+assert.equal(s.history.length, R.HISTORY_LIMIT); assert.equal(s.historyDropped, 2);
+assert.equal(s.history[0].turn, 3);
+assert.equal(create().history.length, 0, 'A fresh match clears history');
+
 // Execute the real physics independently of DOM/rendering and compare with the original
 // implementation's expected trajectory. This catches accidental changes to the skill mechanic.
 const sandbox = { window: { DartsRules: R, ArcadeCommon: { i18n: { STRINGS: { en: {}, zh: {} }, t: k => k },
