@@ -14,7 +14,7 @@
             body: function (name) { return 'To ' + name + ': today\'s candle ceremony is duly recorded as complete. Your anniversary notice remains available; repeat proceedings are expressly permitted.'; },
             enter: 'Revisit the birthday proceedings', seal: 'COMPLETED' },
         zh: { title: '慶生程序業已完成，准予再次辦理。',
-            body: function (name) { return name + ' 閣下：今日吹蠟燭儀式業已完成，祝賀函仍可閱覽；如有再玩一場之需求，本處准予續辦。'; },
+            body: function (name) { return name + ' 閣下：今日吹蠟燭儀式業已完成，祝賀函仍可閱覽；如有續辦需求，本處准予再次受理。'; },
             enter: '重返生日慶祝專案', seal: '辦理完竣' },
     };
     function isBirthday(value, today) {

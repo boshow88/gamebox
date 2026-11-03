@@ -69,8 +69,9 @@
     }
     function mount(options) {
         var root = options.element, copy = options.copy, reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-        var alive = true, finished = false, frame = null, aim = null, pointer = null, last = 0, keyboardInput = false;
-        var angle = 0, keys = { left: false, right: false, blow: false };
+        var alive = true, finished = false, frame = null, aim = null, pointer = null, last = 0;
+        var angle = 0, directionSource = 'pointer', directClient = null, lastMouseClient = null;
+        var keys = { left: false, right: false, blow: false };
         root.classList.add('birthday-cake-game');
         var stage = document.createElement('div'); stage.className = 'birthday-cake-stage';
         stage.tabIndex = 0; stage.setAttribute('role', 'group'); stage.setAttribute('aria-label', copy.keyboardControls);
@@ -123,13 +124,14 @@
         }
         function needsFrame() {
             return alive && !finished && document.visibilityState !== 'hidden'
-                && (aim || keys.left || keys.right || candles.some(function (candle) { return candle.life > 0 && (candle.life < 1 || candle.destination); }));
+                && (aim || directionSource === 'keyboard' && (keys.left || keys.right)
+                    || candles.some(function (candle) { return candle.life > 0 && (candle.life < 1 || candle.destination); }));
         }
         function wake() {
             if (frame === null && needsFrame()) { last = performance.now(); frame = requestAnimationFrame(tick); }
         }
         function stop() {
-            aim = null; pointer = null; keyboardInput = false; keys.left = keys.right = keys.blow = false;
+            aim = null; pointer = null; keys.left = keys.right = keys.blow = false;
             wind.classList.remove('is-blowing', 'is-aiming');
             if (frame !== null) cancelAnimationFrame(frame); frame = null;
             candles.forEach(function (candle) { renderCandle(candle, false); });
@@ -140,8 +142,8 @@
             frame = null;
             if (!alive || finished || document.visibilityState === 'hidden') { stop(); return; }
             var dt = Math.min(.05, Math.max(0, (time - last) / 1000)); last = time;
-            if (keyboardInput) updateKeyboard(dt);
-            var changed = false, wasKeyboard = keyboardInput;
+            updateInput(dt);
+            var changed = false, wasKeyboard = keys.blow || directionSource === 'keyboard';
             candles.forEach(function (candle) {
                 if (candle.life <= 0) return;
                 stepCandle(candle, aim, dt, candles);
@@ -166,46 +168,66 @@
                 strokes[i].setAttribute('d', 'M' + sx + ' ' + sy + 'Q' + (sx + ux * 110 - uy * offset * 9) + ' ' + (sy + uy * 110 + ux * offset * 9) + ' ' + (sx + ux * 310) + ' ' + (sy + uy * 310));
             });
         }
-        function pointAt(point) {
-            if (!alive || finished || document.visibilityState === 'hidden') return;
-            aim = point; keyboardInput = false; keys.left = keys.right = keys.blow = false;
-            angle = Math.max(-.82, Math.min(.82, Math.atan2(point.x - ORIGIN.x, ORIGIN.y - point.y)));
-            drawWind(point); wind.classList.remove('is-aiming'); wind.classList.add('is-blowing');
-            wake();
-        }
-        function updateKeyboard(dt) {
-            angle = Math.max(-.82, Math.min(.82, angle + (Number(keys.right) - Number(keys.left)) * .95 * dt));
+        function updateInput(dt) {
+            if (directionSource === 'keyboard') angle = Math.max(-.82, Math.min(.82, angle + (Number(keys.right) - Number(keys.left)) * .95 * dt));
             var point = { x: ORIGIN.x + Math.sin(angle) * 310, y: ORIGIN.y - Math.cos(angle) * 310 };
-            aim = keys.blow ? point : null;
-            drawWind(point); wind.classList.toggle('is-blowing', keys.blow);
-            wind.classList.toggle('is-aiming', !keys.blow && (keys.left || keys.right));
+            if (directionSource === 'pointer' && directClient) {
+                point = fromPointer(directClient);
+                angle = Math.max(-.82, Math.min(.82, Math.atan2(point.x - ORIGIN.x, ORIGIN.y - point.y)));
+            }
+            var blowing = keys.blow || pointer !== null;
+            aim = blowing ? point : null;
+            drawWind(point); wind.classList.toggle('is-blowing', blowing);
+            wind.classList.toggle('is-aiming', !blowing && directionSource === 'keyboard' && (keys.left || keys.right));
         }
         function fromPointer(event) {
             var bounds = stage.getBoundingClientRect();
             return { x: (event.clientX - bounds.left) / bounds.width * 480, y: (event.clientY - bounds.top) / bounds.height * 390 };
         }
         stage.addEventListener('pointerdown', function (event) {
-            if (pointer !== null || (event.pointerType === 'mouse' && event.button !== 0)) return;
+            if (!alive || finished || document.hidden || pointer !== null || (event.pointerType === 'mouse' && event.button !== 0)) return;
             event.preventDefault(); pointer = event.pointerId;
             stage.focus({ preventScroll: true });
             try { stage.setPointerCapture(pointer); } catch (e) { /* synthetic test pointers have no capture */ }
-            pointAt(fromPointer(event));
+            directClient = { clientX: event.clientX, clientY: event.clientY }; directionSource = 'pointer';
+            if (event.pointerType === 'mouse') lastMouseClient = directClient;
+            updateInput(0); wake();
         });
-        stage.addEventListener('pointermove', function (event) { if (event.pointerId === pointer) pointAt(fromPointer(event)); });
+        stage.addEventListener('pointermove', function (event) {
+            if (event.pointerType === 'mouse' || event.pointerId !== pointer) return;
+            directClient = { clientX: event.clientX, clientY: event.clientY }; directionSource = 'pointer';
+            updateInput(0); wake();
+        });
+        function mouseMoved(event) {
+            if (!alive || finished || document.hidden || event.pointerType !== 'mouse') return;
+            if (lastMouseClient && event.clientX === lastMouseClient.clientX && event.clientY === lastMouseClient.clientY) return;
+            lastMouseClient = { clientX: event.clientX, clientY: event.clientY };
+            directClient = lastMouseClient; directionSource = 'pointer';
+            updateInput(0); wake();
+        }
+        window.addEventListener('pointermove', mouseMoved, { passive: true });
         ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(function (name) {
-            stage.addEventListener(name, function (event) { if (event.pointerId === pointer) stop(); });
+            stage.addEventListener(name, function (event) {
+                if (event.pointerId !== pointer) return;
+                pointer = null; updateInput(0); wake();
+            });
         });
         stage.addEventListener('keydown', function (event) {
             var key = event.key === 'ArrowLeft' ? 'left' : event.key === 'ArrowRight' ? 'right' : event.key === ' ' ? 'blow' : null;
             if (!key || event.altKey || event.ctrlKey || event.metaKey) return;
             event.preventDefault();
-            if (pointer !== null || !alive || finished || document.hidden) return;
-            keyboardInput = true; keys[key] = true; updateKeyboard(0); wake();
+            if (!alive || finished || document.hidden) return;
+            // Only a fresh steering press claims direction; key repeats cannot
+            // override a mouse move that has since taken control.
+            if (key !== 'blow' && !keys[key]) directionSource = 'keyboard';
+            keys[key] = true; updateInput(0); wake();
         });
         stage.addEventListener('keyup', function (event) {
             var key = event.key === 'ArrowLeft' ? 'left' : event.key === 'ArrowRight' ? 'right' : event.key === ' ' ? 'blow' : null;
-            if (!key || !keyboardInput) return;
-            event.preventDefault(); keys[key] = false; updateKeyboard(0); wake();
+            if (!key) return;
+            event.preventDefault(); keys[key] = false;
+            if (!alive || finished) return;
+            updateInput(0); wake();
         });
         stage.addEventListener('focusout', stop);
         function onVisibility() { if (document.visibilityState === 'hidden') stop(); else wake(); }
@@ -217,7 +239,7 @@
                 stage.setAttribute('aria-label', copy.keyboardControls);
                 status.textContent = copy.remaining(candles.filter(function (candle) { return candle.life > 0; }).length);
             },
-            destroy: function () { alive = false; stop(); document.removeEventListener('visibilitychange', onVisibility); window.removeEventListener('blur', stop); root.replaceChildren(); },
+            destroy: function () { alive = false; stop(); document.removeEventListener('visibilitychange', onVisibility); window.removeEventListener('blur', stop); window.removeEventListener('pointermove', mouseMoved); root.replaceChildren(); },
         };
     }
     window.GameBoxBirthdayCake = { mount: mount, windHits: windHits, stepCandle: stepCandle, footprintOnCake: footprintOnCake };

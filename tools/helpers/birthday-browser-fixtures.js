@@ -75,19 +75,51 @@ function setDate(f, date) { f.contentWindow.birthdayTestDate = date; f.contentDo
         const circle = candle.querySelector('.birthday-flame circle'), matrix = candle.transform.baseVal.consolidate();
         return { x: Number(circle.getAttribute('cx')) + (matrix ? matrix.matrix.e : 0), y: Number(circle.getAttribute('cy')) + (matrix ? matrix.matrix.f : 0) };
     }
-    function pointer(type, candle, pointerType = 'touch') {
-        const point = modelPoint(candle), svg = stage.querySelector('svg'), local = svg.createSVGPoint();
+    function pointEvent(type, point, pointerType = 'mouse', target = stage) {
+        const svg = stage.querySelector('svg'), local = svg.createSVGPoint();
         local.x = point.x; local.y = point.y;
         const screen = local.matrixTransform(svg.getScreenCTM());
-        stage.dispatchEvent(new a.contentWindow.PointerEvent(type, { pointerId: 7, pointerType, button: 0, clientX: screen.x, clientY: screen.y, bubbles: true, cancelable: true }));
+        target.dispatchEvent(new a.contentWindow.PointerEvent(type, { pointerId: 7, pointerType, button: 0, clientX: screen.x, clientY: screen.y, bubbles: true, cancelable: true }));
     }
+    function pointer(type, candle, pointerType = 'touch') { pointEvent(type, modelPoint(candle), pointerType); }
     function key(type, value) { stage.dispatchEvent(new a.contentWindow.KeyboardEvent(type, { key: value, bubbles: true, cancelable: true })); }
+    function windAngle() {
+        const numbers = stage.querySelectorAll('.birthday-wind path')[1].getAttribute('d').match(/[-+]?\\d*\\.?\\d+(?:e[-+]?\\d+)?/g).map(Number);
+        return Math.atan2(numbers[numbers.length - 2] - 240, 367 - numbers[numbers.length - 1]);
+    }
+    const blowing = () => stage.querySelector('.birthday-wind').classList.contains('is-blowing');
     if (stage.querySelector('button') || stage.tabIndex !== 0) throw new Error('Keyboard must focus the whole cake without per-candle targets');
     key('keydown', 'Enter'); await sleep(100); key('keyup', 'Enter');
     if (stage.querySelector('.birthday-wind').classList.contains('is-blowing')) throw new Error('Enter must not blow directly at a candle');
     key('keydown', 'ArrowRight'); await sleep(150); key('keyup', 'ArrowRight');
     if (a.contentWindow.getComputedStyle(stage).outlineStyle !== 'none') throw new Error('Keyboard input must not frame the entire cake');
     if (stage.querySelector('.birthday-wind').classList.contains('is-blowing') || stage.querySelector('.is-out')) throw new Error('Arrow steering alone must not extinguish candles');
+    const mouseAim = { x: 310, y: 120 }, reclaimedAim = { x: 160, y: 120 };
+    pointEvent('pointermove', mouseAim, 'mouse', a.contentWindow); key('keydown', ' ');
+    const cursorAngle = Math.atan2(mouseAim.x - 240, 367 - mouseAim.y);
+    if (!blowing() || Math.abs(windAngle() - cursorAngle) > .001) throw new Error('Space must blow toward an unpressed mouse position');
+    key('keydown', 'ArrowRight'); await sleep(90);
+    if (!blowing() || windAngle() < cursorAngle + .025) throw new Error('Arrow press must take direction while Space remains held');
+    pointEvent('pointermove', reclaimedAim);
+    const reclaimedAngle = Math.atan2(reclaimedAim.x - 240, 367 - reclaimedAim.y);
+    stage.dispatchEvent(new a.contentWindow.KeyboardEvent('keydown', { key: 'ArrowRight', repeat: true, bubbles: true, cancelable: true }));
+    await sleep(90);
+    if (!blowing() || Math.abs(windAngle() - reclaimedAngle) > .001) throw new Error('Mouse movement must retain control despite a held/repeating arrow');
+    key('keyup', ' ');
+    if (blowing()) throw new Error('Space release must stop wind after mouse reclaims direction');
+    key('keyup', 'ArrowRight'); key('keydown', ' ');
+    pointEvent('pointerdown', mouseAim); pointEvent('pointerup', mouseAim);
+    if (!blowing()) throw new Error('Mouse release must not interrupt held Space');
+    key('keyup', ' ');
+    pointEvent('pointerdown', mouseAim); key('keydown', ' '); key('keyup', ' ');
+    if (!blowing()) throw new Error('Space release must not interrupt held mouse');
+    const pressedAngle = windAngle(); key('keydown', 'ArrowLeft'); await sleep(90);
+    if (!blowing() || windAngle() > pressedAngle - .025) throw new Error('Arrow control must also work while the mouse button is held');
+    pointEvent('pointermove', reclaimedAim); key('keyup', 'ArrowLeft'); pointEvent('pointerup', reclaimedAim);
+    if (blowing()) throw new Error('Releasing both wind inputs must stop wind');
+    key('keydown', ' '); a.contentWindow.dispatchEvent(new a.contentWindow.Event('blur'));
+    if (blowing()) throw new Error('Focus loss must clear mixed input');
+    key('keyup', ' ');
     const first = stage.querySelector('.birthday-candle[data-candle="0"]');
     const firstHome = modelPoint(first).x;
     pointer('pointerdown', first);
@@ -126,8 +158,7 @@ function setDate(f, date) { f.contentWindow.birthdayTestDate = date; f.contentDo
         const started = performance.now();
         while (!isOut(candle) && performance.now() - started < 6000) {
             checkCakeGeometry();
-            const point = modelPoint(candle), numbers = stage.querySelectorAll('.birthday-wind path')[1].getAttribute('d').match(/[-+]?\\d*\\.?\\d+(?:e[-+]?\\d+)?/g).map(Number);
-            const current = Math.atan2(numbers[numbers.length - 2] - 240, 367 - numbers[numbers.length - 1]);
+            const point = modelPoint(candle), current = windAngle();
             const delta = Math.atan2(point.x - 240, 367 - point.y) - current;
             const next = delta > .025 ? 'ArrowRight' : delta < -.025 ? 'ArrowLeft' : null;
             if (next !== heldArrow) { if (heldArrow) key('keyup', heldArrow); if (next) key('keydown', next); heldArrow = next; }
@@ -144,7 +175,8 @@ function setDate(f, date) { f.contentWindow.birthdayTestDate = date; f.contentDo
     await sleep(300);
     if (doc.querySelector('.birthday-finale[open]') || unlit().length) throw new Error('All extinguished candles must be visible during the completion pause');
     await until(() => doc.querySelector('.birthday-finale[open]'), 'completion notice');
-    if (performance.now() - finishedAt < 1000) throw new Error('Completion pause was too short');
+    const completionDelay = performance.now() - finishedAt;
+    if (completionDelay < 700 || completionDelay > 1100) throw new Error('Completion pause must be approximately 0.8 seconds: ' + completionDelay);
     if (doc.activeElement.id !== 'birthday-complete-title') throw new Error('Dialog must focus its heading rather than an action button');
     const finale = doc.querySelector('.birthday-finale');
     for (const [width, height] of [[768, 900], [320, 480]]) {

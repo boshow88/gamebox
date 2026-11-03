@@ -89,10 +89,14 @@ client-side event presentation, not server-authoritative reward authorization.
 The local SVG cake has five candles. Hold mouse/touch over its area and move to
 aim a breeze from the bottom-center wind icon. Direction and held time determine
 which candles go out. Keyboard users focus the cake as one control, use Left/Right
-to steer at 0.95 radians/second, and hold Space to blow along that direction.
+to steer at 0.95 radians/second, and hold Space to blow. Space initially uses the
+latest mouse position, including unpressed mouse movement. A fresh Left/Right
+press takes control of direction; subsequent mouse movement takes control back,
+even while a steering key remains held. Key repeats do not reclaim control.
+Mouse/touch presses and Space independently sustain wind, so releasing one does
+not interrupt the other. Losing focus or hiding the page clears all held inputs.
 There is no per-candle focus, target lock, Enter shortcut or stationary keyboard
-mode. Steering alone previews the direction without blowing. Release, focus loss
-or page hiding clears held inputs. Visible instructions stay short and do not
+mode. Steering alone previews the direction without blowing. Visible instructions stay short and do not
 reveal the evasion or recovery mechanics; keyboard instructions label the control.
 Candles repeatedly choose destinations outside the current wind cone and avoid
 crowding their neighbors. Motion is limited to 52 SVG units horizontally and 12
@@ -121,7 +125,7 @@ There is no microphone permission. Remaining candles are announced accessibly.
 After all candles are extinguished, a formal completion dialog offers return to
 the homepage or another candle procedure with five fresh flames. The formal
 letter can also be revisited without leaving the game.
-All five extinguished candles remain visible for 1.2 seconds before the dialog
+All five extinguished candles remain visible for 0.8 seconds before the dialog
 opens; completion is recorded immediately. The delay restarts on returning from
 a hidden tab, and leaving the cake, restarting, signing out or navigating away
 cancels a pending dialog. Initial dialog focus goes to its heading so a held
