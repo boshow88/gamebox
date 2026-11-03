@@ -11,8 +11,10 @@ ceremony column side by side. Mobile notice pages show a small, clickable
 cue near the bottom safe area while content remains below the viewport. Its short
 caption points toward the candle ceremony after the letter, or to repeat
 proceedings after completion, in both languages. The cue is a native link to the
-start button at the bottom of the ceremony section; it scrolls and moves focus
-there without starting the game. It has a minimum 44px touch height. There is no
+start button at the bottom of the ceremony section. Normal activation moves
+focus without jumping and smoothly scrolls to the bottom, without starting the
+game. Reduced-motion mode uses immediate positioning; modified clicks retain
+native link behavior. It has a minimum 44px touch height. There is no
 separate jump link below the page heading. The cue hides at the end
 of the reading path, when the final start button is fully visible, and during
 the candle game or a dialog. Scrolling, viewport changes and content resizing

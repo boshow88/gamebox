@@ -204,6 +204,14 @@
             profile = data; failed = false; clearTimeout(loadingTimer); refresh();
         });
     }
+    el('birthday-scroll-cue').addEventListener('click', function (event) {
+        if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+        event.preventDefault();
+        if (!eligible() || scene !== 'notice' || this.hidden || finale) return;
+        el('birthday-start').focus({ preventScroll: true });
+        window.scrollTo({ top: Math.max(document.documentElement.scrollHeight, document.body.scrollHeight),
+            behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' });
+    });
     el('birthday-start').addEventListener('click', startCake);
     el('birthday-read-again').addEventListener('click', function () { cancelCompletion(); if (cake) cake.destroy(); cake = null; scene = 'notice'; paint(); });
     el('birthday-sign-in').addEventListener('click', function () {
