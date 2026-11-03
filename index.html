@@ -6,6 +6,7 @@
     <title>GameBox</title>
     <link rel="icon" type="image/svg+xml" href="./favicon.svg">
     <link rel="stylesheet" href="./css/launcher.css">
+    <link rel="stylesheet" href="./css/birthday.css">
 </head>
 <body>
     <div class="app-shell">
@@ -29,6 +30,8 @@
             <h1 class="app-title">Game<span class="title-accent">Box</span></h1>
             <p class="app-subtitle" id="app-subtitle"></p>
         </header>
+
+        <section id="birthday-entry" class="birthday-entry" hidden aria-label="GameBox birthday event"></section>
 
         <div class="search-bar">
             <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
@@ -70,6 +73,7 @@
     <script src="./js/firebase-config.js"></script>
     <script type="module" src="./js/net/net.js"></script>
     <script src="./js/cloud-sync.js"></script>
+    <script src="./js/birthday.js"></script>
     <script src="./js/launcher.js"></script>
 </body>
 </html>

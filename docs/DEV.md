@@ -43,6 +43,10 @@ js/net/rtdb-values.mjs       Lossless RTDB encoding for logical JSON values
 js/net/room-lobby.mjs        Shared room lobby DOM and action layout
 css/room-lobby.css           Shared responsive lobby styling
 js/cloud-sync.js             Cross-device high-score sync (window.CloudSync)
+js/birthday.js               Birthday eligibility, homepage entry and first-entry routing
+js/birthday-cake.js          Local directional wind/candle interaction
+js/games/birthday.js         Bilingual birthday-only ceremony and replayable candle game
+css/birthday.css             Birthday game/entry visuals (see docs/BIRTHDAY.md)
 js/games/colour-ladder.js    One file per game: logic + Canvas 2D rendering
 docs/rules.md                Player-facing rules
 docs/DEV.md                  This file

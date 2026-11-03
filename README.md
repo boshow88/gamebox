@@ -31,6 +31,8 @@ js/
   net/rtdb-rooms.mjs  Realtime Database room transport
   net/rtdb-values.mjs Lossless RTDB value encoding
   cloud-sync.js       Cross-device high-score sync (window.CloudSync)
+  birthday.js         Birthday-only homepage entry (setup: docs/BIRTHDAY.md)
+  birthday-cake.js    Reusable directional candle interaction
   games/*.js          One module per game (logic + rendering)
   games/unshackle/    Unshackle's isolated 3D engine, renderer and UI
   generators/*.js     Puzzle generators & solvers

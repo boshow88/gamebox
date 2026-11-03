@@ -1109,6 +1109,7 @@
             var btn = ev.target.closest ? ev.target.closest('button[data-lang]') : null;
             if (!btn) return;
             setLang(btn.getAttribute('data-lang'));
+            if (birthday) birthday.refreshLocale();
         });
 
         var menuBtn = document.getElementById('menu-btn'); if (menuBtn) menuBtn.addEventListener('click', openDrawer);
@@ -1156,9 +1157,18 @@
             searchInput.focus();
         });
 
+        var birthday = window.GameBoxBirthday && window.GameBoxBirthday.create({ getLocale: function () { return lang; } });
         // Account: reflect sign-in state once the Firebase layer reports in.
         whenNet(function (N) {
-            if (N && N.ok && N.onAuth) N.onAuth(function (u) { accountUser = u; renderAccount(u); });
+            if (N && N.ok && N.onAuth) {
+                N.onAuth(function (u) { accountUser = u; renderAccount(u); if (birthday) birthday.setUser(u); });
+                if (birthday && window.CloudSync && window.CloudSync.onProfile) {
+                    window.CloudSync.onProfile(function (profile, uid) {
+                        var u = N.currentUser();
+                        if (u && u.uid === uid) birthday.update(u, profile);
+                    });
+                }
+            }
         });
         // Offer to claim this device's guest scores into the account just signed in.
         if (window.CloudSync) window.CloudSync.onClaimOffer(showClaimPrompt);

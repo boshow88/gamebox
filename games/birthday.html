@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Birthday Proceedings · GameBox</title>
+    <link rel="icon" href="../favicon.svg">
+    <link rel="stylesheet" href="../css/launcher.css">
+    <link rel="stylesheet" href="../css/birthday.css">
+</head>
+<body class="birthday-game-page">
+    <div id="birthday-decoration"></div>
+    <div class="birthday-app">
+        <header class="birthday-game-header">
+            <a href="../index.html" class="birthday-home-link" data-copy="home">Back to GameBox</a>
+            <span class="birthday-department" data-copy="department">GAMEBOX · PLAYER AFFAIRS</span>
+            <div class="birthday-language" role="group" aria-label="Language">
+                <button type="button" data-lang="en" aria-pressed="true">EN</button>
+                <button type="button" data-lang="zh" aria-pressed="false">中</button>
+            </div>
+        </header>
+        <main>
+            <section id="birthday-gate" class="birthday-gate" aria-live="polite">
+                <p class="birthday-kicker" data-copy="caseName">BIRTHDAY PROCEEDINGS</p>
+                <h1 id="birthday-gate-title">Verification in progress.</h1>
+                <p id="birthday-gate-body"></p>
+                <button id="birthday-sign-in" class="birthday-primary" type="button" hidden data-copy="signIn">Sign in with Google</button>
+                <button id="birthday-retry" class="birthday-secondary" type="button" hidden data-copy="retry">Refresh verification</button>
+            </section>
+            <section id="birthday-notice" class="birthday-notice" hidden>
+                <div class="birthday-notice-heading">
+                    <p class="birthday-kicker" data-copy="caseName"></p>
+                    <h1 data-copy="title"></h1>
+                    <p class="birthday-notice-subtitle" data-copy="subtitle"></p>
+                </div>
+                <div class="birthday-notice-grid">
+                    <article class="birthday-paper">
+                        <div class="birthday-paper-masthead" data-copy="issuer"></div>
+                        <div class="birthday-paper-rule"></div>
+                        <p class="birthday-reference" id="birthday-reference"></p>
+                        <p class="birthday-recipient" id="birthday-recipient"></p>
+                        <h2 data-copy="subjectLabel"></h2>
+                        <p data-copy="subject"></p>
+                        <h2 data-copy="explanationLabel"></h2>
+                        <ol class="birthday-clauses"><li data-copy="clause1"></li><li data-copy="clause2"></li><li data-copy="clause3"></li></ol>
+                        <h2 data-copy="proposalLabel"></h2>
+                        <p data-copy="proposal"></p>
+                        <p class="birthday-letter-end" data-copy="letterEnd"></p>
+                        <p class="birthday-letter-signature" data-copy="issuer"></p>
+                        <p class="birthday-validity" data-copy="validity"></p>
+                    </article>
+                    <aside class="birthday-ceremony-side">
+                        <div class="birthday-player-portrait"><span id="birthday-player-initial"></span><img id="birthday-player-photo" alt="" hidden referrerpolicy="no-referrer"></div>
+                        <p class="birthday-player-name" id="birthday-player-name"></p>
+                        <p class="birthday-player-date" id="birthday-player-date"></p>
+                        <div class="birthday-official-seal" data-copy="seal" aria-hidden="true"></div>
+                        <p class="birthday-ritual-note" data-copy="ritualNote"></p>
+                        <button class="birthday-primary" id="birthday-start" type="button" data-copy="start"></button>
+                    </aside>
+                </div>
+            </section>
+            <section id="birthday-cake-screen" class="birthday-cake-screen" hidden>
+                <p class="birthday-kicker" data-copy="caseName"></p>
+                <h1 class="birthday-cake-title" data-copy="cakeTitle"></h1>
+                <p class="birthday-cake-lead" data-copy="cakeLead"></p>
+                <div id="birthday-cake-mount"></div>
+                <button type="button" id="birthday-read-again" class="birthday-secondary" data-copy="readAgain"></button>
+            </section>
+        </main>
+    </div>
+    <script src="../js/firebase-config.js"></script>
+    <script type="module" src="../js/net/net.js"></script>
+    <script src="../js/cloud-sync.js"></script>
+    <script src="../js/birthday.js"></script>
+    <script src="../js/birthday-cake.js"></script>
+    <script src="../js/games/birthday.js"></script>
+</body>
+</html>

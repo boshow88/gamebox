@@ -219,6 +219,13 @@
 
     // --- state + callbacks -----------------------------------------------------
     var appliedCbs = [], claimCbs = [], claimOffered = false, pendingOffer = null;
+    var profileCbs = [], lastProfile = null;
+    function fireProfile(uid, profile) {
+        var current = account();
+        if (!current || current.uid !== uid) return;
+        lastProfile = { uid: uid, data: profile };
+        profileCbs.forEach(function (fn) { try { fn(profile, uid); } catch (e) { /* ignore */ } });
+    }
     function fireApplied() { appliedCbs.forEach(function (fn) { try { fn(); } catch (e) { /* ignore */ } }); }
     function net() { var N = window.ArcadeNet; return (N && N.ok && N.profile) ? N : null; }
     function account() { var N = net(); if (!N) return null; var u = N.currentUser(); return (u && !u.anon) ? u : null; }
@@ -254,6 +261,7 @@
             if (runMigr) save.recordsMigratedAt = migrationsLatestAt();
             if (Object.keys(games).length || runMigr) { try { N.profile.save(acct.uid, save); } catch (e) { /* ignore */ } }
             if (changed) fireApplied();
+            fireProfile(acct.uid, prof);
             return prof;
         }).catch(function () { return null; });
     }
@@ -311,6 +319,7 @@
             return;
         }
         // --- identity transition (an actual sign-in or sign-out) ---
+        lastProfile = null;
         claimOffered = false; pendingOffer = null;
         if (cur === 'guest') bucketSet('guest', snapshot());   // keep the guest's records for later / for the claim
         if (newScope === 'guest') {                 // signing out → bring the guest drawer back
@@ -336,6 +345,15 @@
     window.CloudSync = {
         // games: repaint when the live records change
         onApplied: function (fn) { if (typeof fn === 'function') appliedCbs.push(fn); },
+        // Account metadata from the existing profile read; never adds a read/listener.
+        onProfile: function (fn) {
+            if (typeof fn !== 'function') return;
+            profileCbs.push(fn);
+            var current = account();
+            if (lastProfile && current && current.uid === lastProfile.uid) {
+                try { fn(lastProfile.data, lastProfile.uid); } catch (e) { /* ignore */ }
+            }
+        },
         // games: call after writing a new local best so it reaches the cloud
         sync: sync,
         // launcher: receive the per-game claim offer, { games: [displayId], claim: fn }
