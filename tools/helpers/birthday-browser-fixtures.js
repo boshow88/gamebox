@@ -54,7 +54,7 @@ function setDate(f, date) { f.contentWindow.birthdayTestDate = date; f.contentDo
     if (!doc.getElementById('birthday-start').textContent.includes('吹蠟燭')) throw new Error('Candle action copy missing');
     doc.getElementById('birthday-start').click();
     await until(() => doc.querySelector('.birthday-cake-stage'), 'cake without wish submission');
-    const stage = doc.querySelector('.birthday-cake-stage');
+    let stage = doc.querySelector('.birthday-cake-stage');
     function checkCakeGeometry() {
         let previousY = -Infinity;
         for (const group of stage.querySelectorAll('.birthday-candles > .birthday-candle')) {
@@ -86,6 +86,7 @@ function setDate(f, date) { f.contentWindow.birthdayTestDate = date; f.contentDo
     key('keydown', 'Enter'); await sleep(100); key('keyup', 'Enter');
     if (stage.querySelector('.birthday-wind').classList.contains('is-blowing')) throw new Error('Enter must not blow directly at a candle');
     key('keydown', 'ArrowRight'); await sleep(150); key('keyup', 'ArrowRight');
+    if (a.contentWindow.getComputedStyle(stage).outlineStyle !== 'none') throw new Error('Keyboard input must not frame the entire cake');
     if (stage.querySelector('.birthday-wind').classList.contains('is-blowing') || stage.querySelector('.is-out')) throw new Error('Arrow steering alone must not extinguish candles');
     const first = stage.querySelector('.birthday-candle[data-candle="0"]');
     const firstHome = modelPoint(first).x;
@@ -135,7 +136,16 @@ function setDate(f, date) { f.contentWindow.birthdayTestDate = date; f.contentDo
         if (!isOut(candle)) throw new Error('Keyboard steering must be able to pursue moving candles');
     }
     if (heldArrow) key('keyup', heldArrow); key('keyup', ' ');
+    const finishedAt = performance.now();
+    if (doc.querySelector('.birthday-finale[open]')) throw new Error('Finished cake must remain visible before the dialog');
+    const heldSpace = new a.contentWindow.KeyboardEvent('keydown', { key: ' ', bubbles: true, cancelable: true });
+    stage.dispatchEvent(heldSpace);
+    if (!heldSpace.defaultPrevented) throw new Error('Held blowing key must not scroll the finished cake away');
+    await sleep(300);
+    if (doc.querySelector('.birthday-finale[open]') || unlit().length) throw new Error('All extinguished candles must be visible during the completion pause');
     await until(() => doc.querySelector('.birthday-finale[open]'), 'completion notice');
+    if (performance.now() - finishedAt < 1000) throw new Error('Completion pause was too short');
+    if (doc.activeElement.id !== 'birthday-complete-title') throw new Error('Dialog must focus its heading rather than an action button');
     const finale = doc.querySelector('.birthday-finale');
     for (const [width, height] of [[768, 900], [320, 480]]) {
         a.style.width = width + 'px'; a.style.height = height + 'px';
@@ -149,6 +159,13 @@ function setDate(f, date) { f.contentWindow.birthdayTestDate = date; f.contentDo
     doc.querySelector('.birthday-finale').dispatchEvent(new a.contentWindow.KeyboardEvent('keyup', { key: ' ', bubbles: true, cancelable: true }));
     doc.querySelector('.birthday-complete-again').click();
     if (doc.querySelectorAll('.birthday-candle:not(.is-out)').length !== 5 || doc.querySelector('.birthday-finale')) throw new Error('Replay must start with fresh candles');
+    stage = doc.querySelector('.birthday-cake-stage');
+    for (const candle of unlit()) {
+        if (isOut(candle)) continue;
+        pointer('pointerdown', candle, 'mouse'); await chase(candle, 'mouse');
+    }
+    doc.getElementById('birthday-read-again').click(); await sleep(1300);
+    if (doc.querySelector('.birthday-finale') || doc.getElementById('birthday-notice').hidden) throw new Error('Leaving a finished cake must cancel the pending completion dialog');
     doc.querySelector('.birthday-home-link').click();
     await until(() => a.contentWindow.location.pathname === '/index.html' && a.contentDocument.getElementById('birthday-entry') && !a.contentDocument.getElementById('birthday-entry').hidden, 'return to homepage retains birthday entry');
     await sleep(500);

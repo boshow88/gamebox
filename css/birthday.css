@@ -27,7 +27,6 @@
 .birthday-notice-heading { padding: 52px 0 34px; }
 .birthday-notice-heading h1 { margin: 0; white-space: pre-line; font: 400 52px/1.3 Georgia, 'Noto Serif TC', 'Songti TC', serif; letter-spacing: -.015em; }
 .birthday-notice-subtitle { margin: 17px 0 0; color: #a9a5b1; font-size: 12px; line-height: 1.8; }
-.birthday-ceremony-jump { display: none; }
 .birthday-scroll-cue { display: none; }
 .birthday-notice-grid { display: grid; grid-template-columns: minmax(0, 1fr) 250px; gap: 38px; align-items: start; }
 .birthday-paper {
@@ -48,7 +47,7 @@
 .birthday-paper .birthday-letter-end { margin: 31px 0 11px; }
 .birthday-letter-signature { text-align: right; }
 .birthday-paper .birthday-validity { margin: 28px 0 0; padding-top: 14px; border-top: 1px solid #9a856733; color: #897d70; font: 10px/1.8 system-ui, sans-serif; }
-.birthday-ceremony-side { position: sticky; top: 30px; display: flex; flex-direction: column; align-items: center; text-align: center; padding-top: 22px; scroll-margin-top: 20px; }
+.birthday-ceremony-side { position: sticky; top: 30px; display: flex; flex-direction: column; align-items: center; text-align: center; padding-top: 22px; }
 .birthday-player-portrait { position: relative; display: grid; place-items: center; width: 108px; height: 108px; border-radius: 50%; border: 1px solid #ddc595; background: linear-gradient(135deg, #656174, #36394d); box-shadow: 0 0 0 8px #e2c58b09, 0 0 0 9px #e2c58b22; color: #f7e4bc; font: 42px Georgia, serif; }
 .birthday-player-portrait img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
 .birthday-player-name { margin: 25px 0 8px; color: #eddaad; font-size: 19px; line-height: 1.5; overflow-wrap: anywhere; max-width: 100%; }
@@ -85,7 +84,8 @@
 .birthday-finale .birthday-secondary { border-color: #9a805c55; color: #7e6956; }
 .birthday-cake-stage { position: relative; width: 100%; aspect-ratio: 480 / 390; touch-action: none; user-select: none; -webkit-user-select: none; cursor: crosshair; }
 .birthday-cake-stage > svg { display: block; width: 100%; height: 100%; overflow: hidden; }
-.birthday-cake-stage:focus-visible { outline: 2px solid #f3dca8; outline-offset: 5px; border-radius: 12px; }
+.birthday-cake-stage:focus { outline: none; }
+.birthday-cake-stage:focus-visible .birthday-wind-source circle { stroke: #f3dca8; fill: #313b51; }
 .birthday-flame > path { transform-box: fill-box; transform-origin: 50% 100%; animation: birthday-flicker 1.4s ease-in-out infinite alternate; }
 .birthday-candle:nth-of-type(2n) .birthday-flame > path { animation-delay: -.65s; }
 .birthday-candle.is-out .birthday-flame > path { animation: none; }
@@ -115,8 +115,6 @@
     .birthday-department { display: none; }
     .birthday-notice-heading { padding-top: 33px; }
     .birthday-notice-heading h1 { font-size: 36px; }
-    .birthday-ceremony-jump { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; margin-top: 12px; color: #d7c39c; font-size: 12px; text-decoration: underline; text-underline-offset: 4px; }
-    .birthday-ceremony-jump svg { flex: none; }
     .birthday-notice-grid { grid-template-columns: minmax(0, 1fr); gap: 32px; }
     .birthday-ceremony-side { position: static; border-top: 1px solid #d2ba7c22; }
     .birthday-paper { padding: 29px 24px; }

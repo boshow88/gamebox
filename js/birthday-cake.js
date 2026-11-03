@@ -197,8 +197,10 @@
         });
         stage.addEventListener('keydown', function (event) {
             var key = event.key === 'ArrowLeft' ? 'left' : event.key === 'ArrowRight' ? 'right' : event.key === ' ' ? 'blow' : null;
-            if (!key || pointer !== null || !alive || finished || document.hidden || event.altKey || event.ctrlKey || event.metaKey) return;
-            event.preventDefault(); keyboardInput = true; keys[key] = true; updateKeyboard(0); wake();
+            if (!key || event.altKey || event.ctrlKey || event.metaKey) return;
+            event.preventDefault();
+            if (pointer !== null || !alive || finished || document.hidden) return;
+            keyboardInput = true; keys[key] = true; updateKeyboard(0); wake();
         });
         stage.addEventListener('keyup', function (event) {
             var key = event.key === 'ArrowLeft' ? 'left' : event.key === 'ArrowRight' ? 'right' : event.key === ' ' ? 'blow' : null;

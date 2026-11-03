@@ -5,8 +5,7 @@
         zh: {
             pageTitle: '生日慶祝專案 · GameBox', home: '返回首頁', department: 'GAMEBOX・玩家事務處', caseName: '出生週年紀念專案',
             title: '閣下之生日，\n本處業已正式受理。', subtitle: '關於出生週年紀念之祝賀暨休閒活動核准事宜。',
-            jumpToCeremony: '閱函後，前往吹蠟燭儀式',
-            moreBelow: '下方尚有內容',
+            moreBelow: '閱函後，前往吹蠟燭',
             issuer: 'GameBox 玩家事務處', subjectLabel: '主旨', explanationLabel: '說明', proposalLabel: '擬辦',
             subject: '為辦理閣下出生週年紀念之祝賀暨遊戲精神表彰事宜，特致本函，敬請查照。',
             clause1: '依本系統所載生日資料，今日適逢閣下出生週年紀念日，依照本站慶生作業程序，正式致上祝賀。',
@@ -29,8 +28,7 @@
         en: {
             pageTitle: 'Birthday Proceedings · GameBox', home: 'Back to GameBox', department: 'GAMEBOX · PLAYER AFFAIRS', caseName: 'BIRTH ANNIVERSARY PROCEEDINGS',
             title: 'Your birthday\nhas been duly received.', subtitle: 'Concerning anniversary felicitations and the authorization of recreational proceedings.',
-            jumpToCeremony: 'After the notice, proceed to the candle ceremony',
-            moreBelow: 'More below',
+            moreBelow: 'Read on, then blow out the candles',
             issuer: 'GameBox Office of Player Affairs', subjectLabel: 'Subject', explanationLabel: 'Findings', proposalLabel: 'Resolution',
             subject: 'Formal felicitations upon the anniversary of your birth, together with commendation of your recreational perseverance. Kindly take due notice.',
             clause1: 'Upon examination of the birthday particulars held on record, this Office confirms that today constitutes the anniversary of your birth. Formal congratulations are hereby extended in accordance with established celebratory procedure.',
@@ -54,7 +52,7 @@
     var REPEAT = {
         zh: {
             title: '閣下之慶生程序，\n業已辦理完竣。', subtitle: '關於已完成慶生程序之確認暨再次遊玩核准事宜。',
-            jumpToCeremony: '前往再次辦理吹蠟燭儀式',
+            moreBelow: '前往再次辦理',
             subject: '為確認閣下今日生日吹蠟燭儀式業已完成，並核准後續自由重玩，特致本函，敬請查照。',
             clause1: '經查，閣下已於今日完成生日蠟燭熄滅作業，本處予以確認；本日之祝賀及休閒活動資格仍持續有效。',
             clause3: '本案既已辦理完竣，毋須重行完成儀式；如閣下仍有再玩一場之意願，本處准予續辦，次數不拘。',
@@ -64,7 +62,7 @@
         },
         en: {
             title: 'Your birthday proceedings\nare duly completed.', subtitle: 'Concerning confirmation of completed proceedings and authorization of repeat recreation.',
-            jumpToCeremony: 'Proceed directly to repeat candle proceedings',
+            moreBelow: 'Proceed again',
             subject: 'Confirmation that today\'s birthday candle ceremony has been completed, together with authorization for further recreational attempts. Kindly take due notice.',
             clause1: 'Upon examination, this Office confirms your completion of today\'s candle-extinguishing procedure. All birthday felicitations and recreational permissions remain in force for the remainder of this day.',
             clause3: 'The required proceedings having been concluded, repetition is not mandatory. Should one further round be desired, repeat attendance is hereby authorized without numerical restriction.',
@@ -75,6 +73,7 @@
     };
     var B = window.GameBoxBirthday, user, profile = null, locale = 'en', scene = 'notice', cake = null, finale = null, decoration = null;
     var midnight = null, loadingTimer = null, failed = false, activeDay = null;
+    var completionTimer = null, pendingCompletion = null;
     var scrollCueFrame = null, scrollCueObserver = null;
     function el(id) { return document.getElementById(id); }
     function updateScrollCue() {
@@ -98,7 +97,9 @@
     try { var saved = JSON.parse(localStorage.getItem('gamebox:lang')); if (saved === 'zh') locale = 'zh'; } catch (e) { /* default English */ }
     function eligible() { return user && !user.anon && profile && B.isBirthday(profile.birthday, new Date()); }
     function currentCopy() { return Object.assign({}, TEXT[locale], eligible() && B.hasCompleted(user.uid, new Date()) ? REPEAT[locale] : {}); }
+    function cancelCompletion() { clearTimeout(completionTimer); completionTimer = null; pendingCompletion = null; }
     function cleanup() {
+        cancelCompletion();
         if (scrollCueFrame !== null) cancelAnimationFrame(scrollCueFrame); scrollCueFrame = null;
         el('birthday-scroll-cue').hidden = true;
         if (cake) cake.destroy(); cake = null;
@@ -149,26 +150,41 @@
         } else { photo.hidden = true; photo.removeAttribute('src'); }
     }
     function refresh() { clearTimeout(midnight); paint(); midnight = setTimeout(refresh, B.midnightDelay(new Date())); }
-    function complete(completion) {
-        if (!eligible() || finale) return;
+    function complete() {
+        if (!eligible() || finale || pendingCompletion || scene !== 'cake') return;
         B.markCompleted(user.uid, new Date());
+        pendingCompletion = { uid: user.uid, day: B.dayKey(new Date()) };
+        scheduleCompletion();
+    }
+    function scheduleCompletion() {
+        clearTimeout(completionTimer); completionTimer = null;
+        if (!pendingCompletion || document.hidden) return;
+        // Keep the finished cake visible before moving focus into the dialog.
+        completionTimer = setTimeout(function () {
+            completionTimer = null;
+            if (document.hidden) return;
+            var completed = pendingCompletion; pendingCompletion = null;
+            if (!completed || !eligible() || user.uid !== completed.uid || B.dayKey(new Date()) !== completed.day || scene !== 'cake') return;
+            showCompletion();
+        }, 1200);
+    }
+    function showCompletion() {
+        if (!eligible() || finale) return;
         finale = document.createElement('dialog'); finale.className = 'birthday-finale'; finale.setAttribute('aria-labelledby', 'birthday-complete-title');
         var seal = document.createElement('span'); seal.className = 'birthday-complete-seal';
-        var heading = document.createElement('h2'); heading.id = 'birthday-complete-title';
+        var heading = document.createElement('h2'); heading.id = 'birthday-complete-title'; heading.tabIndex = -1;
         var body = document.createElement('p');
         var home = document.createElement('a'); home.className = 'birthday-primary birthday-complete-home'; home.href = '../index.html';
         var again = document.createElement('button'); again.type = 'button'; again.className = 'birthday-secondary birthday-complete-again'; again.addEventListener('click', startCake);
-        var waitingRelease = !!(completion && completion.keyboard);
-        finale.addEventListener('keydown', function (event) { if (waitingRelease && (event.key === ' ' || event.key === 'Enter')) event.preventDefault(); });
-        finale.addEventListener('keyup', function (event) { if (waitingRelease && (event.key === ' ' || event.key === 'Enter')) { event.preventDefault(); waitingRelease = false; } });
         finale.addEventListener('cancel', function (event) {
             event.preventDefault(); finale.close(); finale.remove(); finale = null;
             if (cake) cake.destroy(); cake = null; scene = 'notice'; paint();
         });
-        finale.append(seal, heading, body, home, again); document.body.append(finale); renderLanguage(); finale.showModal(); home.focus(); scheduleScrollCue();
+        finale.append(seal, heading, body, home, again); document.body.append(finale); renderLanguage(); finale.showModal(); heading.focus({ preventScroll: true }); scheduleScrollCue();
     }
     function startCake() {
         if (!eligible()) { refresh(); return; }
+        cancelCompletion();
         if (finale) { finale.close(); finale.remove(); finale = null; }
         if (cake) cake.destroy();
         scene = 'cake'; paint();
@@ -189,7 +205,7 @@
         });
     }
     el('birthday-start').addEventListener('click', startCake);
-    el('birthday-read-again').addEventListener('click', function () { if (cake) cake.destroy(); cake = null; scene = 'notice'; paint(); });
+    el('birthday-read-again').addEventListener('click', function () { cancelCompletion(); if (cake) cake.destroy(); cake = null; scene = 'notice'; paint(); });
     el('birthday-sign-in').addEventListener('click', function () {
         this.disabled = true;
         Promise.resolve(window.ArcadeNet.signInGoogle()).catch(function () { failed = true; paint(); }).finally(function () { el('birthday-sign-in').disabled = false; });
@@ -217,7 +233,10 @@
         locale = button.dataset.lang; try { localStorage.setItem('gamebox:lang', JSON.stringify(locale)); } catch (e) { /* optional preference */ }
         paint();
     }); });
-    document.addEventListener('visibilitychange', function () { if (document.visibilityState !== 'hidden') refresh(); });
+    document.addEventListener('visibilitychange', function () {
+        if (document.hidden) { clearTimeout(completionTimer); completionTimer = null; }
+        else { refresh(); scheduleCompletion(); }
+    });
     window.addEventListener('storage', function (event) {
         if (event.key === 'gamebox:lang') { try { locale = JSON.parse(event.newValue) === 'zh' ? 'zh' : 'en'; } catch (e) { locale = 'en'; } paint(); }
         else if (!event.key || event.key.indexOf('gamebox:birthday:completed:') === 0) paint();
