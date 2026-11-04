@@ -227,7 +227,7 @@
         // centre up/down. Board scoring radius is 170 mm.
         aimScaleX: 1.57,          // world mm/s of launch velocity per logical px/s of release motion — lateral
         aimScaleY: 1.40,          // world mm/s of launch velocity per logical px/s of release motion — vertical (kept equal to X on purpose)
-        pitchOffsetDeg: 0,        // rotate the final launch direction: + = up, - = down (degrees, clamped to ±30). Preserves gesture mapping/speed; camera and release height stay fixed.
+        pitchOffsetDeg: -0.5,        // rotate the final launch direction: + = up, - = down (degrees, clamped to ±30). Preserves gesture mapping/speed; camera and release height stay fixed.
 
         // --- forward throw / tempo (the compressed "power") ---
         boardDistance: 2370,      // mm from the hand to the board plane along +Z
@@ -239,7 +239,7 @@
 
         // --- ballistics after release (kept deliberately simple) ---
         gravity: 4900,            // mm/s² downward (artistic). The arc now comes mostly from the finite throw SPEED (baseForward): a faster dart drops less (drop ∝ 1/v²), which is the physically honest way to flatten the parabola, so leave gravity constant and flatten via baseForward instead.
-        handYOffset: -292,        // mm; release height relative to board centre. Lower = the same flick lands lower. (Lowered to absorb the smaller drop once the throw got faster, so the aim centre stays where it was.)
+        handYOffset: -272,        // mm; release height relative to board centre. Lower = the same flick lands lower. (Lowered to absorb the smaller drop once the throw got faster, so the aim centre stays where it was.)
 
         // --- determinism escape hatch (future). Keep 0 for a fully repeatable prototype. ---
         releaseNoise: 0,          // optional ± mm/s of white noise added to launch velocity. 0 = identical gesture → identical throw.
@@ -259,7 +259,7 @@
         //   • board / numbers / dart TIP (end) live at the board plane → size ∝ viewFocal/(boardDistance+camBack): BOTH distance and view size shrink/grow them.
         //   • dart START (the hand, at the camera's own distance camBack) → size ∝ viewFocal/camBack: only the view size, never the board distance.
         // So moving the board farther now genuinely makes it look smaller. (~4050 keeps the board near its current on-screen size at the current distance.)
-        viewFocal: 3800,          // relative view size / focal length (px)
+        viewFocal: 3200,          // relative view size / focal length (px)
         camBack: 2500,            // mm the camera sits behind the hand (controls how much near things loom)
         camY: 0,                  // camera height in world Y (0 = level with board centre / the bull)
         camDollyFrac: 0.6,        // FRACTION of the way to the board the camera travels by impact, tracking the dart. Scales with distance (a far board still "walks in" strongly). 0 = static camera. The trajectory behind the camera is clipped, so this can exceed camBack safely.

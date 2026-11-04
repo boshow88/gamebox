@@ -130,9 +130,10 @@
 .history-empty { color: var(--text-secondary); }
 #history-limit-note:empty { display: none; }
 @media (min-width: 761px) {
-    .stage-canvas { top: 44%; width: 113.333333cqmin; height: 141.666667cqmin; }
+    .stage-canvas { top: 44%; width: 133.333333cqmin; height: 166.666667cqmin; }
 }
 @media (max-width: 760px) {
+    .stage-canvas { top: 47%; }
     .game-topbar { flex-wrap: wrap; gap: 8px; }
     .game-topbar .topbar-actions { margin-left: auto; }
     .game-title { font-size: 1rem; gap: 6px; }

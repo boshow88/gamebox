@@ -604,8 +604,8 @@ base speed, the compressed tempo range, gravity, the hand height, the board
 geometry, and the perspective. The throw maths (`analyseGesture`, `computeThrow`,
 `computeImpact`, `scoreAt`) are kept pure and separate from rendering so the feel
 can be retuned — or the physics swapped out — without touching the draw code.
-`handYOffset: -292` places the release 29.2 cm below the Bull. `pitchOffsetDeg: 0`
-adds no extra tilt; positive/negative values rotate the complete release velocity
+`handYOffset` sets the release height relative to the Bull in millimetres; negative
+values place it below the Bull. Positive/negative `pitchOffsetDeg` values rotate the complete release velocity
 up/down while preserving speed and gesture relationships, without moving the
 camera or release point. The existing physics and desktop board crop are retained.
 

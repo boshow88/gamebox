@@ -604,11 +604,12 @@ behind them; history scrolling uses native vertical touch scrolling. Movements
 and releases can continue across the window. Secondary pointers are ignored and
 resize cancels a gesture. The
 renderer is cropped around the existing board centre, without changing gesture
-maths, tuning or ballistics. Desktop keeps its 15% smaller board and centre at 44%
-of the board region; the mobile crop is unchanged. Backing resolution follows its
-display size. `pitchOffsetDeg` remains 0 by default; changing it rigidly rotates the
+maths or ballistics. Desktop and mobile use the same canvas scale, with the board
+centre at 44% and 47% of their board regions respectively. Backing resolution
+follows its display size. The adjustable `pitchOffsetDeg` rigidly rotates the
 gesture-derived launch velocity in Y/Z, preserving speed, release point and
-camera. `handYOffset` remains -292 mm. Detailed Count-Up statistics are expandable
+camera. `handYOffset` sets the release height relative to the Bull in millimetres.
+Detailed Count-Up statistics are expandable
 after a Leg inside the lobby.
 
 Timed local matches, including host-only invitation rooms, use the same wall-clock

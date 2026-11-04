@@ -387,6 +387,9 @@ let source = fs.readFileSync(require('node:path').join(__dirname, '../js/games/d
 source = source.replace(/\}\)\(\);\s*$/, 'window.physics = { analyseGesture, computeThrow, computeImpact, scoreAt, TUNING }; })();');
 vm.runInNewContext(source, sandbox);
 const physics = sandbox.window.physics;
+// Golden trajectories use a fixed calibration, independent of the game's adjustable feel settings.
+const configuredCalibration = { pitchOffsetDeg: physics.TUNING.pitchOffsetDeg, handYOffset: physics.TUNING.handYOffset };
+Object.assign(physics.TUNING, { pitchOffsetDeg: 0, handYOffset: -292 });
 const referenceThrow = physics.computeThrow({ speed: 700, releaseVel: { x: 300, y: 600 } });
 assert.equal(referenceThrow.vel.x, 471); assert.equal(referenceThrow.vel.y, 840);
 assert.equal(referenceThrow.vel.z, 12600); assert.equal(referenceThrow.tempo, 1);
@@ -431,4 +434,5 @@ try {
     assert(extreme.vel.z > 0 && Number.isFinite(physics.computeImpact(extreme).t));
 } finally { physics.TUNING.pitchOffsetDeg = 0; }
 assert.deepEqual(physics.computeThrow(neutralAnalysis), neutral);
+Object.assign(physics.TUNING, configuredCalibration);
 console.log('PASS: darts V2 configuration, In/Out/bull rules and rollback, Standard/Cut-Throat, fair caps/Cork, practice/1–4 slots, Legs/history/departures and unchanged throwing physics.');
