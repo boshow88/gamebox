@@ -29,7 +29,7 @@
     var Rules = window.DartsRules;
     var match = null, viewMatch = null, online = null, net = null, netUser = null;
     var room = null, lobby = null, sending = false, seenThrow = null, onlineMatchId = null;
-    var localRoom = null, onlineLoading = null, observedOnlinePhase = null;
+    var localRoom = null, onlineLoading = null, observedOnlinePhase = null, lastRoomSnapshot = null;
     var localController = 'local-controller', localSeatSerial = 0;
     var hud = null, historyView = null;
 
@@ -152,10 +152,9 @@
     });
 
     Object.assign(AC.i18n.STRINGS.en, {
-        dartsInvite: 'Invite / join', dartsLobbyIntro: 'Add players, choose a game, and start. Invite friends whenever you want.',
+        dartsInvite: 'Invite / join',
         dartsAddPlayer: 'Add local player', dartsRemovePlayer: 'Remove', dartsPlayerName: 'Player name', dartsPlayer: 'Player',
         dartsThisDevice: 'This device', dartsOtherDevice: 'Other device', dartsEnableInvite: 'Get invitation code',
-        dartsInviteHint: 'Get a room code to invite friends, or enter their code. Local play works without a connection.',
         dartsBackLobby: 'Return to lobby', dartsResults: 'Return to lobby', dartsUnready: 'Cancel ready',
         dartsOff: 'Off', dartsUnlimited: 'Unlimited', dartsFirstTo3: 'First to 3 legs', dartsLegsToWin: 'Legs to win',
         dartsTimer: 'Turn timer', dartsRoundLimit: 'Round limit', dartsOutRule: 'Finish', dartsInRule: 'Start scoring',
@@ -169,12 +168,6 @@
         dartsPracticeEnded: 'Practice ended', dartsNeedsPlayers: 'requires at least {n} players.',
         dartsMatchEnded: 'Match ended',
         dartsRulesLocked: 'Rules are locked for this match.', dartsWaitReady: 'Waiting for the other devices to get ready.',
-        dartsPracticeRoomNote: 'Unlimited practice. With multiple players, pass control after three darts. No winner.',
-        dartsSettlementNote: 'At the round limit: lowest remaining in 501, highest total in Count-Up. Tied players throw one dart each; closest to Bull wins. Exact ties repeat.',
-        dartsStandardNote: 'Extra marks score for you. Close every target and have the highest score to win. At the round limit, highest score wins; ties go closest to Bull.',
-        dartsCutThroatNote: 'Extra marks give penalties to every opponent with that target open. Close all targets and have the lowest score. At the round limit, lowest wins; ties go closest to Bull.',
-        dartsAutoStandardNote: 'Recommended: Standard for 1–2 players. Extra marks score for you; highest score wins at the round limit. Ties go closest to Bull.',
-        dartsAutoCutThroatNote: 'Recommended: Cut-Throat for 3–4 players. Extra marks penalize opponents with that target open; lowest score wins at the round limit. Ties go closest to Bull.',
         dartsRuleCountup: 'Accumulate points over the configured rounds. Every player receives the same number of turns. Tied leaders throw closest to Bull.',
         dartsRule501: 'Start at 501 and finish on exactly zero under the selected In / Out rules. A bust restores the score and opening state from the start of the turn.',
         dartsRuleCricket: 'Close 20–15 and Bull with three marks each. Extra marks score for you in Standard, or penalize applicable opponents in Cut-Throat.',
@@ -183,10 +176,9 @@
         dartsDraw: 'Tie — closest to Bull', dartsHistoryClock: 'The turn timer continues while viewing history.',
     });
     Object.assign(AC.i18n.STRINGS.zh, {
-        dartsInvite: '邀請／加入', dartsLobbyIntro: '加入玩家、選擇玩法，即可開始。也能邀請朋友一起玩。',
+        dartsInvite: '邀請／加入',
         dartsAddPlayer: '新增同機玩家', dartsRemovePlayer: '移除', dartsPlayerName: '玩家名稱', dartsPlayer: '玩家',
         dartsThisDevice: '此裝置控制', dartsOtherDevice: '其他裝置控制', dartsEnableInvite: '取得邀請房號',
-        dartsInviteHint: '取得房號邀請朋友，或輸入朋友的房號。本機遊玩不需要連線。',
         dartsBackLobby: '返回大廳', dartsResults: '返回大廳', dartsUnready: '取消準備',
         dartsOff: '關閉', dartsUnlimited: '不限', dartsFirstTo3: '先贏三局', dartsLegsToWin: '獲勝所需局數',
         dartsTimer: '每回合時間', dartsRoundLimit: '回合上限', dartsOutRule: '結鏢條件', dartsInRule: '開分條件',
@@ -200,12 +192,6 @@
         dartsPracticeEnded: '練習結束', dartsNeedsPlayers: '至少需要 {n} 位玩家。',
         dartsMatchEnded: '比賽已結束',
         dartsRulesLocked: '本場規則已鎖定。', dartsWaitReady: '等待其他裝置準備。',
-        dartsPracticeRoomNote: '不限回合練習；多人時每人三鏢後換人，沒有勝負。',
-        dartsSettlementNote: '到達回合上限時，501 比剩餘分數最低、Count-Up 比總分最高。平手者各投一鏢，最接近靶心者勝；等距者繼續加賽。',
-        dartsStandardNote: '多餘記號為自己得分；關閉全部目標且分數最高即可獲勝。回合上限以高分決勝，平手比靶心。',
-        dartsCutThroatNote: '多餘記號為尚未關閉該目標的對手加罰分；關閉全部且分數最低即可獲勝。回合上限以低分決勝，平手比靶心。',
-        dartsAutoStandardNote: '1–2 人推薦標準 Cricket：多餘記號為自己得分，回合上限以高分決勝，平手比靶心。',
-        dartsAutoCutThroatNote: '3–4 人推薦 Cut-Throat：多餘記號為目標尚未關閉的對手加罰分，回合上限以低分決勝，平手比靶心。',
         dartsRuleCountup: '在設定的回合內累積得分，每位玩家都有相同回合數。最高分平手時加賽比靶心。',
         dartsRule501: '從 501 分扣至恰好零分，依所選開分與結鏢條件判定。爆鏢時，分數與開分狀態回復至本回合開始時。',
         dartsRuleCricket: '20 到 15 與紅心各需三個記號關閉。標準玩法由多餘記號為自己得分；Cut-Throat 則為符合條件的對手加罰分。',
@@ -535,7 +521,7 @@
     function canThrow() {
         return shell && shell.isPlaying() && !sending && !document.querySelector('.darts-dialog[open]') &&
             roomData().phase === 'playing' && match && match.status === 'playing' && controlsPlayer(match.active) &&
-            (!room || Date.now() >= match.readyAt) && (!match.turnMs || Date.now() < match.turnStartedAt + match.turnMs) &&
+            (!usesSharedMatch() || Date.now() >= match.readyAt) && (!match.turnMs || Date.now() < match.turnStartedAt + match.turnMs) &&
             (G.dartState === 'ready' || G.dartState === 'landed');
     }
 
@@ -586,7 +572,7 @@
         var th = computeThrow(an);
         var impact = computeImpact(th);
         G.analysis = an;
-        if (room) {
+        if (usesSharedMatch()) {
             sending = true;
             online.submit(th).then(function (accepted) {
                 if (!accepted) flashHint(t('dartsThrowRejected'));
@@ -629,11 +615,8 @@
             if (G.stuck.length > TUNING.maxStuckDarts) G.stuck.shift();
         }
         sndHit(res);
-        if (match && !room) {
-            match = Rules.throwDart(match, match.active, physical, Date.now(), G.impact);
-            localRoom.game = match;
-            if (match.status === 'over') localRoom.phase = 'results';
-            viewMatch = match;
+        if (match && !usesSharedMatch()) {
+            acceptLocal(Rules.throwDart(match, match.active, physical, Date.now(), G.impact));
         } else if (room) viewMatch = match;
         else {
             G.practiceHistory.push({ uid: 'practice', leg: 0, turn: G.darts, round: 0, darts: [res],
@@ -1130,8 +1113,19 @@
 
     function modeName(mode) { return t({ practice: 'dartsPractice', '501': 'darts501', cricket: 'dartsCricket', countup: 'dartsCountup' }[mode]); }
     function ruleText(mode) { return t({ practice: 'dartsRulePractice', '501': 'dartsRule501', cricket: 'dartsRuleCricket', countup: 'dartsRuleCountup' }[mode]); }
-    function roomData() { return room && room.data || localRoom; }
-    function controllerId() { return room && online ? online.service.currentPlayer().uid : localController; }
+    function controllerId() { return room && online ? (online.service.currentPlayer() || {}).uid : localController; }
+    function isRoomLocalMatch() {
+        return !!(room && room.data && match && match.execution === 'local' &&
+            room.data.game && room.data.game.matchId === match.matchId && match.owners &&
+            Object.values(match.owners).every(function (owner) { return owner === controllerId(); }));
+    }
+    function usesSharedMatch() { return !!room && !isRoomLocalMatch(); }
+    function roomData() {
+        var data = room && room.data || localRoom;
+        // A room code reserves the lobby; a one-device match keeps its live state in memory.
+        return isRoomLocalMatch() && data.phase !== 'lobby' ? Object.assign({}, data, {
+            game: match, phase: match.status === 'over' ? 'results' : 'playing' }) : data;
+    }
     function controlsPlayer(id) {
         return !!match && (match.owners ? match.owners[id] : id) === controllerId();
     }
@@ -1144,9 +1138,14 @@
         if (value != null) el.textContent = value; return el;
     }
     function newLocalRoom() {
-        var id = 'local-' + ++localSeatSerial, participant = { id: id, name: t('dartsYou'), controllerId: localController, type: 'human' };
+        var id = 'local-' + ++localSeatSerial, participant = { id: id, name: t('dartsPlayer') + ' 1', controllerId: localController, type: 'human' };
         return { phase: 'lobby', hostUid: localController, players: {}, participants: { [id]: participant }, seatOrder: [id],
             options: Rules.options({ mode: 'practice' }), ready: {}, game: {}, roster: {} };
+    }
+    function defaultPlayerName(data) {
+        var names = new Set(Object.values(data.participants || {}).map(function (p) { return p.name; })), n = 1;
+        while (names.has(t('dartsPlayer') + ' ' + n)) n++;
+        return t('dartsPlayer') + ' ' + n;
     }
     function localCanStart() {
         return localRoom.phase === 'lobby' && Rules.eligibility(localRoom.options, localRoom.seatOrder.length).allowed;
@@ -1157,9 +1156,10 @@
         var s = viewMatch || match, data = roomData();
         document.getElementById('mode-description').textContent = ruleText(data.options.mode);
         document.getElementById('debug-btn').hidden = !!s && s.mode !== 'practice';
-        hud.render(window.DartsHud.model({ state: s, online: !!room, now: Date.now(), name: playerName, you: t('dartsYou'),
+        hud.render(window.DartsHud.model({ state: s, online: usesSharedMatch(), now: Date.now(), name: playerName,
+            you: (data.participants[data.seatOrder[0]] || {}).name || t('dartsPlayer') + ' 1',
             practice: { darts: G.darts, result: G.last, speed: G.analysis && G.analysis.speed != null ? G.analysis.speed : null } }));
-        document.getElementById('next-leg-btn').disabled = G.dartState === 'flying' || sending || !!(room && match && Date.now() < match.readyAt);
+        document.getElementById('next-leg-btn').disabled = G.dartState === 'flying' || sending || !!(usesSharedMatch() && match && Date.now() < match.readyAt);
         var stats = document.getElementById('stats-details'), summary = document.getElementById('result-summary');
         stats.hidden = !s || s.status === 'playing' || s.mode !== 'countup';
         if (!stats.hidden) {
@@ -1192,8 +1192,11 @@
     }
     function acceptLocal(g) {
         if (!g) return false;
-        localRoom.game = match = viewMatch = g;
-        if (g.status === 'over') localRoom.phase = 'results';
+        match = viewMatch = g;
+        if (!room) {
+            localRoom.game = g;
+            if (g.status === 'over') localRoom.phase = 'results';
+        }
         syncGameUi(); return true;
     }
     function configure(patch) {
@@ -1208,17 +1211,17 @@
         syncGameUi(); return true;
     }
     function addLocalPlayer() {
-        if (room) return online.addLocalPlayer(t('dartsPlayer') + ' ' + (roomData().seatOrder.length + 1));
+        if (room) return online.addLocalPlayer(defaultPlayerName(roomData()));
         if (localRoom.phase !== 'lobby' || localRoom.seatOrder.length >= 4) return false;
         var id;
         do { id = 'local-' + ++localSeatSerial; } while (localRoom.participants[id]);
-        localRoom.participants[id] = { id: id, name: t('dartsPlayer') + ' ' + (localRoom.seatOrder.length + 1), controllerId: localController, type: 'human' };
+        localRoom.participants[id] = { id: id, name: defaultPlayerName(localRoom), controllerId: localController, type: 'human' };
         localRoom.seatOrder.push(id); localRoom.ready = {}; syncGameUi(); return true;
     }
     function renamePlayer(id, name) {
         if (room) return online.renamePlayer(id, name);
-        if (localRoom.phase !== 'lobby' || !localRoom.participants[id]) return false;
-        localRoom.participants[id].name = String(name || '').trim().slice(0, 32) || t('dartsGuest');
+        if (localRoom.phase !== 'lobby' || !localRoom.participants[id] || !String(name || '').trim()) return false;
+        localRoom.participants[id].name = String(name).trim().slice(0, 32);
         localRoom.ready = {}; syncGameUi(); return true;
     }
     function removeLocalPlayer(id) {
@@ -1244,20 +1247,33 @@
     }
     async function backToLobby() {
         gesture = null;
-        if (room) { var accepted = await online.backToLobby(); if (accepted) openLobby(); return accepted; }
+        if (room) {
+            var accepted;
+            if (isRoomLocalMatch()) {
+                if (match.status !== 'over' && match.mode !== 'practice') return false;
+                var finished = match.mode === 'practice' && match.status === 'playing' ? Rules.endPractice(match) : match;
+                acceptLocal(finished); clearBoard();
+                accepted = await online.syncLocal(finished, true);
+            } else accepted = await online.backToLobby();
+            if (accepted) openLobby(); return accepted;
+        }
         if (match && match.status !== 'over' && match.mode !== 'practice') return false;
         if (match && match.mode === 'practice' && match.status === 'playing') {
-            match = Object.assign({}, match, { status: 'over', endReason: 'practice-ended', winner: null });
+            match = Rules.endPractice(match);
             localRoom.game = viewMatch = match;
         }
         localRoom.phase = 'lobby'; localRoom.ready = {}; shell.goIdle(); openLobby(); syncGameUi(); return true;
     }
-    function restartLocal() {
-        if (room) return;
-        if (match && match.status === 'playing') {
-            match = Object.assign({}, match, { status: 'over', endReason: match.mode === 'practice' ? 'practice-ended' : 'cancelled', winner: null });
-            localRoom.game = viewMatch = match;
+    async function restartLocal() {
+        if (usesSharedMatch()) return;
+        if (roomData().phase === 'lobby') { openLobby(); return; }
+        var finished = match;
+        if (match && ['playing', 'between'].includes(match.status)) {
+            finished = match.mode === 'practice' ? Rules.endPractice(match) :
+                Object.assign({}, match, { seq: match.seq + 1, status: 'over', endReason: 'cancelled', winner: null, legWinner: null });
         }
+        if (room) { acceptLocal(finished); clearBoard(); if (await online.syncLocal(finished, true)) openLobby(); return; }
+        localRoom.game = match = viewMatch = finished;
         localRoom.phase = 'lobby'; shell.goIdle(); openLobby();
     }
     async function ensureOnline() {
@@ -1306,22 +1322,38 @@
         var pending = online && online.leave(); room = null;
         localRoom = newLocalRoom();
         if (owned.length) { localRoom.participants = Object.fromEntries(owned.map(function (p) { return [p.id, p]; })); localRoom.seatOrder = owned.map(function (p) { return p.id; }); }
-        localRoom.options = Rules.options(old.options); onlineMatchId = null; seenThrow = null; observedOnlinePhase = null;
+        localRoom.options = Rules.options(old.options); onlineMatchId = null; seenThrow = null; observedOnlinePhase = null; lastRoomSnapshot = null;
         match = viewMatch = null; sending = false; shell.goIdle(); openLobby(); syncGameUi();
         await pending;
+    }
+    function keepLocalMatchAfterRoomLoss(data) {
+        if (!data || !match || match.execution !== 'local' || data.game.matchId !== match.matchId ||
+            !Object.values(match.owners).every(function (owner) { return owner === controllerId(); })) return false;
+        var g = match;
+        var owned = data.seatOrder.map(function (id) { return Object.assign({}, data.participants[id], { controllerId: localController }); });
+        online.leave().catch(function () {}); room = null;
+        localRoom = newLocalRoom(); localRoom.options = Rules.options(data.options);
+        localRoom.participants = Object.fromEntries(owned.map(function (p) { return [p.id, p]; }));
+        localRoom.seatOrder = owned.map(function (p) { return p.id; }); localRoom.roster = data.roster;
+        g = Object.assign({}, g, { owners: Object.fromEntries(g.players.map(function (id) { return [id, localController]; })) });
+        localRoom.game = match = viewMatch = g; localRoom.phase = g.status === 'over' ? 'results' : 'playing';
+        onlineMatchId = seenThrow = null; observedOnlinePhase = null; lastRoomSnapshot = null;
+        syncGameUi(); shell.syncButtons(); return true;
     }
     function onRoom(data, activeRoom) {
         room = activeRoom;
         document.getElementById('network-status').textContent = '';
         if (!data || !online.service.currentPlayer() || !(data.players || {})[online.service.currentPlayer().uid]) {
+            if (keepLocalMatchAfterRoomLoss(lastRoomSnapshot)) return;
             online.leave().catch(showNetError); room = null;
-            match = viewMatch = null; onlineMatchId = seenThrow = null; observedOnlinePhase = null;
+            match = viewMatch = null; onlineMatchId = seenThrow = null; observedOnlinePhase = null; lastRoomSnapshot = null;
             shell.goIdle(); openLobby(); document.getElementById('network-status').textContent = t('dartsRoomGone'); return;
         }
         // Normalize legacy view data; the shared transaction policy still checks the stored snapshot.
         data = Object.assign({}, data, { phase: online.phase(data), participants: online.participants(data),
             seatOrder: online.participantIds(data), options: Rules.options(data.options) });
         activeRoom.data = data;
+        lastRoomSnapshot = data;
         var enteredLobby = observedOnlinePhase !== 'lobby'; observedOnlinePhase = data.phase;
         var g = data.game || {};
         if (data.phase === 'lobby' || !g.status) {
@@ -1329,6 +1361,12 @@
             if (shell.state !== 'idle') shell.goIdle();
             if (enteredLobby) openLobby();
             syncGameUi(); return;
+        }
+        // Reservation heartbeats contain the initial state, not each locally thrown dart.
+        // Keep the live match and pause state until the host explicitly returns to the lobby.
+        if (g.execution === 'local' && match && match.execution === 'local' &&
+            match.matchId === g.matchId && match.seq >= g.seq) {
+            syncGameUi(); shell.syncButtons(); return;
         }
         var changedMatch = onlineMatchId !== g.matchId, changedLeg = match && match.leg !== g.leg;
         match = g;
@@ -1345,7 +1383,7 @@
     }
     function setupControls() {
         document.getElementById('next-leg-btn').addEventListener('click', function () {
-            if (room) online.nextLeg().catch(showNetError);
+            if (usesSharedMatch()) online.nextLeg().catch(showNetError);
             else { acceptLocal(Rules.nextLeg(match, Date.now())); clearBoard(); }
         });
         document.getElementById('play-again-btn').addEventListener('click', function () { backToLobby().catch(showNetError); });
@@ -1355,12 +1393,13 @@
             var card = event.target.closest('.darts-player'); if (card) historyView.open(card.dataset.playerUid);
         });
         document.getElementById('settings-btn').addEventListener('click', function () { openLobby(); });
-        document.getElementById('online-btn').addEventListener('click', function () { openLobby(true); });
-        document.getElementById('restart-btn').addEventListener('click', function (event) { if (!room) { event.stopImmediatePropagation(); restartLocal(); } }, true);
+        document.getElementById('restart-btn').addEventListener('click', function (event) {
+            if (!usesSharedMatch()) { event.stopImmediatePropagation(); restartLocal().catch(showNetError); }
+        }, true);
         document.querySelectorAll('.darts-dialog').forEach(function (dialog) { dialog.addEventListener('keydown', function (event) { event.stopPropagation(); }); });
         window.addEventListener('keydown', function (event) {
-            if ((event.key === 'r' || event.key === 'R') && !room && !document.querySelector('.darts-dialog[open]')) {
-                event.preventDefault(); event.stopImmediatePropagation(); restartLocal();
+            if ((event.key === 'r' || event.key === 'R') && !usesSharedMatch() && !document.querySelector('.darts-dialog[open]')) {
+                event.preventDefault(); event.stopImmediatePropagation(); restartLocal().catch(showNetError);
             }
         }, true);
         window.addEventListener('pagehide', function () { if (online && room) online.leave().catch(function () {}); });
@@ -1375,7 +1414,7 @@
     function init() {
         localRoom = newLocalRoom();
         hud = window.DartsHud.create({ document: document, t: t, resultLabel: resultLabel, modeName: modeName,
-            locale: function () { return AC.i18n.locale; }, isOnline: function () { return !!room; },
+            locale: function () { return AC.i18n.locale; }, isOnline: usesSharedMatch,
             myUid: controllerId, controlsPlayer: controlsPlayer, isFlying: function () { return G.dartState === 'flying'; } });
         historyView = window.createDartsHistory({ document: document, t: t, resultLabel: resultLabel,
             locale: function () { return AC.i18n.locale; }, cancelGesture: function () { gesture = null; },
@@ -1398,8 +1437,8 @@
             reset: resetSession,
             restartToReady: true,
             overlayContent: overlayContent,
-            canPause: function () { return !room && !!match && !match.turnMs && match.status === 'playing' && localRoom.phase === 'playing'; },
-            canRestart: function () { return !room; },
+            canPause: function () { return !usesSharedMatch() && !!match && !match.turnMs && match.status === 'playing' && roomData().phase === 'playing'; },
+            canRestart: function () { return !usesSharedMatch(); },
             onPause: function () { gesture = null; },
             onStart: function () {
                 syncGameUi(); fitCanvas();
@@ -1429,7 +1468,7 @@
         setupControls();
         setInterval(function () {
             if (online && room) online.tick().catch(showNetError);
-            else if (localRoom.phase === 'playing' && match && match.status === 'playing' && match.turnMs > 0 &&
+            if (!usesSharedMatch() && roomData().phase === 'playing' && match && match.status === 'playing' && match.turnMs > 0 &&
                 G.dartState !== 'flying' && Date.now() >= match.turnStartedAt + match.turnMs) acceptLocal(Rules.timeout(match, Date.now()));
             syncGameUi();
         }, 1000);

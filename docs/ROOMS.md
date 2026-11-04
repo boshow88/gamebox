@@ -63,7 +63,9 @@ name, controller connection ID and type. Each connection can add, rename or
 remove its own local participants in the lobby, retaining at least one owned
 participant; a remote join and local addition share the same four-slot capacity
 check inside transactions. Names and participant IDs survive invitation creation
-and successive matches.
+and successive matches. Default names use numbered players, with unused numbers
+for anonymous remote additions; actual names are separate from the indication of
+which device controls the slot.
 
 The room's `phase` is `lobby`, `playing` or `results`; the transport status is
 `waiting`, `playing` or `results` respectively. Host-only lobby configuration can
@@ -79,7 +81,8 @@ transaction.
 
 Start captures the mode/rules, participant list, participant-to-controller
 `game.owners` map and display-name `roster`. The active match owns this immutable
-configuration; lobby edits cannot change a match in progress. Each accepted
+configuration; lobby edits cannot change a match in progress. For shared
+execution, each accepted
 throw derives the active participant from the current game and checks its frozen
 owner against the calling connection. Changing a supplied participant ID cannot
 select another controller's turn. The `updateMatch` transaction also checks match
@@ -88,6 +91,22 @@ gate and enabled turn deadline, preventing stale/double submissions and competin
 turn advances through this client protocol. The Firebase rules retain the
 existing authenticated honor-system access policy; these transactions do not
 introduce server-authoritative anti-cheat enforcement.
+
+The same Start transaction fixes `game.execution`. When the host connection owns
+every participant and no other connection is present, it selects `local`. The
+host runs throws, history, timers and Leg changes through the offline rules path
+without per-dart network updates. The code, captured membership and initial match
+remain reserved by the normal room heartbeat; joins stay blocked until the lobby
+returns. Timer-Off local matches can pause, while enabled local deadlines keep
+the existing offline policy.
+
+The live local scores, result and history stay on the host until Return to Lobby.
+`syncLocal(state, true)` checks the stored match ID, host ownership, participant
+order, frozen rule settings and sequence before publishing the finished snapshot
+and reopening the same lobby in one transaction. The stored match is not updated
+automatically merely because local play has ended. Configuration and readiness
+then follow the normal lobby protocol. A later match with another device selects
+`shared`; a shared match does not change execution mode when a peer leaves.
 
 Between-leg state counts as a running match. New connections and participant
 changes are allowed only in the lobby. On match completion, results remain in
@@ -110,14 +129,14 @@ connection's slots are released through normal presence handling.
 
 Timers offer Off/30/60/90 seconds, defaulting to Off for Practice and 60 seconds
 for competitive modes. Unused darts are forfeited on timeout; valid points
-already scored remain. Any seated controller's watchdog can advance an expired
+already scored remain. In shared execution, any seated controller's watchdog can advance an expired
 turn once. The next participant's deadline starts after the previous flight and
 result presentation, giving a full turn to aim. An Off timer never expires.
 Opening lobby or history panels does not stop an enabled timer. Deadlines follow
 the existing games' client wall-clock convention.
 
 Accepted throws store one compact `lastThrow` event with flight, physical impact,
-configured result and sequence. Bull scoring preserves the physical inner/outer
+configured result and sequence in shared execution. Bull scoring preserves the physical inner/outer
 category, and Cut-Throat Cricket records the applicable opponent penalties. All
 clients animate the accepted flight and reveal committed scores/history at
 impact. Presence snapshots do not replay throws; pointer samples and per-frame

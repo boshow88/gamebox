@@ -264,6 +264,20 @@
         if (state.status !== 'between') return null;
         var s = snapshot(state); s.seq++; s.leg++; s.round++; resetLeg(s, at || 0); return s;
     }
+    function endPractice(state) {
+        if (!state || state.mode !== 'practice' || state.status !== 'playing') return null;
+        var s = copy(state), history = s.history || [], last = history[history.length - 1];
+        s.seq++; s.status = 'over'; s.winner = null; s.legWinner = null; s.draw = false;
+        s.endReason = s.legEndReason = 'practice-ended';
+        // Close only the existing partial turn; completed solo throws and empty turns
+        // remain untouched, so ending a session never creates an extra history row.
+        if (last && !last.finished && last.uid === s.active && last.leg === s.leg && last.turn === s.round) {
+            last.finished = true; last.reason = 'practice-ended';
+            s.lastTurn = { uid: last.uid, points: last.points, reason: last.reason, darts: last.darts.slice(),
+                phase: last.phase || s.phase, penalties: Object.assign({}, last.penalties) };
+        }
+        return s;
+    }
     function withdrawMany(state, leaving, at) {
         if (!state || !['playing', 'between'].includes(state.status)) return null;
         var removed = contenders(state).filter(function (id) { return leaving.includes(id); });
@@ -305,5 +319,5 @@
     function withdraw(state, uid, at) { return withdrawMany(state, [uid], at); }
     return { TARGETS: TARGETS, HISTORY_LIMIT: HISTORY_LIMIT, hit: hit, normalize: normalize, scoreAt: scoreAt,
         scoreResult: scoreResult, options: options, eligibility: eligibility, create: create, throwDart: throwDart,
-        timeout: timeout, nextLeg: nextLeg, contenders: contenders, withdraw: withdraw, withdrawMany: withdrawMany };
+        timeout: timeout, nextLeg: nextLeg, endPractice: endPractice, contenders: contenders, withdraw: withdraw, withdrawMany: withdrawMany };
 });

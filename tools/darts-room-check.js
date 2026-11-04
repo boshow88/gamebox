@@ -8,8 +8,8 @@ const createRoom = require('../js/games/darts-room.js');
     const db = require('./helpers/rtdb-fixtures.js').realtimeGameBackend(modules);
     let clock = 1000, session = 0;
     const errors = [], clients = {};
-    function make() {
-        const id = 'darts-tab-' + ++session, user = { uid: 'same-account', name: id };
+    function make(displayName) {
+        const id = 'darts-tab-' + ++session, user = { uid: 'same-account', name: displayName === undefined ? id : displayName };
         const client = createRoom({ now: () => clock,
             net: { rooms: { presence: options => modules.createRoomPresence({ ...options, now: () => clock }),
                 create: config => modules.createRoomService({ store: db.createStore(config, () => user, id, () => clock),
@@ -35,22 +35,27 @@ const createRoom = require('../js/games/darts-room.js');
     }
     async function fixture(fields) { await flush(a.service.update('ABCD', fields)); }
 
-    // Solo starts without a second device; a local slot survives promotion unchanged.
-    await flush(a.create({ mode: 'practice' }, [{ id: 'local-you', name: 'You' }]));
+    // A code-only room reserves its seats while every throw stays local to the host device.
+    await flush(a.create({ mode: 'practice' }, [{ id: 'local-you', name: 'Alex' }]));
     assert.equal(get().phase, 'lobby'); assert.deepEqual(ids(), ['local-you']);
     assert.equal(get().participants['local-you'].controllerId, A);
     assert.equal(a.canStart(), true); assert.equal(await flush(a.start()), true);
-    assert.equal(game().mode, 'practice'); assert.equal(game().turnMs, 0);
+    assert.equal(game().mode, 'practice'); assert.equal(game().turnMs, 0); assert.equal(game().execution, 'local');
     const firstMatch = { ...game() };
     const dup = await Promise.all([a.submit(flight()), a.submit(flight())]); await db.flush();
-    assert.equal(dup.filter(Boolean).length, 1); assert.equal(game().history.length, 1);
-    assert.equal(game().history[0].darts.length, 1, 'A duplicate release cannot duplicate history');
+    assert.equal(dup.filter(Boolean).length, 0, 'A local match never uses the per-dart network submission handler');
+    let localPractice = R.throwDart(game(), game().active, R.hit(20, 3), clock, { x: 20, y: 3 });
+    assert.equal(localPractice.history.length, 1); assert.equal(game().seq, 0); assert.deepEqual(game().history, []);
+    assert.equal(await flush(a.syncLocal(localPractice)), false, 'Playing states are not uploaded per dart');
+    assert.equal(await flush(a.backToLobby()), false, 'A reserved local match must return with its live history');
     assert.equal(await a.submit({ ...flight(), vel: { x: 20, y: 3, z: NaN } }), false);
     clock += 100000; assert.equal(await flush(a.expire()), false, 'Timer Off never expires');
-    assert.equal(await flush(a.backToLobby()), true);
+    localPractice = R.endPractice(localPractice);
+    assert.equal(await flush(a.syncLocal(localPractice, true)), true);
     assert.equal(game().endReason, 'practice-ended'); assert.equal(game().winner, null);
     assert.equal(game().matchId, firstMatch.matchId); assert.equal(game().history.length, 1);
     assert.equal(get().phase, 'lobby');
+    assert.equal(await flush(a.syncLocal(localPractice, true)), false, 'A delayed boundary cannot republish after returning to lobby');
 
     await flush(a.configure({ mode: '501' }));
     assert.equal(get().options.turnMs, 60000, 'Changing mode uses the same timer defaults as a local lobby');
@@ -196,6 +201,62 @@ const createRoom = require('../js/games/darts-room.js');
     await flush(e.leave()); await flush(b.leave()); assert.equal(get(), null);
     await a.leave(); await c.leave(); await d.leave();
 
+    // Four host-owned slots use the same local path, including timers and multiple Legs.
+    await flush(a.create({ mode: 'countup', roundLimit: 5, legsToWin: 2, turnMs: 30000 },
+        [1, 2, 3, 4].map(index => ({ id: 'host-seat-' + index, name: 'Host player ' + index }))));
+    const reservedCode = a.current().code, hostSeats = ids().slice();
+    assert.equal(await flush(a.start()), true); assert.equal(game().execution, 'local');
+    assert.equal(Object.keys(get().players).length, 1); assert.equal(game().players.length, 4);
+    let localMatch = structuredClone(game());
+    clock += 31000;
+    assert.equal(await flush(a.expire()), false, 'The reserved room cannot expire a locally executed turn');
+    await flush(a.tick()); assert.equal(game().seq, 0, 'Reservation heartbeats do not advance local turns');
+    await assert.rejects(b.join(reservedCode), error => error.code === 'room/started');
+    const localWinner = hostSeats[3];
+    for (let leg = 1; leg <= 2; leg++) {
+        for (let dart = 0; dart < 60; dart++) {
+            const base = hostSeats.indexOf(localMatch.active) + 1;
+            localMatch = R.throwDart(localMatch, localMatch.active, R.hit(base, 1), ++clock, { x: base, y: 0 });
+        }
+        assert.equal(localMatch.legWinner, localWinner);
+        assert.equal(game().seq, 0, 'All sixty darts stay on the current device');
+        if (leg === 1) {
+            assert.equal(localMatch.status, 'between');
+            assert.equal(await flush(a.nextLeg()), false, 'The local Next Leg never uses the network turn handler');
+            localMatch = R.nextLeg(localMatch, ++clock);
+        }
+    }
+    assert.equal(localMatch.status, 'over'); assert.equal(localMatch.winner, localWinner);
+    assert.equal(localMatch.history.length, 40); assert.equal(localMatch.wins[localWinner], 2);
+    assert.equal(await flush(a.syncLocal({ ...localMatch, outRule: 'open' }, true)), false, 'Local sync cannot change frozen rules');
+    assert.equal(await flush(a.syncLocal({ ...localMatch, owners: { ...localMatch.owners, [localWinner]: B } }, true)), false,
+        'Local sync cannot claim a different controlling device');
+    assert.equal(await flush(a.syncLocal({ ...localMatch, players: localMatch.players.slice().reverse() }, true)), false,
+        'Local sync cannot change the captured seat order');
+    assert.equal(await flush(a.syncLocal({ ...localMatch, seq: -1 }, true)), false);
+    const boundary = await Promise.all([a.syncLocal(localMatch, true), a.syncLocal(localMatch, true)]); await db.flush();
+    assert.equal(boundary.filter(Boolean).length, 1, 'Competing local result uploads settle once');
+    assert.equal(get().phase, 'lobby'); assert.equal(a.current().code, reservedCode);
+    assert.deepEqual(game().history, localMatch.history, 'Returning uploads the complete locally accepted match history once');
+    assert.deepEqual(ids(), hostSeats);
+    for (const id of hostSeats.slice(1)) await flush(a.removeLocalPlayer(id));
+    await flush(b.join(reservedCode)); await readyGuests(A); assert.equal(await flush(a.start()), true);
+    assert.equal(game().execution, 'shared', 'The same invitation uses shared scoring when another device participates');
+    await shoot(20, 1); assert.equal(game().seq, 1);
+    await flush(a.leave()); await flush(b.leave()); assert.equal(get(), null);
+
+    // Anonymous device defaults are meaningful player names and remain distinct after a seat is removed.
+    const unnamedA = make(null), unnamedB = make(null);
+    await flush(unnamedA.create({ mode: 'practice' }));
+    assert.equal(get().participants[ids()[0]].name, 'Player 1');
+    await flush(unnamedA.addLocalPlayer());
+    const remaining = ids()[1];
+    assert.equal(get().participants[remaining].name, 'Player 2');
+    await flush(unnamedA.removeLocalPlayer(ids()[0]));
+    await flush(unnamedB.join('ABCD'));
+    assert.equal(new Set(ids().map(id => get().participants[id].name)).size, 2, 'Automatic numbered names never duplicate an existing fallback');
+    await flush(unnamedA.leave()); await flush(unnamedB.leave()); assert.equal(get(), null);
+
     // Legacy incomplete lobby values are migrated at start, without changing connection IDs.
     await flush(a.create({ mode: 'countup' }));
     const legacy = get();
@@ -207,5 +268,5 @@ const createRoom = require('../js/games/darts-room.js');
     assert.equal(game().roundLimit, 8); assert.equal(game().legsToWin, 1);
     await flush(a.leave()); assert.equal(get(), null);
     assert.equal(errors.length, 0, errors.map(String).join('\n'));
-    console.log('PASS: persistent Darts rooms, solo/mixed/4-device slots, ownership, Ready/configuration guards, rule snapshots, full matches, history, recovery and host migration.');
+    console.log('PASS: persistent Darts rooms, code-only local execution, numbered names, mixed/4-device slots, ownership, Ready/configuration guards, rule snapshots, full matches, history, recovery and host migration.');
 })().catch(error => { console.error(error); process.exitCode = 1; });

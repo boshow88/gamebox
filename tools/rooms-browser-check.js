@@ -183,7 +183,7 @@ ${dartsOnly ? fs.readFileSync(path.join(__dirname, 'helpers/darts-browser-v2.js'
         }
     } else {
         const codec = await import('/js/net/rtdb-values.mjs'); encode = codec.encodeRoomValue; decode = codec.decodeRoomValue;
-        if(dartsOnly) { await checkDartsLocalV2(); await checkDartsLeaveRestoreV2(); await checkDartsMixedV2(); await checkDartsFourV2(); await checkDartsLayoutsV2(); await checkDartsLobbyV2(); }
+        if(dartsOnly) { await checkDartsContextV2(); await checkDartsLocalV2(); await checkDartsReservedLocalV2(); await checkDartsReservedLossV2(); await checkDartsLeaveRestoreV2(); await checkDartsMixedV2(); await checkDartsFourV2(); await checkDartsLayoutsV2(); await checkDartsLobbyV2(); }
         else { await check('beam', 'beam_rooms', 'beam'); await check('rune-stones', 'duel_rooms', 'rd'); }
     }
     document.getElementById('result').textContent = 'PASS (' + mode + '): ' + (mode === 'invalid' ? 'disabled online rooms and working account profiles.' : dartsOnly ? 'Darts unified offline/online lobby, local and mixed player slots, immutable rules/readiness, persistent matches, history, throw input and responsive geometry.' : 'real browser room flows, backend selection and account isolation.');
@@ -212,7 +212,7 @@ async function main() {
                     gesture: function () { if (G.dartState === 'landed') freshDart(); launchThrow(analyseGesture([{t:0,x:0,y:0},{t:.05,x:0,y:50},{t:.1,x:0,y:140},{t:.15,x:0,y:230}])); },
                     land: function () { update(1); }, controller: function () { return online; },
                     previewCricket: function () { match.players.forEach(function (id, i) { match.scores[id]=[120,80,40,95][i]; Rules.TARGETS.forEach(function(n,r){match.marks[id][n]=(r+i)%4;}); }); viewMatch=match; syncGameUi(); },
-                    snapshot: function () { return {match:match,room:room,uid:room && online ? online.service.currentPlayer().uid : 'local-controller',data:room ? room.data : localRoom,darts:G.darts,dartState:G.dartState}; }
+                    snapshot: function () { return {match:match,room:room,uid:room && online ? online.service.currentPlayer().uid : 'local-controller',data:roomData(),darts:G.darts,dartState:G.dartState,shellState:shell.state}; }
                 }; })();`);
             if (file.endsWith('.html')) {
                 type = 'text/html';

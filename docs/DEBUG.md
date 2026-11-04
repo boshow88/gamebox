@@ -85,7 +85,13 @@ one- and multiple-slot ownership, same-device and mixed-device matches, capacity
 configuration/Ready races, locked match snapshots, rejected impersonation and
 duplicate throws, timers including Off, full Count-Up, Cut-Throat penalties,
 same-code mode switching, retained results/history and reconnect/eviction with
-host transfer. It also checks older room values can start a normalized match.
+host transfer. Host-only invitation scenarios keep four slots and two Legs local
+across 120 throws without changing the stored scoring sequence, skip the network
+turn watchdog, and upload finished history once on Return to Lobby. They reject
+altered ownership/rules and duplicate boundary writes, retain the invitation,
+and select shared execution after another device joins the next match. Default
+numbered names remain distinct after seat removal. The check also covers older
+room values starting a normalized match.
 
 The browser check loads real pages, physics, canvas, the unified lobby and modules
 with only Firebase SDK imports redirected to local fakes. Its V2 scenarios live
@@ -94,7 +100,9 @@ hooks are never shipped in the production page. Scenarios cover immediate
 offline Practice/Count-Up without loading networking, mode minimums, promotion
 preserving local slots, two players per device, four remote controllers,
 Ready invalidation, ownership, match locking, results and another mode in the
-same room. History scenarios exercise player/all filtering, independent scrolling,
+same room. The lobby uses one Room toolbar entry, with invitations inside it,
+and explains the currently selected rules and valid player count. History
+scenarios exercise player/all filtering, independent scrolling,
 live-update anchor preservation, modal input blocking and focus restoration.
 Invalid-backend checks leave local Practice and account profiles working.
 

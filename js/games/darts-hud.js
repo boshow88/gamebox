@@ -104,10 +104,13 @@
                 m.players.forEach(function (p) {
                 var card = el('button', 'darts-player' + (p.active ? ' active' : '') + (p.left ? ' withdrawn' : ''));
                 card.type = 'button'; card.setAttribute('aria-haspopup', 'dialog');
-                card.setAttribute('aria-label', p.name + ' · ' + t('dartsHistory'));
+                var owned = controls(p.id), ownership = t(owned ? 'dartsThisDevice' : 'dartsOtherDevice');
+                card.setAttribute('aria-label', p.name + ' · ' + ownership + ' · ' + t('dartsHistory'));
+                card.title = p.name + ' · ' + ownership;
                 card.style.setProperty('--player-color', p.color); card.dataset.playerUid = p.id;
                 if (p.active) card.setAttribute('aria-current', 'true');
                 var seat = el('span', 'player-seat', p.seat); seat.setAttribute('aria-hidden', 'true');
+                if (owned) { seat.classList.add('owned-seat'); seat.title = ownership; }
                 var name = el('span', 'darts-player-name', p.left ? t('dartsWithdrawn') + ' · ' + p.name : p.name); name.title = p.name;
                 var score = el('strong', 'darts-player-score', p.score);
                 score.setAttribute('aria-label', t(m.mode === '501' ? 'dartsRemaining' : m.mode === 'practice' ? 'dartsDarts' : 'dartsPoints') + ' ' + p.score);

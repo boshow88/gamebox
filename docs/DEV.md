@@ -476,7 +476,9 @@ transfer. This is game policy on shared infrastructure, not a second transport.
 Room `players` identify connected controllers. Separately, `participants` and
 `seatOrder` describe 1–4 seats, each with a name, `controllerId` and `type:'human'`.
 One controller can own several slots; the separation leaves room for a future CPU
-without adding CPU behavior or controls now. Lobby edits validate capacity and
+without adding CPU behavior or controls now. Default display names use numbered
+players instead of the viewer-dependent name "You"; entered names remain names,
+while device ownership is shown separately. Lobby edits validate capacity and
 ownership and clear Ready state. Readiness is per controller, covering all its
 slots. A host-start convention allows the host to acknowledge settings by Start
 after each guest controller readies up.
@@ -490,6 +492,21 @@ through playing/between-Legs/results without destroying the room; Back to Lobby
 keeps the last game, history, settings, names and slots until a new match replaces
 them. The host can stop Practice, which has no formal winner. Other active
 competitive matches retain locked configuration and membership.
+
+Start also fixes `game.execution` for the match. An invitation room containing
+only host-owned participants uses `local`: the host applies the same Rules,
+history, timer and pause policies as an offline match. Per-dart scoring, local
+timeouts and next-Leg transitions make no room writes. The room code and
+membership remain reserved through ordinary heartbeats, and new participants
+cannot join during play. Returning to the lobby uploads the accepted finished
+snapshot through `syncLocal`, preserving the complete history in one guarded
+update. Match completion alone does not publish that live local state.
+
+Matches with another controller start as `shared` and keep the existing guarded
+throw protocol. Execution does not switch after a disconnect: a shared match
+finishes under its original ownership/departure rules. The next Start evaluates
+the current participants again, so the same invitation can host a local match
+and later a shared one without recreating the room.
 
 The existing reconnect grace period retains every slot owned by a temporarily
 disconnected controller. Intentional departure/eviction withdraws those slots
@@ -514,6 +531,9 @@ to Standard for two and Cut-Throat for three/four when the match is created;
 explicit choices survive population changes. Mode changes select appropriate
 round/timer defaults, while explicit values in the same update take precedence.
 Rules are copied into the match and are not read from mutable lobby options.
+Explanations describe only the selected mode, participant count and actual rule
+combination. A one-player Cricket lobby explains the two-player minimum instead
+of recommending a one-player variant.
 
 `scoreAt`/`normalize` preserve physical Bull region and multiplier. Only
 `scoreResult` applies 25/50 or 50/50 numeric Bull scoring for 501/Count-Up; a
@@ -548,7 +568,8 @@ desktop is landscape (3:2). The page header stays visible and the game fits in t
 remaining screen height from the initial ready screen onward. Start/Restart do
 not hide page sections, change viewport geometry or force a scroll. The native
 lobby dialog contains slots, invitations, contextual rules/help and detailed
-post-leg statistics; its toolbar action remains available during play, with
+post-leg statistics. The single Room toolbar action remains available during play,
+with Invite/Join inside that dialog and
 match settings locked. No mobile/desktop scoring branches are needed.
 
 Panel bounds stay constant across Practice, 501, Cricket and Count-Up. Primary
@@ -575,8 +596,9 @@ gesture-derived launch velocity in Y/Z, preserving speed, release point and
 camera. `handYOffset` remains -292 mm. Detailed Count-Up statistics are expandable
 after a Leg inside the lobby.
 
-Timed local matches use the same wall-clock deadline policy and cannot pause;
-Timer-Off local matches can pause. Local expiry waits while an accepted dart is
+Timed local matches, including host-only invitation rooms, use the same wall-clock
+deadline policy and cannot pause; Timer-Off local matches can pause. Local expiry
+waits while an accepted dart is
 flying so its score cannot be applied to a newly advanced slot. Online clients
 present the accepted throw before showing its updated score/history; presentation
 does not apply a second physical pitch transformation.
@@ -590,8 +612,10 @@ timeout/departure/in-progress status. Cut-Throat lists actual penalty recipients
 Cork lists one dart, tie-break round and distance. Reading history does not pause
 a timed turn; a visible note explains this while its timer is running.
 
-Rules maintain `game.history` and `game.historyDropped` in the same guarded
-transaction as scoring. Each turn is appended once and updated as its darts land;
+Rules maintain `game.history` and `game.historyDropped` in each accepted state
+transition. Shared execution commits these with scoring in the same guarded
+transaction; a host-only invitation match keeps them locally until returning to
+the lobby. Each turn is appended once and updated as its darts land;
 rejected or duplicate submissions cannot create extra records. History survives
 Leg changes and brief reconnects. Returning to the lobby preserves the finished
 game; a new match clears history. Departed players keep names through the match

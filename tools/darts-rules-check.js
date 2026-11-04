@@ -340,6 +340,30 @@ assert.equal(s.active, 'A'); assert.equal(s.history.length, 4); assert.equal(s.s
 s = R.withdrawMany(s, ['A', 'B', 'C'], 5000); assert.equal(s.status, 'playing'); assert.equal(s.active, 'D');
 s = dart(s, 25, 2); assert.equal(s.stats.D.darts, 4);
 s = R.withdraw(s, 'D', 6000); assert.equal(s.status, 'over'); assert.equal(s.winner, null);
+
+// Ending shared Practice closes the real partial turn without inventing another throw.
+s = R.create({ mode: 'practice', turnMs: 30000 }, ['A', 'B'], 1000);
+s.owners = { A: 'device-one', B: 'device-two' }; s.matchId = 'practice-session';
+s = dart(s, 20);
+const partialPractice = JSON.parse(JSON.stringify(s)), partialRow = { ...s.history[0] };
+const endedPractice = R.endPractice(s);
+assert.deepEqual(s, partialPractice, 'Ending Practice cannot mutate the accepted source snapshot');
+assert.equal(endedPractice.seq, s.seq + 1); assert.equal(endedPractice.status, 'over');
+assert.equal(endedPractice.winner, null); assert.equal(endedPractice.legWinner, null);
+assert.equal(endedPractice.endReason, 'practice-ended'); assert.equal(endedPractice.history.length, 1);
+assert.deepEqual(endedPractice.history[0], { ...partialRow, reason: 'practice-ended', finished: true });
+assert.deepEqual(endedPractice.lastTurn.darts, partialRow.darts); assert.equal(endedPractice.lastTurn.points, 20);
+for (const key of ['scores', 'stats', 'turns', 'owners', 'players', 'matchId', 'turnMs', 'roundLimit'])
+    assert.deepEqual(endedPractice[key], s[key], 'Ending Practice preserves ' + key);
+assert.equal(R.endPractice(endedPractice), null, 'An ended Practice cannot be ended a second time');
+assert.equal(R.endPractice(null), null); assert.equal(R.endPractice(R.create({ mode: 'countup' }, ['A'], 0)), null);
+s = R.create({ mode: 'practice' }, ['A', 'B'], 1000);
+assert.deepEqual(R.endPractice(s).history, [], 'An empty Practice cannot create a zero-dart turn');
+for (let i = 0; i < 3; i++) s = dart(s, 20);
+assert.deepEqual(R.endPractice(s).history, s.history, 'Passing to an untouched player adds no fake turn');
+s = R.create({ mode: 'practice' }, ['A'], 1000); s = dart(s, 25, 2);
+assert.deepEqual(R.endPractice(s).history, s.history, 'Finished solo dart records remain unchanged');
+
 s = R.create({ mode: '501' }, ['A', 'B'], 1000);
 s = R.withdrawMany(s, ['A', 'B'], 5000); assert.equal(s.winner, null, 'Bulk controller departure cannot crown its other departing slot');
 s = R.create({ mode: '501' }, four, 1000); s = R.withdrawMany(s, ['A', 'C'], 5000);

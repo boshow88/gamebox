@@ -98,6 +98,104 @@ async function dartsStartOnline(host, guests) {
     dartsClick(host, 'lobby-start-btn');
     await until(() => [host, ...guests].every(f => dartsApi(f).snapshot().match && dartsApi(f).snapshot().match.status === 'playing' && !dartsDoc(f).getElementById('lobby').open), 'online Darts match start');
 }
+async function checkDartsContextV2() {
+    const f = await dartsBoot('context-player'), doc = dartsDoc(f), w = f.contentWindow;
+    const note = () => doc.getElementById('lobby-rule-note').textContent;
+    const firstName = dartsData(f).participants[dartsData(f).seatOrder[0]].name;
+    dartsAssert(firstName === 'Player 1' && firstName !== w.ArcadeCommon.i18n.t('dartsYou'), 'Default display name identifies a player rather than a viewer-relative You');
+    dartsAssert(!doc.getElementById('online-btn') && doc.getElementById('settings-btn'), 'Room is the single toolbar entry for room and invitations');
+    dartsAssert(doc.querySelector('.darts-lobby-slot.owned .slot-device.owned[aria-label]'), 'Local ownership has a compact accessible device cue');
+    dartsAssert(!doc.querySelector('.slot-meta') && !doc.querySelector('.darts-gesture-help').open, 'Repeated ownership prose and expanded gesture instructions do not fill the lobby');
+    dartsAssert(note().includes('one dart at a time') && !note().includes('three darts each'), 'Solo Practice describes only free throws');
+    await dartsChange(f, 'mode-select', 'cricket');
+    dartsAssert(note().includes('at least 2') && !note().includes('Standard') && !note().includes('1–2'), 'One-player Cricket explains its minimum without recommending an invalid one-player game');
+    await dartsAdd(f, 1);
+    dartsAssert(note().includes('2 players: Standard') && !note().includes('Cut-Throat'), 'Two-player automatic Cricket explains only Standard');
+    await dartsAdd(f, 1);
+    dartsAssert(note().includes('3 players: Cut-Throat') && note().includes('penalize every opponent') && !note().includes('Extra marks score for you'), 'Three-player automatic Cricket explains Cut-Throat recipients');
+    await dartsChange(f, 'cricket-select', 'standard'); await dartsAdd(f, 1);
+    dartsAssert(dartsData(f).options.cricketVariant === 'standard' && note().includes('Extra marks score for you') && !note().includes('Cut-Throat'), 'Explicit Standard survives population changes and describes the selected variant');
+    await dartsChange(f, 'rounds-select', 0);
+    dartsAssert(note().includes('No round limit') && !note().includes('After ') && !note().includes('Tied players'), 'Unlimited Cricket does not explain finite settlement or a nonexistent limit tiebreak');
+    await dartsChange(f, 'mode-select', '501'); await dartsChange(f, 'out-select', 'master');
+    await dartsChange(f, 'in-select', 'double'); await dartsChange(f, 'bull-select', '50-50');
+    dartsAssert(note().includes('Finish on a double, triple or Bull') && note().includes('A double or inner Bull opens scoring') && note().includes('Both Bulls score 50') && note().includes('Outer Bull still does not count as a double'), '501 description reflects selected In, Out and actual Bull category');
+    dartsAssert(!note().includes('Count-Up') && !note().includes('Cricket'), '501 explanation excludes other game modes');
+    await dartsChange(f, 'rounds-select', 0);
+    dartsAssert(note().includes('No round limit') && !note().includes('lowest remaining score wins') && !note().includes('Tied players'), 'Unlimited 501 omits round-limit settlement');
+    await dartsChange(f, 'mode-select', 'countup'); await dartsChange(f, 'rounds-select', 5);
+    dartsAssert(note().includes('5 rounds') && !note().includes('8 rounds') && !note().includes('501') && !note().includes('checkout'), 'Count-Up explanation uses current round count and scoring rules');
+    w.ArcadeCommon.i18n.setLocale('zh');
+    dartsAssert(note().includes('5 回合') && !note().includes('八回合'), 'Contextual explanation updates with locale');
+    dartsAssert([...doc.querySelectorAll('#lobby-slots .slot-name')].every(input => !['你', 'You'].includes(input.value)), 'Switching locale does not turn player names into You');
+    f.remove();
+}
+async function checkDartsReservedLocalV2() {
+    const a = await dartsBoot('reserved-host'), doc = dartsDoc(a), api = dartsApi(a);
+    await dartsAdd(a, 1);
+    const code = await dartsPromote(a), tools = dartsRoomTools(code, [a]);
+    await dartsStartOnline(a, []);
+    const matchId = tools.read().game.matchId, firstSlot = api.snapshot().match.active;
+    dartsAssert(tools.read().game.execution === 'local' && api.snapshot().match.execution === 'local', 'A room code with only host-owned seats starts a local match');
+    const initialStored = JSON.stringify(tools.read().game);
+    await dartsFlick(a, doc.getElementById('mode-panel')); api.gesture(); api.land();
+    dartsAssert(api.snapshot().match.seq === 2 && api.snapshot().match.history[0].darts.length === 2 && dartsData(a).game.seq === 2,
+        'Reserved room uses live local match state and accepts repeated local throws');
+    dartsAssert(JSON.stringify(tools.read().game) === initialStored, 'Local throws do not publish per-dart room state');
+    dartsAssert(!doc.getElementById('pause-btn').disabled && doc.querySelectorAll('.darts-player .owned-seat').length === 2,
+        'Host-only coded match retains local pause and compact ownership cues');
+    dartsClick(a, 'pause-btn');
+    const pausedSeq = api.snapshot().match.seq, beat = tools.read().presence[api.snapshot().uid];
+    dartsAssert(api.snapshot().shellState === 'paused', 'Timer-Off local match can pause');
+    await api.controller().service.heartbeat(code, 0);
+    await until(() => tools.read().presence[api.snapshot().uid] !== beat, 'reservation heartbeat committed');
+    await sleep(30);
+    dartsAssert(api.snapshot().shellState === 'paused' && api.snapshot().match.seq === pausedSeq && api.snapshot().match.history[0].darts.length === 2,
+        'Reservation heartbeat cannot resume or overwrite the paused local match');
+    dartsAssert(JSON.stringify(tools.read().game) === initialStored, 'Presence writes leave stored scoring unchanged');
+    dartsClick(a, 'pause-btn'); await dartsReturn(a);
+    dartsAssert(tools.read().phase === 'lobby' && tools.read().game.status === 'over' && tools.read().game.endReason === 'practice-ended',
+        'Returning ends local Practice and republishes results to the same room');
+    dartsAssert(tools.read().game.matchId === matchId && tools.read().game.history[0].uid === firstSlot && tools.read().game.history[0].darts.length === 2 && tools.read().game.history[0].finished,
+        'Ending partial Practice preserves its accepted darts and finalizes the history row');
+    const secondSlot = dartsData(a).seatOrder[1];
+    const remove = [...doc.querySelectorAll('[data-remove-slot]')].find(button => button.dataset.removeSlot === secondSlot);
+    remove.click(); await until(() => dartsData(a).seatOrder.length === 1, 'return to one host-owned participant');
+    await dartsChange(a, 'mode-select', 'countup'); await dartsChange(a, 'rounds-select', 5); await dartsChange(a, 'timer-select', 0);
+    await dartsStartOnline(a, []);
+    const countupStored = JSON.stringify(tools.read().game), slot = api.snapshot().match.players[0];
+    for (let i = 0; i < 15; i++) { api.gesture(); api.land(); }
+    dartsAssert(api.snapshot().match.status === 'over' && api.snapshot().match.stats[slot].darts === 15 && dartsData(a).phase === 'results',
+        'Reserved local solo Count-Up finishes without waiting for shared room scoring');
+    dartsAssert(JSON.stringify(tools.read().game) === countupStored && !doc.getElementById('leg-result').hidden,
+        'Reserved local Count-Up keeps results visible and avoids per-dart network writes');
+    dartsClick(a, 'result-room-btn');
+    await until(() => tools.read().phase === 'lobby' && doc.getElementById('lobby').open, 'publish Count-Up results while retaining invitation');
+    dartsAssert(api.snapshot().room.code === code && tools.read().game.history.length === 5 && tools.read().game.stats[slot].darts === 15,
+        'Finished Count-Up history publishes when returning, retaining the same invitation code');
+    const b = await dartsBoot('reserved-guest');
+    await dartsJoin(b, code); await dartsStartOnline(a, [b]);
+    dartsAssert(tools.read().game.execution === 'shared' && dartsApi(b).snapshot().match.execution === 'shared',
+        'The same room automatically uses shared execution after a remote device joins');
+    const shared = dartsRoomTools(code, [a, b]);
+    await shared.throwAt(0, 80);
+    dartsAssert(shared.read().game.seq === 1 && api.snapshot().match.seq === 1 && dartsApi(b).snapshot().match.seq === 1,
+        'Remote participation restores accepted per-dart synchronization');
+    await api.controller().leave(); await dartsApi(b).controller().leave(); a.remove(); b.remove();
+}
+async function checkDartsReservedLossV2() {
+    const f = await dartsBoot('lost-reservation'), doc = dartsDoc(f), api = dartsApi(f);
+    const code = await dartsPromote(f); await dartsStartOnline(f, []);
+    await dartsFlick(f, doc.getElementById('mode-panel'));
+    const matchId = api.snapshot().match.matchId, seq = api.snapshot().match.seq;
+    await api.controller().service.remove(code);
+    await until(() => !api.snapshot().room, 'lost reservation falls back to local play');
+    dartsAssert(api.snapshot().match && api.snapshot().match.matchId === matchId && api.snapshot().match.seq === seq && !doc.getElementById('lobby').open,
+        'Losing a room reservation preserves local match and history without interrupting play');
+    await dartsFlick(f, doc.getElementById('mode-panel'));
+    dartsAssert(api.snapshot().match.seq === seq + 1 && dartsData(f).phase === 'playing', 'Local throwing continues after reservation disappears');
+    f.remove();
+}
 async function checkDartsLocalV2() {
     const f = await dartsBoot('local-player'), doc = dartsDoc(f), api = dartsApi(f), w = f.contentWindow;
     dartsAssert(!w.ArcadeNet && !api.snapshot().room, 'Local Darts must not initialize multiplayer');

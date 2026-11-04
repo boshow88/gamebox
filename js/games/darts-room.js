@@ -7,6 +7,11 @@
     'use strict';
     function clone(value) { return JSON.parse(JSON.stringify(value)); }
     function name(value, fallback) { return String(value || '').trim().slice(0, 32) || fallback || 'Player'; }
+    function playerName(slots, start) {
+        var used = Object.values(slots || {}).map(function (slot) { return slot.name; }), index = start || 1;
+        while (used.includes('Player ' + index)) index++;
+        return 'Player ' + index;
+    }
     function revision(data) { return Number.isInteger(data.revision) ? data.revision : 0; }
     function phase(data) {
         if (!data) return 'lobby';
@@ -17,8 +22,8 @@
     function participants(data) {
         if (data && data.participants && typeof data.participants === 'object') return data.participants;
         // Existing rooms used the connection UID as the participant UID.
-        return Object.fromEntries(Object.entries(data && data.players || {}).map(function (entry) {
-            return [entry[0], { id: entry[0], name: name(entry[1].name), controllerId: entry[0], type: 'human' }];
+        return Object.fromEntries(Object.entries(data && data.players || {}).map(function (entry, index) {
+            return [entry[0], { id: entry[0], name: name(entry[1].name, 'Player ' + (index + 1)), controllerId: entry[0], type: 'human' }];
         }));
     }
     function participantIds(data) {
@@ -60,7 +65,7 @@
                 imported.forEach(function (slot, index) {
                     slot = typeof slot === 'string' ? { name: slot } : slot || {};
                     var id = validId(slot.id) && !Object.hasOwn(slots, slot.id) ? slot.id : newId(player.uid);
-                    slots[id] = { id: id, name: name(slot.name, index ? 'Player ' + (index + 1) : player.name), controllerId: player.uid, type: 'human' };
+                    slots[id] = { id: id, name: name(slot.name, index ? playerName(slots, index + 1) : name(player.name, playerName(slots))), controllerId: player.uid, type: 'human' };
                     ids.push(id);
                 });
                 return { options: Rules.options(input), participants: slots, seatOrder: ids, phase: 'lobby', revision: 0, seed: input.seed };
@@ -70,7 +75,7 @@
                 var slots = Object.assign({}, participants(data)), ids = participantIds(data);
                 if (ids.length >= 4) throw roomError('full', 'All four player slots are occupied.');
                 var id = newId(player.uid);
-                slots[id] = { id: id, name: name(player.name), controllerId: player.uid, type: 'human' };
+                slots[id] = { id: id, name: name(player.name, playerName(slots, ids.length + 1)), controllerId: player.uid, type: 'human' };
                 return { participants: slots, seatOrder: ids.concat(id), ready: {}, revision: revision(data) + 1, phase: 'lobby' };
             },
             onLeave: function (data, player) {
@@ -87,6 +92,9 @@
                 var ids = participantIds(data), slots = participants(data);
                 var g = Rules.create(data.options, ids, now(), Math.abs(data.seed || 0) % ids.length);
                 g.owners = Object.fromEntries(ids.map(function (id) { return [id, slots[id].controllerId]; }));
+                g.execution = Object.keys(data.players || {}).length === 1 && ids.every(function (id) {
+                    return g.owners[id] === data.hostUid;
+                }) ? 'local' : 'shared';
                 return { status: 'playing', phase: 'playing', game: g,
                     seed: Math.floor(Math.random() * 1e9),
                     participants: slots, seatOrder: ids,
@@ -133,7 +141,7 @@
             return lobbyUpdate(function (data, uid) {
                 var slots = Object.assign({}, participants(data)), ids = participantIds(data);
                 if (ids.length >= 4) return null;
-                slots[id] = { id: id, name: name(displayName, 'Player ' + (ids.length + 1)), controllerId: uid, type: 'human' };
+                slots[id] = { id: id, name: name(displayName, playerName(slots, ids.length + 1)), controllerId: uid, type: 'human' };
                 return { participants: slots, seatOrder: ids.concat(id), ready: {}, revision: revision(data) + 1 };
             });
         }
@@ -160,11 +168,32 @@
             return guarded(expected, function (data, uid) {
                 if (service.host(data) !== uid || phase(data) === 'lobby') return null;
                 var g = data.game || {};
+                if (g.execution === 'local' && g.status !== 'over') return null;
                 if (g.status !== 'over' && g.mode !== 'practice') return null;
-                if (g.status !== 'over') {
-                    g = clone(g); g.seq++; g.status = 'over'; g.winner = null; g.legWinner = null; g.endReason = 'practice-ended';
-                }
+                if (g.status !== 'over') g = Rules.endPractice(g);
                 return { phase: 'lobby', status: 'waiting', game: g, ready: {}, revision: revision(data) + 1 };
+            });
+        }
+        function syncLocal(state, toLobby) {
+            // A room code reserves membership while an all-local match runs without per-dart writes.
+            // Publish only at a result/leg boundary or on returning to this same lobby.
+            if (!state || !['between', 'over'].includes(state.status) || toLobby && state.status !== 'over') return Promise.resolve(false);
+            return guarded(null, function (data, uid) {
+                var g = data.game || {}, ids = participantIds(data), owners = g.owners || {};
+                if (!['playing', 'results'].includes(phase(data)) || service.host(data) !== uid || g.execution !== 'local'
+                    || state.execution !== 'local' || state.matchId !== g.matchId || !Number.isInteger(state.seq) || state.seq < g.seq
+                    || !Array.isArray(g.players) || !Array.isArray(state.players)
+                    || Object.keys(data.players || {}).length !== 1 || ids.some(function (id) { return owners[id] !== uid; })
+                    || JSON.stringify(state.players) !== JSON.stringify(g.players)
+                    || Object.keys(state.owners || {}).length !== Object.keys(owners).length
+                    || g.players.some(function (id) { return state.owners[id] !== owners[id]; })
+                    || !g.players.includes(state.active) || state.winner && !g.players.includes(state.winner)) return null;
+                var settings = Rules.options(g, g.players.length);
+                if (Object.keys(settings).some(function (key) { return state[key] !== g[key]; })) return null;
+                if (!toLobby && (phase(data) !== 'playing' || state.seq === g.seq)) return null;
+                var next = clone(state), nextPhase = toLobby ? 'lobby' : state.status === 'over' ? 'results' : 'playing';
+                return { game: next, phase: nextPhase, status: toLobby ? 'waiting' : nextPhase,
+                    ready: {}, revision: revision(data) + (toLobby ? 1 : 0) };
             });
         }
         function submit(th, expected) {
@@ -177,7 +206,7 @@
             var stamp = now();
             return guarded(expected, function (data, uid) {
                 var g = data.game || {}, owner = g.owners ? g.owners[g.active] : g.active;
-                if (phase(data) !== 'playing' || g.status !== 'playing' || owner !== uid || stamp < g.readyAt
+                if (phase(data) !== 'playing' || g.execution === 'local' || g.status !== 'playing' || owner !== uid || stamp < g.readyAt
                     || g.turnMs > 0 && stamp >= g.turnStartedAt + g.turnMs) return null;
                 var next = Rules.throwDart(g, g.active, presentation.result, stamp, presentation.impact);
                 if (!next) return null;
@@ -193,7 +222,7 @@
             var stamp = now();
             return guarded(expected, function (data) {
                 var g = data.game || {};
-                if (phase(data) !== 'playing' || g.status !== 'playing' || !(g.turnMs > 0)
+                if (phase(data) !== 'playing' || g.execution === 'local' || g.status !== 'playing' || !(g.turnMs > 0)
                     || stamp < g.turnStartedAt + g.turnMs || stamp < g.readyAt) return null;
                 var next = Rules.timeout(g, stamp);
                 return next ? { game: next, phase: next.status === 'over' ? 'results' : 'playing', status: next.status === 'over' ? 'results' : 'playing' } : null;
@@ -202,7 +231,7 @@
         function nextLeg(expected) {
             var stamp = now();
             return guarded(expected, function (data) {
-                if (phase(data) !== 'playing' || !data.game || stamp < data.game.readyAt) return null;
+                if (phase(data) !== 'playing' || !data.game || data.game.execution === 'local' || stamp < data.game.readyAt) return null;
                 var next = Rules.nextLeg(data.game, stamp); return next ? { game: next } : null;
             });
         }
@@ -219,7 +248,8 @@
                 gcAt = now(); service.cleanup().catch(onError);
             }
             if (room && room.data && phase(room.data) === 'playing' && room.data.game && room.data.game.status === 'playing'
-                && room.data.game.turnMs > 0 && now() >= room.data.game.turnStartedAt + room.data.game.turnMs) await expire();
+                && room.data.game.execution !== 'local' && room.data.game.turnMs > 0
+                && now() >= room.data.game.turnStartedAt + room.data.game.turnMs) await expire();
         }
         function ready(value) {
             return lobbyUpdate(function (data, uid) { return { ready: Object.assign({}, data.ready, { [uid]: value !== false }) }; });
@@ -227,7 +257,7 @@
         return { service: service, presence: presence, attach: attach, submit: submit, expire: expire, nextLeg: nextLeg, tick: tick,
             participantIds: participantIds, participants: participants, ownedPlayerIds: ownedPlayerIds, phase: phase,
             configure: configure, addLocalPlayer: addLocalPlayer, renamePlayer: renamePlayer, removeLocalPlayer: removeLocalPlayer,
-            backToLobby: backToLobby, rematch: backToLobby, ready: ready,
+            backToLobby: backToLobby, rematch: backToLobby, ready: ready, syncLocal: syncLocal,
             current: function () { return room; },
             canStart: function (data) { return service.canStart(data || room && room.data); },
             create: async function (options, localParticipants) {

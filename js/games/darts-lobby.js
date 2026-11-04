@@ -1,6 +1,66 @@
 /* Unified room view. Membership, ownership and accepted matches stay in the room policy. */
 (function () {
     'use strict';
+    Object.assign(window.ArcadeCommon.i18n.STRINGS.en, {
+        dartsLobbyGestureHelp: 'Throwing controls',
+        dartsLobbyPracticeSolo: 'Unlimited free throws, recorded one dart at a time.',
+        dartsLobbyPracticeShared: '{n} players take turns in seat order, three darts each. Unlimited rounds, no winner.',
+        dartsLobbyCountupSolo: '{rounds} rounds of three darts. Build your personal total.',
+        dartsLobbyCountupShared: 'Each player gets {rounds} rounds of three darts. Highest total wins.',
+        dartsLobby501OpenOut: 'Start at 501 and reach exactly zero. Any scoring region can finish.',
+        dartsLobby501MasterOut: 'Start at 501 and reach exactly zero. Finish on a double, triple or Bull.',
+        dartsLobby501DoubleOut: 'Start at 501 and reach exactly zero. Finish on a double or inner Bull.',
+        dartsLobbyMasterIn: 'A double, triple or Bull opens scoring; the opening dart counts.',
+        dartsLobbyDoubleIn: 'A double or inner Bull opens scoring; the opening dart counts.',
+        dartsLobbyBust: 'A bust cancels the entire turn.',
+        dartsLobbyBustEntry: 'A bust restores the score and opening state from the start of the turn.',
+        dartsLobbyBull2550: 'Outer Bull scores 25, inner Bull 50.',
+        dartsLobbyBull5050: 'Both Bulls score 50.',
+        dartsLobbyOuterNotDouble: 'Outer Bull still does not count as a double.',
+        dartsLobbyCricketAuto: '{n} players: {variant} Cricket.',
+        dartsLobbyCricketStandard: 'Close 20–15 and Bull with three marks each. Extra marks score for you. Close all targets and have at least as many points as every opponent to win.',
+        dartsLobbyCricketCutThroat: 'Close 20–15 and Bull with three marks each. Extra marks penalize every opponent who still has that target open. Close all targets and have no more points than every opponent to win.',
+        dartsLobby501Limit: 'After {rounds} turns per player, lowest remaining score wins the leg.',
+        dartsLobbyCricketHighLimit: 'After {rounds} turns per player, highest score wins the leg.',
+        dartsLobbyCricketLowLimit: 'After {rounds} turns per player, lowest score wins the leg.',
+        dartsLobbyUnlimited501: 'No round limit; play until a legal checkout.',
+        dartsLobbyUnlimitedCricket: 'No round limit; play until the closure and score conditions are met.',
+        dartsLobbyCorkTie: 'Tied players throw closest to Bull.',
+        dartsLobbyPracticeTimer: 'Each turn allows {seconds} seconds.',
+        dartsLobbyInviteLocal: 'Enter a friend’s code, or get a code to invite them.',
+        dartsLobbyInviteShared: 'Share this code with your friends.',
+        dartsLobbyInvitePlaying: 'Friends can join after the host returns to the lobby.',
+    });
+    Object.assign(window.ArcadeCommon.i18n.STRINGS.zh, {
+        dartsLobbyGestureHelp: '投擲操作',
+        dartsLobbyPracticeSolo: '自由投擲，不限回合，逐鏢記錄。',
+        dartsLobbyPracticeShared: '{n} 人依席位輪流，每人三鏢後換人，不限回合、不計勝負。',
+        dartsLobbyCountupSolo: '每回合三鏢，共 {rounds} 回合，累積個人成績。',
+        dartsLobbyCountupShared: '每人 {rounds} 回合、每回合三鏢，累積總分最高者勝。',
+        dartsLobby501OpenOut: '從 501 分扣至恰好零分，任意得分區均可結鏢。',
+        dartsLobby501MasterOut: '從 501 分扣至恰好零分，最後一鏢須為雙倍區、三倍區或紅心。',
+        dartsLobby501DoubleOut: '從 501 分扣至恰好零分，最後一鏢須為雙倍區或內紅心。',
+        dartsLobbyMasterIn: '須命中雙倍區、三倍區或紅心才能開分，開分鏢本身計分。',
+        dartsLobbyDoubleIn: '須命中雙倍區或內紅心才能開分，開分鏢本身計分。',
+        dartsLobbyBust: '爆鏢時取消整回合得分。',
+        dartsLobbyBustEntry: '爆鏢時，分數與開分狀態回復至本回合開始時。',
+        dartsLobbyBull2550: '外紅心 25 分、內紅心 50 分。',
+        dartsLobbyBull5050: '內外紅心均為 50 分。',
+        dartsLobbyOuterNotDouble: '外紅心仍不算雙倍區。',
+        dartsLobbyCricketAuto: '目前 {n} 人，採用{variant} Cricket。',
+        dartsLobbyCricketStandard: '20–15 與紅心各需三個記號關閉，多餘記號為自己得分。全部關閉且分數不低於任何對手即勝。',
+        dartsLobbyCricketCutThroat: '20–15 與紅心各需三個記號關閉，多餘記號為尚未關閉該目標的每位對手加罰分。全部關閉且分數不高於任何對手即勝。',
+        dartsLobby501Limit: '每人 {rounds} 回合後仍未結鏢，以剩餘分數最低決勝。',
+        dartsLobbyCricketHighLimit: '每人 {rounds} 回合後仍未分勝負，以最高分決勝。',
+        dartsLobbyCricketLowLimit: '每人 {rounds} 回合後仍未分勝負，以最低分決勝。',
+        dartsLobbyUnlimited501: '不限回合，直到有人成功結鏢。',
+        dartsLobbyUnlimitedCricket: '不限回合，依關閉目標與分數條件分勝負。',
+        dartsLobbyCorkTie: '平手者加賽比靶心。',
+        dartsLobbyPracticeTimer: '每回合限時 {seconds} 秒。',
+        dartsLobbyInviteLocal: '輸入朋友的房號，或取得房號邀請朋友。',
+        dartsLobbyInviteShared: '將此房號傳給朋友即可邀請。',
+        dartsLobbyInvitePlaying: '本場開始後，朋友須等房主返回大廳才能加入。',
+    });
     window.createDartsLobby = function (options) {
         var doc = options.document, t = options.t, dialog = doc.getElementById('lobby');
         var lastSlots = '', busy = false;
@@ -11,6 +71,52 @@
         function node(tag, cls, text) {
             var el = doc.createElement(tag); if (cls) el.className = cls;
             if (text != null) el.textContent = text; return el;
+        }
+        function format(key, values) {
+            return t(key).replace(/\{(\w+)\}/g, function (_, name) { return values[name]; });
+        }
+        function description(config, count) {
+            var eligibility = window.DartsRules.eligibility(config, count), parts = [], variant;
+            if (!eligibility.allowed) return options.modeName(config.mode) + ' ' + t('dartsNeedsPlayers').replace('{n}', eligibility.minPlayers);
+            if (config.mode === 'practice') {
+                parts.push(count === 1 ? t('dartsLobbyPracticeSolo') : format('dartsLobbyPracticeShared', { n: count }));
+                if (config.turnMs) parts.push(format('dartsLobbyPracticeTimer', { seconds: config.turnMs / 1000 }));
+                return parts.join(' ');
+            }
+            if (config.mode === 'countup') {
+                parts.push(format(count === 1 ? 'dartsLobbyCountupSolo' : 'dartsLobbyCountupShared', { rounds: config.roundLimit }));
+            } else if (config.mode === '501') {
+                parts.push(t('dartsLobby501' + ({ open: 'Open', master: 'Master', double: 'Double' }[config.outRule] || 'Double') + 'Out'));
+                if (config.inRule !== 'open') parts.push(t(config.inRule === 'master' ? 'dartsLobbyMasterIn' : 'dartsLobbyDoubleIn'));
+                parts.push(t(config.inRule === 'open' ? 'dartsLobbyBust' : 'dartsLobbyBustEntry'));
+            } else if (config.mode === 'cricket') {
+                variant = config.cricketVariant === 'auto' ? count >= 3 ? 'cutthroat' : 'standard' : config.cricketVariant;
+                if (config.cricketVariant === 'auto') parts.push(format('dartsLobbyCricketAuto', {
+                    n: count, variant: t(variant === 'cutthroat' ? 'dartsCutThroatCricket' : 'dartsStandardCricket') }));
+                parts.push(t(variant === 'cutthroat' ? 'dartsLobbyCricketCutThroat' : 'dartsLobbyCricketStandard'));
+            }
+            if (config.mode === '501' || config.mode === 'countup') {
+                parts.push(t(config.bullMode === '50-50' ? 'dartsLobbyBull5050' : 'dartsLobbyBull2550'));
+                if (config.mode === '501' && config.bullMode === '50-50' && (config.inRule === 'double' || config.outRule === 'double')) parts.push(t('dartsLobbyOuterNotDouble'));
+            }
+            if (config.mode === '501' || config.mode === 'cricket') {
+                if (config.roundLimit) parts.push(format(config.mode === '501' ? 'dartsLobby501Limit' :
+                    variant === 'cutthroat' ? 'dartsLobbyCricketLowLimit' : 'dartsLobbyCricketHighLimit', { rounds: config.roundLimit }));
+                else parts.push(t(config.mode === '501' ? 'dartsLobbyUnlimited501' : 'dartsLobbyUnlimitedCricket'));
+            }
+            if (count > 1 && config.roundLimit) parts.push(t('dartsLobbyCorkTie'));
+            return parts.join(' ');
+        }
+        function iconBadge(text, title, cls) {
+            var badge = node('span', cls, text); badge.title = title; badge.setAttribute('role', 'img'); badge.setAttribute('aria-label', title); return badge;
+        }
+        function deviceBadge(owned) {
+            var badge = iconBadge('', t(owned ? 'dartsThisDevice' : 'dartsOtherDevice'), 'slot-device' + (owned ? ' owned' : ''));
+            var svg = doc.createElementNS('http://www.w3.org/2000/svg', 'svg'), path = doc.createElementNS('http://www.w3.org/2000/svg', 'path');
+            svg.setAttribute('viewBox', '0 0 24 24'); svg.setAttribute('aria-hidden', 'true'); svg.setAttribute('fill', 'none');
+            svg.setAttribute('stroke', 'currentColor'); svg.setAttribute('stroke-width', '1.8'); svg.setAttribute('stroke-linecap', 'round'); svg.setAttribute('stroke-linejoin', 'round');
+            path.setAttribute('d', owned ? 'M3 4h18v12H3zM12 16v4m-4 0h8' : 'M3 4h18v12H3zM12 16v4m-4 0h8M7 8h4m-2-2 2 2-2 2');
+            svg.append(path); badge.append(svg); return badge;
         }
         function run(action) {
             if (busy) return;
@@ -36,16 +142,16 @@
                 get('lobby-slots').replaceChildren();
                 ids.forEach(function (id, index) {
                     var p = data.participants[id], owned = p.controllerId === uid;
-                    var row = node('div', 'darts-lobby-slot'); row.dataset.slotId = id;
-                    row.append(node('span', 'player-seat', index + 1));
+                    var row = node('div', 'darts-lobby-slot' + (owned ? ' owned' : '')); row.dataset.slotId = id;
+                    var seat = node('div', 'slot-seat'); seat.append(node('span', 'player-seat', index + 1), deviceBadge(owned)); row.append(seat);
                     var input = node('input', 'slot-name'); input.value = p.name || t('dartsGuest'); input.maxLength = 32;
                     input.dataset.slotId = id; input.disabled = locked || !owned;
                     input.setAttribute('aria-label', t('dartsPlayerName') + ' ' + (index + 1));
-                    row.append(input);
-                    var meta = [t(owned ? 'dartsThisDevice' : 'dartsOtherDevice')];
-                    if (p.controllerId === data.hostUid) meta.push(t('dartsHost'));
-                    if (data.ready && data.ready[p.controllerId]) meta.push(t('dartsReadyTag'));
-                    row.append(node('span', 'slot-meta', meta.join(' · ')));
+                    var nameWrap = node('div', 'slot-name-wrap'); nameWrap.append(input);
+                    if (p.controllerId === data.hostUid && ids.find(function (slot) { return data.participants[slot].controllerId === data.hostUid; }) === id)
+                        nameWrap.append(iconBadge('★', t('dartsHost'), 'slot-badge'));
+                    if (data.ready && data.ready[p.controllerId]) nameWrap.append(iconBadge('✓', t('dartsReadyTag'), 'slot-badge ready'));
+                    row.append(nameWrap);
                     if (owned && localIds.length > 1) {
                         var remove = node('button', 'btn slot-remove', t('dartsRemovePlayer')); remove.type = 'button';
                         remove.disabled = locked; remove.dataset.removeSlot = id; row.append(remove);
@@ -85,9 +191,8 @@
             get('lobby-start-reason').textContent = reason;
             get('back-lobby-btn').hidden = editable || !host || (data.game.status !== 'over' && data.game.mode !== 'practice');
             get('back-lobby-btn').disabled = busy;
-            get('lobby-rule-note').textContent = config.mode === 'cricket' ?
-                t(config.cricketVariant === 'auto' ? ids.length >= 3 ? 'dartsAutoCutThroatNote' : 'dartsAutoStandardNote' : config.cricketVariant === 'cutthroat' ? 'dartsCutThroatNote' : 'dartsStandardNote') :
-                config.mode === 'practice' ? t('dartsPracticeRoomNote') : t('dartsSettlementNote');
+            get('lobby-rule-note').textContent = description(config, ids.length);
+            get('invite-note').textContent = t(model.online ? editable ? 'dartsLobbyInviteShared' : 'dartsLobbyInvitePlaying' : 'dartsLobbyInviteLocal');
             get('room-code').hidden = !model.online; get('room-code').textContent = model.code || '';
             get('copy-room-btn').hidden = !model.online;
             get('leave-room-btn').hidden = !model.online;
