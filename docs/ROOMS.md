@@ -63,9 +63,12 @@ name, controller connection ID and type. Each connection can add, rename or
 remove its own local participants in the lobby, retaining at least one owned
 participant; a remote join and local addition share the same four-slot capacity
 check inside transactions. Names and participant IDs survive invitation creation
-and successive matches. Default names use numbered players, with unused numbers
-for anonymous remote additions; actual names are separate from the indication of
-which device controls the slot.
+and successive matches. Known signed-in account display names are used as the
+first local participant's default; guests and extra local participants use
+numbered names. Manual edits remain authoritative. The auth layer's local
+display-name hint allows this even before Darts loads online services; the hint
+is not used for authentication or controller ownership. Actual names are separate
+from the indication of which device controls the slot.
 
 The room's `phase` is `lobby`, `playing` or `results`; the transport status is
 `waiting`, `playing` or `results` respectively. Host-only lobby configuration can

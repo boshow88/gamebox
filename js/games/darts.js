@@ -43,11 +43,8 @@
         dartsDarts: 'Darts',
         dartsDebug: 'Debug',
         dartsReady: 'Darts',
-        dartsIntro: 'Press and flick toward the board, then release to throw. The flick\u2019s direction and pace are the whole throw \u2014 no power meter, no crosshair. Find a flick you can repeat.',
-        dartsStartHintHtml: 'Drag in the <strong>board or mode panel</strong> \u2014 the press point doesn\u2019t matter \u00b7 <kbd>D</kbd> debug',
-        dartsHelp1Html: 'Press, <strong>flick toward the board</strong>, and release. You throw from below the bull, so a gentle flick <strong>up</strong> aims at the centre.',
-        dartsHelp2Html: 'The <strong>release</strong> is what counts: pull sideways at the last moment and the dart drifts that way; flick a touch harder and it flies flatter and higher. The same flick always lands the same \u2014 <strong>no random spread</strong>.',
-        dartsHelp3Html: 'Start a throw in the <strong>board or mode panel</strong>. Player cards and History open scrollable records. <kbd>D</kbd> debug \u00b7 <kbd>R</kbd> reset \u00b7 <kbd>M</kbd> mute.',
+        dartsStartHintHtml: 'Start in the board or mode panel.',
+        dartsThrowHelp: 'Press in the board or mode panel, flick upward, and release to throw.',
         dartsMiss: 'Miss',
         dartsBull: 'Bull',
         dartsOuterBull: 'Outer Bull',
@@ -62,11 +59,8 @@
         dartsDarts: '鏢數',
         dartsDebug: '除錯',
         dartsReady: '飛鏢',
-        dartsIntro: '按住並朝鏢靶輕甩，放開即擲出。甩的方向與快慢就是這一擲的全部——沒有力量條，也沒有準心。找到一個你能重複的甩法。',
-        dartsStartHintHtml: '在<strong>鏢靶或模式欄內</strong>拖曳——起始點不影響結果 \u00b7 <kbd>D</kbd> 除錯',
-        dartsHelp1Html: '按住、朝鏢靶<strong>輕甩</strong>、放開。出手點在紅心下方，所以向<strong>上</strong>輕甩就是瞄準中心。',
-        dartsHelp2Html: '關鍵在<strong>放手的瞬間</strong>：最後一刻往側邊帶，鏢就往那偏；甩得稍重則飛得更平、落點更高。同樣的甩法永遠落在同一處——<strong>沒有隨機散佈</strong>。',
-        dartsHelp3Html: '可從<strong>鏢靶或模式欄內</strong>開始甩鏢。點玩家字卡或「紀錄」可查看並捲動投擲紀錄。<kbd>D</kbd> 除錯 \u00b7 <kbd>R</kbd> 重設 \u00b7 <kbd>M</kbd> 靜音。',
+        dartsStartHintHtml: '可從鏢靶或模式欄開始。',
+        dartsThrowHelp: '在鏢靶或模式欄按住，往上甩動，放開投鏢。',
         dartsMiss: '脫靶',
         dartsBull: '紅心',
         dartsOuterBull: '外紅心',
@@ -1137,13 +1131,31 @@
         var el = document.createElement(tag); if (className) el.className = className;
         if (value != null) el.textContent = value; return el;
     }
+    function accountDisplayName() {
+        var current = window.ArcadeNet && window.ArcadeNet.ok && window.ArcadeNet.currentUser();
+        if (current) return !current.anon && String(current.name || '').trim().slice(0, 32) || '';
+        try {
+            var hint = JSON.parse(localStorage.getItem('gamebox:account-name'));
+            return hint && typeof hint.uid === 'string' && typeof hint.name === 'string' ? hint.name.trim().slice(0, 32) : '';
+        } catch (_) { return ''; }
+    }
+    function applyAccountDisplayName() {
+        if (!localRoom || room || localRoom.phase !== 'lobby') return;
+        var participant = Object.values(localRoom.participants).find(function (p) { return p.accountDefault; });
+        if (!participant) return;
+        var focused = document.activeElement;
+        if (focused && focused.dataset && focused.dataset.slotId === participant.id) return;
+        var name = accountDisplayName() || t('dartsPlayer') + ' 1';
+        if (participant.name !== name) { participant.name = name; syncGameUi(); }
+    }
     function newLocalRoom() {
-        var id = 'local-' + ++localSeatSerial, participant = { id: id, name: t('dartsPlayer') + ' 1', controllerId: localController, type: 'human' };
+        var id = 'local-' + ++localSeatSerial, participant = { id: id, name: accountDisplayName() || t('dartsPlayer') + ' 1',
+            accountDefault: true, controllerId: localController, type: 'human' };
         return { phase: 'lobby', hostUid: localController, players: {}, participants: { [id]: participant }, seatOrder: [id],
             options: Rules.options({ mode: 'practice' }), ready: {}, game: {}, roster: {} };
     }
     function defaultPlayerName(data) {
-        var names = new Set(Object.values(data.participants || {}).map(function (p) { return p.name; })), n = 1;
+        var names = new Set(Object.values(data.participants || {}).map(function (p) { return p.name; })), n = data.seatOrder.length + 1;
         while (names.has(t('dartsPlayer') + ' ' + n)) n++;
         return t('dartsPlayer') + ' ' + n;
     }
@@ -1222,6 +1234,7 @@
         if (room) return online.renamePlayer(id, name);
         if (localRoom.phase !== 'lobby' || !localRoom.participants[id] || !String(name || '').trim()) return false;
         localRoom.participants[id].name = String(name).trim().slice(0, 32);
+        localRoom.participants[id].accountDefault = false;
         localRoom.ready = {}; syncGameUi(); return true;
     }
     function removeLocalPlayer(id) {
@@ -1262,7 +1275,7 @@
             match = Rules.endPractice(match);
             localRoom.game = viewMatch = match;
         }
-        localRoom.phase = 'lobby'; localRoom.ready = {}; shell.goIdle(); openLobby(); syncGameUi(); return true;
+        localRoom.phase = 'lobby'; localRoom.ready = {}; applyAccountDisplayName(); shell.goIdle(); openLobby(); syncGameUi(); return true;
     }
     async function restartLocal() {
         if (usesSharedMatch()) return;
@@ -1274,7 +1287,7 @@
         }
         if (room) { acceptLocal(finished); clearBoard(); if (await online.syncLocal(finished, true)) openLobby(); return; }
         localRoom.game = match = viewMatch = finished;
-        localRoom.phase = 'lobby'; shell.goIdle(); openLobby();
+        localRoom.phase = 'lobby'; applyAccountDisplayName(); shell.goIdle(); openLobby();
     }
     async function ensureOnline() {
         if (!onlineLoading) onlineLoading = (async function () {
@@ -1297,7 +1310,7 @@
             await new Promise(function (resolve) { net.onAuth(function (user) {
                 netUser = user ? online.service.currentPlayer() : null;
                 if (!user && room) leaveRoom().catch(showNetError);
-                resolve(); renderLobby();
+                applyAccountDisplayName(); resolve(); renderLobby();
             }); });
         })().catch(function (error) { onlineLoading = null; throw error; });
         await onlineLoading;
@@ -1403,6 +1416,7 @@
             }
         }, true);
         window.addEventListener('pagehide', function () { if (online && room) online.leave().catch(function () {}); });
+        window.addEventListener('storage', function (event) { if (event.key === 'gamebox:account-name' || event.key === null) applyAccountDisplayName(); });
     }
     function resetSession() {
         var data = roomData(); match = data && data.game && data.game.status ? data.game : null; viewMatch = match;

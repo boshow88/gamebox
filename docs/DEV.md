@@ -476,9 +476,14 @@ transfer. This is game policy on shared infrastructure, not a second transport.
 Room `players` identify connected controllers. Separately, `participants` and
 `seatOrder` describe 1–4 seats, each with a name, `controllerId` and `type:'human'`.
 One controller can own several slots; the separation leaves room for a future CPU
-without adding CPU behavior or controls now. Default display names use numbered
-players instead of the viewer-dependent name "You"; entered names remain names,
-while device ownership is shown separately. Lobby edits validate capacity and
+without adding CPU behavior or controls now. The first local slot uses a known
+signed-in account's display name when available; guests and additional local
+slots use numbered names. The shared auth layer keeps a small `gamebox:account-name`
+display hint and clears it on sign-out/anonymous auth, so local-only Darts can
+reuse the name without loading Firebase. This hint grants no account or room
+permissions. An untouched default can update in the lobby; manual names and an
+active match's roster are preserved. Device ownership is shown separately.
+Lobby edits validate capacity and
 ownership and clear Ready state. Readiness is per controller, covering all its
 slots. A host-start convention allows the host to acknowledge settings by Start
 after each guest controller readies up.

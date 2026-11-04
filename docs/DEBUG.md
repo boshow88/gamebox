@@ -93,6 +93,10 @@ and select shared execution after another device joins the next match. Default
 numbered names remain distinct after seat removal. The check also covers older
 room values starting a normalized match.
 
+The browser check also exercises Google account display-name defaults without
+starting local matchmaking, account changes deferred until the lobby, preserved
+custom names on invitation creation, and sign-out clearing the name hint.
+
 The browser check loads real pages, physics, canvas, the unified lobby and modules
 with only Firebase SDK imports redirected to local fakes. Its V2 scenarios live
 in `tools/helpers/darts-browser-v2.js`, injected by the local server; game test

@@ -196,6 +196,39 @@ async function checkDartsReservedLossV2() {
     dartsAssert(api.snapshot().match.seq === seq + 1 && dartsData(f).phase === 'playing', 'Local throwing continues after reservation disappears');
     f.remove();
 }
+async function checkDartsAccountNames() {
+    const key = 'gamebox:account-name', account = document.createElement('iframe');
+    account.src = '/__account?testUser=google-account'; document.body.append(account);
+    await until(() => account.contentWindow.ArcadeNet && account.contentWindow.ArcadeNet.ok && localStorage.getItem(key), 'Google account display hint');
+    function switchName(name) {
+        account.contentWindow.__setTestAuth({ uid: 'google-account', displayName: name, photoURL: null, isAnonymous: false });
+    }
+    switchName('Alice Example');
+    const f = await dartsBoot('google-darts'), doc = dartsDoc(f), primary = dartsData(f).seatOrder[0];
+    dartsAssert(!f.contentWindow.ArcadeNet && dartsData(f).participants[primary].name === 'Alice Example',
+        'Known Google name becomes the local default without loading Firebase');
+    await dartsAdd(f, 1);
+    dartsAssert(dartsData(f).participants[dartsData(f).seatOrder[1]].name === 'Player 2', 'Other local slots retain numbered names');
+    await dartsStartLocal(f); dartsApi(f).gesture(); dartsApi(f).land();
+    switchName('Beatrice Example'); await sleep(30);
+    dartsAssert(dartsData(f).participants[primary].name === 'Alice Example', 'An active match keeps its captured player name');
+    await dartsReturn(f);
+    dartsAssert(dartsData(f).participants[primary].name === 'Beatrice Example', 'An untouched default follows the account only back in Lobby');
+    const input = [...doc.querySelectorAll('#lobby-slots input')].find(el => el.dataset.slotId === primary);
+    input.value = 'My darts name'; input.dispatchEvent(new f.contentWindow.Event('change', { bubbles: true }));
+    await until(() => dartsData(f).participants[primary].name === 'My darts name' && !doc.getElementById('add-player-btn').disabled, 'custom player name');
+    switchName('Caroline Example'); await sleep(30);
+    dartsAssert(dartsData(f).participants[primary].name === 'My darts name', 'Account changes do not overwrite a custom name');
+    await dartsPromote(f);
+    dartsAssert(dartsData(f).participants[primary].name === 'My darts name', 'Verified sign-in preserves a custom name during invitation creation');
+    await dartsApi(f).controller().leave(); f.remove();
+    await account.contentWindow.ArcadeNet.signOut();
+    dartsAssert(localStorage.getItem(key) === null, 'Signing out clears the account display hint');
+    const guest = await dartsBoot('guest-after-signout');
+    dartsAssert(dartsData(guest).participants[dartsData(guest).seatOrder[0]].name === 'Player 1' && !guest.contentWindow.ArcadeNet,
+        'Signed-out local play starts with a numbered name');
+    guest.remove(); account.remove();
+}
 async function checkDartsLocalV2() {
     const f = await dartsBoot('local-player'), doc = dartsDoc(f), api = dartsApi(f), w = f.contentWindow;
     dartsAssert(!w.ArcadeNet && !api.snapshot().room, 'Local Darts must not initialize multiplayer');

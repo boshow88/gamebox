@@ -32,9 +32,13 @@ export const getDocs = async () => ({ docs: [], size: 0 });
 `;
 const auth = `
 export const getAuth = () => ({});
-export function onAuthStateChanged(_auth, cb) { queueMicrotask(() => cb({ uid: new URLSearchParams(location.search).get('testUser') || 'same-account', displayName: 'Test player', photoURL: null, isAnonymous: true })); }
+const uid = new URLSearchParams(location.search).get('testUser') || 'same-account';
+let user = { uid, displayName: uid.startsWith('google-') ? 'Google Player' : 'Test player', photoURL: null, isAnonymous: !uid.startsWith('google-') };
+const observers = [];
+globalThis.__setTestAuth = next => { user = next; observers.forEach(cb => cb(next)); };
+export function onAuthStateChanged(_auth, cb) { observers.push(cb); queueMicrotask(() => cb(user)); }
 export class GoogleAuthProvider {}
-export const signInAnonymously = async () => {}, signOut = async () => {}, signInWithPopup = async () => {};
+export const signInAnonymously = async () => {}, signOut = async () => globalThis.__setTestAuth(null), signInWithPopup = async () => {};
 `;
 const runner = `<!doctype html><meta charset="utf-8"><pre id="result">RUNNING</pre><script>
 const errors = [];
@@ -183,7 +187,7 @@ ${dartsOnly ? fs.readFileSync(path.join(__dirname, 'helpers/darts-browser-v2.js'
         }
     } else {
         const codec = await import('/js/net/rtdb-values.mjs'); encode = codec.encodeRoomValue; decode = codec.decodeRoomValue;
-        if(dartsOnly) { await checkDartsContextV2(); await checkDartsLocalV2(); await checkDartsReservedLocalV2(); await checkDartsReservedLossV2(); await checkDartsLeaveRestoreV2(); await checkDartsMixedV2(); await checkDartsFourV2(); await checkDartsLayoutsV2(); await checkDartsLobbyV2(); }
+        if(dartsOnly) { await checkDartsAccountNames(); await checkDartsContextV2(); await checkDartsLocalV2(); await checkDartsReservedLocalV2(); await checkDartsReservedLossV2(); await checkDartsLeaveRestoreV2(); await checkDartsMixedV2(); await checkDartsFourV2(); await checkDartsLayoutsV2(); await checkDartsLobbyV2(); }
         else { await check('beam', 'beam_rooms', 'beam'); await check('rune-stones', 'duel_rooms', 'rd'); }
     }
     document.getElementById('result').textContent = 'PASS (' + mode + '): ' + (mode === 'invalid' ? 'disabled online rooms and working account profiles.' : dartsOnly ? 'Darts unified offline/online lobby, local and mixed player slots, immutable rules/readiness, persistent matches, history, throw input and responsive geometry.' : 'real browser room flows, backend selection and account isolation.');
@@ -196,6 +200,9 @@ async function main() {
         const url = new URL(request.url, 'http://localhost');
         let body, type = 'text/javascript';
         if (url.pathname === '/__check') { body = runner; type = 'text/html'; }
+        else if (url.pathname === '/__account') {
+            body = '<!doctype html><script src="/js/firebase-config.js"></script><script type="module" src="/js/net/net.js"></script>'; type = 'text/html';
+        }
         else if (url.pathname === '/__sdk/firebase-app.js') body = 'export const initializeApp = () => ({});';
         else if (url.pathname === '/__sdk/firebase-auth.js') body = auth;
         else if (url.pathname === '/__sdk/firebase-firestore.js') body = firestore;

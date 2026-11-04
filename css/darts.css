@@ -104,7 +104,6 @@
 .darts-lobby details > summary { cursor: pointer; font-size: .8rem; }
 .darts-lobby details[open] > summary { margin-bottom: 10px; }
 .darts-gesture-help { margin: 0; }
-.darts-gesture-help ul { padding-left: 20px; margin-bottom: 0; }
 #lobby-slots input:disabled { opacity: 1; border-color: transparent; background: transparent; }
 .dialog-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .dialog-header h2 { font-size: 1.1rem; margin: 0; }

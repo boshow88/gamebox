@@ -53,6 +53,12 @@ function fail(err) {
         const authCbs = [];
         onAuthStateChanged(auth, (u) => {
             user = u ? { uid: u.uid, name: u.displayName || null, email: u.email || null, photo: u.photoURL || null, anon: u.isAnonymous } : null;
+            // A display hint lets local-only games reuse an existing account name without
+            // loading Firebase. It is never used for authentication or room ownership.
+            try {
+                if (user && !user.anon && user.name && user.name.trim()) localStorage.setItem('gamebox:account-name', JSON.stringify({ uid: user.uid, name: user.name.trim() }));
+                else localStorage.removeItem('gamebox:account-name');
+            } catch (_) { /* Local play also works when browser storage is unavailable. */ }
             authCbs.forEach((fn) => { try { fn(user); } catch (e) { /* ignore */ } });
         });
 
