@@ -224,6 +224,17 @@ Reference: `js/puzzle.js` → `syncSizeButtons` (`.size-readout`), and
 - **Chinese copy uses full-width punctuation** (，。；：！？「」（）、…, and —— for a
   dash), never half-width commas/periods. Write it as idiomatic Chinese — don't just
   transliterate the English line word-for-word.
+- **Chinese copy does not inherit English word spacing.** Do not insert ASCII
+  spaces between Chinese characters, between Chinese and numbers/Latin text, or
+  around Chinese punctuation. Apply this to translated strings, placeholders,
+  dynamically joined sentences, labels, summaries, help and accessibility text.
+- Use locale-specific templates or translation functions for dynamic text. Do not
+  hard-code English spaces around translated labels or join Chinese sentences
+  with `join(' ')`. Review the rendered Chinese as well as the translation table.
+- Preserve meaningful spaces within English terms (such as `Open In`), display
+  names, room codes and user-entered text. Keep intentional visual separators
+  such as ` · ` and conventional numeric/unit spacing; never globally strip spaces
+  from rendered content or user data.
 - Prefer plain language over notation in player copy: say "the prime you fire", not a
   symbol like "p". Math notation is for comments and docs, not the player.
 
@@ -605,7 +616,7 @@ and releases can continue across the window. Secondary pointers are ignored and
 resize cancels a gesture. The
 renderer is cropped around the existing board centre, without changing gesture
 maths or ballistics. Desktop and mobile use the same canvas scale, with the board
-centre at 44% and 47% of their board regions respectively. Backing resolution
+centre at 44% and 46.5% of their board regions respectively. Backing resolution
 follows its display size. The adjustable `pitchOffsetDeg` rigidly rotates the
 gesture-derived launch velocity in Y/Z, preserving speed, release point and
 camera. `handYOffset` sets the release height relative to the Bull in millimetres.

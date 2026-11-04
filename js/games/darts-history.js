@@ -10,9 +10,10 @@
             if (text != null) el.textContent = text; return el;
         }
         function distanceLabel(distance) { return Number.isFinite(distance) && distance < 1e9 ? distance.toFixed(1) + ' mm' : '—'; }
+        function valueLabel(key, value) { return t('dartsLabelValue', t(key), value); }
         function penaltiesLabel(penalties, names) {
             return Object.keys(penalties || {}).filter(function (id) { return penalties[id] > 0; })
-                .map(function (id) { return (names[id] || id) + ' +' + penalties[id]; }).join(', ') || '—';
+                .map(function (id) { return (names[id] || id) + ' +' + penalties[id]; }).join(options.locale() === 'zh' ? '、' : ', ') || '—';
         }
         function refresh(resetScroll) {
             if (!dialog.open) return;
@@ -40,18 +41,18 @@
                 var cork = entry.phase === 'cork', cutthroat = data.mode === 'cricket' &&
                     (data.cricketVariant === 'cutthroat' || Object.keys(entry.penalties || {}).length > 0);
                 var row = node('article', 'history-turn'); row.dataset.historyKey = entry.leg + ':' + entry.turn + ':' + entry.uid + ':' + (entry.phase || 'play');
-                var heading = cork ? t('dartsLeg') + ' ' + entry.leg + ' · ' + t('dartsCorkRound') + ' ' + entry.corkRound :
-                    entry.leg ? t('dartsLeg') + ' ' + entry.leg + ' · ' + t('dartsRound') + ' ' + entry.round : t('dartsThrow') + ' ' + entry.turn;
+                var heading = cork ? valueLabel('dartsLeg', entry.leg) + ' · ' + valueLabel('dartsCorkRound', entry.corkRound) :
+                    entry.leg ? valueLabel('dartsLeg', entry.leg) + ' · ' + valueLabel('dartsRound', entry.round) : valueLabel('dartsThrow', entry.turn);
                 row.append(node('h3', '', heading + ' · ' + (names[entry.uid] || entry.uid)));
                 var darts = node('div', 'history-darts');
                 for (var i = 0; i < (cork || !entry.leg ? 1 : 3); i++) darts.append(node('span', '', entry.darts[i] ? options.resultLabel(entry.darts[i]) : '—'));
                 row.append(darts);
                 var reasonKey = { bust: 'dartsBust', checkout: 'dartsCheckout', timeout: 'dartsTimeout', left: 'dartsWithdrawn', 'leg-won': 'dartsLegWon',
                     'round-limit': 'dartsRoundLimitReached', 'cork-won': 'dartsLegWon' }[entry.reason];
-                var summary = cork ? t('dartsCork') + ' · ' + t('dartsDistance') + ' ' + distanceLabel(entry.distance) :
+                var summary = cork ? t('dartsCork') + ' · ' + valueLabel('dartsDistance', distanceLabel(entry.distance)) :
                     cutthroat ? t('dartsPenalties') + ' · ' + penaltiesLabel(entry.penalties, names) :
-                        t('dartsTurnScore') + ' ' + entry.points + (data.mode === 'practice' ? '' : ' · ' +
-                            t(data.mode === '501' ? 'dartsRemaining' : 'dartsTotal') + ' ' + entry.score);
+                        valueLabel('dartsTurnScore', entry.points) + (data.mode === 'practice' ? '' : ' · ' +
+                            valueLabel(data.mode === '501' ? 'dartsRemaining' : 'dartsTotal', entry.score));
                 row.append(node('p', 'history-turn-summary', summary));
                 if (reasonKey || !entry.finished) row.append(node('strong', entry.reason === 'bust' ? 'bust' : '', t(reasonKey || 'dartsInProgress')));
                 list.append(row);

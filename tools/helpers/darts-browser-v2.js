@@ -127,8 +127,24 @@ async function checkDartsContextV2() {
     await dartsChange(f, 'mode-select', 'countup'); await dartsChange(f, 'rounds-select', 5);
     dartsAssert(note().includes('5 rounds') && !note().includes('8 rounds') && !note().includes('501') && !note().includes('checkout'), 'Count-Up explanation uses current round count and scoring rules');
     w.ArcadeCommon.i18n.setLocale('zh');
-    dartsAssert(note().includes('5 回合') && !note().includes('八回合'), 'Contextual explanation updates with locale');
+    dartsAssert(note().includes('5回合') && !note().includes('5 回合') && !/[。；，] +/.test(note()), 'Chinese explanations use natural number spacing and no English sentence gaps');
+    const compact = doc.getElementById('lobby-rule-summary').textContent;
+    dartsAssert(compact.includes('5回合') && compact.includes('每回合3鏢') && compact.includes('紅心50／50'), 'Chinese rule summaries format numbers without inherited English spacing');
+    dartsAssert(w.ArcadeCommon.i18n.t('dartsPlayerNumber', 1) === '玩家1', 'Chinese generated player names do not inherit English number spacing');
     dartsAssert([...doc.querySelectorAll('#lobby-slots .slot-name')].every(input => !['你', 'You'].includes(input.value)), 'Switching locale does not turn player names into You');
+    const namedSlot = dartsData(f).seatOrder[0], customName = '陳 大明 Alice Chen';
+    const nameField = [...doc.querySelectorAll('#lobby-slots .slot-name')].find(input => input.dataset.slotId === namedSlot);
+    nameField.value = customName; nameField.dispatchEvent(new w.Event('change', { bubbles: true }));
+    await until(() => dartsData(f).participants[namedSlot].name === customName && !doc.getElementById('lobby-start-btn').disabled, 'manual name including meaningful spaces');
+    dartsClick(f, 'lobby-start-btn');
+    await until(() => dartsApi(f).snapshot().match && !doc.getElementById('lobby').open, 'Chinese Count-Up start');
+    dartsAssert(doc.getElementById('match-meta').textContent.includes('局1') && doc.querySelector('.status-round').textContent === '回合1/5', 'Chinese dynamic HUD labels follow the spacing convention');
+    dartsApi(f).gesture(); dartsApi(f).land(); dartsClick(f, 'history-btn');
+    dartsAssert(doc.querySelector('.history-turn h3').textContent.startsWith('局1 · 回合1 · '), 'Chinese history headings format dynamic numbers correctly');
+    dartsAssert(!/\p{Script=Han} +\d/u.test(doc.querySelector('.history-turn-summary').textContent), 'Chinese history totals do not add English label-value spacing');
+    dartsAssert(dartsData(f).participants[namedSlot].name === customName && [...doc.querySelectorAll('.darts-player-name')].some(el => el.textContent === customName), 'Copy spacing changes preserve user-entered Chinese and English name spaces');
+    dartsClick(f, 'history-close-btn'); w.ArcadeCommon.i18n.setLocale('en');
+    dartsAssert(doc.getElementById('match-meta').textContent.includes('Leg 1') && doc.querySelector('#in-select option[value="open"]').textContent === 'Open In', 'English label spacing and internal term spacing remain intact');
     f.remove();
 }
 async function checkDartsReservedLocalV2() {

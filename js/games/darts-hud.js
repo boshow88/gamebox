@@ -50,22 +50,23 @@
             if (text != null) node.textContent = text; return node;
         }
         function get(id) { return doc.getElementById(id); }
+        function valueLabel(key, value) { return t('dartsLabelValue', t(key), value); }
         function controls(id) { return options.controlsPlayer ? options.controlsPlayer(id) : id === options.myUid(); }
         function gateLabel(rule, suffix) { return t('darts' + ({ open: 'Open', master: 'Master', double: 'Double' }[rule] || 'Open') + suffix); }
         function variantLabel(m) { return m.mode === '501' ? gateLabel(m.outRule, 'Out') :
             m.mode === 'cricket' ? t(m.cricketVariant === 'cutthroat' ? 'dartsCutThroatCricket' : 'dartsStandardCricket') : ''; }
         function penaltiesText(penalties, names) {
             return Object.keys(penalties || {}).filter(function (id) { return penalties[id] > 0; })
-                .map(function (id) { return (names[id] || id) + ' +' + penalties[id]; }).join(', ');
+                .map(function (id) { return (names[id] || id) + ' +' + penalties[id]; }).join(options.locale() === 'zh' ? '、' : ', ');
         }
         function distanceText(distance) { return Number.isFinite(distance) && distance < 1e9 ? distance.toFixed(1) + ' mm' : '—'; }
         function ruleSummary(m) {
-            if (m.throwPhase === 'cork') return t('dartsCork') + ' · ' + t('dartsCorkRound') + ' ' + m.corkRound;
+            if (m.throwPhase === 'cork') return t('dartsCork') + ' · ' + valueLabel('dartsCorkRound', m.corkRound);
             var parts = [];
             if (m.mode === '501') parts.push(gateLabel(m.inRule, 'In'), gateLabel(m.outRule, 'Out'));
             if (m.mode === '501' || m.mode === 'countup') parts.push(t(m.bullMode === '50-50' ? 'dartsBull5050' : 'dartsBull2550'));
             if (m.mode === 'cricket') parts.push(variantLabel(m), t(m.cricketVariant === 'cutthroat' ? 'dartsLowestWins' : 'dartsHighestWins'));
-            if (m.roundLimit) parts.push(t('dartsRoundLimit') + ' ' + m.roundLimit);
+            if (m.roundLimit) parts.push(valueLabel('dartsRoundLimit', m.roundLimit));
             return parts.join(' · ');
         }
         var lastKey = '', lastPlayersKey = '';
@@ -80,20 +81,20 @@
             var mode = options.modeName(m.mode);
             var variant = variantLabel(m), endedPractice = m.mode === 'practice' && m.phase === 'over', cancelled = m.endReason === 'cancelled';
             get('match-meta').textContent = mode + (variant ? ' · ' + variant : '') +
-                (m.leg ? ' · ' + t('dartsLeg') + ' ' + m.leg + ' · ' + t('dartsLegsToWin') + ' ' + m.legsToWin : '');
+                (m.leg ? ' · ' + valueLabel('dartsLeg', m.leg) + ' · ' + valueLabel('dartsLegsToWin', m.legsToWin) : '');
             if (get('mode-rule-summary')) get('mode-rule-summary').textContent = ruleSummary(m);
             var status = cancelled ? t('dartsMatchEnded') : endedPractice ? t('dartsPracticeEnded') : m.phase === 'between' || m.phase === 'over' ? (m.draw ? t('dartsDraw') :
                 t(m.phase === 'over' ? 'dartsMatchWon' : 'dartsLegWon') + ' · ' + names[m.winner]) :
                 m.mode === 'practice' && m.players.length === 1 ? t('dartsFlickPrompt') :
                     (options.isOnline() ? t(controls(m.active) ? 'dartsYourTurn' : 'dartsWaiting') : t('dartsTurn')) +
-                    ' · ' + names[m.active] + ' · ' + t('dartsDart') + ' ' + m.dart + '/' + (m.throwPhase === 'cork' ? 1 : 3);
+                    ' · ' + names[m.active] + ' · ' + valueLabel('dartsDart', m.dart + '/' + (m.throwPhase === 'cork' ? 1 : 3));
             get('turn-status').textContent = status;
             if ((m.mode !== 'practice' || m.players.length > 1) && m.phase === 'playing') {
                 var indicator = get('turn-status'); indicator.replaceChildren();
                 indicator.append(el('span', 'status-name', (options.isOnline() ? t(controls(m.active) ? 'dartsYourTurn' : 'dartsWaiting') : t('dartsTurn')) + ' · ' + names[m.active]),
-                    el('span', 'status-dart', t('dartsDart') + ' ' + m.dart + '/' + (m.throwPhase === 'cork' ? 1 : 3)));
-                if (m.throwPhase === 'cork') indicator.append(el('span', 'status-round', t('dartsCorkRound') + ' ' + m.corkRound));
-                else if (m.round) indicator.append(el('span', 'status-round', t('dartsRound') + ' ' + m.round + '/' + m.roundLimit));
+                    el('span', 'status-dart', valueLabel('dartsDart', m.dart + '/' + (m.throwPhase === 'cork' ? 1 : 3))));
+                if (m.throwPhase === 'cork') indicator.append(el('span', 'status-round', valueLabel('dartsCorkRound', m.corkRound)));
+                else if (m.round) indicator.append(el('span', 'status-round', valueLabel('dartsRound', m.round + '/' + m.roundLimit)));
             }
             var playersKey = JSON.stringify([m.players, m.mode, options.locale()]);
             if (playersKey !== lastPlayersKey) {
@@ -113,10 +114,10 @@
                 if (owned) { seat.classList.add('owned-seat'); seat.title = ownership; }
                 var name = el('span', 'darts-player-name', p.left ? t('dartsWithdrawn') + ' · ' + p.name : p.name); name.title = p.name;
                 var score = el('strong', 'darts-player-score', p.score);
-                score.setAttribute('aria-label', t(m.mode === '501' ? 'dartsRemaining' : m.mode === 'practice' ? 'dartsDarts' : 'dartsPoints') + ' ' + p.score);
+                score.setAttribute('aria-label', valueLabel(m.mode === '501' ? 'dartsRemaining' : m.mode === 'practice' ? 'dartsDarts' : 'dartsPoints', p.score));
                 card.append(seat, name, score);
                 if (m.mode !== 'practice') card.append(el('span', 'darts-player-legs', p.left ? t('dartsWithdrawn') :
-                    m.mode === '501' && !p.entered ? t('dartsNotEntered') : t('dartsLegWins') + ' ' + p.legs));
+                    m.mode === '501' && !p.entered ? t('dartsNotEntered') : valueLabel('dartsLegWins', p.legs)));
                 players.append(card);
                 });
                 if (focusedUid) {
@@ -155,7 +156,7 @@
                 var darts = get('turn-darts'); darts.replaceChildren();
                 for (var i = 0; i < (m.turn.phase === 'cork' ? 1 : 3); i++) {
                     var r = m.turn.darts[i], slot = el('div', 'turn-dart');
-                    slot.append(el('span', 'turn-dart-number', t('dartsDart') + ' ' + (i + 1)),
+                    slot.append(el('span', 'turn-dart-number', valueLabel('dartsDart', i + 1)),
                         el('strong', 'turn-dart-hit' + (r && r.base === 25 ? ' bull-hit' : ''), r ?
                             r.miss ? t('dartsMiss') : r.base === 25 ? t(r.mult === 2 ? 'dartsBullShort' : 'dartsOuterBull') : r.label : '—'),
                         el('span', 'turn-dart-score', m.turn.phase === 'cork' ? '' : r ? r.score : '—'));
@@ -167,7 +168,7 @@
             }
             var last = m.feedback, feedback = get('dart-feedback');
             feedback.textContent = m.timedOut ? t('dartsTimeout') : last ?
-                (last.phase === 'cork' ? t('dartsCork') + ' · ' + t('dartsDistance') + ' ' + distanceText(last.distance) :
+                (last.phase === 'cork' ? t('dartsCork') + ' · ' + valueLabel('dartsDistance', distanceText(last.distance)) :
                     last.reason === 'bust' ? t('dartsBust') : last.reason === 'checkout' ? t('dartsCheckout') : cricket ? label(last.result) +
                         (m.cricketVariant === 'cutthroat' ? ' · ' + t('dartsPenalties') + ' · ' + (penaltiesText(last.penalties, names) || '—') : '') : '') : '';
             feedback.classList.toggle('bust', !!(last && last.reason === 'bust'));

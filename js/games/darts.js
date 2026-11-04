@@ -114,9 +114,9 @@
     Object.assign(AC.i18n.STRINGS.zh, {
         dartsMode: '模式', dartsPractice: '自由練習', darts501: '501', dartsCricket: 'Cricket', dartsCountup: 'Count-Up',
         dartsMatch: '賽制', dartsBO1: '一局決勝', dartsBO3: '先贏兩局', dartsTimer: '線上每回合時間',
-        darts30s: '30 秒', darts60s: '60 秒', darts90s: '90 秒',
-        dartsSolo: '單人', dartsLocal: '同機遊玩', dartsOnline: '連線', dartsRoom: '房間', dartsPlayerA: '玩家 A', dartsPlayerB: '玩家 B',
-        dartsPlayerC: '玩家 C', dartsPlayerD: '玩家 D', dartsLocal2: '2 人', dartsLocal3: '3 人', dartsLocal4: '4 人',
+        darts30s: '30秒', darts60s: '60秒', darts90s: '90秒',
+        dartsSolo: '單人', dartsLocal: '同機遊玩', dartsOnline: '連線', dartsRoom: '房間', dartsPlayerA: '玩家A', dartsPlayerB: '玩家B',
+        dartsPlayerC: '玩家C', dartsPlayerD: '玩家D', dartsLocal2: '2人', dartsLocal3: '3人', dartsLocal4: '4人',
         dartsWithdrawn: '已離開', dartsThisTurn: '本回合', dartsPreviousTurn: '上一回合', dartsTarget: '目標', dartsBullShort: '紅心',
         dartsReleaseSpeed: '放手速度', dartsPracticeTip: '按住、往上輕甩，再放開。', dartsStatistics: '詳細統計',
         dartsYou: '你', dartsGuest: '訪客', dartsTurn: '輪到', dartsDart: '第幾鏢', dartsRound: '回合', dartsLeg: '局',
@@ -124,17 +124,17 @@
         dartsCheckout: '成功結鏢', dartsTimeout: '時間到——換人投擲', dartsLegWon: '本局獲勝', dartsMatchWon: '對戰獲勝',
         dartsDraw: '平手——重打本局', dartsNextLeg: '開始下一局', dartsAgain: '再玩一次', dartsResults: '結果／房間',
         dartsTurnScore: '本回合得分', dartsPoints: '分數', dartsRemaining: '剩餘分數', dartsClosed: '已關閉',
-        dartsAverage: '每三鏢平均', dartsBestRound: '最佳回合', dartsBulls: '紅心次數', dartsTriple20s: '三倍 20 次數',
-        dartsRule501: '從 501 分扣到恰好零分，最後一鏢必須是雙倍區或內紅心。低於零分、剩一分，或未以雙倍區結束，整個回合都不計分。',
-        dartsRuleCricket: '20 到 15 與紅心各需三個記號關閉。仍有對手尚未關閉時，多出的記號可得分。關閉全部目標且分數不低於所有對手即獲勝。',
-        dartsRuleCountup: '共八回合，每回合三鏢，總分最高者獲勝。外紅心 25 分、內紅心 50 分。雙人平手時重打，並交換先手。',
-        dartsRulePractice: '不限次數投擲。按 D 可切換手勢與軌跡視圖。',
-        dartsLocalHint: '501 與 Cricket 支援 2–4 人，Count-Up 支援 1–4 人。線上房間可由 2–4 人開始，所有非房主玩家準備好後即可開局。',
-        dartsClose: '關閉', dartsGoogle: '用 Google 登入', dartsGuestSignIn: '以訪客身分遊玩', dartsSignOut: '登出',
+        dartsAverage: '每三鏢平均', dartsBestRound: '最佳回合', dartsBulls: '紅心次數', dartsTriple20s: '三倍20次數',
+        dartsRule501: '從501分扣到恰好零分，最後一鏢必須是雙倍區或內紅心。低於零分、剩一分，或未以雙倍區結束，整個回合都不計分。',
+        dartsRuleCricket: '20到15與紅心各需三個記號關閉。仍有對手尚未關閉時，多出的記號可得分。關閉全部目標且分數不低於所有對手即獲勝。',
+        dartsRuleCountup: '共八回合，每回合三鏢，總分最高者獲勝。外紅心25分、內紅心50分。雙人平手時重打，並交換先手。',
+        dartsRulePractice: '不限次數投擲。按D可切換手勢與軌跡視圖。',
+        dartsLocalHint: '501與Cricket支援2–4人，Count-Up支援1–4人。線上房間可由2–4人開始，所有非房主玩家準備好後即可開局。',
+        dartsClose: '關閉', dartsGoogle: '用Google登入', dartsGuestSignIn: '以訪客身分遊玩', dartsSignOut: '登出',
         dartsSignInFirst: '登入後即可建立或加入房間。', dartsCreate: '建立房間', dartsCode: '房號', dartsJoin: '加入',
         dartsCopy: '複製', dartsCopied: '已複製！', dartsLeave: '離開房間', dartsReadyUp: '準備好了', dartsReadyWait: '已準備，等待房主開始',
         dartsStartMatch: '開始對戰', dartsHost: '房主', dartsReadyTag: '準備', dartsOffline: '已離線',
-        dartsHostStarts: '支援 2–4 人，所有非房主玩家準備好後，由房主開始。',
+        dartsHostStarts: '支援2–4人，所有非房主玩家準備好後，由房主開始。',
         dartsRematch: '再來一場', dartsRematchWait: '等待房主重新開局。',
         dartsLeft: '其他玩家都已離開，由你獲勝。', dartsRoomGone: '房間已關閉，已返回本機遊玩。',
         dartsNetError: '連線失敗，請確認網路後重試。', dartsNotFound: '找不到房間',
@@ -146,11 +146,14 @@
         dartsSettingsHint: '遊戲中需先重新開始才能修改設定；線上房間需先離開才能更改設定。',
         dartsHistoryEmpty: '尚無投擲紀錄。', dartsThrow: '投擲', dartsInProgress: '本回合進行中',
         dartsHistoryClock: '查看紀錄時，線上回合仍會繼續倒數。',
-        dartsHistoryLimit: '較舊紀錄已省略，目前顯示最近 500 個回合；自由練習則為最近 500 鏢。',
+        dartsHistoryLimit: '較舊紀錄已省略，目前顯示最近500個回合；自由練習則為最近500鏢。',
     });
 
     Object.assign(AC.i18n.STRINGS.en, {
         dartsInvite: 'Invite / join',
+        dartsLabelValue: function (label, value) { return label + ' ' + value; },
+        dartsPlayerNumber: function (n) { return 'Player ' + n; },
+        dartsMinimumPlayers: function (mode, n) { return mode + ' requires at least ' + n + ' players.'; },
         dartsAddPlayer: 'Add local player', dartsRemovePlayer: 'Remove', dartsPlayerName: 'Player name', dartsPlayer: 'Player',
         dartsThisDevice: 'This device', dartsOtherDevice: 'Other device', dartsEnableInvite: 'Get invitation code',
         dartsBackLobby: 'Return to lobby', dartsResults: 'Return to lobby', dartsUnready: 'Cancel ready',
@@ -175,6 +178,9 @@
     });
     Object.assign(AC.i18n.STRINGS.zh, {
         dartsInvite: '邀請／加入',
+        dartsLabelValue: function (label, value) { return label + value; },
+        dartsPlayerNumber: function (n) { return '玩家' + n; },
+        dartsMinimumPlayers: function (mode, n) { return mode + '至少需要' + n + '位玩家。'; },
         dartsAddPlayer: '新增同機玩家', dartsRemovePlayer: '移除', dartsPlayerName: '玩家名稱', dartsPlayer: '玩家',
         dartsThisDevice: '此裝置控制', dartsOtherDevice: '其他裝置控制', dartsEnableInvite: '取得邀請房號',
         dartsBackLobby: '返回大廳', dartsResults: '返回大廳', dartsUnready: '取消準備',
@@ -182,17 +188,17 @@
         dartsTimer: '每回合時間', dartsRoundLimit: '回合上限', dartsOutRule: '結鏢條件', dartsInRule: '開分條件',
         dartsOpenIn: '不限開分', dartsMasterIn: '倍區／紅心開分', dartsDoubleIn: '雙倍開分',
         dartsOpenOut: '不限結鏢', dartsMasterOut: '倍區／紅心結鏢', dartsDoubleOut: '雙倍結鏢',
-        dartsBullScoring: '紅心得分', dartsBull2550: '紅心 25／50', dartsBull5050: '紅心 50／50',
-        dartsCricketScoring: 'Cricket 計分', dartsStandardCricket: '標準', dartsCutThroatCricket: 'Cut-Throat',
+        dartsBullScoring: '紅心得分', dartsBull2550: '紅心25／50', dartsBull5050: '紅心50／50',
+        dartsCricketScoring: 'Cricket計分', dartsStandardCricket: '標準', dartsCutThroatCricket: 'Cut-Throat',
         dartsAutoCricket: '依人數推薦', dartsAdvanced: '進階規則', dartsNotEntered: '尚未開分',
         dartsPenalties: '罰分', dartsCork: '比靶心', dartsCorkRound: '加賽', dartsDistance: '距離',
         dartsLowestWins: '低分獲勝', dartsHighestWins: '高分獲勝', dartsRoundLimitReached: '已達回合上限',
-        dartsPracticeEnded: '練習結束', dartsNeedsPlayers: '至少需要 {n} 位玩家。',
+        dartsPracticeEnded: '練習結束', dartsNeedsPlayers: '至少需要{n}位玩家。',
         dartsMatchEnded: '比賽已結束',
         dartsRulesLocked: '本場規則已鎖定。', dartsWaitReady: '等待其他裝置準備。',
         dartsRuleCountup: '在設定的回合內累積得分，每位玩家都有相同回合數。最高分平手時加賽比靶心。',
-        dartsRule501: '從 501 分扣至恰好零分，依所選開分與結鏢條件判定。爆鏢時，分數與開分狀態回復至本回合開始時。',
-        dartsRuleCricket: '20 到 15 與紅心各需三個記號關閉。標準玩法由多餘記號為自己得分；Cut-Throat 則為符合條件的對手加罰分。',
+        dartsRule501: '從501分扣至恰好零分，依所選開分與結鏢條件判定。爆鏢時，分數與開分狀態回復至本回合開始時。',
+        dartsRuleCricket: '20到15與紅心各需三個記號關閉。標準玩法由多餘記號為自己得分；Cut-Throat則為符合條件的對手加罰分。',
         dartsRoomGone: '已結束房間連線，本機房間已準備好。',
         dartsSettingsHint: '在房間設定下一場玩法；進行中的比賽規則維持鎖定。',
         dartsDraw: '平手——加賽比靶心', dartsHistoryClock: '查看紀錄時，回合仍會繼續倒數。',
@@ -259,7 +265,7 @@
         //   • board / numbers / dart TIP (end) live at the board plane → size ∝ viewFocal/(boardDistance+camBack): BOTH distance and view size shrink/grow them.
         //   • dart START (the hand, at the camera's own distance camBack) → size ∝ viewFocal/camBack: only the view size, never the board distance.
         // So moving the board farther now genuinely makes it look smaller. (~4050 keeps the board near its current on-screen size at the current distance.)
-        viewFocal: 3200,          // relative view size / focal length (px)
+        viewFocal: 3150,          // relative view size / focal length (px)
         camBack: 2500,            // mm the camera sits behind the hand (controls how much near things loom)
         camY: 0,                  // camera height in world Y (0 = level with board centre / the bull)
         camDollyFrac: 0.6,        // FRACTION of the way to the board the camera travels by impact, tracking the dart. Scales with distance (a far board still "walks in" strongly). 0 = static camera. The trajectory behind the camera is clipped, so this can exceed camBack safely.
@@ -501,8 +507,8 @@
     function resultLabel(res) {
         if (!res) return '';
         if (res.region === 'miss') return t('dartsMiss');
-        if (res.region === 'bullseye') return t('dartsBullseye') + ' ' + res.score;
-        if (res.region === 'bull') return t('dartsOuterBull') + ' ' + res.score;
+        if (res.region === 'bullseye') return t('dartsLabelValue', t('dartsBullseye'), res.score);
+        if (res.region === 'bull') return t('dartsLabelValue', t('dartsOuterBull'), res.score);
         var prefix = res.mult === 3 ? 'T' : res.mult === 2 ? 'D' : 'S';
         return prefix + res.base + ' = ' + res.score;
     }
@@ -1149,19 +1155,19 @@
         if (!participant) return;
         var focused = document.activeElement;
         if (focused && focused.dataset && focused.dataset.slotId === participant.id) return;
-        var name = accountDisplayName() || t('dartsPlayer') + ' 1';
+        var name = accountDisplayName() || t('dartsPlayerNumber', 1);
         if (participant.name !== name) { participant.name = name; syncGameUi(); }
     }
     function newLocalRoom() {
-        var id = 'local-' + ++localSeatSerial, participant = { id: id, name: accountDisplayName() || t('dartsPlayer') + ' 1',
+        var id = 'local-' + ++localSeatSerial, participant = { id: id, name: accountDisplayName() || t('dartsPlayerNumber', 1),
             accountDefault: true, controllerId: localController, type: 'human' };
         return { phase: 'lobby', hostUid: localController, players: {}, participants: { [id]: participant }, seatOrder: [id],
             options: Rules.options({ mode: 'practice' }), ready: {}, game: {}, roster: {} };
     }
     function defaultPlayerName(data) {
         var names = new Set(Object.values(data.participants || {}).map(function (p) { return p.name; })), n = data.seatOrder.length + 1;
-        while (names.has(t('dartsPlayer') + ' ' + n)) n++;
-        return t('dartsPlayer') + ' ' + n;
+        while (names.has(t('dartsPlayerNumber', n))) n++;
+        return t('dartsPlayerNumber', n);
     }
     function localCanStart() {
         return localRoom.phase === 'lobby' && Rules.eligibility(localRoom.options, localRoom.seatOrder.length).allowed;
@@ -1173,7 +1179,7 @@
         document.getElementById('mode-description').textContent = ruleText(data.options.mode);
         document.getElementById('debug-btn').hidden = !!s && s.mode !== 'practice';
         hud.render(window.DartsHud.model({ state: s, online: usesSharedMatch(), now: Date.now(), name: playerName,
-            you: (data.participants[data.seatOrder[0]] || {}).name || t('dartsPlayer') + ' 1',
+            you: (data.participants[data.seatOrder[0]] || {}).name || t('dartsPlayerNumber', 1),
             practice: { darts: G.darts, result: G.last, speed: G.analysis && G.analysis.speed != null ? G.analysis.speed : null } }));
         document.getElementById('next-leg-btn').disabled = G.dartState === 'flying' || sending || !!(usesSharedMatch() && match && Date.now() < match.readyAt);
         var stats = document.getElementById('stats-details'), summary = document.getElementById('result-summary');
@@ -1184,9 +1190,9 @@
                 summary.dataset.key = statsKey; summary.replaceChildren();
                 s.players.forEach(function (uid) {
                     var p = s.stats[uid];
-                    summary.append(textNode('p', '', playerName(uid) + ' · ' + t('dartsAverage') + ' ' +
-                        (p.darts ? p.points / p.darts * 3 : 0).toFixed(1) + ' · ' + t('dartsBestRound') + ' ' + p.bestRound +
-                        ' · ' + t('dartsBulls') + ' ' + p.bulls + ' · ' + t('dartsTriple20s') + ' ' + p.triple20s));
+                    summary.append(textNode('p', '', playerName(uid) + ' · ' + t('dartsLabelValue', t('dartsAverage'),
+                        (p.darts ? p.points / p.darts * 3 : 0).toFixed(1)) + ' · ' + t('dartsLabelValue', t('dartsBestRound'), p.bestRound) +
+                        ' · ' + t('dartsLabelValue', t('dartsBulls'), p.bulls) + ' · ' + t('dartsLabelValue', t('dartsTriple20s'), p.triple20s)));
                 });
             }
         }
