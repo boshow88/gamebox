@@ -3,6 +3,14 @@
     'use strict';
     Object.assign(window.ArcadeCommon.i18n.STRINGS.en, {
         dartsLobbyGestureHelp: 'Throwing controls',
+        dartsLobbyRulesExplained: 'Rules explained',
+        dartsLobbyStartPractice: 'Start Practice', dartsLobbyStartGame: 'Start Game',
+        dartsLobbyStarting: 'Starting…', dartsLobbyWaitingHost: 'Waiting for Host',
+        dartsLobbyReadyToStart: 'Ready to start', dartsLobbyOnlyHost: 'Only the host can start.',
+        dartsLobbyWaitingDevice: 'Waiting for 1 device to be ready.', dartsLobbyWaitingDevices: 'Waiting for {n} devices to be ready.',
+        dartsLobbyRoundsShort: '{n} rounds', dartsLobbyUnlimitedRounds: 'Unlimited rounds',
+        dartsLobbyThreeDarts: '3 darts per turn', dartsLobbyFreeThrow: 'Free throws',
+        dartsLobbyPersonalTotal: 'Personal total', dartsLobbySecondsShort: '{seconds}s per turn',
         dartsLobbyPracticeSolo: 'Unlimited free throws, recorded one dart at a time.',
         dartsLobbyPracticeShared: '{n} players take turns in seat order, three darts each. Unlimited rounds, no winner.',
         dartsLobbyCountupSolo: '{rounds} rounds of three darts. Build your personal total.',
@@ -33,6 +41,14 @@
     });
     Object.assign(window.ArcadeCommon.i18n.STRINGS.zh, {
         dartsLobbyGestureHelp: '投擲操作',
+        dartsLobbyRulesExplained: '詳細規則',
+        dartsLobbyStartPractice: '開始練習', dartsLobbyStartGame: '開始遊戲',
+        dartsLobbyStarting: '開始中…', dartsLobbyWaitingHost: '等待房主開始',
+        dartsLobbyReadyToStart: '可以開始', dartsLobbyOnlyHost: '由房主開始遊戲。',
+        dartsLobbyWaitingDevice: '等待 1 台裝置準備。', dartsLobbyWaitingDevices: '等待 {n} 台裝置準備。',
+        dartsLobbyRoundsShort: '{n} 回合', dartsLobbyUnlimitedRounds: '不限回合',
+        dartsLobbyThreeDarts: '每回合 3 鏢', dartsLobbyFreeThrow: '自由投擲',
+        dartsLobbyPersonalTotal: '累積個人成績', dartsLobbySecondsShort: '每回合 {seconds} 秒',
         dartsLobbyPracticeSolo: '自由投擲，不限回合，逐鏢記錄。',
         dartsLobbyPracticeShared: '{n} 人依席位輪流，每人三鏢後換人，不限回合、不計勝負。',
         dartsLobbyCountupSolo: '每回合三鏢，共 {rounds} 回合，累積個人成績。',
@@ -63,7 +79,8 @@
     });
     window.createDartsLobby = function (options) {
         var doc = options.document, t = options.t, dialog = doc.getElementById('lobby');
-        var lastSlots = '', busy = false;
+        var lastSlots = '', busy = false, starting = false;
+        var content = doc.getElementById('lobby-content'), viewport = window.visualViewport, viewportFrame = 0;
         var fields = { 'mode-select': 'mode', 'match-select': 'legsToWin', 'timer-select': 'turnMs',
             'rounds-select': 'roundLimit', 'out-select': 'outRule', 'in-select': 'inRule',
             'bull-select': 'bullMode', 'cricket-select': 'cricketVariant' };
@@ -74,6 +91,25 @@
         }
         function format(key, values) {
             return t(key).replace(/\{(\w+)\}/g, function (_, name) { return values[name]; });
+        }
+        function setText(id, text) { var el = get(id); if (el.textContent !== text) el.textContent = text; }
+        function ruleSummary(config, count) {
+            var eligibility = window.DartsRules.eligibility(config, count), parts = [];
+            if (!eligibility.allowed) return options.modeName(config.mode) + ' ' + t('dartsNeedsPlayers').replace('{n}', eligibility.minPlayers);
+            if (config.mode === '501') {
+                parts.push(t('darts' + ({ open: 'Open', master: 'Master', double: 'Double' }[config.inRule]) + 'In'),
+                    t('darts' + ({ open: 'Open', master: 'Master', double: 'Double' }[config.outRule]) + 'Out'));
+            } else if (config.mode === 'cricket') {
+                var cutthroat = config.cricketVariant === 'cutthroat' || config.cricketVariant === 'auto' && count >= 3;
+                parts.push(t(cutthroat ? 'dartsCutThroatCricket' : 'dartsStandardCricket'));
+            }
+            parts.push(config.roundLimit ? format('dartsLobbyRoundsShort', { n: config.roundLimit }) : t('dartsLobbyUnlimitedRounds'));
+            if (config.mode === 'practice') parts.push(t(count === 1 ? 'dartsLobbyFreeThrow' : 'dartsLobbyThreeDarts'));
+            if (config.mode === 'countup') parts.push(t('dartsLobbyThreeDarts'), t(count === 1 ? 'dartsLobbyPersonalTotal' : 'dartsHighestWins'));
+            if (config.mode === 'cricket') parts.push(t(cutthroat ? 'dartsLowestWins' : 'dartsHighestWins'));
+            if (config.mode === '501' || config.mode === 'countup') parts.push(t(config.bullMode === '50-50' ? 'dartsBull5050' : 'dartsBull2550'));
+            if (config.mode === 'practice' && config.turnMs) parts.push(format('dartsLobbySecondsShort', { seconds: config.turnMs / 1000 }));
+            return parts.join(' · ');
         }
         function description(config, count) {
             var eligibility = window.DartsRules.eligibility(config, count), parts = [], variant;
@@ -118,17 +154,30 @@
             path.setAttribute('d', owned ? 'M3 4h18v12H3zM12 16v4m-4 0h8' : 'M3 4h18v12H3zM12 16v4m-4 0h8M7 8h4m-2-2 2 2-2 2');
             svg.append(path); badge.append(svg); return badge;
         }
-        function run(action) {
+        function run(action, isStarting) {
             if (busy) return;
-            busy = true; get('lobby-status').textContent = ''; render();
-            Promise.resolve().then(action).catch(options.onError).finally(function () { busy = false; render(); });
+            busy = true; starting = !!isStarting; get('lobby-status').textContent = ''; render();
+            Promise.resolve().then(action).catch(options.onError).finally(function () { busy = false; starting = false; render(); });
         }
         function close() { dialog.close(); get('settings-btn').focus({ preventScroll: true }); }
+        function keepFieldVisible() {
+            var field = doc.activeElement;
+            if (!dialog.open || !field || !content.contains(field) || !field.matches('input, select, textarea')) return;
+            var bounds = content.getBoundingClientRect(), rect = field.getBoundingClientRect();
+            if (rect.top < bounds.top + 8) content.scrollTop -= bounds.top + 8 - rect.top;
+            else if (rect.bottom > bounds.bottom - 8) content.scrollTop += rect.bottom - bounds.bottom + 8;
+        }
+        function fitViewport() {
+            if (!dialog.open) return;
+            dialog.style.setProperty('--lobby-viewport-height', (viewport ? viewport.height : window.innerHeight) + 'px');
+            dialog.style.setProperty('--lobby-viewport-top', (viewport ? viewport.offsetTop : 0) + 'px');
+            cancelAnimationFrame(viewportFrame); viewportFrame = requestAnimationFrame(keepFieldVisible);
+        }
         function open(invite) {
             options.cancelGesture();
             if (!dialog.open) dialog.showModal();
             if (invite) get('invite-details').open = true;
-            render();
+            fitViewport(); render();
         }
         function render() {
             var model = options.model(), data = model.data, uid = model.uid, ids = data.seatOrder || [];
@@ -184,14 +233,27 @@
             roundField.value = String(config.roundLimit);
             var eligibility = window.DartsRules.eligibility(config, ids.length);
             var reason = !editable ? t('dartsRulesLocked') : !eligibility.allowed ? options.modeName(config.mode) + ' ' + t('dartsNeedsPlayers').replace('{n}', eligibility.minPlayers) : '';
-            var btn = get('lobby-start-btn');
-            btn.hidden = !editable; btn.textContent = t(host ? 'dartsStartMatch' : data.ready && data.ready[uid] ? 'dartsUnready' : 'dartsReadyUp');
-            btn.disabled = busy || !eligibility.allowed || (host && !model.canStart);
-            if (editable && host && eligibility.allowed && !model.canStart && !busy) reason = t('dartsWaitReady');
-            get('lobby-start-reason').textContent = reason;
+            var ready = !!(data.ready && data.ready[uid]), btn = get('lobby-start-btn');
+            btn.hidden = !editable;
+            btn.textContent = t(starting ? 'dartsLobbyStarting' : host ? config.mode === 'practice' ? 'dartsLobbyStartPractice' : 'dartsLobbyStartGame' : ready ? 'dartsLobbyWaitingHost' : 'dartsReadyUp');
+            btn.disabled = busy || !eligibility.allowed || (host ? !model.canStart : ready);
+            if (editable && eligibility.allowed) {
+                if (starting) reason = t('dartsLobbyStarting');
+                else if (!host) reason = t('dartsLobbyOnlyHost');
+                else if (model.canStart) reason = t('dartsLobbyReadyToStart');
+                else {
+                    var waiting = new Set(ids.map(function (id) { return data.participants[id].controllerId; }).filter(function (id) { return id !== data.hostUid && !(data.ready || {})[id]; })).size;
+                    reason = waiting ? format(waiting === 1 ? 'dartsLobbyWaitingDevice' : 'dartsLobbyWaitingDevices', { n: waiting }) : t('dartsWaitReady');
+                }
+            }
+            setText('lobby-start-reason', reason);
+            get('lobby-unready-btn').hidden = !editable || host || !ready;
+            get('lobby-unready-btn').disabled = busy;
             get('back-lobby-btn').hidden = editable || !host || (data.game.status !== 'over' && data.game.mode !== 'practice');
             get('back-lobby-btn').disabled = busy;
-            get('lobby-rule-note').textContent = description(config, ids.length);
+            setText('lobby-rule-title', options.modeName(config.mode));
+            setText('lobby-rule-summary', ruleSummary(config, ids.length));
+            setText('lobby-rule-note', description(config, ids.length));
             get('invite-note').textContent = t(model.online ? editable ? 'dartsLobbyInviteShared' : 'dartsLobbyInvitePlaying' : 'dartsLobbyInviteLocal');
             get('room-code').hidden = !model.online; get('room-code').textContent = model.code || '';
             get('copy-room-btn').hidden = !model.online;
@@ -204,6 +266,9 @@
         get('lobby-close-btn').addEventListener('click', close);
         dialog.addEventListener('cancel', function (event) { event.preventDefault(); close(); });
         dialog.addEventListener('keydown', function (event) { event.stopPropagation(); });
+        content.addEventListener('focusin', function () { requestAnimationFrame(keepFieldVisible); });
+        window.addEventListener('resize', fitViewport);
+        if (viewport) { viewport.addEventListener('resize', fitViewport); viewport.addEventListener('scroll', fitViewport); }
         get('add-player-btn').addEventListener('click', function () { run(options.addPlayer); });
         get('lobby-slots').addEventListener('change', function (event) {
             if (event.target.dataset.slotId) { var id = event.target.dataset.slotId, name = event.target.value; run(function () { return options.renamePlayer(id, name); }); }
@@ -216,7 +281,8 @@
                 patch[fields[id]] = ['legsToWin', 'turnMs', 'roundLimit'].includes(fields[id]) ? Number(value) : value;
                 run(function () { return options.configure(patch); }); });
         });
-        get('lobby-start-btn').addEventListener('click', function () { run(options.start); });
+        get('lobby-start-btn').addEventListener('click', function () { var model = options.model(); run(options.start, model.uid === model.data.hostUid); });
+        get('lobby-unready-btn').addEventListener('click', function () { run(options.start); });
         get('back-lobby-btn').addEventListener('click', function () { run(options.backToLobby); });
         get('create-room-btn').addEventListener('click', function () { run(options.invite); });
         get('join-room-btn').addEventListener('click', function () { var code = get('room-code-input').value; run(function () { return options.join(code); }); });

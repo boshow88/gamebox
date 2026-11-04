@@ -540,6 +540,16 @@ Explanations describe only the selected mode, participant count and actual rule
 combination. A one-player Cricket lobby explains the two-player minimum instead
 of recommending a one-player variant.
 
+The lobby dialog uses a fixed header, independently scrollable `#lobby-content`
+and a non-scrolling footer. Start/Ready and its associated eligibility reason
+remain visible with four players and expanded rules. Practice uses Start Practice;
+other games use Start Game. Ready guests see a disabled Waiting for Host action
+and a separate Cancel ready button, both using the existing controller callbacks.
+The compact rule summary follows the selected options; Rules explained expands
+the same contextual explanation inside the content region. Visual viewport
+resize/scroll events fit the dialog above a mobile keyboard and scroll only the
+content to keep a focused name field visible.
+
 `scoreAt`/`normalize` preserve physical Bull region and multiplier. Only
 `scoreResult` applies 25/50 or 50/50 numeric Bull scoring for 501/Count-Up; a
 50-point Outer Bull remains ineligible for Double In/Out. Master accepts Doubles,

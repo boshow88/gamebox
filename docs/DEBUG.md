@@ -110,6 +110,13 @@ scenarios exercise player/all filtering, independent scrolling,
 live-update anchor preservation, modal input blocking and focus restoration.
 Invalid-backend checks leave local Practice and account profiles working.
 
+Lobby checks keep the header/footer visible at every content scroll position
+with four players and expanded rules at 320x568, 390x844 and 1200x420. They verify
+mode-aware Start/Starting/Ready/waiting labels, minimum-player reasons, per-device
+readiness counts and cancellation, and matching compact/detailed rule summaries.
+A simulated visual viewport resize/offset checks name editing with a keyboard-sized
+visible area; this does not automate a physical mobile keyboard.
+
 Layout checks compare board/player/mode bounds before and after Start and across
 modes at 320/390/768/1200px. They cover four-player Cricket, visible dart counters,
 player HUD drags that must not throw, and board/bottom-panel gestures that must.

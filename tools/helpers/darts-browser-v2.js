@@ -35,6 +35,7 @@ async function dartsAdd(f, count) {
 }
 async function dartsStartLocal(f) {
     dartsClick(f, 'lobby-start-btn');
+    dartsAssert(dartsDoc(f).getElementById('lobby-start-btn').disabled && dartsDoc(f).getElementById('lobby-start-btn').textContent === 'Starting…', 'Pending start has a disabled Starting label');
     await until(() => dartsApi(f).snapshot().match && dartsApi(f).snapshot().match.status === 'playing' && !dartsDoc(f).getElementById('lobby').open, 'local match start');
 }
 async function dartsReturn(f) {
@@ -303,7 +304,13 @@ async function checkDartsMixedV2() {
     await until(() => tools.read().seatOrder.length === 4, 'mixed two-plus-two seats');
     dartsAssert(Object.keys(tools.read().players).length === 2 && tools.read().seatOrder.length === 4, 'Controllers and participants are separate');
     const bUid = dartsApi(b).snapshot().uid;
+    dartsAssert(dartsDoc(b).getElementById('lobby-start-btn').textContent === 'Ready' && dartsDoc(b).getElementById('lobby-start-reason').textContent.includes('host'), 'Guest has an actionable Ready control and host permission explanation');
+    dartsAssert(dartsDoc(a).getElementById('lobby-start-reason').textContent.includes('1 device'), 'Readiness counts controlling devices rather than their two player slots');
     dartsClick(b, 'lobby-start-btn'); await until(() => tools.read().ready[bUid], 'one device readies both its players');
+    await until(() => dartsDoc(b).getElementById('lobby-start-btn').textContent === 'Waiting for Host', 'Ready guest sees Waiting for Host');
+    dartsAssert(dartsDoc(b).getElementById('lobby-start-btn').disabled && !dartsDoc(b).getElementById('lobby-unready-btn').hidden, 'Waiting primary is disabled while Cancel ready remains available');
+    dartsClick(b, 'lobby-unready-btn'); await until(() => !tools.read().ready[bUid] && !dartsDoc(b).getElementById('lobby-start-btn').disabled, 'Guest can cancel Ready');
+    dartsClick(b, 'lobby-start-btn'); await until(() => tools.read().ready[bUid], 'Guest can reconfirm Ready');
     await dartsChange(a, 'out-select', 'open');
     await until(() => Object.values(tools.read().ready).every(ready => !ready), 'Rule edit clears Ready');
     await until(() => dartsDoc(b).getElementById('out-select').value === 'open', 'Rule edit reaches guest');
@@ -489,23 +496,74 @@ async function checkDartsLayoutsV2() {
     }
 }
 async function checkDartsLobbyV2() {
-    for (const [width, height] of [[320, 568], [390, 844]]) {
+    for (const [width, height] of [[320, 568], [390, 844], [1200, 420]]) {
         const f = await dartsBoot('lobby-layout-' + width, width, height), doc = dartsDoc(f), w = f.contentWindow;
-        await dartsAdd(f, 3); await dartsChange(f, 'mode-select', '501');
-        doc.getElementById('advanced-rules').open = true; await sleep(20);
-        const dialog = doc.getElementById('lobby'), bounds = dialog.getBoundingClientRect();
-        dartsAssert(bounds.left >= 0 && bounds.right <= w.innerWidth && bounds.top >= 0 && bounds.bottom <= w.innerHeight, 'Lobby fits viewport at ' + width);
-        dartsAssert(dialog.scrollWidth <= dialog.clientWidth + 1, 'Lobby has no horizontal scroll at ' + width);
-        const visibleControls = [...dialog.querySelectorAll('input,select,button')].filter(el => el.getClientRects().length && !el.hidden);
-        for (const control of visibleControls) {
-            const b = control.getBoundingClientRect();
-            dartsAssert(b.left >= bounds.left && b.right <= bounds.right, 'Lobby control exceeds width at ' + width + ': ' + control.id);
+        const dialog = doc.getElementById('lobby'), content = doc.getElementById('lobby-content'), start = doc.getElementById('lobby-start-btn');
+        function footerVisible() {
+            const bounds = dialog.getBoundingClientRect(), footer = doc.querySelector('.lobby-footer').getBoundingClientRect(), button = start.getBoundingClientRect();
+            dartsAssert(bounds.left >= -.5 && bounds.right <= w.innerWidth + .5 && bounds.top >= -.5 && bounds.bottom <= w.innerHeight + .5, 'Lobby fits viewport at ' + width);
+            dartsAssert(dialog.scrollWidth <= dialog.clientWidth + 1 && content.scrollWidth <= content.clientWidth + 1, 'Lobby has no horizontal scroll at ' + width);
+            dartsAssert(button.top >= footer.top && button.bottom <= footer.bottom && footer.bottom <= bounds.bottom && button.left >= bounds.left && button.right <= bounds.right,
+                'Primary action stays inside the non-scrolling footer at ' + width);
+            if (width <= 760) dartsAssert(button.height >= 44, 'Mobile primary action has a touch-sized target');
+            dartsAssert(w.getComputedStyle(dialog).overflowY === 'hidden' && w.getComputedStyle(content).overflowY === 'auto', 'Only lobby content scrolls');
+            return [footer.top, footer.bottom, doc.querySelector('#lobby > .dialog-header').getBoundingClientRect().top];
         }
-        const start = doc.getElementById('lobby-start-btn'); start.scrollIntoView({ block: 'nearest' }); await sleep(20);
-        const buttonBounds = start.getBoundingClientRect();
-        dartsAssert(!start.disabled && buttonBounds.top >= bounds.top && buttonBounds.bottom <= bounds.bottom,
-            'Four-slot advanced 501 Start remains reachable by scrolling at ' + width);
-        dialog.scrollTop = 0;
+        dartsAssert(start.textContent === 'Start Practice' && !start.disabled, 'Solo Practice uses Start Practice'); footerVisible();
+        dartsAssert(!doc.getElementById('lobby-rule-details').open && doc.getElementById('lobby-rule-summary').textContent.includes('Free throws'), 'Practice has a concise summary and collapsed explanation');
+        await dartsChange(f, 'mode-select', '501');
+        dartsAssert(start.textContent === 'Start Game' && start.disabled && doc.getElementById('lobby-start-reason').textContent.includes('at least 2') && start.getAttribute('aria-describedby').includes('lobby-start-reason'), 'Solo 501 has a disabled Start Game with an associated reason');
+        await dartsAdd(f, 3);
+        doc.getElementById('advanced-rules').open = true;
+        doc.getElementById('lobby-rule-details').open = true;
+        doc.getElementById('invite-details').open = true;
+        doc.querySelector('.darts-gesture-help').open = true; await sleep(20);
+        dartsAssert(content.scrollHeight > content.clientHeight && !start.disabled, 'Four-player advanced rules create an internal content scroll');
+        const fixed = footerVisible(), pageY = w.scrollY;
+        for (const fraction of [0, .5, 1]) {
+            content.scrollTop = (content.scrollHeight - content.clientHeight) * fraction; await sleep(20);
+            dartsAssert(footerVisible().every((value, i) => Math.abs(value - fixed[i]) < .6), 'Scrolling details cannot move the header or footer at ' + width);
+            dartsAssert(w.scrollY === pageY && dialog.scrollTop === 0, 'Content scrolling does not scroll the page or outer dialog');
+        }
+        const summary = () => doc.getElementById('lobby-rule-summary').textContent, details = () => doc.getElementById('lobby-rule-note').textContent;
+        dartsAssert(summary().includes('Double Out') && summary().includes('15 rounds'), '501 summary reflects default selected rules');
+        await dartsChange(f, 'out-select', 'open');
+        dartsAssert(summary().includes('Open Out') && !summary().includes('Double Out') && details().includes('Any scoring region can finish') && !details().includes('Finish on a double'), 'Summary and expanded explanation both switch to Open Out');
+        await dartsChange(f, 'out-select', 'double'); await dartsChange(f, 'in-select', 'master'); await dartsChange(f, 'bull-select', '50-50');
+        dartsAssert(summary().includes('Double Out') && summary().includes('Master In') && summary().includes('50 / 50') && details().includes('Finish on a double or inner Bull') && details().includes('Both Bulls score 50'), 'Selected In/Out and Bull settings update both rule views');
+        await dartsChange(f, 'rounds-select', 0);
+        dartsAssert(summary().includes('Unlimited rounds') && !details().includes('lowest remaining score wins'), 'Unlimited summary and explanation omit finite settlement');
+        await dartsChange(f, 'mode-select', 'cricket');
+        dartsAssert(summary().includes('Cut-Throat') && summary().includes('Lowest score wins') && !summary().includes('Double Out'), 'Cricket summary resolves the four-player automatic variant');
+        await dartsChange(f, 'cricket-select', 'standard');
+        dartsAssert(summary().includes('Standard') && summary().includes('Highest score wins') && !summary().includes('Cut-Throat'), 'Cricket explicit variant updates summary');
+        await dartsChange(f, 'mode-select', 'countup'); await dartsChange(f, 'rounds-select', 5);
+        dartsAssert(summary().includes('5 rounds') && summary().includes('3 darts per turn') && !summary().includes('501'), 'Count-Up summary reflects current round count');
+        await dartsChange(f, 'mode-select', 'practice');
+        w.ArcadeCommon.i18n.setLocale('zh');
+        dartsAssert(start.textContent === '開始練習' && doc.querySelector('#lobby-rule-details > summary').textContent === '詳細規則', 'Primary label and details use Traditional Chinese');
+        w.ArcadeCommon.i18n.setLocale('en');
+        const field = [...doc.querySelectorAll('#lobby-slots input')].at(-1), slot = field.dataset.slotId;
+        field.focus({ preventScroll: true });
+        // Model the visual viewport shrink/offset produced by a mobile keyboard.
+        const viewport = w.visualViewport, previousHeight = Object.getOwnPropertyDescriptor(viewport, 'height'), previousTop = Object.getOwnPropertyDescriptor(viewport, 'offsetTop');
+        Object.defineProperty(viewport, 'height', { configurable: true, value: 260 });
+        Object.defineProperty(viewport, 'offsetTop', { configurable: true, value: 20 });
+        viewport.dispatchEvent(new w.Event('resize'));
+        await until(() => {
+            const outer = dialog.getBoundingClientRect(), input = field.getBoundingClientRect(), body = content.getBoundingClientRect();
+            return outer.top >= 19.5 && outer.bottom <= 280.5 && input.top >= body.top - .5 && input.bottom <= body.bottom + .5;
+        }, 'resized visual viewport and edited field settle at ' + width);
+        footerVisible();
+        const visible = dialog.getBoundingClientRect(), inputBounds = field.getBoundingClientRect(), bodyBounds = content.getBoundingClientRect();
+        dartsAssert(visible.top >= 19.5 && visible.bottom <= 280.5 && inputBounds.top >= bodyBounds.top - .5 && inputBounds.bottom <= bodyBounds.bottom + .5,
+            'Keyboard-sized visual viewport keeps the field and footer visible at ' + width + ': ' + JSON.stringify({ dialog: [visible.top, visible.bottom], field: [inputBounds.top, inputBounds.bottom], body: [bodyBounds.top, bodyBounds.bottom] }));
+        dartsAssert(w.scrollY === pageY, 'Keeping the edited name visible does not scroll the webpage');
+        field.value = 'Phone Player'; field.blur(); field.dispatchEvent(new w.Event('change', { bubbles: true }));
+        await until(() => dartsData(f).participants[slot].name === 'Phone Player' && !start.disabled, 'Name can be edited with the reduced visual viewport');
+        if (previousHeight) Object.defineProperty(viewport, 'height', previousHeight); else delete viewport.height;
+        if (previousTop) Object.defineProperty(viewport, 'offsetTop', previousTop); else delete viewport.offsetTop;
+        viewport.dispatchEvent(new w.Event('resize')); await sleep(20); footerVisible();
         f.remove();
     }
     if (lobbyPreview) {
@@ -513,7 +571,7 @@ async function checkDartsLobbyV2() {
         const f = await dartsBoot('lobby-preview', width, height), doc = dartsDoc(f);
         f.style.cssText = 'position:fixed;inset:0;width:' + width + 'px;height:' + height + 'px;border:0;z-index:10';
         await dartsAdd(f, 3); await dartsChange(f, 'mode-select', '501');
-        doc.getElementById('advanced-rules').open = true; doc.getElementById('lobby').scrollTop = 0;
+        doc.getElementById('advanced-rules').open = true; doc.getElementById('lobby-content').scrollTop = 0;
         await sleep(60);
     }
 }

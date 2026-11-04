@@ -77,9 +77,11 @@
 .darts-dialog { width: min(560px, calc(100vw - 24px)); max-height: calc(100svh - 24px); padding: 16px; margin: auto; border: 1px solid var(--border-strong); border-radius: 12px; color: var(--text-primary); background: var(--bg-secondary); overflow: auto; box-sizing: border-box; }
 .darts-dialog::backdrop { background: rgba(0,0,0,.72); }
 .mode-rule-summary { margin: 0; color: #9ca3af; font-size: .65rem; line-height: 1.4; }
-.darts-lobby { width: min(660px, calc(100vw - 24px)); }
-.darts-lobby[open] { display: flex; flex-direction: column; gap: 12px; }
-.darts-lobby > * { flex-shrink: 0; }
+.darts-lobby { position: fixed; width: min(660px, calc(100vw - 24px)); max-height: calc(var(--lobby-viewport-height, 100dvh) - 24px); top: calc(var(--lobby-viewport-top, 0px) + var(--lobby-viewport-height, 100dvh) / 2); bottom: auto; margin: 0 auto; padding: 0; transform: translateY(-50%); overflow: hidden; }
+.darts-lobby[open] { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; }
+.darts-lobby > .dialog-header { padding: 14px 16px; border-bottom: 1px solid var(--border-color); }
+.lobby-content { min-height: 0; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; padding: 14px 16px; display: flex; flex-direction: column; gap: 12px; scroll-padding-block: 12px; }
+.lobby-content > * { flex-shrink: 0; }
 .darts-lobby .darts-rule { margin: 0; }
 .darts-lobby .darts-settings { grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 0; }
 .lobby-section-line { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; font-size: .85rem; }
@@ -98,8 +100,13 @@
 .lobby-connection-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
 .lobby-connection-actions .lobby-code { margin: 0; font-size: 1.5rem; }
 #room-code-input { width: 6em; min-width: 0; padding: 8px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-primary); color: var(--text-primary); font: 700 1rem var(--font-mono); letter-spacing: .1em; }
-.lobby-footer { display: flex; align-items: center; flex-wrap: wrap; justify-content: flex-end; gap: 10px; padding-top: 10px; border-top: 1px solid var(--border-color); }
-.lobby-footer #lobby-start-reason { flex: 1; min-width: 120px; font-size: .75rem; }
+.lobby-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px max(12px, env(safe-area-inset-bottom)); border-top: 1px solid var(--border-color); background: var(--bg-secondary); }
+.lobby-action-status { flex: 1; min-width: 0; font-size: .75rem; line-height: 1.4; overflow-wrap: anywhere; }
+.lobby-primary-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+.lobby-primary-actions .btn { min-height: 40px; }
+.lobby-rule-summary { color: var(--text-secondary); font-size: .75rem; line-height: 1.5; }
+.lobby-rule-summary > strong { font-size: .8rem; }
+.darts-lobby .lobby-action-status .darts-rule { font-size: .75rem; }
 #lobby-status:empty, #lobby-start-reason:empty { display: none; }
 .darts-lobby details > summary { cursor: pointer; font-size: .8rem; }
 .darts-lobby details[open] > summary { margin-bottom: 10px; }
@@ -133,7 +140,11 @@
     .game-topbar .back-link { padding: 4px; font-size: .8rem; }
     .darts-settings { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
     .darts-lobby .darts-settings { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    .darts-lobby { padding: 12px; }
+    .darts-lobby > .dialog-header { padding: 10px 12px; }
+    .lobby-content { padding: 12px; }
+    .lobby-footer { flex-direction: column; align-items: stretch; gap: 8px; padding: 10px 12px max(10px, env(safe-area-inset-bottom)); }
+    .lobby-primary-actions { width: 100%; }
+    .lobby-primary-actions .btn { flex: 1; min-height: 44px; }
     .darts-viewport { grid-template-areas: 'header' 'players' 'board' 'mode'; grid-template-columns: minmax(0, 1fr); grid-template-rows: 64px 60px minmax(0, 1fr) 194px; aspect-ratio: 3 / 5; max-width: 60cqh; }
     .viewport-header { flex-direction: column-reverse; justify-content: center; align-items: stretch; padding: 4px 8px; gap: 3px; }
     .viewport-controls { justify-content: flex-end; gap: 4px; }

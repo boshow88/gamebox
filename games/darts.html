@@ -105,6 +105,7 @@
 
         <dialog class="darts-dialog darts-lobby" id="lobby" aria-labelledby="lobby-title">
             <header class="dialog-header"><h2 id="lobby-title" data-i18n="dartsRoom">Room</h2><button class="btn" id="lobby-close-btn" type="button" data-i18n="dartsClose">Close</button></header>
+            <div class="lobby-content" id="lobby-content">
             <section aria-label="Player slots">
                 <div class="lobby-section-line"><strong data-i18n="dartsPlayers">Players</strong><span id="lobby-capacity"></span></div>
                 <div id="lobby-slots" class="darts-lobby-slots"></div>
@@ -131,10 +132,12 @@
                 <label id="bull-setting"><span data-i18n="dartsBullScoring">Bull scoring</span><select id="bull-select"><option value="25-50" data-i18n="dartsBull2550">25 / 50</option><option value="50-50" data-i18n="dartsBull5050">50 / 50</option></select></label>
             </section>
             <details id="advanced-rules"><summary data-i18n="dartsAdvanced">Advanced rules</summary><div class="darts-settings"><label><span data-i18n="dartsInRule">Start scoring</span><select id="in-select"><option value="open" data-i18n="dartsOpenIn">Open In</option><option value="master" data-i18n="dartsMasterIn">Master In</option><option value="double" data-i18n="dartsDoubleIn">Double In</option></select></label></div></details>
-            <p class="darts-rule" id="lobby-rule-note"></p>
+            <section class="lobby-rule-summary" aria-labelledby="lobby-rule-title">
+                <strong id="lobby-rule-title"></strong>
+                <p class="darts-rule" id="lobby-rule-summary"></p>
+            </section>
+            <details id="lobby-rule-details"><summary data-i18n="dartsLobbyRulesExplained">Rules explained</summary><p class="darts-rule" id="lobby-rule-note"></p></details>
             <details id="invite-details"><summary data-i18n="dartsInvite">Invite / join</summary><p class="darts-rule" id="invite-note"></p><div class="lobby-connection-actions"><button class="btn" id="create-room-btn" type="button" data-i18n="dartsEnableInvite">Get invitation code</button><strong class="lobby-code" id="room-code" hidden></strong><button class="btn" id="copy-room-btn" type="button" data-i18n="dartsCopy" hidden>Copy</button></div><div class="lobby-connection-actions" id="join-row"><label for="room-code-input" data-i18n="dartsCode">Code</label><input id="room-code-input" type="text" maxlength="4" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="ABCD"><button class="btn" id="join-room-btn" type="button" data-i18n="dartsJoin">Join</button></div><button class="btn" id="leave-room-btn" type="button" data-i18n="dartsLeave" hidden>Leave room</button></details>
-            <p class="darts-rule" id="lobby-status" role="status" aria-live="polite"></p>
-            <div class="lobby-footer"><button class="btn" id="back-lobby-btn" type="button" data-i18n="dartsBackLobby" hidden>Return to lobby</button><span id="lobby-start-reason" class="darts-rule"></span><button class="btn btn-primary" id="lobby-start-btn" type="button" data-i18n="dartsStartMatch" autofocus>Start match</button></div>
             <details class="darts-postgame" id="stats-details" hidden><summary data-i18n="dartsStatistics">Statistics</summary><div id="result-summary"></div></details>
             <details class="game-footer darts-gesture-help">
                 <summary data-i18n="dartsLobbyGestureHelp">Throwing controls</summary>
@@ -145,6 +148,15 @@
                     <li data-i18n="dartsThrowStart">The press point does not affect your aim. Start wherever feels comfortable.</li>
                 </ul>
             </details>
+            </div>
+            <footer class="lobby-footer">
+                <div class="lobby-action-status"><p class="darts-rule" id="lobby-start-reason" role="status" aria-live="polite"></p><p class="darts-rule" id="lobby-status" role="status" aria-live="polite"></p></div>
+                <div class="lobby-primary-actions">
+                    <button class="btn" id="back-lobby-btn" type="button" data-i18n="dartsBackLobby" hidden>Return to lobby</button>
+                    <button class="btn" id="lobby-unready-btn" type="button" data-i18n="dartsUnready" hidden>Cancel ready</button>
+                    <button class="btn btn-primary" id="lobby-start-btn" type="button" aria-describedby="lobby-start-reason lobby-status" autofocus>Start Practice</button>
+                </div>
+            </footer>
         </dialog>
         <dialog class="darts-dialog history-dialog" id="history-dialog" aria-labelledby="history-title">
             <header class="dialog-header"><h2 id="history-title" data-i18n="dartsHistory">History</h2><button class="btn" id="history-close-btn" type="button" data-i18n="dartsClose" autofocus>Close</button></header>
