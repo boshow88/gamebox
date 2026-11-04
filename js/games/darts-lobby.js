@@ -35,9 +35,9 @@
         dartsLobbyUnlimitedCricket: 'No round limit; play until the closure and score conditions are met.',
         dartsLobbyCorkTie: 'Tied players throw closest to Bull.',
         dartsLobbyPracticeTimer: 'Each turn allows {seconds} seconds.',
-        dartsLobbyInviteLocal: 'Enter a friend’s code, or get a code to invite them.',
-        dartsLobbyInviteShared: 'Share this code with your friends.',
-        dartsLobbyInvitePlaying: 'Friends can join after the host returns to the lobby.',
+        dartsLobbyInviteLocal: 'Enter a room code to join, or create a code to invite other players.',
+        dartsLobbyInviteShared: 'Share this code to invite other players.',
+        dartsLobbyInvitePlaying: 'New players can join after the host returns to the lobby.',
     });
     Object.assign(window.ArcadeCommon.i18n.STRINGS.zh, {
         dartsLobbyGestureHelp: '投擲操作',
@@ -73,9 +73,9 @@
         dartsLobbyUnlimitedCricket: '不限回合，依關閉目標與分數條件分勝負。',
         dartsLobbyCorkTie: '平手者加賽比靶心。',
         dartsLobbyPracticeTimer: '每回合限時{seconds}秒。',
-        dartsLobbyInviteLocal: '輸入朋友的房號，或取得房號邀請朋友。',
-        dartsLobbyInviteShared: '將此房號傳給朋友即可邀請。',
-        dartsLobbyInvitePlaying: '本場開始後，朋友須等房主返回大廳才能加入。',
+        dartsLobbyInviteLocal: '輸入房號加入，或建立房號邀請其他玩家。',
+        dartsLobbyInviteShared: '分享此房號即可邀請其他玩家。',
+        dartsLobbyInvitePlaying: '本場開始後，新玩家須等房主返回大廳才能加入。',
     });
     window.createDartsLobby = function (options) {
         var doc = options.document, t = options.t, dialog = doc.getElementById('lobby');
