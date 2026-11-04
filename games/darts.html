@@ -122,11 +122,12 @@
                 <label><span data-i18n="dartsMode">Mode</span>
                     <select id="mode-select">
                         <option value="practice" data-i18n="dartsPractice">Practice</option>
-                        <option value="501" data-i18n="darts501">501</option>
+                        <option value="x01" data-i18n="dartsX01">X01</option>
                         <option value="cricket" data-i18n="dartsCricket">Cricket</option>
                         <option value="countup" data-i18n="dartsCountup">Count-Up</option>
                     </select>
                 </label>
+                <label id="starting-score-setting"><span data-i18n="dartsStartingScore">Starting score</span><select id="starting-score-select"><option value="301">301</option><option value="501">501</option><option value="701">701</option><option value="901">901</option><option value="1101">1101</option><option value="1501">1501</option></select></label>
                 <label id="match-setting"><span data-i18n="dartsMatch">Match</span>
                     <select id="match-select"><option value="1" data-i18n="dartsBO1">1 leg</option><option value="2" data-i18n="dartsBO3">First to 2 legs</option><option value="3" data-i18n="dartsFirstTo3">First to 3 legs</option></select>
                 </label>
@@ -138,10 +139,16 @@
                 <label id="cricket-setting"><span data-i18n="dartsCricketScoring">Scoring</span><select id="cricket-select"><option value="auto" data-i18n="dartsAutoCricket">Recommended by player count</option><option value="standard" data-i18n="dartsStandardCricket">Standard</option><option value="cutthroat" data-i18n="dartsCutThroatCricket">Cut-Throat</option></select></label>
                 <label id="bull-setting"><span data-i18n="dartsBullScoring">Bull scoring</span><select id="bull-select"><option value="25-50" data-i18n="dartsBull2550">25 / 50</option><option value="50-50" data-i18n="dartsBull5050">50 / 50</option></select></label>
             </section>
-            <details id="advanced-rules"><summary data-i18n="dartsAdvanced">Advanced rules</summary><div class="darts-settings"><label><span data-i18n="dartsInRule">Start scoring</span><select id="in-select"><option value="open" data-i18n="dartsOpenIn">Open In</option><option value="master" data-i18n="dartsMasterIn">Master In</option><option value="double" data-i18n="dartsDoubleIn">Double In</option></select></label></div></details>
+            <details id="advanced-rules"><summary data-i18n="dartsAdvanced">Advanced rules</summary><div class="darts-settings">
+                <label id="in-setting"><span data-i18n="dartsInRule">Start scoring</span><select id="in-select"><option value="open" data-i18n="dartsOpenIn">Open In</option><option value="master" data-i18n="dartsMasterIn">Master In</option><option value="double" data-i18n="dartsDoubleIn">Double In</option></select></label>
+                <label id="starting-player-setting"><span data-i18n="dartsStartingPlayer">Starting player</span><select id="starting-player-select"><option value="random" data-i18n="dartsStartingRandom">Random</option><option value="cork" data-i18n="dartsStartingCork">Cork (closest to Bull)</option></select></label>
+                <label id="settlement-setting"><span data-i18n="dartsLimitSettlement">Round-limit result</span><select id="settlement-select"><option value="score-then-cork" data-i18n="dartsSettlementScore">Lowest remaining score</option><option value="cork" data-i18n="dartsSettlementCork">Cork (all players)</option></select></label>
+            </div></details>
             <section class="lobby-rule-summary" aria-labelledby="lobby-rule-title">
                 <strong id="lobby-rule-title"></strong>
                 <p class="darts-rule" id="lobby-rule-summary"></p>
+                <p class="darts-rule" id="lobby-match-summary"></p>
+                <p class="darts-rule" id="lobby-round-note" hidden></p>
             </section>
             <details id="lobby-rule-details"><summary data-i18n="dartsLobbyRulesExplained">Rules explained</summary><p class="darts-rule" id="lobby-rule-note"></p></details>
             <details id="invite-details"><summary data-i18n="dartsInvite">Invite / join</summary><p class="darts-rule" id="invite-note"></p><div class="lobby-connection-actions"><button class="btn" id="create-room-btn" type="button" data-i18n="dartsEnableInvite">Get invitation code</button><strong class="lobby-code" id="room-code" hidden></strong><button class="btn" id="copy-room-btn" type="button" data-i18n="dartsCopy" hidden>Copy</button></div><div class="lobby-connection-actions" id="join-row"><label for="room-code-input" data-i18n="dartsCode">Code</label><input id="room-code-input" type="text" maxlength="4" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="ABCD"><button class="btn" id="join-room-btn" type="button" data-i18n="dartsJoin">Join</button></div><button class="btn" id="leave-room-btn" type="button" data-i18n="dartsLeave" hidden>Leave room</button></details>

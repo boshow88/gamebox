@@ -203,4 +203,34 @@ for (const eligible of [1, 2, 3, 0]) {
     f.reset(); assert.deepEqual(f.snapshot(101).penalties, {});
 }
 
-console.log('Darts feedback: ownership, handoff safety, accepted penalties, bust sequencing and result priority passed.');
+// A winning impact is already final while only its result announcement waits.
+for (const legsToWin of [1, 2]) {
+    let s = create('x01', ['A', 'B'], { legsToWin }); s.scores.A = s.turnStartScore = 32;
+    const f = F.create({ controllerId: 'device1' }); update(f, s, 0);
+    s = throwDart(s, 16, 2);
+    const accepted = JSON.stringify(s), v = update(f, s, 100, true);
+    assert.equal(s.status, legsToWin === 1 ? 'over' : 'between');
+    assert.equal(v.resultPending, true); assert.equal(v.finalHit.dart.result.label, 'D16');
+    assert.equal(v.finalHit.dart.result.score, 32); assert.equal(v.blocking, false);
+    assert.equal(v.handoff, null); assert.equal(v.notice, null);
+    assert.equal(R.throwDart(s, s.active, R.hit(20, 3), 101), null);
+    assert.equal(R.timeout(s, 999999), null, 'A visual delay never reopens scoring or a completed turn timer');
+    update(f, s, 200, true);
+    assert.equal(f.snapshot(100 + F.TIMING.finalHit - 1).resultPending, true);
+    assert.equal(f.snapshot(100 + F.TIMING.finalHit).resultPending, false, 'Repeated snapshots cannot prolong the delay');
+    update(f, s, 2000, true); assert.equal(f.snapshot(2000).finalHit, null);
+    assert.equal(JSON.stringify(s), accepted, 'Presentation does not mutate the accepted final state');
+    f.reset(); assert.equal(f.snapshot(2010).resultPending, false);
+    // Re-establish a baseline without a landed event: reconnect is not a new winning hit.
+    assert.equal(update(f, s, 2020).resultPending, false);
+}
+{
+    let s = create('x01', ['A', 'B'], { legsToWin: 2 }); s.scores.A = s.turnStartScore = 32;
+    const f = F.create({ controllerId: 'device1' }); update(f, s, 0);
+    s = throwDart(s, 16, 2); update(f, s, 100, true);
+    s = R.nextLeg(s, 200);
+    assert.equal(update(f, s, 200).resultPending, false, 'A new Leg cancels the previous announcement delay');
+    assert.equal(update(f, null, 250).finalHit, null, 'Leaving clears the pending impact');
+}
+
+console.log('Darts feedback: handoff safety, accepted scoring, bust sequencing and final-hit presentation passed.');

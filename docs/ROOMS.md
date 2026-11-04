@@ -53,7 +53,7 @@ Darts opens a local lobby with one participant. Local Practice, Count-Up and
 shared-device games use the same lobby without opening a network room. Invite or
 Join loads the online service; creating an invitation promotes the current local
 participants and configuration into a shared room. Solo Practice and Count-Up
-require one participant; 501 and Cricket require two. Every mode allows at most
+require one participant; X01 and Cricket require two. Every mode allows at most
 four participants.
 
 The shared service's `players`, connection `slots`, `hostUid`, readiness and
@@ -119,6 +119,14 @@ results/history. A new Start replaces only match-specific state with a new match
 ID. The host can also end unlimited Practice and return to this lobby without
 awarding a winner. Closing the room panel leaves membership intact; Leave is
 explicit. No new invitation is needed to switch modes or play again.
+
+X01 starting score, round cap/settlement and opening starter selection use the
+same configuration/Ready transaction and freeze with the other Match options.
+Legacy 501 configurations normalize to X01/501. Opening, tied-result and direct
+limit Cork phases share the rules engine, physical impact distances and slot
+ownership guards. They add no separate room or transport. A final throw commits
+its completed result immediately; the one-second final-hit presentation is local
+UI state and cannot admit another throw or timeout into a finished Leg.
 
 Presence uses the existing 3-second piggybacked connection heartbeats,
 15-second missing-peer grace period and host migration. Brief reconnects retain

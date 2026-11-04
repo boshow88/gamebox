@@ -59,7 +59,8 @@ const createRoom = require('../js/games/darts-room.js');
 
     await flush(a.configure({ mode: '501' }));
     assert.equal(get().options.turnMs, 60000, 'Changing mode uses the same timer defaults as a local lobby');
-    assert.equal(get().options.roundLimit, 15);
+    assert.equal(get().options.mode, 'x01'); assert.equal(get().options.startingScore, 501);
+    assert.equal(get().options.roundLimit, 20);
     assert.equal(a.canStart(), false); assert.equal(await flush(a.start()), false, '501 needs at least two slots');
     await flush(a.configure({ mode: 'cricket' }));
     assert.equal(a.canStart(), false, 'Cricket needs at least two slots');
@@ -267,6 +268,97 @@ const createRoom = require('../js/games/darts-room.js');
     assert.deepEqual(game().players, [A]); assert.equal(game().owners[A], A);
     assert.equal(game().roundLimit, 8); assert.equal(game().legsToWin, 1);
     await flush(a.leave()); assert.equal(get(), null);
+
+    // New rule settings are material lobby changes and become fixed on shared Start.
+    await flush(a.create({ mode: 'x01', startingScore: 301, turnMs: 30000, legsToWin: 2 }));
+    await flush(b.join('ABCD')); await flush(c.join('ABCD')); await flush(d.join('ABCD'));
+    assert.equal(get().options.roundLimit, 15); assert.equal(get().options.roundLimitExplicit, false);
+    for (const [patch, expected] of [
+        [{ startingScore: 701 }, { startingScore: 701, roundLimit: 20 }],
+        [{ startingScore: 901 }, { startingScore: 901, roundLimit: 30 }],
+        [{ startingPlayer: 'cork' }, { startingPlayer: 'cork', settlement: 'score-then-cork' }],
+        [{ settlement: 'cork' }, { settlement: 'cork', startingPlayer: 'cork' }],
+        [{ roundLimit: 0 }, { roundLimit: 0, roundLimitExplicit: true }],
+        [{ startingScore: 1501 }, { startingScore: 1501, roundLimit: 0 }],
+        [{ roundLimit: 30 }, { roundLimit: 30 }],
+        [{ startingScore: 701 }, { startingScore: 701, roundLimit: 30 }],
+    ]) {
+        await readyGuests(A); assert.equal(Object.keys(get().ready).length, 3);
+        assert.equal(await flush(a.configure(patch)), true);
+        assert.deepEqual(get().ready, {}, 'Each changed score, Cork setting or cap invalidates every guest Ready');
+        for (const [key, value] of Object.entries(expected)) assert.equal(get().options[key], value);
+    }
+    await flush(a.configure({ startingScore: 301, roundLimit: 10, bullMode: '50-50' }));
+    await readyGuests(A); assert.equal(await flush(a.start()), true);
+    const openingConfig = R.options(game(), 4), openingSeats = game().players.slice();
+    assert.equal(game().execution, 'shared'); assert.equal(game().phase, 'cork'); assert.equal(game().corkPurpose, 'opening');
+    assert.deepEqual(game().corkPlayers, openingSeats);
+    assert.equal(await flush(b.submit(flight(3, 4))), false, 'Only the current Cork slot owner may throw');
+    assert.equal(await flush(a.configure({ startingScore: 1501, startingPlayer: 'random', settlement: 'score-then-cork' })), false);
+    assert.deepEqual(R.options(game(), 4), openingConfig, 'An ongoing match keeps every new rule field frozen');
+    for (const distance of [[3, 4], [20, 0], [3, 4], [20, 0]]) await shoot(...distance);
+    assert.equal(game().phase, 'cork'); assert.equal(game().corkRound, 2);
+    assert.deepEqual(game().corkPlayers, [openingSeats[0], openingSeats[2]], 'Only the equal closest remote slots repeat opening Cork');
+    await shoot(8, 0); await shoot(2, 0);
+    assert.equal(game().phase, 'play'); assert.equal(game().status, 'playing');
+    assert.equal(game().openingWinner, openingSeats[2]); assert.equal(game().active, openingSeats[2]);
+    assert.equal(game().firstStarter, 2); assert.equal(game().legStarter, openingSeats[2]);
+    assert.deepEqual(game().players, openingSeats, 'Cork selects a starting seat without sorting the roster');
+    assert(game().players.every(id => game().scores[id] === 301 && game().turns[id] === 0 && game().stats[id].darts === 0 && game().stats[id].points === 0));
+    assert(game().players.every(id => R.TARGETS.every(target => game().marks[id][target] === 0)));
+    assert.equal(game().history.length, 6); assert(game().history.every(row => row.phase === 'cork' && row.corkPurpose === 'opening'));
+    const openingWinner = game().active;
+    await fixture({ ['game.scores.' + openingWinner]: 32, 'game.turnStartScore': 32 });
+    await shoot(16, 2); assert.equal(game().status, 'between');
+    wait(); assert.equal(await flush(a.nextLeg()), true);
+    assert.equal(game().phase, 'play'); assert.equal(game().leg, 2); assert.equal(game().legStarter, openingSeats[3]);
+    assert(game().players.every(id => game().scores[id] === 301));
+    assert.equal(game().history.filter(row => row.corkPurpose === 'opening').length, 6, 'Later Legs do not repeat opening Cork');
+    await flush(a.leave()); await flush(b.leave()); await flush(c.leave()); await flush(d.leave()); assert.equal(get(), null);
+
+    // Direct round-limit Cork includes all four controllers, ignoring their remaining-score ranking.
+    await flush(a.create({ mode: 'x01', startingScore: 701, roundLimit: 10, settlement: 'cork', startingPlayer: 'random', turnMs: 30000 }));
+    await flush(b.join('ABCD')); await flush(c.join('ABCD')); await flush(d.join('ABCD'));
+    await readyGuests(A); assert.equal(await flush(a.start()), true);
+    assert.equal(game().phase, 'play'); assert.equal(game().startingPlayer, 'random', 'Cork settlement does not force opening Cork');
+    const limitSeats = game().players.slice(), highScore = limitSeats[3];
+    const capState = structuredClone(game());
+    capState.players.forEach((id, index) => { capState.turns[id] = 9; capState.scores[id] = [12, 38, 91, 150][index]; });
+    capState.turnStartScore = capState.scores[capState.active];
+    await fixture({ game: capState });
+    for (let dart = 0; dart < 12; dart++) await shoot(0, 0);
+    assert.equal(game().phase, 'cork'); assert.equal(game().corkPurpose, 'limit');
+    assert.deepEqual(game().corkPlayers, limitSeats);
+    assert(game().players.every(id => game().turns[id] === 10), 'Each participant receives the full permitted number of turns before settlement');
+    for (let dart = 0; dart < 4; dart++) await shoot(game().active === highScore ? 1 : 20, 0);
+    assert.equal(game().winner, highScore); assert.equal(game().scores[highScore], 150);
+    assert.equal(game().endReason, 'cork'); assert.equal(game().legCorkPurpose, 'limit');
+    assert.deepEqual(a.current().data.game, d.current().data.game);
+    wait(); assert.equal(await flush(active().submit(flight(20, 3))), false, 'A completed Cork settlement rejects further scoring');
+    clock += 100000; assert.equal(await flush(a.expire()), false, 'Timeout cannot overwrite an accepted final result');
+    assert.equal(await flush(a.backToLobby()), true);
+    assert.equal(await flush(a.configure({ mode: 'cricket', roundLimit: 30 })), true, 'The retained room can start a different expanded-cap mode');
+    assert.equal(get().options.roundLimit, 30);
+    await flush(a.leave()); await flush(b.leave()); await flush(c.leave()); await flush(d.leave()); assert.equal(get(), null);
+
+    // Legacy 501 configurations normalize to 501-point X01, including local result uploads.
+    for (const legacyCap of [10, undefined]) {
+        await flush(a.create({ mode: '501', startingScore: 1501, roundLimit: 10 }, [{ id: 'legacy-one', name: 'One' }, { id: 'legacy-two', name: 'Two' }]));
+        assert.equal(get().options.mode, 'x01'); assert.equal(get().options.startingScore, 501);
+        assert.equal(await flush(a.start()), true);
+        const legacyLocal = structuredClone(game());
+        legacyLocal.mode = '501'; delete legacyLocal.startingScore; delete legacyLocal.roundLimitExplicit;
+        if (legacyCap === undefined) delete legacyLocal.roundLimit;
+        await fixture({ game: legacyLocal });
+        const legacyThrower = legacyLocal.active;
+        legacyLocal.scores[legacyThrower] = legacyLocal.turnStartScore = 40;
+        const legacyResult = R.throwDart(legacyLocal, legacyThrower, R.hit(20, 2), ++clock, { x: 20, y: 2 });
+        assert.equal(legacyResult.mode, 'x01'); assert.equal(legacyResult.startingScore, 501);
+        assert.equal(legacyResult.roundLimit, legacyCap === undefined ? 0 : legacyCap);
+        assert.equal(await flush(a.syncLocal(legacyResult, true)), true, 'Normalized equivalent legacy settings can upload a completed local result');
+        assert.equal(game().winner, legacyThrower); assert.equal(get().phase, 'lobby');
+        await flush(a.leave()); assert.equal(get(), null);
+    }
     assert.equal(errors.length, 0, errors.map(String).join('\n'));
-    console.log('PASS: persistent Darts rooms, code-only local execution, numbered names, mixed/4-device slots, ownership, Ready/configuration guards, rule snapshots, full matches, history, recovery and host migration.');
+    console.log('PASS: persistent Darts rooms, local/shared execution, mixed/4-device ownership, X01 defaults/frozen settings, Ready resets, opening/limit Cork, history, recovery, legacy 501 and host migration.');
 })().catch(error => { console.error(error); process.exitCode = 1; });

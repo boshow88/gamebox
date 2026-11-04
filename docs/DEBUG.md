@@ -81,12 +81,21 @@ Practice, first-to-1/2/3 Leg progression, history retention and atomic controlle
 departures. The real gesture/ballistics functions still run against their golden
 velocities and deterministic pitch-rotation checks.
 
+X01 expansion checks preserve the old 501 scenarios and cover all six starting
+scores across every In/Out combination, automatic defaults versus explicit caps,
+all expanded round choices and equal opportunities. Opening Cork is exercised
+with 2/3/4 players, tied retries, timeouts, controller departures, unchanged normal
+statistics and later-Leg rotation. Direct X01 limit Cork includes all contenders
+regardless of prior scores; numeric ties retain the existing tied-leader Cork.
+
 The feedback check covers same-device ownership transitions, fresh confirmation,
 stale confirmations after timeouts, snapshot/event deduplication, actual accepted
 penalty recipients, Bust-to-handoff sequencing and result priority. The HUD check
 uses accepted rule transitions for the Leg/Match victory-reason matrix, every
 mode's cap, tied-score Cricket closures and Cork distance, plus restored Bust
 scores/history and penalty effects that expire without discarding accepted data.
+Final-impact checks hold the accepted finished state while showing its last hit,
+expire without replay, reject scoring/timeout after completion and clear on reset.
 
 The room check uses the actual room core, Darts policy and RTDB adapter against
 the native-tree fixture. It exercises separate controllers and player slots,
@@ -127,6 +136,13 @@ for 3/2/1/0 opponents without heartbeat replay; Bust restores the accepted score
 and retains history. Result reasons are checked in EN/ZH. Room-loss fallback keeps
 a pending local handoff, while a timeout superseding a flight suppresses its stale
 scoring effects.
+
+Expansion browser cases check actual X01 variant labels, all caps, explicit cap
+preservation, independent Cork controls, frozen settings and Ready resets. Local
+opening Cork covers 2/3/4 slots; mixed-device Cork uses actual accepted flights.
+Decisive X01/Cricket/Count-Up/Cork impacts show their hit for one second before
+the result appears, on both clients when shared. Expanded advanced settings keep
+Start/Ready reachable on small mobile viewports.
 
 Lobby checks keep the header/footer visible at every content scroll position
 with four players and expanded rules at 320x568, 390x844 and 1200x420. They verify

@@ -87,10 +87,12 @@ for (const legsToWin of [1, 2]) {
         s = dart(s, miss, { x: 12, y: 16 });
         assert.equal(s.status, legsToWin === 1 ? 'over' : 'between');
         assert.equal(s.legWinner, closest); assert.equal(s.scores.A, s.scores.B);
-        const m = expected(s, 'dartsResultCork', '10.0 mm');
+        const reasonKey = R.isX01(mode) ? 'dartsResultLimitCork' : 'dartsResultCork';
+        const args = R.isX01(mode) ? [10, '10.0 mm'] : ['10.0 mm'];
+        const m = expected(s, reasonKey, ...args);
         assert.equal(m.winnerDistance, 10);
         m.winnerDistance = 1e9;
-        assert.deepEqual(H.resultReason(m, tr), ['dartsResultCork', ''], 'A forfeited distance cannot be presented as a physical landing');
+        assert.deepEqual(H.resultReason(m, tr), [reasonKey, ...(R.isX01(mode) ? [10, ''] : [''])], 'A forfeited distance cannot be presented as a physical landing');
     }
 }
 

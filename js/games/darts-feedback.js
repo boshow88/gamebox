@@ -6,7 +6,7 @@
     else root.DartsFeedback = feedback;
 })(typeof window === 'object' ? window : globalThis, function () {
     'use strict';
-    var TIMING = Object.freeze({ turn: 1200, bust: 1200, penalty: 1300 });
+    var TIMING = Object.freeze({ turn: 1200, bust: 1200, penalty: 1300, finalHit: 1000 });
     function timestamp(value) { return Number.isFinite(value) ? value : Date.now(); }
     function owner(state, player) {
         return state.owners && state.owners[player] != null ? state.owners[player] : player;
@@ -21,21 +21,25 @@
     }
     function create(options) {
         var controllerId = options && options.controllerId;
-        var previous, handoff, notice, penalties, penaltyUntil, eventKey, seen;
+        var previous, handoff, notice, penalties, penaltyUntil, eventKey, seen, finalHit, finalUntil;
         function reset() {
             previous = null; handoff = null; notice = null;
             penalties = {}; penaltyUntil = 0; eventKey = ''; seen = new Set();
+            finalHit = null; finalUntil = 0;
         }
         reset();
         function snapshot(at) {
             var now = timestamp(at), currentNotice = notice && now < notice.until ? notice : null;
+            var resultPending = !!finalHit && now < finalUntil;
             return {
                 handoff: handoff ? { key: handoff.key, player: handoff.player,
                     visible: now >= handoff.visibleAt } : null,
                 blocking: !!handoff,
                 notice: currentNotice ? Object.assign({}, currentNotice.value) : null,
                 penalties: now < penaltyUntil ? Object.assign({}, penalties) : {},
-                eventKey: eventKey
+                eventKey: eventKey,
+                resultPending: resultPending,
+                finalHit: resultPending ? JSON.parse(JSON.stringify(finalHit)) : null
             };
         }
         function update(state, context) {
@@ -54,6 +58,10 @@
                 return snapshot(now);
             }
             var key = identity(state), changed = previous && key !== previous.key;
+            if ((previous && previous.leg !== state.leg) || state.status === 'playing' ||
+                ['left', 'cancelled', 'practice-ended'].includes(state.endReason)) {
+                finalHit = null; finalUntil = 0;
+            }
             if (changed || controllerChanged) {
                 handoff = null; notice = null;
                 if (previous && (previous.leg !== state.leg || previous.phase !== state.phase)) {
@@ -72,6 +80,11 @@
             if (event && event.id != null && !seen.has(String(event.id))) {
                 eventKey = String(event.id); seen.add(eventKey);
                 var dart = event.dart || {}, actual = dart.penalties || {};
+                if (state.status !== 'playing' && dart.result &&
+                    !['left', 'cancelled', 'practice-ended'].includes(state.endReason)) {
+                    finalHit = { key: eventKey, dart: JSON.parse(JSON.stringify(dart)) };
+                    finalUntil = now + TIMING.finalHit;
+                }
                 penalties = {};
                 if (state.mode === 'cricket' && state.cricketVariant === 'cutthroat') {
                     Object.keys(actual).forEach(function (player) {

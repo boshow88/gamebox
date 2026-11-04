@@ -533,15 +533,16 @@ the next match. No new active participants join an in-progress match.
 
 ### Explicit game configuration
 
-`Rules.options` validates `mode`, `legsToWin`, `turnMs`, `roundLimit`, `inRule`,
-`outRule`, `bullMode` and `cricketVariant`. Legacy `bestOf` input remains compatible;
+`Rules.options` validates `mode`, `startingScore`, `startingPlayer`, `settlement`,
+`legsToWin`, `turnMs`, `roundLimit`, `inRule`, `outRule`, `bullMode` and
+`cricketVariant`. Legacy `bestOf` input remains compatible;
 the UI uses first-to-1/2/3 Leg wins instead of promising a fixed Leg count.
-`Rules.eligibility` permits Practice/Count-Up with 1–4 slots and 501/Cricket with
+`Rules.eligibility` permits Practice/Count-Up with 1–4 slots and X01/Cricket with
 2–4. Practice defaults to unlimited rounds and Timer Off; competitive modes
-default to 60 seconds. Timers can also be Off/30/60/90 seconds. 501/Cricket offer
-10/15/unlimited rounds (default 15); Count-Up offers 5/8/10/15 (default 8).
+default to 60 seconds. Timers can also be Off/30/60/90 seconds. X01/Cricket offer
+10/15/20/30/unlimited rounds; Count-Up offers 5/8/10/15/20/30 (default 8).
 
-The lobby shows only relevant rules: 501 In/Out and Bull settings, Cricket
+The lobby shows only relevant rules: X01 starting score, In/Out and Bull settings, Cricket
 Standard/Cut-Throat, and Count-Up rounds/Bull settings. Automatic Cricket resolves
 to Standard for two and Cut-Throat for three/four when the match is created;
 explicit choices survive population changes. Mode changes select appropriate
@@ -562,7 +563,7 @@ resize/scroll events fit the dialog above a mobile keyboard and scroll only the
 content to keep a focused name field visible.
 
 `scoreAt`/`normalize` preserve physical Bull region and multiplier. Only
-`scoreResult` applies 25/50 or 50/50 numeric Bull scoring for 501/Count-Up; a
+`scoreResult` applies 25/50 or 50/50 numeric Bull scoring for X01/Count-Up; a
 50-point Outer Bull remains ineligible for Double In/Out. Master accepts Doubles,
 Triples and either Bull; Double accepts Doubles/Inner Bull. `entered` and
 `turnStartEntered` accompany the existing starting-score snapshot, so Bust restores
@@ -578,11 +579,29 @@ Standard awards excess points once to the thrower and compares all contenders.
 Finite limits use each participant's completed-turn count, not the global turn
 revision. Everyone receives the configured opportunities before score settlement,
 unless normal checkout/closure wins immediately. Settlement uses lowest remainder
-for 501, highest Standard/Count-Up total and lowest Cut-Throat total. Tied leaders
+for X01, highest Standard/Count-Up total and lowest Cut-Throat total. Tied leaders
 enter `phase:'cork'`: one dart each, unchanged scores, physical distance from the
 Bull passed as the optional fifth `throwDart` argument. Distances within 0.001 mm
 repeat only among those still tied. A Cork timeout forfeits the opportunity.
 Normal scoring and Cork history/feedback carry distinct phase data.
+
+The canonical countdown mode is `x01`, with `startingScore` restricted to
+301/501/701/901/1101/1501. Legacy `mode:'501'` normalizes to X01 with 501 points;
+older live snapshots without caps remain unlimited. `configureOptions` is shared
+by local and connected lobbies. `roundLimitExplicit` distinguishes a manually
+selected cap from an automatic score-based default; changing X01 starting score
+updates only automatic caps. Mode changes reset mode-specific round/timer defaults.
+All normalized settings, including `startingPlayer` and `settlement`, freeze at
+Match start and configuration changes reset device Ready states.
+
+`phase:'cork'` shares physical-distance comparison across `corkPurpose` values
+`opening`, `tie` and `limit`. Opening Cork selects `firstStarter`/`legStarter`
+once, retaining seat order and later-Leg rotation. Direct X01 limit Cork admits
+all contenders, while a numeric settlement tie admits only tied leaders. Cork
+does not increment normal stats/turn counts or change scores/marks; accepted
+history, last-dart and last-turn data carry the context. `legCorkPurpose` preserves
+the completed context for result presentation. Timeout and controller withdrawal
+continue through the same shared Cork resolution code.
 
 ### Gameplay viewport
 
@@ -598,7 +617,7 @@ post-leg statistics. The single Room toolbar action remains available during pla
 with Invite/Join inside that dialog and
 match settings locked. No mobile/desktop scoring branches are needed.
 
-Panel bounds stay constant across Practice, 501, Cricket and Count-Up. Primary
+Panel bounds stay constant across Practice, X01, Cricket and Count-Up. Primary
 scores appear only in the player summary. The mode panel shows three individual
 turn darts and subtotal, Cricket's seven-row mark matrix, or practice release
 feedback. Numbered/coloured seats link four-player marks to the player summary
@@ -647,6 +666,14 @@ handoff; input is blocked throughout. Timings are centralized in
 HUD result explanations use `legEndReason`/`endReason`, mode and accepted winner
 score/distance, distinguishing Leg wins from final Match wins and Cork distance
 from the original mode's points. This layer does not alter scoring or deadlines.
+
+A landed accepted winning event sets `resultPending` for `TIMING.finalHit`
+(1000 ms), retaining its actual last-dart result for the ordinary hit toast.
+The authoritative match is already between Legs or over; this delays only the
+result overlay. Repeated snapshots do not extend the interval. HUD result
+visibility updates outside its content cache so expiry reveals the result even
+without a new accepted state. New match/Leg/lobby transitions clear pending
+presentation; timeout/forfeit endings have no artificial winning-hit delay.
 
 ### Throw history
 

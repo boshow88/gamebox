@@ -94,7 +94,7 @@
         dartsRuleCricket: 'Close 20–15 and Bull with three marks each. Extra marks score while any opponent has that target open. Close everything and match or beat every opponent’s points to win.',
         dartsRuleCountup: '8 rounds, 3 darts each. Highest total wins. Outer Bull 25, inner Bull 50. A tied online/local leg is replayed with the starter alternating.',
         dartsRulePractice: 'Unlimited throws. D toggles the gesture and trajectory view.',
-        dartsLocalHint: '501 and Cricket support 2–4 players. Count-Up supports 1–4. Online rooms start with 2–4 players after every guest readies up.',
+        dartsLocalHint: 'X01 and Cricket support 2–4 players. Count-Up supports 1–4. Online rooms start with 2–4 players after every guest readies up.',
         dartsClose: 'Close', dartsGoogle: 'Sign in with Google', dartsGuestSignIn: 'Play as guest', dartsSignOut: 'Sign out',
         dartsSignInFirst: 'Sign in to create or join a room.', dartsCreate: 'Create room', dartsCode: 'Code', dartsJoin: 'Join',
         dartsCopy: 'Copy', dartsCopied: 'Copied!', dartsLeave: 'Leave room', dartsReadyUp: 'Ready', dartsReadyWait: 'Ready — waiting for host',
@@ -131,7 +131,7 @@
         dartsRuleCricket: '20到15與紅心各需三個記號關閉。仍有對手尚未關閉時，多出的記號可得分。關閉全部目標且分數不低於所有對手即獲勝。',
         dartsRuleCountup: '共八回合，每回合三鏢，總分最高者獲勝。外紅心25分、內紅心50分。雙人平手時重打，並交換先手。',
         dartsRulePractice: '不限次數投擲。按D可切換手勢與軌跡視圖。',
-        dartsLocalHint: '501與Cricket支援2–4人，Count-Up支援1–4人。線上房間可由2–4人開始，所有非房主玩家準備好後即可開局。',
+        dartsLocalHint: 'X01與Cricket支援2–4人，Count-Up支援1–4人。線上房間可由2–4人開始，所有非房主玩家準備好後即可開局。',
         dartsClose: '關閉', dartsGoogle: '用Google登入', dartsGuestSignIn: '以訪客身分遊玩', dartsSignOut: '登出',
         dartsSignInFirst: '登入後即可建立或加入房間。', dartsCreate: '建立房間', dartsCode: '房號', dartsJoin: '加入',
         dartsCopy: '複製', dartsCopied: '已複製！', dartsLeave: '離開房間', dartsReadyUp: '準備好了', dartsReadyWait: '已準備，等待房主開始',
@@ -207,6 +207,11 @@
     });
 
     Object.assign(AC.i18n.STRINGS.en, {
+        dartsX01: 'X01',
+        dartsRuleX01: function (score) { return 'Start at ' + score + ' and finish on exactly zero under the selected In / Out rules. A bust restores the score and opening state from the start of the turn.'; },
+        dartsOpeningCork: 'Starting-player Cork', dartsLimitCork: 'Round-limit Cork', dartsTieCork: 'Tiebreak Cork',
+        dartsCorkAttempt: function (n) { return 'Cork round ' + n; },
+        dartsResultLimitCork: function (rounds, distance) { return rounds + '-round limit reached · Won by closest to Bull' + (distance ? ' · Distance: ' + distance : '') + '.'; },
         dartsTurnOf: function (name) { return name + "'s turn"; },
         dartsDartProgress: function (n, total) { return 'Dart ' + n + '/' + total; },
         dartsRoundProgress: function (n, total) { return 'Round ' + n + '/' + total; },
@@ -226,6 +231,11 @@
         dartsResultCork: function (distance) { return 'Won the closest-to-Bull tiebreak' + (distance ? ' · Distance: ' + distance : '') + '.'; },
     });
     Object.assign(AC.i18n.STRINGS.zh, {
+        dartsX01: 'X01',
+        dartsRuleX01: function (score) { return '從' + score + '分扣至恰好零分，依所選開分與結鏢條件判定。爆分時，分數與開分狀態回復至本回合開始時。'; },
+        dartsOpeningCork: '先手比靶心', dartsLimitCork: '回合上限比靶心', dartsTieCork: '平手比靶心',
+        dartsCorkAttempt: function (n) { return '第' + n + '輪'; },
+        dartsResultLimitCork: function (rounds, distance) { return '已達' + rounds + '回合上限，以比靶心決勝' + (distance ? '，勝者距離' + distance : '') + '。'; },
         dartsTurnOf: function (name) { return name + '的回合'; },
         dartsDartProgress: function (n, total) { return '第' + n + '/' + total + '鏢'; },
         dartsRoundProgress: function (n, total) { return '第' + n + '/' + total + '回合'; },
@@ -631,6 +641,7 @@
     function presentThrow(th, impact) {
         gesture = null;
         G.throw = th;
+        G.throwPhase = usesSharedMatch() && match.lastDart ? match.lastDart.phase : match ? match.phase : 'play';
         G.impact = impact;
         G.traj = sampleTrajectory(th, impact.t);
         // Fix the dart's on-screen heading from the overall path (launch → impact): it reads
@@ -651,8 +662,7 @@
         G.dartState = 'landed';
         G.resultT = TUNING.resultHoldSec;
         G.trajT = TUNING.trajShowSec;
-        G.darts += 1;
-        G.total += res.score;
+        if (G.throwPhase !== 'cork') { G.darts += 1; G.total += res.score; }
         G.last = Object.assign({}, res, { label: resultLabel(res) });
         G.landDolly = camDolly;   // freeze the current dolly so the pull-back eases from here (no snap on an early end)
         // Only stick a dart that actually landed on/near the board; a clear off-board miss just shows the text.
@@ -684,6 +694,7 @@
     function freshDart() {
         G.dartState = 'ready';
         G.throw = null;
+        G.throwPhase = null;
         G.impact = null;
         G.result = null;
         G.flightT = 0;
@@ -783,12 +794,15 @@
 
     function syncThrowFeedback() {
         var toast = document.getElementById('hit-toast'); if (!toast) return;
-        var result = G.dartState === 'landed' && G.resultT > 0 && G.result;
+        var finalDart = feedbackState.finalHit && feedbackState.finalHit.dart;
+        var result = finalDart ? finalDart.result : G.dartState === 'landed' && G.resultT > 0 && G.result;
         var s = viewMatch || match;
-        toast.hidden = !!(feedbackState.blocking || feedbackState.notice || s && s.status !== 'playing' ||
+        toast.hidden = !!(feedbackState.blocking || feedbackState.notice || s && s.status !== 'playing' && !feedbackState.resultPending ||
             roomData().phase === 'lobby') || G.hintT <= 0 && !result;
-        toast.textContent = G.hintT > 0 ? G.hint : result ? resultLabel(result) : '';
-        toast.classList.toggle('danger', G.hintT > 0 || !!(result && result.miss));
+        toast.textContent = finalDart && finalDart.phase === 'cork' ? t('dartsCork') + ' · ' +
+            t('dartsLabelValue', t('dartsDistance'), Number.isFinite(finalDart.distance) ? finalDart.distance.toFixed(1) + ' mm' : '—') :
+            finalDart ? resultLabel(result) : G.hintT > 0 ? G.hint : result ? resultLabel(result) : '';
+        toast.classList.toggle('danger', !finalDart && G.hintT > 0 || !!(result && result.miss));
     }
 
     function drawBackground() {
@@ -1155,7 +1169,7 @@
         if (state === 'idle') {
             return {
                 badge: 'target',
-                title: t('dartsReady') + ' · ' + modeName(roomData().options.mode),
+                title: t('dartsReady') + ' · ' + modeName(roomData().options.mode, roomData().options),
                 message: t('dartsPracticeTip'),
                 button: t('dartsRoom'),
                 hint: t('dartsStartHintHtml'),
@@ -1168,8 +1182,14 @@
     // Reset + boot
     // =================================================================
 
-    function modeName(mode) { return t({ practice: 'dartsPractice', '501': 'darts501', cricket: 'dartsCricket', countup: 'dartsCountup' }[mode]); }
-    function ruleText(mode) { return t({ practice: 'dartsRulePractice', '501': 'dartsRule501', cricket: 'dartsRuleCricket', countup: 'dartsRuleCountup' }[mode]); }
+    function modeName(mode, config) {
+        return Rules.isX01(mode) ? String(Rules.options(Object.assign({}, config, { mode: mode })).startingScore) :
+            t({ practice: 'dartsPractice', cricket: 'dartsCricket', countup: 'dartsCountup' }[mode]);
+    }
+    function ruleText(mode, config) {
+        return Rules.isX01(mode) ? t('dartsRuleX01', Rules.options(Object.assign({}, config, { mode: mode })).startingScore) :
+            t({ practice: 'dartsRulePractice', cricket: 'dartsRuleCricket', countup: 'dartsRuleCountup' }[mode]);
+    }
     function controllerId() { return room && online ? (online.service.currentPlayer() || {}).uid : localController; }
     function isRoomLocalMatch() {
         return !!(room && room.data && match && match.execution === 'local' &&
@@ -1263,7 +1283,7 @@
         document.getElementById('turn-notice-message').textContent = event && event.kind === 'bust' ?
             t('dartsBustRestored', event.restoredScore) : '';
         // Expiring effects also update card badges while the accepted state is unchanged.
-        renderHud();
+        renderHud(); syncThrowFeedback();
     }
     function renderHud() {
         if (!hud || !localRoom) return;
@@ -1275,7 +1295,7 @@
     function syncGameUi() {
         if (!hud || !localRoom) return;
         var s = viewMatch || match, data = roomData();
-        document.getElementById('mode-description').textContent = ruleText(data.options.mode);
+        document.getElementById('mode-description').textContent = ruleText(data.options.mode, data.options);
         document.getElementById('debug-btn').hidden = !!s && s.mode !== 'practice';
         syncPresentation(); renderHud();
         document.getElementById('next-leg-btn').disabled = G.dartState === 'flying' || sending || !!(usesSharedMatch() && match && Date.now() < match.readyAt);
@@ -1321,12 +1341,7 @@
     function configure(patch) {
         if (room) return online.configure(patch);
         if (localRoom.phase !== 'lobby') return false;
-        var current = localRoom.options;
-        if (patch.mode && patch.mode !== current.mode) {
-            current = Object.assign({}, current, { mode: patch.mode, roundLimit: undefined,
-                turnMs: patch.mode === 'practice' ? 0 : 60000 });
-        }
-        localRoom.options = Rules.options(Object.assign({}, current, patch)); localRoom.ready = {};
+        localRoom.options = Rules.configureOptions(localRoom.options, patch); localRoom.ready = {};
         syncGameUi(); return true;
     }
     function addLocalPlayer() {
@@ -1551,11 +1566,12 @@
             locale: function () { return AC.i18n.locale; }, isOnline: usesSharedMatch,
             myUid: controllerId, controlsPlayer: controlsPlayer, isFlying: function () { return G.dartState === 'flying'; } });
         historyView = window.createDartsHistory({ document: document, t: t, resultLabel: resultLabel,
-            locale: function () { return AC.i18n.locale; }, cancelGesture: function () { gesture = null; },
+            locale: function () { return AC.i18n.locale; }, modeName: modeName, cancelGesture: function () { gesture = null; },
             data: function () {
                 var s = viewMatch || match;
                 return { players: (s ? s.players : roomData().seatOrder).map(function (id) { return { id: id, name: playerName(id) }; }),
-                    mode: s ? s.mode : 'practice', online: !!s && s.status === 'playing' && roomData().phase === 'playing',
+                    mode: s ? s.mode : 'practice', startingScore: s ? s.startingScore || 501 : 501,
+                    online: !!s && s.status === 'playing' && roomData().phase === 'playing',
                     cricketVariant: s ? s.cricketVariant : 'standard', turnMs: s ? s.turnMs : 0, entries: s ? s.history || [] : G.practiceHistory,
                     dropped: s ? s.historyDropped || 0 : G.practiceHistoryDropped };
             } });

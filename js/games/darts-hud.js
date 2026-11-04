@@ -13,7 +13,9 @@
         var previous = s && !current && s.lastTurn && (!cork || s.lastTurn.phase === 'cork') ? s.lastTurn : null;
         var mode = s ? s.mode : 'practice', limit = s ? s.roundLimit || 0 : 0;
         return {
-            mode: mode, phase: s ? s.status : 'playing', throwPhase: cork ? 'cork' : 'play',
+            mode: mode, startingScore: s ? s.startingScore || 501 : 501,
+            phase: s ? s.status : 'playing', throwPhase: cork ? 'cork' : 'play',
+            corkPurpose: s ? s.corkPurpose || 'tie' : null,
             leg: s && mode !== 'practice' ? s.leg : 0, bestOf: s ? s.bestOf : 1,
             legsToWin: s ? s.legsToWin || (s.bestOf === 3 ? 2 : 1) : 1,
             round: s && limit && !cork ? Math.min(limit, (s.turns[s.active] || 0) + 1) : 0,
@@ -34,6 +36,7 @@
                 points: previous ? previous.points : s.turnPoints,
                 penalties: previous ? previous.penalties || {} : s.turnPenalties || {},
                 phase: previous ? previous.phase || 'play' : cork ? 'cork' : 'play',
+                corkPurpose: previous ? previous.corkPurpose : s.corkPurpose,
                 distance: previous ? previous.distance : cork && s.corkDistances ? s.corkDistances[s.active] : null } : null,
             feedback: s ? s.lastDart : null,
             timedOut: !!(previous && previous.reason === 'timeout'),
@@ -42,6 +45,7 @@
             forfeit: !!(s && s.endReason === 'left'),
             endReason: s ? s.endReason : null,
             legEndReason: s ? s.legEndReason : null,
+            legCorkPurpose: s ? s.legCorkPurpose : null,
             winnerDistance: s && s.corkDistances ? s.corkDistances[s.winner || s.legWinner] : null,
             effects: input.effects || { penalties: {} },
         };
@@ -54,8 +58,9 @@
         var reason = m.legEndReason || m.endReason;
         var winner = m.players.find(function (p) { return p.id === m.winner; });
         if (!winner) return '';
-        if (reason === 'cork') return t('dartsResultCork', distanceText(m.winnerDistance));
-        if (m.mode === '501') {
+        if (reason === 'cork') return Rules.isX01(m.mode) && m.roundLimit ?
+            t('dartsResultLimitCork', m.roundLimit, distanceText(m.winnerDistance)) : t('dartsResultCork', distanceText(m.winnerDistance));
+        if (Rules.isX01(m.mode)) {
             if (reason === 'checkout') return t('dartsResultCheckout');
             if (reason === 'round-limit') return t('dartsResult501Limit', m.roundLimit, winner.score);
         }
@@ -77,18 +82,19 @@
         function valueLabel(key, value) { return t('dartsLabelValue', t(key), value); }
         function controls(id) { return options.controlsPlayer ? options.controlsPlayer(id) : id === options.myUid(); }
         function gateLabel(rule, suffix) { return t('darts' + ({ open: 'Open', master: 'Master', double: 'Double' }[rule] || 'Open') + suffix); }
-        function variantLabel(m) { return m.mode === '501' ? gateLabel(m.outRule, 'Out') :
+        function variantLabel(m) { return Rules.isX01(m.mode) ? gateLabel(m.outRule, 'Out') :
             m.mode === 'cricket' ? t(m.cricketVariant === 'cutthroat' ? 'dartsCutThroatCricket' : 'dartsStandardCricket') : ''; }
         function penaltiesText(penalties, names) {
             return Object.keys(penalties || {}).filter(function (id) { return penalties[id] > 0; })
                 .map(function (id) { return (names[id] || id) + ' +' + penalties[id]; }).join(options.locale() === 'zh' ? '、' : ', ');
         }
         function shownDistance(distance) { return distanceText(distance) || '—'; }
+        function corkLabel(purpose) { return t(purpose === 'opening' ? 'dartsOpeningCork' : purpose === 'limit' ? 'dartsLimitCork' : 'dartsTieCork'); }
         function ruleSummary(m) {
-            if (m.throwPhase === 'cork') return t('dartsCork') + ' · ' + valueLabel('dartsCorkRound', m.corkRound);
+            if (m.throwPhase === 'cork') return corkLabel(m.corkPurpose) + ' · ' + t('dartsCorkAttempt', m.corkRound);
             var parts = [];
-            if (m.mode === '501') parts.push(gateLabel(m.inRule, 'In'), gateLabel(m.outRule, 'Out'));
-            if (m.mode === '501' || m.mode === 'countup') parts.push(t(m.bullMode === '50-50' ? 'dartsBull5050' : 'dartsBull2550'));
+            if (Rules.isX01(m.mode)) parts.push(gateLabel(m.inRule, 'In'), gateLabel(m.outRule, 'Out'));
+            if (Rules.isX01(m.mode) || m.mode === 'countup') parts.push(t(m.bullMode === '50-50' ? 'dartsBull5050' : 'dartsBull2550'));
             if (m.mode === 'cricket') parts.push(variantLabel(m), t(m.cricketVariant === 'cutthroat' ? 'dartsLowestWins' : 'dartsHighestWins'));
             if (m.roundLimit) parts.push(valueLabel('dartsRoundLimit', m.roundLimit));
             return parts.join(' · ');
@@ -110,17 +116,21 @@
             // Clock updates should not rebuild the table, reset focus, or repeat live announcements.
             get('turn-timer').hidden = m.timer === null;
             get('turn-timer').textContent = m.timer === null ? '' : m.timer + 's';
-            var withoutClock = JSON.stringify([Object.assign({}, m, { timer: null, effects: null }), options.locale(), options.isFlying()]);
+            get('leg-result').hidden = options.isFlying() || !!(m.effects && m.effects.resultPending) || !['between', 'over'].includes(m.phase);
+            var finalDart = m.effects && m.effects.finalHit && m.effects.finalHit.dart;
+            var withoutClock = JSON.stringify([Object.assign({}, m, { timer: null, effects: null }), options.locale(), options.isFlying(), !!finalDart]);
             if (withoutClock === lastKey) { renderEffects(m); return; }
             lastKey = withoutClock;
             var names = Object.fromEntries(m.players.map(function (p) { return [p.id, p.name]; }));
-            var mode = options.modeName(m.mode);
+            var mode = options.modeName(m.mode, m);
             var variant = variantLabel(m), endedPractice = m.mode === 'practice' && m.endReason === 'practice-ended', cancelled = m.endReason === 'cancelled';
             get('match-meta').textContent = mode + (variant ? ' · ' + variant : '') +
                 (m.leg ? ' · ' + t('dartsLegNumber', m.leg) + ' · ' + t('dartsMatchFormat', m.legsToWin) : '');
             get('match-meta').title = get('match-meta').textContent;
             if (get('mode-rule-summary')) get('mode-rule-summary').textContent = ruleSummary(m);
-            var status = cancelled ? t('dartsMatchEnded') : endedPractice ? t('dartsPracticeEnded') : m.phase === 'between' || m.phase === 'over' ? (m.draw ? t('dartsDraw') :
+            var status = finalDart ? finalDart.phase === 'cork' ? t('dartsCork') + ' · ' + shownDistance(finalDart.distance) :
+                t('dartsLast') + ' · ' + label(finalDart.result) :
+                cancelled ? t('dartsMatchEnded') : endedPractice ? t('dartsPracticeEnded') : m.phase === 'between' || m.phase === 'over' ? (m.draw ? t('dartsDraw') :
                 t(m.phase === 'over' ? 'dartsMatchWon' : 'dartsLegWon') + ' · ' + names[m.winner]) :
                 m.mode === 'practice' && m.players.length === 1 ? t('dartsFlickPrompt') :
                     t('dartsTurnOf', names[m.active]) + ' · ' + t('dartsDartProgress', m.dart, m.throwPhase === 'cork' ? 1 : 3);
@@ -129,7 +139,7 @@
                 var indicator = get('turn-status'); indicator.replaceChildren();
                 var turnName = el('span', 'status-name', t('dartsTurnOf', names[m.active])); turnName.title = turnName.textContent;
                 indicator.append(turnName, el('span', 'status-dart', t('dartsDartProgress', m.dart, m.throwPhase === 'cork' ? 1 : 3)));
-                if (m.throwPhase === 'cork') indicator.append(el('span', 'status-round', valueLabel('dartsCorkRound', m.corkRound)));
+                if (m.throwPhase === 'cork') indicator.append(el('span', 'status-round', t('dartsCorkAttempt', m.corkRound)));
                 else if (m.round) indicator.append(el('span', 'status-round', t('dartsRoundProgress', m.round, m.roundLimit)));
             }
             var playersKey = JSON.stringify([m.players, m.mode, options.locale()]);
@@ -150,10 +160,10 @@
                 if (owned) { seat.classList.add('owned-seat'); seat.title = ownership; }
                 var name = el('span', 'darts-player-name', p.left ? t('dartsWithdrawn') + ' · ' + p.name : p.name); name.title = p.name;
                 var score = el('strong', 'darts-player-score', p.score);
-                score.setAttribute('aria-label', valueLabel(m.mode === '501' ? 'dartsRemaining' : m.mode === 'practice' ? 'dartsDarts' : 'dartsPoints', p.score));
+                score.setAttribute('aria-label', valueLabel(Rules.isX01(m.mode) ? 'dartsRemaining' : m.mode === 'practice' ? 'dartsDarts' : 'dartsPoints', p.score));
                 card.append(seat, name, score);
                 if (m.mode !== 'practice') card.append(el('span', 'darts-player-legs', p.left ? t('dartsWithdrawn') :
-                    m.mode === '501' && !p.entered ? t('dartsNotEntered') : valueLabel('dartsLegWins', p.legs)));
+                    Rules.isX01(m.mode) && !p.entered ? t('dartsNotEntered') : valueLabel('dartsLegWins', p.legs)));
                 players.append(card);
                 });
                 if (focusedUid) {
@@ -162,7 +172,7 @@
                 }
             }
             renderEffects(m);
-            get('player-score-label').textContent = t(m.mode === '501' ? 'dartsRemaining' : m.mode === 'practice' ? 'dartsDarts' : 'dartsPoints');
+            get('player-score-label').textContent = t(Rules.isX01(m.mode) ? 'dartsRemaining' : m.mode === 'practice' ? 'dartsDarts' : 'dartsPoints');
             var cricket = m.mode === 'cricket';
             get('cricket-board').hidden = !cricket || m.throwPhase === 'cork';
             get('turn-panel').hidden = m.throwPhase !== 'cork' && (cricket || m.mode === 'practice');
@@ -188,8 +198,8 @@
             }
             if (m.turn) {
                 var owner = m.players.find(function (p) { return p.id === m.turn.owner; });
-                get('turn-owner').textContent = t(m.turn.phase === 'cork' ? 'dartsCork' : m.turn.previous ? 'dartsPreviousTurn' : 'dartsThisTurn') + ' · ' + names[m.turn.owner] +
-                    (m.mode === '501' && owner && !owner.entered && m.turn.phase !== 'cork' ? ' · ' + t('dartsNotEntered') : '');
+                get('turn-owner').textContent = (m.turn.phase === 'cork' ? corkLabel(m.turn.corkPurpose) : t(m.turn.previous ? 'dartsPreviousTurn' : 'dartsThisTurn')) + ' · ' + names[m.turn.owner] +
+                    (Rules.isX01(m.mode) && owner && !owner.entered && m.turn.phase !== 'cork' ? ' · ' + t('dartsNotEntered') : '');
                 var darts = get('turn-darts'); darts.replaceChildren();
                 for (var i = 0; i < (m.turn.phase === 'cork' ? 1 : 3); i++) {
                     var r = m.turn.darts[i], slot = el('div', 'turn-dart');
@@ -205,7 +215,7 @@
             }
             var last = m.feedback, feedback = get('dart-feedback');
             feedback.textContent = m.timedOut ? t('dartsTimeout') : last ?
-                (last.phase === 'cork' ? t('dartsCork') + ' · ' + valueLabel('dartsDistance', shownDistance(last.distance)) :
+                (last.phase === 'cork' ? corkLabel(last.corkPurpose) + ' · ' + valueLabel('dartsDistance', shownDistance(last.distance)) :
                     last.reason === 'bust' ? t('dartsBust') : last.reason === 'checkout' ? t('dartsCheckout') : cricket ? label(last.result) +
                         (m.cricketVariant === 'cutthroat' ? ' · ' + t('dartsPenalties') + ' · ' + (penaltiesText(last.penalties, names) || '—') : '') : '') : '';
             feedback.classList.toggle('bust', !!(last && last.reason === 'bust'));
@@ -213,7 +223,6 @@
                 get('practice-hit').textContent = m.practice.result ? label(m.practice.result) : '—';
                 get('practice-speed').textContent = m.practice.speed === null ? '—' : Math.round(m.practice.speed) + ' px/s';
             }
-            var result = get('leg-result'); result.hidden = options.isFlying() || !['between', 'over'].includes(m.phase);
             get('result-title').textContent = cancelled ? t('dartsMatchEnded') : endedPractice ? t('dartsPracticeEnded') : m.draw ? t('dartsDraw') : t(m.phase === 'over' ? 'dartsMatchWon' : 'dartsLegWon');
             get('result-winner').textContent = m.draw || endedPractice || cancelled ? '' : names[m.winner] || '';
             get('result-reason').textContent = resultReason(m, t);

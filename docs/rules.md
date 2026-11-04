@@ -459,7 +459,7 @@ network connection. Darts remains marked WIP in the game menu.
 ### Scoring
 
 A standard board has singles, the **triple** (inner) and **double** (outer) rings,
-the **outer bull** and the **inner bull/bullseye**. 501 and Count-Up can use
+the **outer bull** and the **inner bull/bullseye**. X01 and Count-Up can use
 **25/50** Bull scoring (the default) or **50/50**. These change the numerical
 points; an Outer Bull remains an Outer Bull, including when it scores 50.
 The player panel contains primary scores; the mode panel contains turn results,
@@ -472,10 +472,12 @@ Cricket marks and the active rule summary. Practice player cards show darts thro
   passes in seat order. There is no round limit or winner. The host can end practice
   and return everyone to the same lobby. D toggles gesture/trajectory diagnostics.
 - **Count-Up: 1–4 players.** Add all points, without Bust or checkout rules. Choose
-  5/8/10/15 rounds (default 8, at most 24 darts per player). The highest total wins
+  5/8/10/15/20/30 rounds (default 8). Each player can throw up to three darts per
+  round, so the default allows 24 darts and 30 rounds allows 90. The highest total wins
   after every remaining player receives all permitted turns. Results include the
   average per three actual darts, best round, Bulls and Triple 20s.
-- **501: 2–4 players.** Start at 501 and reach exactly zero. Choose Open, Master or
+- **X01: 2–4 players.** Choose 301/501/701/901/1101/1501 (default 501) and reach
+  exactly zero. All variants use the same rules. Choose Open, Master or
   Double Out; Open In is the default, with Master/Double In under advanced settings.
   Default rules preserve Open In / Double Out and 25/50 Bull scoring.
 - **Cricket: 2–4 players.** Close 20–15 and Bull with three marks each. Singles,
@@ -484,7 +486,7 @@ Cricket marks and the active rule summary. Practice player cards show darts thro
   close all targets and meet the selected scoring condition to win. Departed
   players do not block scoring or victory.
 
-### 501 entry, checkout and Bust
+### X01 entry, checkout and Bust
 
 **Open In/Out** accepts any scoring hit. **Master In/Out** accepts a Double,
 Triple, Outer Bull or Inner Bull. **Double In/Out** accepts a Double or Inner
@@ -526,24 +528,37 @@ when players join or leave; active-match rules remain fixed.
 
 ### Rounds, tied scores and Legs
 
-501 and Cricket allow 10/15/unlimited rounds (default 15). Count-Up allows
-5/8/10/15 (default 8). A round gives every active participant a turn of up to
+X01 and Cricket allow 10/15/20/30/unlimited rounds. Cricket defaults to 15;
+X01 defaults to 15 for 301, 20 for 501/701, and 30 for 901/1101/1501. These are
+Gamebox casual defaults. A starting-score change follows that suggestion until
+the host explicitly chooses a cap; manual choices, including Unlimited, survive
+later score changes within X01. Count-Up allows 5/8/10/15/20/30 (default 8).
+A round gives every active participant a turn of up to
 three darts. The limit is applied per player; settlement waits until every
 remaining player has received the same allowed number of turns. An ordinary
 checkout or Cricket victory can end a Leg immediately.
 
-At the limit, 501 uses the lowest remaining score, Standard Cricket and Count-Up
+At the limit, X01 defaults to the lowest remaining score, Standard Cricket and Count-Up
 use the highest total, and Cut-Throat uses the lowest total. Tied leaders enter
 **Cork**: each throws one dart, closest to the physical Bull centre wins. Points
 remain unchanged during Cork. Distances are compared in millimetres; distances
 within 0.001 mm repeat among those still tied. A timed-out Cork opportunity is
-forfeited. Other players do not enter the tie-break.
+forfeited. Other players do not enter the tie-break. Alternatively, finite X01
+can use **Cork at limit**, involving every remaining player regardless of their
+remaining scores. Unlimited X01 never invokes this settlement; hiding its setting
+preserves the host's selection for a later finite cap.
 
 Competitive matches use **first to 1/2/3 Leg wins**, including solo Count-Up.
 The wording does not assume a fixed maximum number of Legs: four players can
-need five decisive Legs before anyone reaches two wins. The initial starting
-seat is random; subsequent Legs rotate predictably through remaining players.
-Starting-player Cork is not currently offered. Any participating controller can
+need five decisive Legs before anyone reaches two wins. The opening starter is
+**Random** by default, or **Cork** for competitive matches with two or more players.
+Opening Cork runs once per Match, selects only the first starter and keeps seat
+order unchanged. Only the closest tied players repeat. Cork does not consume normal
+rounds, scores, marks or scoring-dart statistics; its history records its purpose
+and physical distance separately. Solo Count-Up and Practice skip opening Cork.
+Subsequent Legs rotate predictably through remaining players, starting from the
+opening winner when Cork was used. First-player selection and X01 limit settlement
+are independent settings. Any participating controller can
 continue from the persistent between-Leg result screen.
 
 ### Rooms and history
@@ -579,6 +594,12 @@ turn timers continue during handoff. A Bust (**爆分**) briefly shows the resto
 score before the handoff; Cut-Throat briefly highlights only opponents receiving
 accepted penalty points. The result screen explains the accepted victory reason,
 including round-limit results and closest-to-Bull tiebreaks.
+
+A decisive dart completes scoring immediately. Its accepted hit remains visible
+for about one second after impact before the Leg/Match result overlay appears.
+No additional throw or timeout can alter the completed result during this display.
+Leaving the match, starting another Leg or returning to the lobby clears the
+pending announcement. The same presentation applies to decisive Cork throws.
 
 Click a player card for that player's throw history or History for everyone.
 History includes turn results, busts, checkouts, timeouts and departures, and

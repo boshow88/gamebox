@@ -9,6 +9,7 @@
     var SECTORS = [20, 1, 18, 4, 13, 6, 10, 15, 2, 17, 3, 19, 7, 16, 8, 11, 14, 9, 12, 5];
     var TARGETS = [20, 19, 18, 17, 16, 15, 25];
     var HISTORY_LIMIT = 500;
+    var STARTING_SCORES = [301, 501, 701, 901, 1101, 1501];
     var FORFEIT_DISTANCE = 1000000000, CORK_TOLERANCE_MM = 0.001;
     function copy(value) { return JSON.parse(JSON.stringify(value)); }
     function recordTurn(s, uid, reason, finished) {
@@ -21,6 +22,7 @@
             score: s.scores[uid], reason: reason, finished: soloPractice || finished, phase: s.phase,
             penalties: Object.assign({}, s.turnPenalties) };
         if (s.phase === 'cork') {
+            entry.corkPurpose = s.corkPurpose || 'tie';
             entry.corkRound = s.corkRound;
             entry.distance = s.corkDistances[uid] < FORFEIT_DISTANCE ? s.corkDistances[uid] : null;
         }
@@ -70,30 +72,58 @@
         var mult = r >= g.rDoubleInner ? 2 : r >= g.rTripleInner && r <= g.rTripleOuter ? 3 : 1;
         return hit(SECTORS[Math.round(degrees / 18) % 20], mult);
     }
+    function isX01(mode) { return mode === 'x01' || mode === '501'; }
+    function roundChoices(mode) {
+        return mode === 'practice' ? [0] : mode === 'countup' ? [5, 8, 10, 15, 20, 30] : [10, 15, 20, 30, 0];
+    }
+    function defaultLimit(mode, score) {
+        return mode === 'practice' ? 0 : mode === 'countup' ? 8 : mode === 'cricket' || score === 301 ? 15 : score < 901 ? 20 : 30;
+    }
     function options(input, playerCount) {
         input = input || {};
-        var mode = ['practice', '501', 'cricket', 'countup'].includes(input.mode) ? input.mode : 'practice';
+        var mode = input.mode === '501' ? 'x01' : ['practice', 'x01', 'cricket', 'countup'].includes(input.mode) ? input.mode : 'practice';
+        // A legacy 501 identifier always means 501, even if unrelated data contains another score.
+        var startingScore = input.mode !== '501' && STARTING_SCORES.includes(input.startingScore) ? input.startingScore : 501;
         var legs = [1, 2, 3].includes(input.legsToWin) ? input.legsToWin : input.bestOf === 3 ? 2 : 1;
-        var limits = mode === 'countup' ? [5, 8, 10, 15] : [0, 10, 15];
+        var limits = roundChoices(mode), validLimit = limits.includes(input.roundLimit);
         var variant = ['standard', 'cutthroat'].includes(input.cricketVariant) ? input.cricketVariant : 'auto';
         if (variant === 'auto' && playerCount) variant = playerCount >= 3 ? 'cutthroat' : 'standard';
         return { mode: mode, legsToWin: mode === 'practice' ? 1 : legs, bestOf: mode === 'practice' ? 1 : legs * 2 - 1,
             turnMs: [0, 30000, 60000, 90000].includes(input.turnMs) ? input.turnMs : mode === 'practice' ? 0 : 60000,
-            roundLimit: mode === 'practice' ? 0 : limits.includes(input.roundLimit) ? input.roundLimit : mode === 'countup' ? 8 : 15,
+            startingScore: startingScore,
+            roundLimit: mode === 'practice' ? 0 : validLimit ? input.roundLimit : defaultLimit(mode, startingScore),
+            roundLimitExplicit: typeof input.roundLimitExplicit === 'boolean' ? input.roundLimitExplicit : validLimit,
             inRule: ['open', 'master', 'double'].includes(input.inRule) ? input.inRule : 'open',
             outRule: ['open', 'master', 'double'].includes(input.outRule) ? input.outRule : 'double',
             bullMode: input.bullMode === '50-50' ? '50-50' : '25-50', cricketVariant: variant,
-            settlement: 'score-then-cork', startingPlayer: 'random' };
+            settlement: input.settlement === 'cork' ? 'cork' : 'score-then-cork',
+            startingPlayer: input.startingPlayer === 'cork' ? 'cork' : 'random' };
+    }
+    // Local and connected lobbies use the same small configuration transition policy.
+    function configureOptions(current, patch) {
+        current = options(current); patch = patch || {};
+        var next = Object.assign({}, current, patch);
+        if (patch.mode === '501') next.startingScore = 501;
+        var changedMode = Object.prototype.hasOwnProperty.call(patch, 'mode') && options({ mode: patch.mode }).mode !== current.mode;
+        var explicitLimit = Object.prototype.hasOwnProperty.call(patch, 'roundLimit');
+        if (changedMode) {
+            next.roundLimit = undefined; next.roundLimitExplicit = false;
+            if (!Object.prototype.hasOwnProperty.call(patch, 'turnMs')) next.turnMs = next.mode === 'practice' ? 0 : 60000;
+        } else if (isX01(next.mode) && next.startingScore !== current.startingScore && !current.roundLimitExplicit) {
+            next.roundLimit = undefined;
+        }
+        if (explicitLimit) { next.roundLimit = patch.roundLimit; next.roundLimitExplicit = true; }
+        return options(next);
     }
     function eligibility(input, count) {
-        var mode = options(input).mode, min = mode === '501' || mode === 'cricket' ? 2 : 1;
+        var mode = options(input).mode, min = isX01(mode) || mode === 'cricket' ? 2 : 1;
         return { allowed: Number.isInteger(count) && count >= min && count <= 4,
             minPlayers: min, maxPlayers: 4, reason: count < min ? 'min-players' : count > 4 ? 'max-players' : null };
     }
     // Numeric scoring is configuration-dependent; the physical region/multiplier never changes.
     function scoreResult(config, result) {
         var r = normalize(result);
-        if (['501', 'countup'].includes(config.mode) && config.bullMode === '50-50' && r.base === 25) r.score = 50;
+        if ((isX01(config.mode) || config.mode === 'countup') && config.bullMode === '50-50' && r.base === 25) r.score = 50;
         return r;
     }
     function qualifies(rule, r) {
@@ -108,25 +138,26 @@
     }
     function resetLeg(s, at) {
         s.scores = {}; s.marks = {}; s.turns = {}; s.stats = {}; s.entered = {};
-        s.phase = 'play'; s.corkPlayers = []; s.corkDistances = {}; s.corkRound = 0;
+        s.phase = 'play'; s.corkPlayers = []; s.corkDistances = {}; s.corkRound = 0; s.corkPurpose = null;
         s.players.forEach(function (uid) {
-            s.scores[uid] = s.mode === '501' ? 501 : 0;
+            s.scores[uid] = isX01(s.mode) ? s.startingScore : 0;
             s.marks[uid] = Object.fromEntries(TARGETS.map(function (n) { return [n, 0]; }));
-            s.turns[uid] = 0; s.entered[uid] = s.mode !== '501' || s.inRule === 'open';
+            s.turns[uid] = 0; s.entered[uid] = !isX01(s.mode) || s.inRule === 'open';
             s.stats[uid] = { darts: 0, points: 0, bestRound: 0, bulls: 0, triple20s: 0 };
         });
         var index = (s.firstStarter + s.leg - 1) % s.players.length;
         var starter = nextPlayer(s, s.leg > 1 && s.legStarter ? s.legStarter : s.players[(index + s.players.length - 1) % s.players.length]);
         beginTurn(s, starter, at); s.legStarter = starter;
-        s.readyAt = at; s.status = 'playing'; s.legWinner = null; s.draw = false; s.endReason = null; s.legEndReason = null;
+        s.readyAt = at; s.status = 'playing'; s.legWinner = null; s.draw = false; s.endReason = null; s.legEndReason = null; s.legCorkPurpose = null;
         s.lastTurn = null; s.lastThrow = null; s.lastDart = null;
     }
     // Sanitise older/incomplete snapshots without consulting any mutable lobby settings.
     function snapshot(state) {
         var s = copy(state), config = options(s, s.players.length);
-        // Older live 501/Cricket games had no cap. New matches still default to15.
-        if (state.roundLimit == null && ['501', 'cricket'].includes(state.mode)) config.roundLimit = 0;
+        // Missing caps on older live games meant unlimited, independent of new-lobby defaults.
+        if (state.roundLimit == null && (isX01(state.mode) || state.mode === 'cricket')) config.roundLimit = 0;
         Object.assign(s, config); s.phase = s.phase || 'play';
+        if (s.phase === 'cork' && !s.corkPurpose) s.corkPurpose = 'tie';
         s.entered = s.entered || Object.fromEntries(s.players.map(function (id) { return [id, s.inRule === 'open']; }));
         if (typeof s.turnStartEntered !== 'boolean') s.turnStartEntered = !!s.entered[s.active];
         s.turnPenalties = s.turnPenalties || {}; s.turnDarts = s.turnDarts || [];
@@ -139,11 +170,14 @@
             firstStarter: Number.isInteger(firstStarter) && firstStarter >= 0 && firstStarter < players.length ? firstStarter : 0,
             withdrawn: [], history: [], historyDropped: 0,
             wins: Object.fromEntries(players.map(function (id) { return [id, 0]; })), winner: null });
-        resetLeg(s, at || 0); return s;
+        resetLeg(s, at || 0);
+        if (s.startingPlayer === 'cork' && s.mode !== 'practice' && s.players.length > 1) startCork(s, s.players, at || 0, 'opening');
+        return s;
     }
     function finishLeg(s, winner, reason) {
         if (s.stats[s.active]) s.stats[s.active].bestRound = Math.max(s.stats[s.active].bestRound, s.turnPoints);
         s.legWinner = winner; s.draw = winner === null; s.legEndReason = reason;
+        s.legCorkPurpose = s.phase === 'cork' ? s.corkPurpose || 'tie' : null;
         if (winner) s.wins[winner]++;
         if (winner && s.wins[winner] >= s.legsToWin) { s.winner = winner; s.status = 'over'; s.endReason = reason; }
         else s.status = 'between';
@@ -152,19 +186,21 @@
         var turn = { uid: uid, points: s.turnPoints, reason: reason, darts: s.turnDarts.slice(),
             phase: s.phase, penalties: Object.assign({}, s.turnPenalties) };
         if (s.phase === 'cork') {
+            turn.corkPurpose = s.corkPurpose || 'tie';
             turn.corkRound = s.corkRound; turn.distance = s.corkDistances[uid] < FORFEIT_DISTANCE ? s.corkDistances[uid] : null;
         }
         return turn;
     }
-    function startCork(s, tied, at) {
-        s.phase = 'cork'; s.corkPlayers = tied.slice(); s.corkDistances = {}; s.corkRound = 1;
-        var active = nextPlayer(s, s.active, tied);
+    function startCork(s, tied, at, purpose) {
+        s.phase = 'cork'; s.corkPurpose = purpose || 'tie'; s.corkPlayers = tied.slice(); s.corkDistances = {}; s.corkRound = 1;
+        var active = s.corkPurpose === 'opening' ? tied[0] : nextPlayer(s, s.active, tied);
         s.round++; beginTurn(s, active, at);
     }
-    function lowerScoreWins(s) { return s.mode === '501' || (s.mode === 'cricket' && s.cricketVariant === 'cutthroat'); }
+    function lowerScoreWins(s) { return isX01(s.mode) || (s.mode === 'cricket' && s.cricketVariant === 'cutthroat'); }
     function settleLimit(s, at) {
         var ids = contenders(s);
         if (!s.roundLimit || !ids.length || !ids.every(function (id) { return s.turns[id] >= s.roundLimit; })) return false;
+        if (isX01(s.mode) && s.settlement === 'cork' && ids.length > 1) { startCork(s, ids, at, 'limit'); return true; }
         var scores = ids.map(function (id) { return s.scores[id]; });
         var best = (lowerScoreWins(s) ? Math.min : Math.max).apply(null, scores);
         var leaders = ids.filter(function (id) { return s.scores[id] === best; });
@@ -189,10 +225,16 @@
         if (!pending.length) {
             var best = Math.min.apply(null, ids.map(function (id) { return s.corkDistances[id]; }));
             ids = ids.filter(function (id) { return Math.abs(s.corkDistances[id] - best) <= CORK_TOLERANCE_MM; });
-            if (ids.length === 1) { finishLeg(s, ids[0], 'cork'); return; }
+            if (ids.length === 1) { resolveCork(s, ids[0], at); return; }
             s.corkRound++; s.corkPlayers = ids; s.corkDistances = {}; pending = ids;
         }
         s.round++; beginTurn(s, nextPlayer(s, uid, pending), at);
+    }
+    function resolveCork(s, winner, at) {
+        if (s.corkPurpose !== 'opening') { finishLeg(s, winner, 'cork'); return; }
+        s.openingWinner = winner; s.firstStarter = s.players.indexOf(winner); s.legStarter = winner;
+        s.phase = 'play'; s.corkPurpose = null; s.corkPlayers = []; s.corkDistances = {};
+        s.round++; beginTurn(s, winner, at);
     }
     function cricketWins(s, uid) {
         return TARGETS.every(function (n) { return s.marks[uid][n] === 3; }) &&
@@ -201,18 +243,19 @@
     function throwDart(state, uid, result, at, impact) {
         if (state.status !== 'playing' || state.active !== uid || !contenders(state).includes(uid)) return null;
         var s = snapshot(state), r = scoreResult(s, result), stats = s.stats[uid], reason = 'complete', penalties = {}, corkTie = null;
-        at = at || 0; s.seq++; s.dart++; stats.darts++; s.turnDarts.push(r);
-        if (r.base === 25) stats.bulls++;
-        if (r.base === 20 && r.mult === 3) stats.triple20s++;
+        at = at || 0; s.seq++; s.dart++; s.turnDarts.push(r);
         if (s.phase === 'cork') {
             var distance = impact && Number.isFinite(impact.x) && Number.isFinite(impact.y) ? Math.hypot(impact.x, impact.y) : FORFEIT_DISTANCE;
             s.corkDistances[uid] = Math.min(distance, FORFEIT_DISTANCE);
             s.lastDart = { uid: uid, result: r, reason: 'cork', dart: 1, turnPoints: 0, phase: 'cork',
-                corkRound: s.corkRound, distance: distance < FORFEIT_DISTANCE ? distance : null, penalties: {} };
+                corkPurpose: s.corkPurpose || 'tie', corkRound: s.corkRound, distance: distance < FORFEIT_DISTANCE ? distance : null, penalties: {} };
             endCorkTurn(s, at, 'cork'); return s;
         }
+        stats.darts++;
+        if (r.base === 25) stats.bulls++;
+        if (r.base === 20 && r.mult === 3) stats.triple20s++;
         stats.points += r.score;
-        if (s.mode === '501') {
+        if (isX01(s.mode)) {
             if (!s.entered[uid] && qualifies(s.inRule, r)) s.entered[uid] = true;
             if (s.entered[uid]) {
                 var remaining = s.scores[uid] - r.score;
@@ -295,13 +338,16 @@
             if (!s.corkPlayers.length) {
                 // A device can own every tied slot. Reconsider the remaining field atomically.
                 if (removed.includes(s.active)) recordTurn(s, s.active, 'left', true);
-                s.phase = 'play'; s.corkDistances = {};
-                if (!settleLimit(s, stamp)) { s.round++; beginTurn(s, nextPlayer(s, s.active), stamp); }
+                if (s.corkPurpose === 'opening') startCork(s, ids, stamp, 'opening');
+                else {
+                    s.phase = 'play'; s.corkDistances = {};
+                    if (!settleLimit(s, stamp)) { s.round++; beginTurn(s, nextPlayer(s, s.active), stamp); }
+                }
                 return s;
             }
             if (s.corkPlayers.length === 1) {
                 if (removed.includes(s.active)) recordTurn(s, s.active, 'left', true);
-                finishLeg(s, s.corkPlayers[0], 'cork'); return s;
+                resolveCork(s, s.corkPlayers[0], stamp); return s;
             }
             if (removed.includes(s.active)) endCorkTurn(s, stamp, 'left');
         } else {
@@ -317,7 +363,8 @@
         return s;
     }
     function withdraw(state, uid, at) { return withdrawMany(state, [uid], at); }
-    return { TARGETS: TARGETS, HISTORY_LIMIT: HISTORY_LIMIT, hit: hit, normalize: normalize, scoreAt: scoreAt,
+    return { TARGETS: TARGETS, STARTING_SCORES: STARTING_SCORES.slice(), HISTORY_LIMIT: HISTORY_LIMIT, hit: hit, normalize: normalize, scoreAt: scoreAt,
+        isX01: isX01, roundChoices: roundChoices, configureOptions: configureOptions,
         scoreResult: scoreResult, options: options, eligibility: eligibility, create: create, throwDart: throwDart,
         timeout: timeout, nextLeg: nextLeg, endPractice: endPractice, contenders: contenders, withdraw: withdraw, withdrawMany: withdrawMany };
 });

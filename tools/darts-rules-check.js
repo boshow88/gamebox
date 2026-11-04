@@ -149,7 +149,7 @@ assert.equal(create().history.length, 0, 'A fresh match clears history');
 // V2 configuration is explicit, defensive, and frozen into every match.
 assert.equal(R.options({}).mode, 'practice'); assert.equal(R.options({}).turnMs, 0);
 assert.equal(R.options({ mode: '501' }).outRule, 'double');
-assert.equal(R.options({ mode: '501' }).roundLimit, 15);
+assert.equal(R.options({ mode: '501' }).roundLimit, 20);
 assert.equal(R.options({ mode: 'cricket' }).roundLimit, 15);
 assert.equal(R.options({ mode: 'countup' }).roundLimit, 8);
 assert.equal(R.options({ mode: 'practice', roundLimit: 10 }).roundLimit, 0);
@@ -375,8 +375,157 @@ for (const mode of ['501', 'cricket', 'countup']) {
     s = dart(s, 0, 0);
     assert.equal(s.roundLimit, mode === 'countup' ? 8 : 0);
 }
-assert.equal(R.create({ mode: '501' }, ['A', 'B'], 0).roundLimit, 15);
+assert.equal(R.create({ mode: '501' }, ['A', 'B'], 0).roundLimit, 20);
 assert.equal(R.create({ mode: 'cricket' }, ['A', 'B'], 0).roundLimit, 15);
+
+// X01 shares one scoring engine across all supported starts and every In/Out pairing.
+const starts = [301, 501, 701, 901, 1101, 1501];
+assert.deepEqual(R.STARTING_SCORES, starts);
+assert.equal(R.options({ mode: '501', startingScore: 1501 }).startingScore, 501, 'A legacy identifier cannot change meaning');
+assert.equal(R.options({ mode: '501' }).mode, 'x01');
+assert.equal(R.options({ mode: 'x01', startingScore: 999 }).startingScore, 501);
+for (const startingScore of starts) {
+    const expectedCap = startingScore === 301 ? 15 : startingScore < 901 ? 20 : 30;
+    assert.equal(R.options({ mode: 'x01', startingScore }).roundLimit, expectedCap);
+    for (const inRule of ['open', 'master', 'double']) for (const outRule of ['open', 'master', 'double']) {
+        let game = R.create({ mode: 'x01', startingScore, inRule, outRule, roundLimit: 0 }, ['A', 'B'], 1000);
+        assert.deepEqual(game.scores, { A: startingScore, B: startingScore });
+        for (let count = 0; game.status === 'playing'; count++) {
+            assert(count < 1000, 'Every supported score/rule combination can finish normally');
+            let result = miss;
+            if (game.active === 'A') {
+                const score = game.scores.A;
+                result = !game.entered.A && inRule === 'double' ? hit(20, 2) :
+                    score > 61 ? hit(20, 3) : score % 2 ? hit(1, 1) : score <= 40 ? hit(score / 2, 2) : hit(20, 1);
+            }
+            game = R.throwDart(game, game.active, result, 2000 + count);
+        }
+        assert.equal(game.winner, 'A'); assert.equal(game.endReason, 'checkout');
+        assert.equal(game.startingScore, startingScore); assert.equal(game.scores.A, 0);
+        assert.equal(game.scores.B, startingScore);
+    }
+    for (const [inRule, base, mult, opens] of [['open', 20, 1, true], ['master', 20, 1, false],
+        ['master', 20, 3, true], ['master', 25, 1, true], ['double', 25, 1, false], ['double', 25, 2, true]]) {
+        let game = R.create({ mode: 'x01', startingScore, inRule }, ['A', 'B'], 1000);
+        game = dart(game, base, mult);
+        assert.equal(game.entered.A, opens); assert.equal(game.scores.A, startingScore - (opens ? base * mult : 0));
+    }
+    for (const [outRule, score, base, mult, reason] of [['open', 20, 20, 1, 'checkout'], ['master', 20, 20, 1, 'bust'],
+        ['master', 60, 20, 3, 'checkout'], ['double', 40, 20, 2, 'checkout'], ['double', 25, 25, 1, 'bust']]) {
+        let game = R.create({ mode: 'x01', startingScore, outRule }, ['A', 'B'], 1000);
+        game.scores.A = game.turnStartScore = score;
+        game = dart(game, base, mult); assert.equal(game.lastDart.reason, reason);
+    }
+    let rollback = R.create({ mode: 'x01', startingScore, inRule: 'double' }, ['A', 'B'], 1000);
+    rollback.scores.A = rollback.turnStartScore = 100;
+    rollback = dart(dart(rollback, 20, 2), 20, 3);
+    assert.equal(rollback.scores.A, 100); assert.equal(rollback.entered.A, false);
+    assert.equal(rollback.history[0].points, 0); assert.equal(rollback.history[0].darts.length, 2);
+}
+
+// Explicit cap choices survive score changes; only a suggested cap follows the score.
+let settings = R.options({ mode: 'x01' });
+assert.equal(settings.roundLimitExplicit, false); assert.equal(settings.roundLimit, 20);
+settings = R.configureOptions(settings, { startingScore: 301 });
+assert.equal(settings.roundLimit, 15); assert.equal(settings.roundLimitExplicit, false);
+settings = R.configureOptions(settings, { startingScore: 1501 }); assert.equal(settings.roundLimit, 30);
+settings = R.configureOptions(settings, { mode: '501' }); assert.equal(settings.startingScore, 501); assert.equal(settings.roundLimit, 20);
+settings = R.configureOptions(settings, { roundLimit: 0 }); assert.equal(settings.roundLimitExplicit, true);
+settings = R.configureOptions(settings, { startingScore: 701 }); assert.equal(settings.roundLimit, 0);
+settings = R.configureOptions(settings, { startingPlayer: 'cork' }); assert.equal(settings.settlement, 'score-then-cork');
+settings = R.configureOptions(settings, { settlement: 'cork' }); assert.equal(settings.startingPlayer, 'cork');
+settings = R.configureOptions(settings, { roundLimit: 30 }); assert.equal(settings.settlement, 'cork');
+settings = R.configureOptions(settings, { startingScore: 301 }); assert.equal(settings.roundLimit, 30);
+settings = R.configureOptions(settings, { mode: 'cricket' }); assert.equal(settings.roundLimit, 15); assert.equal(settings.roundLimitExplicit, false);
+settings = R.configureOptions(settings, { mode: 'countup' }); assert.equal(settings.roundLimit, 8);
+assert.equal(R.configureOptions(settings, { roundLimit: 0 }).roundLimit, 8, 'Count-Up remains fixed-round');
+assert.deepEqual(R.roundChoices('x01'), [10, 15, 20, 30, 0]);
+assert.deepEqual(R.roundChoices('cricket'), [10, 15, 20, 30, 0]);
+assert.deepEqual(R.roundChoices('countup'), [5, 8, 10, 15, 20, 30]);
+for (const mode of ['x01', 'cricket', 'countup']) for (const roundLimit of R.roundChoices(mode)) {
+    assert.equal(R.options({ mode, roundLimit }).roundLimit, roundLimit);
+}
+for (const mode of ['x01', 'cricket', 'countup']) for (const roundLimit of [20, 30]) {
+    const scores = mode === 'x01' || mode === 'cricket' ? { A: 0, B: 100, C: 200, D: 300 } : { A: 300, B: 200, C: 100, D: 0 };
+    const game = cappedMatch({ mode, cricketVariant: 'cutthroat', roundLimit }, scores);
+    assert.equal(game.winner, 'A'); assert(four.every(id => game.turns[id] === roundLimit));
+}
+let unlimited = R.create({ mode: 'x01', roundLimit: 0, settlement: 'cork', turnMs: 30000 }, four, 1000);
+for (let i = 0; i < 124; i++) unlimited = R.timeout(unlimited, 40000 + i * 30000);
+assert.equal(unlimited.phase, 'play'); assert.equal(unlimited.status, 'playing');
+
+// Opening Cork uses physical distance and cannot change ordinary scores, marks, turns or stats.
+for (const mode of ['x01', 'cricket', 'countup']) for (const count of [2, 3, 4]) {
+    const players = four.slice(0, count);
+    let game = R.create({ mode, startingScore: 701, startingPlayer: 'cork', legsToWin: 2 }, players, 1000, count - 1);
+    const normal = JSON.stringify([game.scores, game.marks, game.turns, game.stats, game.entered]);
+    assert.equal(game.phase, 'cork'); assert.equal(game.corkPurpose, 'opening'); assert.equal(game.active, players[0]);
+    const distances = [18, 42, 7, 29], expected = players[count >= 3 ? 2 : 0];
+    for (let i = 0; i < count; i++) {
+        assert.equal(game.active, players[i]);
+        game = R.throwDart(game, game.active, hit(25, 2), 2000 + i, { x: distances[i], y: 0 });
+        assert.equal(JSON.stringify([game.scores, game.marks, game.turns, game.stats, game.entered]), normal);
+    }
+    assert.equal(game.status, 'playing'); assert.equal(game.phase, 'play'); assert.equal(game.active, expected);
+    assert.equal(game.legStarter, expected); assert.equal(game.firstStarter, players.indexOf(expected));
+    assert.equal(game.openingWinner, expected); assert.equal(game.leg, 1); assert.equal(game.turnDarts.length, 0);
+    assert.equal(game.lastDart.phase, 'cork'); assert.equal(game.lastDart.corkPurpose, 'opening');
+    assert(game.history.every(row => row.phase === 'cork' && row.corkPurpose === 'opening' && row.points === 0));
+    assert.deepEqual(game.players, players, 'Cork selects a starting seat rather than sorting the roster');
+    if (mode === 'x01') {
+        game.scores[expected] = game.turnStartScore = 40; game = dart(game, 20, 2);
+        assert.equal(game.status, 'between'); assert.equal(game.lastDart.phase, 'play');
+        game = R.nextLeg(game, 5000);
+        assert.equal(game.phase, 'play'); assert.equal(game.active, players[(players.indexOf(expected) + 1) % count]);
+        assert.equal(game.legCorkPurpose, null); assert.equal(game.startingScore, 701);
+        assert.equal(game.history.filter(row => row.corkPurpose === 'opening').length, count);
+    }
+}
+for (const mode of ['practice', 'countup']) {
+    const game = R.create({ mode, startingPlayer: 'cork' }, ['A'], 1000);
+    assert.equal(game.phase, 'play', 'Solo play does not need opening Cork');
+}
+let opening = R.create({ mode: 'x01', startingPlayer: 'cork' }, four, 1000);
+for (const distance of [10, 10.0005, 20, 30]) opening = R.throwDart(opening, opening.active, miss, 2000, { x: distance, y: 0 });
+assert.deepEqual(opening.corkPlayers, ['A', 'B']); assert.equal(opening.corkRound, 2);
+opening = R.throwDart(opening, opening.active, miss, 3000, { x: 3, y: 0 });
+opening = R.throwDart(opening, opening.active, miss, 4000, { x: 5, y: 0 });
+assert.equal(opening.phase, 'play'); assert.equal(opening.active, 'A'); assert.equal(opening.history.length, 6);
+opening = R.create({ mode: 'x01', startingPlayer: 'cork', turnMs: 30000 }, ['A', 'B'], 1000);
+opening = R.timeout(opening, 40000); assert.equal(opening.history[0].reason, 'timeout');
+opening = R.throwDart(opening, opening.active, miss, 41000, { x: 200, y: 0 });
+assert.equal(opening.phase, 'play'); assert.equal(opening.active, 'B', 'A real off-board dart beats a forfeited opportunity');
+assert.deepEqual(opening.turns, { A: 0, B: 0 });
+opening = R.create({ mode: 'x01', startingPlayer: 'cork', turnMs: 30000 }, ['A', 'B'], 1000);
+opening = R.timeout(R.timeout(opening, 40000), 80000);
+assert.equal(opening.phase, 'cork'); assert.equal(opening.corkRound, 2); assert.equal(opening.status, 'playing');
+opening = R.create({ mode: 'x01', startingPlayer: 'cork' }, four, 1000);
+for (const distance of [10, 10, 20, 30]) opening = R.throwDart(opening, opening.active, miss, 2000, { x: distance, y: 0 });
+opening = R.withdrawMany(opening, ['A', 'B'], 3000);
+assert.equal(opening.phase, 'cork'); assert.equal(opening.corkPurpose, 'opening'); assert.deepEqual(opening.corkPlayers, ['C', 'D']);
+opening = R.throwDart(opening, opening.active, miss, 4000, { x: 30, y: 0 });
+opening = R.throwDart(opening, opening.active, miss, 5000, { x: 20, y: 0 });
+assert.equal(opening.phase, 'play'); assert.equal(opening.active, 'D'); assert.equal(opening.status, 'playing');
+
+// Direct limit Cork includes the whole remaining field and ignores remaining-score ranking.
+let direct = cappedMatch({ mode: 'x01', startingScore: 1501, roundLimit: 10, settlement: 'cork' }, { A: 12, B: 38, C: 91, D: 150 });
+assert.equal(direct.phase, 'cork'); assert.equal(direct.corkPurpose, 'limit'); assert.deepEqual(direct.corkPlayers, four);
+const preCorkStats = JSON.stringify(direct.stats);
+for (const distance of [30, 20, 10, 5]) direct = R.throwDart(direct, direct.active, hit(25, 2), 200000, { x: distance, y: 0 });
+assert.equal(direct.winner, 'D'); assert.equal(direct.endReason, 'cork'); assert.equal(direct.legCorkPurpose, 'limit');
+assert.equal(JSON.stringify(direct.stats), preCorkStats); assert.equal(direct.startingScore, 1501);
+assert(direct.history.slice(-4).every(row => row.corkPurpose === 'limit'));
+let tiedLowest = cappedMatch({ mode: 'x01', roundLimit: 10 }, { A: 12, B: 12, C: 91, D: 150 });
+assert.deepEqual(tiedLowest.corkPlayers, ['A', 'B']); assert.equal(tiedLowest.corkPurpose, 'tie');
+tiedLowest = R.throwDart(tiedLowest, tiedLowest.active, miss, 200000, { x: 10, y: 0 });
+tiedLowest = R.throwDart(tiedLowest, tiedLowest.active, miss, 200001, { x: 20, y: 0 });
+assert.equal(tiedLowest.winner, 'A'); assert.equal(tiedLowest.legCorkPurpose, 'tie');
+assert.equal(R.create({ mode: 'x01', settlement: 'cork' }, four, 1000).phase, 'play', 'Direct limit Cork does not force opening Cork');
+assert.equal(R.create({ mode: 'x01', startingPlayer: 'cork' }, four, 1000).settlement, 'score-then-cork', 'Opening Cork does not change limit settlement');
+let legacy = R.create({ mode: '501', roundLimit: 15 }, ['A', 'B'], 1000);
+legacy.mode = '501'; delete legacy.startingScore; delete legacy.roundLimitExplicit; delete legacy.startingPlayer; delete legacy.settlement;
+legacy = dart(legacy, 20, 3);
+assert.equal(legacy.mode, 'x01'); assert.equal(legacy.startingScore, 501); assert.equal(legacy.scores.A, 441); assert.equal(legacy.roundLimit, 15);
 
 // Execute the real physics independently of DOM/rendering and compare with the original
 // implementation's expected trajectory. This catches accidental changes to the skill mechanic.
@@ -435,4 +584,4 @@ try {
 } finally { physics.TUNING.pitchOffsetDeg = 0; }
 assert.deepEqual(physics.computeThrow(neutralAnalysis), neutral);
 Object.assign(physics.TUNING, configuredCalibration);
-console.log('PASS: darts V2 configuration, In/Out/bull rules and rollback, Standard/Cut-Throat, fair caps/Cork, practice/1–4 slots, Legs/history/departures and unchanged throwing physics.');
+console.log('PASS: all X01 starts/In/Out/rollback, explicit cap configuration, fair expanded caps, opening/tied/direct Cork, Standard/Cut-Throat, practice/1–4 slots, Legs/history/departures and unchanged throwing physics.');

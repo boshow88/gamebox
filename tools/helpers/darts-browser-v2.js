@@ -28,14 +28,22 @@ function dartsClick(f, id) {
     button.click();
 }
 async function dartsChange(f, id, value) {
+    // Keep historical 501 UI scenarios exercising the migrated X01 selector.
+    if (id === 'mode-select' && value === '501') value = 'x01';
     const input = dartsDoc(f).getElementById(id);
     dartsAssert(input, 'Darts setting: ' + id);
     await until(() => !input.disabled, 'editable Darts setting ' + id);
     input.value = String(value);
     input.dispatchEvent(new f.contentWindow.Event('change', { bubbles: true }));
     const fields = { 'mode-select': 'mode', 'match-select': 'legsToWin', 'timer-select': 'turnMs', 'rounds-select': 'roundLimit',
-        'out-select': 'outRule', 'in-select': 'inRule', 'bull-select': 'bullMode', 'cricket-select': 'cricketVariant' };
+        'out-select': 'outRule', 'in-select': 'inRule', 'bull-select': 'bullMode', 'cricket-select': 'cricketVariant',
+        'starting-score-select': 'startingScore', 'starting-player-select': 'startingPlayer', 'settlement-select': 'settlement' };
     await until(() => String(dartsData(f).options[fields[id]]) === String(value) && !input.disabled, 'accepted Darts setting ' + id);
+}
+function dartsFinishPresentation(f) {
+    const w = f.contentWindow;
+    w.__dartsNow += w.DartsFeedback.TIMING.finalHit + 1;
+    dartsApi(f).refresh();
 }
 async function dartsAdd(f, count) {
     const before = dartsData(f).seatOrder.length;
@@ -198,6 +206,7 @@ async function checkDartsReservedLocalV2() {
     for (let i = 0; i < 15; i++) dartsThrow(a);
     dartsAssert(api.snapshot().match.status === 'over' && api.snapshot().match.stats[slot].darts === 15 && dartsData(a).phase === 'results',
         'Reserved local solo Count-Up finishes without waiting for shared room scoring');
+    dartsFinishPresentation(a);
     dartsAssert(JSON.stringify(tools.read().game) === countupStored && !doc.getElementById('leg-result').hidden,
         'Reserved local Count-Up keeps results visible and avoids per-dart network writes');
     dartsClick(a, 'result-room-btn');
@@ -326,6 +335,7 @@ async function checkDartsLocalV2() {
     dartsAssert(api.snapshot().match.history.length === 0, 'New match starts a new history');
     for (let i = 0; i < 15; i++) dartsThrow(f);
     dartsAssert(api.snapshot().match.status === 'over' && api.snapshot().match.stats[slot].darts === 15, 'Configurable solo Count-Up completes');
+    dartsFinishPresentation(f);
     dartsAssert(!doc.getElementById('leg-result').hidden && !doc.getElementById('lobby').open, 'Results remain visible before returning');
     dartsClick(f, 'result-room-btn');
     await until(() => dartsData(f).phase === 'lobby' && doc.getElementById('lobby').open, 'result returns to same local lobby');
@@ -511,12 +521,30 @@ async function checkDartsMixedV2() {
     await until(() => Object.values(tools.read().ready).every(ready => !ready), 'Rule edit clears Ready');
     await until(() => dartsDoc(b).getElementById('out-select').value === 'open', 'Rule edit reaches guest');
     dartsAssert(dartsDoc(b).getElementById('out-select').disabled && dartsDoc(a).getElementById('lobby-start-btn').disabled, 'Guest cannot configure; host waits after edit');
+    for (const [id, value, field] of [['starting-score-select', 701, 'startingScore'], ['starting-player-select', 'cork', 'startingPlayer'], ['settlement-select', 'cork', 'settlement']]) {
+        dartsClick(b, 'lobby-start-btn'); await until(() => tools.read().ready[bUid], 'Guest readies before a new setting edit');
+        await dartsChange(a, id, value);
+        await until(() => !tools.read().ready[bUid] && String(dartsData(b).options[field]) === String(value), 'New configuration reaches guest and clears device Ready: ' + field);
+    }
+    await dartsChange(a, 'rounds-select', 0); await dartsChange(a, 'starting-score-select', 901);
+    dartsAssert(tools.read().options.roundLimit === 0 && dartsData(b).options.roundLimit === 0, 'An explicit shared-room Unlimited cap survives a score change');
+    await dartsChange(a, 'starting-score-select', 701); await dartsChange(a, 'rounds-select', 20);
     await dartsStartOnline(a, [b]);
     const firstMatch = tools.read().game.matchId;
-    dartsAssert(tools.read().game.legsToWin === 2 && tools.read().game.outRule === 'open', 'Active rules captured');
+    dartsAssert(tools.read().game.legsToWin === 2 && tools.read().game.outRule === 'open' && tools.read().game.mode === 'x01' && tools.read().game.startingScore === 701 && tools.read().game.startingPlayer === 'cork' && tools.read().game.settlement === 'cork', 'Every new active rule is captured in the Match snapshot');
     const other = tools.active() === a ? b : a;
     dartsAssert(!await dartsApi(other).controller().submit(dartsFlight(0, 103)), 'Another device cannot impersonate active slot');
     dartsAssert(!await dartsApi(a).controller().configure({ outRule: 'double' }), 'Room cannot mutate active rules');
+    dartsAssert(!await dartsApi(a).controller().configure({ startingScore: 301, startingPlayer: 'random', settlement: 'score-then-cork' }), 'Room cannot mutate new X01 or Cork rules after starting');
+    const seats = tools.read().game.players.slice();
+    dartsAssert(tools.read().game.phase === 'cork' && tools.read().game.corkPurpose === 'opening', 'Mixed local/remote players enter one shared opening Cork');
+    for (let i = 0; i < 4; i++) {
+        const id = tools.read().game.active;
+        await tools.throwAt((seats.indexOf(id) + 1) * 5, 0);
+    }
+    const opened = tools.read().game, openingRecords = opened.history.length;
+    dartsAssert(opened.phase === 'play' && opened.active === seats[0] && JSON.stringify(opened.players) === JSON.stringify(seats) && opened.players.every(id => opened.scores[id] === 701 && opened.turns[id] === 0 && opened.stats[id].darts === 0), 'Shared opening Cork respects ownership, selects physical closest and leaves scoring turns untouched');
+    dartsAssert(openingRecords === 4 && opened.history.every(entry => entry.phase === 'cork' && entry.corkPurpose === 'opening'), 'Shared opening Cork history is distinct from normal darts');
     const turns = [];
     for (let turn = 0; turn < 4; turn++) {
         const before = tools.read().game, previous = before.active;
@@ -531,10 +559,10 @@ async function checkDartsMixedV2() {
             if (!expected) dartsAssert(dartsApi(f).snapshot().feedback.notice && dartsApi(f).snapshot().feedback.notice.kind === 'turn', 'Cross-device turns use a nonblocking notice');
         }
     }
-    dartsAssert(new Set(turns).size === 4 && tools.read().game.history.length === 4, 'Both devices can control each of their two seats');
+    dartsAssert(new Set(turns).size === 4 && tools.read().game.history.length === openingRecords + 4, 'Both devices can control each of their two seats');
     for (const f of [a, b]) {
         dartsClick(f, 'history-btn');
-        dartsAssert(dartsDoc(f).querySelectorAll('.history-turn').length === 4 && !dartsDoc(f).getElementById('history-clock-note').hidden, 'Mixed room shares accepted history and running timer');
+        dartsAssert(dartsDoc(f).querySelectorAll('.history-turn').length === openingRecords + 4 && !dartsDoc(f).getElementById('history-clock-note').hidden, 'Mixed room shares accepted history and running timer');
         dartsClick(f, 'history-close-btn');
     }
     const legWinner = tools.read().game.active;
@@ -542,6 +570,7 @@ async function checkDartsMixedV2() {
     await until(() => [a, b].every(f => dartsApi(f).snapshot().match.scores[legWinner] === 40), 'between-leg checkout fixture');
     await tools.throwAt(0, 165);
     dartsAssert(tools.read().game.status === 'between' && tools.read().game.wins[legWinner] === 1, 'First leg leaves first-to-two match active');
+    dartsAssert([a, b].every(f => dartsApi(f).snapshot().feedback.resultPending && dartsDoc(f).getElementById('leg-result').hidden && !dartsDoc(f).getElementById('hit-toast').hidden), 'Both devices see the finalized checkout impact before the Leg result overlay');
     dartsClick(a, 'settings-btn');
     dartsAssert(dartsDoc(a).getElementById('back-lobby-btn').hidden && dartsDoc(a).getElementById('mode-select').disabled && dartsDoc(a).getElementById('out-select').disabled,
         'Between Legs cannot return to Lobby or edit match rules');
@@ -549,6 +578,7 @@ async function checkDartsMixedV2() {
     dartsDoc(a).getElementById('back-lobby-btn').click(); await sleep(20);
     dartsAssert(tools.read().phase === 'playing' && tools.read().game.status === 'between', 'Hidden Return action cannot bypass between-Leg lock');
     dartsClick(a, 'lobby-close-btn'); tools.syncClock();
+    [a, b].forEach(f => dartsApi(f).refresh());
     await until(() => !dartsDoc(a).getElementById('next-leg-btn').disabled, 'Next leg available after presentation');
     dartsClick(a, 'next-leg-btn');
     await until(() => [a, b].every(f => dartsApi(f).snapshot().match.leg === 2 && dartsApi(f).snapshot().match.status === 'playing'), 'Continue same competitive match');
@@ -567,6 +597,7 @@ async function checkDartsMixedV2() {
         'Lobby heartbeat must preserve open history without reopening Lobby over it');
     dartsClick(a, 'history-close-btn'); dartsClick(a, 'settings-btn');
     await dartsChange(a, 'mode-select', 'cricket'); await dartsChange(a, 'cricket-select', 'cutthroat'); await dartsChange(a, 'match-select', 1); await dartsChange(a, 'timer-select', 0);
+    await dartsChange(a, 'starting-player-select', 'random');
     await until(() => dartsDoc(b).getElementById('lobby').open && dartsDoc(b).getElementById('mode-select').value === 'cricket', 'guest sees next game in existing room');
     await dartsStartOnline(a, [b]);
     dartsAssert(tools.read().game.matchId !== firstMatch && tools.read().game.cricketVariant === 'cutthroat' && tools.read().game.history.length === 0, 'Same code starts different game with fresh history');
@@ -639,7 +670,7 @@ async function checkDartsLeaveRestoreV2() {
     dartsAssert(dartsDoc(f).getElementById('back-lobby-btn').hidden && dartsDoc(f).getElementById('out-select').disabled, 'Local between-Leg rules remain locked');
     dartsDoc(f).getElementById('back-lobby-btn').click(); await sleep(20);
     dartsAssert(dartsData(f).phase === 'playing' && dartsApi(f).snapshot().match.status === 'between', 'Local Return handler rejects unfinished competitive match');
-    dartsClick(f, 'lobby-close-btn'); dartsClick(f, 'next-leg-btn');
+    dartsClick(f, 'lobby-close-btn'); dartsFinishPresentation(f); dartsClick(f, 'next-leg-btn');
     dartsAssert(dartsApi(f).snapshot().match.leg === 2 && dartsApi(f).snapshot().match.status === 'playing', 'Local Next Leg resumes the locked match');
     f.remove();
 }
@@ -757,7 +788,7 @@ async function checkDartsLobbyV2() {
             dartsAssert(w.scrollY === pageY && dialog.scrollTop === 0, 'Content scrolling does not scroll the page or outer dialog');
         }
         const summary = () => doc.getElementById('lobby-rule-summary').textContent, details = () => doc.getElementById('lobby-rule-note').textContent;
-        dartsAssert(summary().includes('Double Out') && summary().includes('15 rounds'), '501 summary reflects default selected rules');
+        dartsAssert(summary().includes('Double Out') && summary().includes('20 rounds'), '501 summary reflects the score-dependent default selected rules');
         await dartsChange(f, 'out-select', 'open');
         dartsAssert(summary().includes('Open Out') && !summary().includes('Double Out') && details().includes('Any scoring region can finish') && !details().includes('Finish on a double'), 'Summary and expanded explanation both switch to Open Out');
         await dartsChange(f, 'out-select', 'double'); await dartsChange(f, 'in-select', 'master'); await dartsChange(f, 'bull-select', '50-50');
@@ -805,6 +836,145 @@ async function checkDartsLobbyV2() {
         doc.getElementById('advanced-rules').open = true; doc.getElementById('lobby-content').scrollTop = 0;
         await sleep(60);
     }
+}
+async function checkDartsExpandedSettingsV2() {
+    const f = await dartsBoot('expanded-settings', 320, 568), doc = dartsDoc(f);
+    const choices = id => [...doc.getElementById(id).options].map(option => Number(option.value));
+    await dartsChange(f, 'mode-select', 'x01');
+    dartsAssert(dartsData(f).options.startingScore === 501 && dartsData(f).options.roundLimit === 20, 'New X01 defaults to 501 and twenty casual rounds');
+    dartsAssert(choices('starting-score-select').join(',') === '301,501,701,901,1101,1501', 'One X01 mode exposes exactly the supported starting scores');
+    for (const [score, limit] of [[301, 15], [701, 20], [901, 30], [1101, 30], [1501, 30], [501, 20]]) {
+        await dartsChange(f, 'starting-score-select', score);
+        dartsAssert(dartsData(f).options.roundLimit === limit, 'Automatic cap follows the selected starting score before manual cap selection: ' + score);
+    }
+    dartsAssert(choices('rounds-select').slice().sort((a, b) => a - b).join(',') === '0,10,15,20,30', 'X01 exposes all finite and Unlimited round choices');
+    await dartsAdd(f, 1);
+    await dartsChange(f, 'settlement-select', 'cork');
+    await dartsChange(f, 'rounds-select', 0); await dartsChange(f, 'starting-score-select', 701);
+    dartsAssert(dartsData(f).options.roundLimit === 0 && doc.getElementById('settlement-setting').hidden, 'An explicit Unlimited choice survives a starting-score change and hides irrelevant settlement');
+    await dartsChange(f, 'rounds-select', 30); await dartsChange(f, 'starting-score-select', 301);
+    dartsAssert(dartsData(f).options.roundLimit === 30 && dartsData(f).options.settlement === 'cork' && !doc.getElementById('settlement-setting').hidden, 'Explicit finite cap and previous Cork settlement survive score edits and visibility changes');
+    await dartsChange(f, 'starting-player-select', 'cork');
+    dartsAssert(dartsData(f).options.settlement === 'cork', 'Opening Cork is independent of round-limit settlement');
+    await dartsChange(f, 'settlement-select', 'score-then-cork');
+    dartsAssert(dartsData(f).options.startingPlayer === 'cork', 'Lowest-score settlement does not disable opening Cork');
+    const summary = doc.getElementById('lobby-rule-summary').textContent + doc.getElementById('lobby-round-note').textContent;
+    dartsAssert(summary.includes('30') && summary.includes('90'), 'Long-match helper states the selected thirty rounds and ninety darts per player');
+    await dartsChange(f, 'mode-select', 'cricket');
+    dartsAssert(choices('rounds-select').slice().sort((a, b) => a - b).join(',') === '0,10,15,20,30' && dartsData(f).options.roundLimit === 15, 'Cricket keeps its default and receives expanded caps');
+    await dartsChange(f, 'mode-select', 'countup');
+    dartsAssert(choices('rounds-select').join(',') === '5,8,10,15,20,30' && dartsData(f).options.roundLimit === 8, 'Count-Up remains fixed-round with all six round counts');
+    await dartsChange(f, 'mode-select', 'practice');
+    dartsAssert(doc.getElementById('rounds-setting').hidden && doc.getElementById('starting-score-setting').hidden && doc.getElementById('starting-player-setting').hidden && doc.getElementById('settlement-setting').hidden, 'Practice hides competitive configuration');
+    f.remove();
+}
+async function checkDartsOpeningCorkV2() {
+    for (const count of [2, 3, 4]) {
+        const f = await dartsBoot('opening-cork-' + count), api = dartsApi(f), doc = dartsDoc(f);
+        await dartsAdd(f, count - 1); await dartsChange(f, 'mode-select', 'x01');
+        await dartsChange(f, 'starting-score-select', 301); await dartsChange(f, 'starting-player-select', 'cork');
+        await dartsChange(f, 'match-select', 2); await dartsChange(f, 'timer-select', 0);
+        await dartsStartLocal(f);
+        const initial = api.snapshot().match, seats = initial.players.slice(), distances = new Map();
+        dartsAssert(initial.phase === 'cork' && initial.corkPurpose === 'opening', 'Opening Cork starts before normal Leg scoring');
+        dartsAssert(doc.getElementById('match-meta').textContent.startsWith('301') && !doc.getElementById('match-meta').textContent.includes('X01'), 'Gameplay names the actual X01 variant');
+        dartsClick(f, 'settings-btn');
+        for (const id of ['starting-score-select', 'starting-player-select', 'settlement-select']) dartsAssert(doc.getElementById(id).disabled, 'New match configuration is locked during opening Cork: ' + id);
+        dartsClick(f, 'lobby-close-btn');
+        for (let i = 0; i < count; i++) {
+            dartsConfirmHandoff(f);
+            const player = api.snapshot().match.active, distance = count === 4 && i < 2 ? 10 : count === 4 ? 30 + i : 30 - i * 5;
+            distances.set(player, distance);
+            api.accepted(dartsHit(25), { x: distance, y: 0 });
+        }
+        if (count === 4) {
+            const tied = [...distances].filter(([, distance]) => distance === 10).map(([id]) => id);
+            dartsAssert(api.snapshot().match.phase === 'cork' && api.snapshot().match.corkRound === 2 && api.snapshot().match.corkPlayers.length === 2 && api.snapshot().match.corkPlayers.every(id => tied.includes(id)), 'Only the closest tied players repeat opening Cork');
+            for (let i = 0; i < 2; i++) {
+                dartsConfirmHandoff(f);
+                const id = api.snapshot().match.active; distances.set(id, i === 0 ? 8 : 3);
+                api.accepted(dartsHit(25), { x: distances.get(id), y: 0 });
+            }
+        }
+        const started = api.snapshot().match, expectedStarter = [...distances].sort((a, b) => a[1] - b[1])[0][0];
+        dartsAssert(started.phase === 'play' && started.status === 'playing' && started.active === expectedStarter && started.legStarter === expectedStarter, 'Closest physical Bull distance selects the opening starter');
+        dartsAssert(JSON.stringify(started.players) === JSON.stringify(seats), 'Opening Cork preserves participant seat order');
+        dartsAssert(seats.every(id => started.scores[id] === 301 && started.turns[id] === 0 && started.stats[id].darts === 0 && started.stats[id].points === 0 && Object.values(started.marks[id]).every(n => n === 0)), 'Opening Cork never consumes scores, marks, normal darts or permitted turns');
+        dartsAssert(started.history.length === (count === 4 ? 6 : count) && started.history.every(entry => entry.phase === 'cork' && entry.corkPurpose === 'opening'), 'Opening Cork is recorded separately in match history');
+        dartsConfirmHandoff(f); started.scores[started.active] = 32; started.turnStartScore = 32;
+        api.accepted(dartsHit(16, 2));
+        dartsAssert(api.snapshot().match.status === 'between' && doc.getElementById('leg-result').hidden, 'A winning X01 dart finalizes the Leg before its visual result overlay');
+        dartsFinishPresentation(f); dartsClick(f, 'next-leg-btn');
+        const next = api.snapshot().match, expectedNext = seats[(seats.indexOf(expectedStarter) + 1) % seats.length];
+        dartsAssert(next.leg === 2 && next.phase === 'play' && next.active === expectedNext && next.history.length === started.history.length + 1, 'Later Legs rotate from the Cork-selected starter without another opening Cork or losing history');
+        f.remove();
+    }
+    const solo = await dartsBoot('solo-no-opening-cork');
+    await dartsChange(solo, 'mode-select', 'countup');
+    dartsAssert(dartsDoc(solo).getElementById('starting-player-setting').hidden, 'Solo Count-Up hides opening Cork');
+    await dartsStartLocal(solo);
+    dartsAssert(dartsApi(solo).snapshot().match.phase === 'play', 'Solo Count-Up begins scoring immediately');
+    solo.remove();
+}
+async function checkDartsFinalHitV2() {
+    for (const mode of ['x01', 'cricket', 'countup']) {
+        const f = await dartsBoot('final-hit-' + mode), doc = dartsDoc(f), api = dartsApi(f), w = f.contentWindow;
+        await dartsAdd(f, 1); await dartsChange(f, 'mode-select', mode); await dartsChange(f, 'timer-select', 30000);
+        if (mode === 'cricket') await dartsChange(f, 'cricket-select', 'standard');
+        await dartsStartLocal(f);
+        const s = api.snapshot().match, scorer = s.active;
+        if (mode === 'x01') { s.scores[scorer] = 32; s.turnStartScore = 32; }
+        if (mode === 'cricket') {
+            w.DartsRules.TARGETS.forEach(target => { s.marks[scorer][target] = target === 20 ? 2 : 3; });
+        }
+        if (mode === 'countup') {
+            s.players.forEach(id => { s.turns[id] = s.roundLimit; });
+            s.turns[scorer]--; s.dart = 2; s.turnDarts = [dartsHit(1), dartsHit(1)];
+            s.scores[scorer] = 100; s.turnPoints = 2;
+        }
+        api.accepted(mode === 'x01' ? dartsHit(16, 2) : dartsHit(20));
+        const accepted = api.snapshot().match, seq = accepted.seq, winner = accepted.winner;
+        dartsAssert(accepted.status === 'over' && winner === scorer && api.snapshot().feedback.resultPending && doc.getElementById('leg-result').hidden, 'Winning ' + mode + ' state is final while the impact remains visible');
+        dartsAssert(!doc.getElementById('turn-status').textContent.includes(w.ArcadeCommon.i18n.t('dartsMatchWon')), 'The live turn status also waits for the final hit before announcing victory');
+        dartsAssert(!doc.getElementById('hit-toast').hidden && doc.getElementById('hit-toast').textContent.includes(mode === 'x01' ? 'D16' : 'S20'), 'The final scoring region is visible before the winner overlay: ' + mode);
+        dartsAssert(!api.gesture(), 'No new scoring gesture is accepted after the authoritative win');
+        api.refresh(); api.refresh();
+        w.__dartsNow += w.DartsFeedback.TIMING.finalHit - 1; api.refresh();
+        dartsAssert(doc.getElementById('leg-result').hidden && api.snapshot().match.seq === seq, 'Repeated snapshots do not restart or bypass the final-hit interval');
+        w.__dartsNow += 2; api.refresh();
+        dartsAssert(!doc.getElementById('leg-result').hidden && !api.snapshot().feedback.resultPending && doc.getElementById('result-title').textContent === w.ArcadeCommon.i18n.t('dartsMatchWon'), 'The finalized result appears once the impact interval completes');
+        dartsAssert(doc.getElementById('turn-status').textContent.includes(w.ArcadeCommon.i18n.t('dartsMatchWon')), 'The live status announces the accepted winner after the impact interval');
+        w.__dartsNow = accepted.turnStartedAt + accepted.turnMs + 10;
+        await sleep(1050); api.refresh();
+        dartsAssert(api.snapshot().match.seq === seq && api.snapshot().match.winner === winner, 'A late turn deadline cannot overwrite an already completed result');
+        dartsClick(f, 'result-room-btn');
+        await until(() => dartsData(f).phase === 'lobby', 'Completed match returns to setup');
+        await dartsChange(f, 'mode-select', 'practice'); await dartsStartLocal(f);
+        w.__dartsNow += 2000; api.refresh();
+        dartsAssert(doc.getElementById('leg-result').hidden && !api.snapshot().feedback.resultPending, 'Starting another Match cancels old result presentation');
+        f.remove();
+    }
+    const f = await dartsBoot('direct-limit-cork'), api = dartsApi(f), doc = dartsDoc(f);
+    await dartsAdd(f, 3); await dartsChange(f, 'mode-select', 'x01'); await dartsChange(f, 'rounds-select', 10);
+    await dartsChange(f, 'settlement-select', 'cork'); await dartsChange(f, 'timer-select', 0); await dartsStartLocal(f);
+    const s = api.snapshot().match, scores = {};
+    s.players.forEach((id, index) => { s.turns[id] = 9; s.scores[id] = (index + 1) * 20; scores[id] = s.scores[id]; });
+    s.turnStartScore = s.scores[s.active];
+    for (let i = 0; i < 12; i++) { dartsConfirmHandoff(f); api.accepted({ miss: true }); }
+    const cork = api.snapshot().match;
+    dartsAssert(cork.phase === 'cork' && cork.corkPurpose === 'limit' && cork.corkPlayers.length === 4 && cork.players.every(id => cork.turns[id] === 10), 'Direct Cork begins only after every participant exhausts the configured cap and includes all scores');
+    const winner = cork.players.reduce((a, b) => scores[a] > scores[b] ? a : b);
+    for (let i = 0; i < 4; i++) {
+        dartsConfirmHandoff(f); const id = api.snapshot().match.active;
+        api.accepted(dartsHit(25), { x: id === winner ? 2 : 30, y: 0 });
+    }
+    dartsAssert(api.snapshot().match.winner === winner && api.snapshot().match.legCorkPurpose === 'limit' && api.snapshot().feedback.resultPending && doc.getElementById('leg-result').hidden, 'Cork distance can select the previously highest remaining score and delays only its announcement');
+    dartsAssert(doc.getElementById('hit-toast').textContent.includes(api.snapshot().match.lastDart.distance.toFixed(1)), 'The final accepted physical Cork distance is shown before victory');
+    dartsClick(f, 'settings-btn'); dartsClick(f, 'back-lobby-btn');
+    await until(() => dartsData(f).phase === 'lobby', 'Leave final-hit interval before it expires');
+    dartsFinishPresentation(f);
+    dartsAssert(!api.snapshot().feedback.resultPending && doc.getElementById('turn-notice').hidden, 'Leaving the match clears scheduled final-hit presentation');
+    f.remove();
 }
 async function checkDartsInvalidV2() {
     const f = await dartsBoot('invalid-room'), doc = dartsDoc(f), w = f.contentWindow;

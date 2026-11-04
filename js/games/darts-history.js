@@ -26,7 +26,7 @@
                 filter.value = data.players.some(function (p) { return p.id === selected; }) ? selected : 'all';
             }
             var entries = data.entries.filter(function (entry) { return filter.value === 'all' || entry.uid === filter.value; }).slice().reverse();
-            var key = JSON.stringify([entries, filter.value, options.locale(), data.dropped, data.online, data.mode, data.cricketVariant, data.turnMs]);
+            var key = JSON.stringify([entries, filter.value, options.locale(), data.dropped, data.online, data.mode, data.startingScore, data.cricketVariant, data.turnMs]);
             if (key === lastKey && !resetScroll) return;
             lastKey = key;
             var atTop = resetScroll || list.scrollTop < 2, bounds = list.getBoundingClientRect();
@@ -34,6 +34,7 @@
             var anchorKey = anchor && anchor.dataset.historyKey, offset = anchor && anchor.getBoundingClientRect().top;
             doc.getElementById('history-clock-note').hidden = !data.online || data.turnMs === 0;
             doc.getElementById('history-limit-note').textContent = data.dropped ? t('dartsHistoryLimit') : '';
+            doc.getElementById('history-title').textContent = t('dartsHistory') + (options.modeName ? ' · ' + options.modeName(data.mode, data) : '');
             var names = Object.fromEntries(data.players.map(function (p) { return [p.id, p.name]; }));
             list.replaceChildren();
             if (!entries.length) list.append(node('p', 'history-empty', t('dartsHistoryEmpty')));
@@ -41,7 +42,8 @@
                 var cork = entry.phase === 'cork', cutthroat = data.mode === 'cricket' &&
                     (data.cricketVariant === 'cutthroat' || Object.keys(entry.penalties || {}).length > 0);
                 var row = node('article', 'history-turn'); row.dataset.historyKey = entry.leg + ':' + entry.turn + ':' + entry.uid + ':' + (entry.phase || 'play');
-                var heading = cork ? valueLabel('dartsLeg', entry.leg) + ' · ' + valueLabel('dartsCorkRound', entry.corkRound) :
+                var corkTitle = t(entry.corkPurpose === 'opening' ? 'dartsOpeningCork' : entry.corkPurpose === 'limit' ? 'dartsLimitCork' : 'dartsTieCork');
+                var heading = cork ? valueLabel('dartsLeg', entry.leg) + ' · ' + corkTitle + ' · ' + t('dartsCorkAttempt', entry.corkRound) :
                     entry.leg ? valueLabel('dartsLeg', entry.leg) + ' · ' + valueLabel('dartsRound', entry.round) : valueLabel('dartsThrow', entry.turn);
                 row.append(node('h3', '', heading + ' · ' + (names[entry.uid] || entry.uid)));
                 var darts = node('div', 'history-darts');
@@ -49,10 +51,10 @@
                 row.append(darts);
                 var reasonKey = { bust: 'dartsBust', checkout: 'dartsCheckout', timeout: 'dartsTimeout', left: 'dartsWithdrawn', 'leg-won': 'dartsLegWon',
                     'round-limit': 'dartsRoundLimitReached', 'cork-won': 'dartsLegWon' }[entry.reason];
-                var summary = cork ? t('dartsCork') + ' · ' + valueLabel('dartsDistance', distanceLabel(entry.distance)) :
+                var summary = cork ? corkTitle + ' · ' + valueLabel('dartsDistance', distanceLabel(entry.distance)) :
                     cutthroat ? t('dartsPenalties') + ' · ' + penaltiesLabel(entry.penalties, names) :
                         valueLabel('dartsTurnScore', entry.points) + (data.mode === 'practice' ? '' : ' · ' +
-                            valueLabel(data.mode === '501' ? 'dartsRemaining' : 'dartsTotal', entry.score));
+                            valueLabel(window.DartsRules.isX01(data.mode) ? 'dartsRemaining' : 'dartsTotal', entry.score));
                 row.append(node('p', 'history-turn-summary', summary));
                 if (reasonKey || !entry.finished) row.append(node('strong', entry.reason === 'bust' ? 'bust' : '', t(reasonKey || 'dartsInProgress')));
                 list.append(row);

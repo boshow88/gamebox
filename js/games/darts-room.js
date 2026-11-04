@@ -124,12 +124,7 @@
         function configure(patch) {
             return lobbyUpdate(function (data, uid) {
                 if (service.host(data) !== uid || !patch || typeof patch !== 'object') return null;
-                var current = Rules.options(data.options);
-                if (patch.mode && patch.mode !== current.mode) {
-                    current = Object.assign({}, current, { mode: patch.mode, roundLimit: undefined,
-                        turnMs: patch.mode === 'practice' ? 0 : 60000 });
-                }
-                var options = Rules.options(Object.assign({}, current, patch));
+                var options = Rules.configureOptions(data.options, patch);
                 if (JSON.stringify(options) === JSON.stringify(Rules.options(data.options))) return null;
                 return { options: options, ready: {}, revision: revision(data) + 1 };
             });
@@ -189,7 +184,10 @@
                     || g.players.some(function (id) { return state.owners[id] !== owners[id]; })
                     || !g.players.includes(state.active) || state.winner && !g.players.includes(state.winner)) return null;
                 var settings = Rules.options(g, g.players.length);
-                if (Object.keys(settings).some(function (key) { return state[key] !== g[key]; })) return null;
+                // Missing caps on older live matches meant unlimited, not a new-lobby default.
+                if (g.roundLimit == null && (Rules.isX01(g.mode) || g.mode === 'cricket')) settings.roundLimit = 0;
+                var submittedSettings = Rules.options(state, g.players.length);
+                if (Object.keys(settings).some(function (key) { return submittedSettings[key] !== settings[key]; })) return null;
                 if (!toLobby && (phase(data) !== 'playing' || state.seq === g.seq)) return null;
                 var next = clone(state), nextPhase = toLobby ? 'lobby' : state.status === 'over' ? 'results' : 'playing';
                 return { game: next, phase: nextPhase, status: toLobby ? 'waiting' : nextPhase,
