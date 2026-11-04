@@ -630,6 +630,24 @@ flying so its score cannot be applied to a newly advanced slot. Online clients
 present the accepted throw before showing its updated score/history; presentation
 does not apply a second physical pitch transformation.
 
+`darts-feedback.js` coordinates local presentation only. A transition between two
+different slots owned by this device requires Ready to Throw; no handoff appears
+for solo play, consecutive darts or a remote-to-local transition. A pending
+handoff cancels gestures and blocks board/mode-panel input until confirmation,
+then requires a fresh press. A confirmation retains its displayed turn key so a
+timeout cannot redirect a stale click to a later player. Enabled timers continue.
+
+Accepted landed events, identified by match ID and accepted throw sequence,
+drive Bust rollback explanations and actual Cut-Throat recipient badges. The
+presentation coordinator deduplicates events across snapshot refreshes. Results
+take priority over handoff, then Bust, turn notice and ordinary hit feedback.
+Bust briefly explains the accepted restored score before showing any pending
+handoff; input is blocked throughout. Timings are centralized in
+`DartsFeedback.TIMING`. Returning to the lobby clears transient presentation.
+HUD result explanations use `legEndReason`/`endReason`, mode and accepted winner
+score/distance, distinguishing Leg wins from final Match wins and Cork distance
+from the original mode's points. This layer does not alter scoring or deadlines.
+
 ### Throw history
 
 Click a player card for that player's records, or History for the entire roster.

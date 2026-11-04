@@ -66,11 +66,13 @@ Firebase rule evaluator or a live-project check after publishing rules.
 ```text
 node tools/darts-rules-check.js
 node tools/darts-room-check.js
+node tools/darts-feedback-check.js
+node tools/darts-hud-check.js
 node tools/rooms-browser-check.js --darts
 node tools/rooms-browser-check.js --darts --invalid-rtdb
 ```
 
-The first two checks run without packages or network. The rules check covers
+The four Darts module checks run without packages or network. The rules check covers
 Open/Master/Double In and Out, whole-turn score/entry rollback, physical Bull
 identity under 25/50 and 50/50 scoring, Standard/Cut-Throat recipients and wins
 (including a non-throwing winner), per-participant round limits, score settlement
@@ -78,6 +80,13 @@ and Cork distances/repeated ties. It also covers unlimited single/multiple-playe
 Practice, first-to-1/2/3 Leg progression, history retention and atomic controller
 departures. The real gesture/ballistics functions still run against their golden
 velocities and deterministic pitch-rotation checks.
+
+The feedback check covers same-device ownership transitions, fresh confirmation,
+stale confirmations after timeouts, snapshot/event deduplication, actual accepted
+penalty recipients, Bust-to-handoff sequencing and result priority. The HUD check
+uses accepted rule transitions for the Leg/Match victory-reason matrix, every
+mode's cap, tied-score Cricket closures and Cork distance, plus restored Bust
+scores/history and penalty effects that expire without discarding accepted data.
 
 The room check uses the actual room core, Darts policy and RTDB adapter against
 the native-tree fixture. It exercises separate controllers and player slots,
@@ -109,6 +118,15 @@ and explains the currently selected rules and valid player count. History
 scenarios exercise player/all filtering, independent scrolling,
 live-update anchor preservation, modal input blocking and focus restoration.
 Invalid-backend checks leave local Practice and account profiles working.
+
+Gameplay UX cases cover four-slot handoffs at small mobile sizes, blocked bottom
+panel gestures, confirmation without throwing, stale releases/clicks across
+timeouts, and continued countdowns. Mixed-device turns require confirmation only
+between two slots on that device. Accepted impacts show actual Cut-Throat changes
+for 3/2/1/0 opponents without heartbeat replay; Bust restores the accepted score
+and retains history. Result reasons are checked in EN/ZH. Room-loss fallback keeps
+a pending local handoff, while a timeout superseding a flight suppresses its stale
+scoring effects.
 
 Lobby checks keep the header/footer visible at every content scroll position
 with four players and expanded rules at 320x568, 390x844 and 1200x420. They verify

@@ -572,6 +572,14 @@ competitive players continue with at least two slots; the last wins by forfeit.
 Practice can continue with one remaining player. New active players join in
 the lobby, rather than being inserted into a match already underway.
 
+When a turn passes between different players sharing this device, pass the device
+and choose **Ready to Throw**. Throws stay blocked until confirmation and require
+a new press afterward. Passing to another device needs no confirmation. Enabled
+turn timers continue during handoff. A Bust (**爆分**) briefly shows the restored
+score before the handoff; Cut-Throat briefly highlights only opponents receiving
+accepted penalty points. The result screen explains the accepted victory reason,
+including round-limit results and closest-to-Bull tiebreaks.
+
 Click a player card for that player's throw history or History for everyone.
 History includes turn results, busts, checkouts, timeouts and departures, and
 retains the latest 500 turns per match (500 individual throws in solo Practice).

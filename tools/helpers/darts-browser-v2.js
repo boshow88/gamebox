@@ -3,6 +3,19 @@ const dartsApi = f => f.contentWindow.__dartsTest;
 const dartsDoc = f => f.contentDocument;
 const dartsData = f => dartsApi(f).snapshot().data;
 function dartsAssert(value, message) { if (!value) throw new Error(message); }
+function dartsConfirmHandoff(f) {
+    const overlay = dartsDoc(f).getElementById('handoff-overlay');
+    if (dartsApi(f).snapshot().feedback && dartsApi(f).snapshot().feedback.blocking && overlay.hidden) {
+        f.contentWindow.__dartsNow += 1500; dartsApi(f).refresh();
+    }
+    if (!overlay.hidden) dartsClick(f, 'handoff-ready-btn');
+}
+function dartsThrow(f) {
+    dartsConfirmHandoff(f);
+    dartsAssert(dartsApi(f).gesture(), 'Intended fixture throw requires an enabled, confirmed turn');
+    dartsApi(f).land();
+}
+const dartsHit = (base, mult = 1) => ({ base, mult, score: base * mult, label: (mult === 3 ? 'T' : mult === 2 ? 'D' : 'S') + base, miss: false });
 async function dartsBoot(uid, width = 390, height = 844) {
     const f = frame('darts', uid); f.style.width = width + 'px'; f.style.height = height + 'px';
     await until(() => dartsApi(f) && dartsDoc(f).getElementById('lobby').open, 'unified Darts lobby boot');
@@ -67,10 +80,11 @@ function dartsRoomTools(code, frames) {
         frames.forEach(f => { f.contentWindow.__dartsNow = stamp; });
     };
     const active = () => frames.find(f => dartsApi(f).snapshot().uid === read().game.owners[read().game.active]);
-    async function throwAt(x, y) {
-        syncClock(); const old = read().game.seq;
+    async function throwAt(x, y, beforeLand) {
+        syncClock(); dartsConfirmHandoff(active()); const old = read().game.seq;
         dartsAssert(await dartsApi(active()).controller().submit(dartsFlight(x, y)), 'Controlling device throw rejected');
         await until(() => frames.every(f => dartsApi(f).snapshot().match && dartsApi(f).snapshot().match.seq > old), 'accepted Darts throw sync');
+        if (beforeLand) await beforeLand();
         frames.forEach(f => dartsApi(f).land());
     }
     return { read, mutate, syncClock, active, throwAt };
@@ -138,8 +152,8 @@ async function checkDartsContextV2() {
     await until(() => dartsData(f).participants[namedSlot].name === customName && !doc.getElementById('lobby-start-btn').disabled, 'manual name including meaningful spaces');
     dartsClick(f, 'lobby-start-btn');
     await until(() => dartsApi(f).snapshot().match && !doc.getElementById('lobby').open, 'Chinese Count-Up start');
-    dartsAssert(doc.getElementById('match-meta').textContent.includes('局1') && doc.querySelector('.status-round').textContent === '回合1/5', 'Chinese dynamic HUD labels follow the spacing convention');
-    dartsApi(f).gesture(); dartsApi(f).land(); dartsClick(f, 'history-btn');
+    dartsAssert(doc.getElementById('match-meta').textContent.includes('第1局') && doc.querySelector('.status-round').textContent === '第1/5回合', 'Chinese dynamic HUD labels follow the spacing convention');
+    dartsThrow(f); dartsClick(f, 'history-btn');
     dartsAssert(doc.querySelector('.history-turn h3').textContent.startsWith('局1 · 回合1 · '), 'Chinese history headings format dynamic numbers correctly');
     dartsAssert(!/\p{Script=Han} +\d/u.test(doc.querySelector('.history-turn-summary').textContent), 'Chinese history totals do not add English label-value spacing');
     dartsAssert(dartsData(f).participants[namedSlot].name === customName && [...doc.querySelectorAll('.darts-player-name')].some(el => el.textContent === customName), 'Copy spacing changes preserve user-entered Chinese and English name spaces');
@@ -155,7 +169,7 @@ async function checkDartsReservedLocalV2() {
     const matchId = tools.read().game.matchId, firstSlot = api.snapshot().match.active;
     dartsAssert(tools.read().game.execution === 'local' && api.snapshot().match.execution === 'local', 'A room code with only host-owned seats starts a local match');
     const initialStored = JSON.stringify(tools.read().game);
-    await dartsFlick(a, doc.getElementById('mode-panel')); api.gesture(); api.land();
+    await dartsFlick(a, doc.getElementById('mode-panel')); dartsThrow(a);
     dartsAssert(api.snapshot().match.seq === 2 && api.snapshot().match.history[0].darts.length === 2 && dartsData(a).game.seq === 2,
         'Reserved room uses live local match state and accepts repeated local throws');
     dartsAssert(JSON.stringify(tools.read().game) === initialStored, 'Local throws do not publish per-dart room state');
@@ -181,7 +195,7 @@ async function checkDartsReservedLocalV2() {
     await dartsChange(a, 'mode-select', 'countup'); await dartsChange(a, 'rounds-select', 5); await dartsChange(a, 'timer-select', 0);
     await dartsStartOnline(a, []);
     const countupStored = JSON.stringify(tools.read().game), slot = api.snapshot().match.players[0];
-    for (let i = 0; i < 15; i++) { api.gesture(); api.land(); }
+    for (let i = 0; i < 15; i++) dartsThrow(a);
     dartsAssert(api.snapshot().match.status === 'over' && api.snapshot().match.stats[slot].darts === 15 && dartsData(a).phase === 'results',
         'Reserved local solo Count-Up finishes without waiting for shared room scoring');
     dartsAssert(JSON.stringify(tools.read().game) === countupStored && !doc.getElementById('leg-result').hidden,
@@ -202,16 +216,53 @@ async function checkDartsReservedLocalV2() {
 }
 async function checkDartsReservedLossV2() {
     const f = await dartsBoot('lost-reservation'), doc = dartsDoc(f), api = dartsApi(f);
+    await dartsAdd(f, 1);
     const code = await dartsPromote(f); await dartsStartOnline(f, []);
-    await dartsFlick(f, doc.getElementById('mode-panel'));
+    for (let i = 0; i < 3; i++) dartsThrow(f);
     const matchId = api.snapshot().match.matchId, seq = api.snapshot().match.seq;
+    dartsAssert(!doc.getElementById('handoff-overlay').hidden && api.snapshot().feedback.blocking, 'Reserved local match has a pending same-device handoff before room removal');
     await api.controller().service.remove(code);
     await until(() => !api.snapshot().room, 'lost reservation falls back to local play');
     dartsAssert(api.snapshot().match && api.snapshot().match.matchId === matchId && api.snapshot().match.seq === seq && !doc.getElementById('lobby').open,
         'Losing a room reservation preserves local match and history without interrupting play');
+    dartsAssert(!doc.getElementById('handoff-overlay').hidden && api.snapshot().feedback.blocking && !api.gesture(), 'Controller alias changes on room loss preserve the pending handoff input gate');
+    await dartsFlick(f, doc.getElementById('mode-panel'));
+    dartsAssert(api.snapshot().match.seq === seq, 'Room loss cannot silently confirm a pending handoff');
+    dartsClick(f, 'handoff-ready-btn');
     await dartsFlick(f, doc.getElementById('mode-panel'));
     dartsAssert(api.snapshot().match.seq === seq + 1 && dartsData(f).phase === 'playing', 'Local throwing continues after reservation disappears');
     f.remove();
+}
+async function checkDartsSupersededFlightV2() {
+    for (const mode of ['501', 'cricket']) {
+        const a = await dartsBoot('superseded-' + mode + '-host'), b = await dartsBoot('superseded-' + mode + '-guest'), frames = [a, b];
+        await dartsAdd(a, 1); await dartsChange(a, 'mode-select', mode); await dartsChange(a, 'timer-select', 30000);
+        const code = await dartsPromote(a), tools = dartsRoomTools(code, frames);
+        await dartsJoin(b, code); await dartsAdd(b, 1); await dartsStartOnline(a, [b]);
+        const before = tools.read().game, previous = before.active;
+        tools.mutate(data => {
+            if (mode === '501') { data.game.scores[previous] = 10; data.game.turnStartScore = 10; }
+            else data.game.marks[previous][20] = 3;
+        });
+        await until(() => frames.every(f => mode === '501' ? dartsApi(f).snapshot().match.scores[previous] === 10 : dartsApi(f).snapshot().match.marks[previous][20] === 3), 'superseded flight fixture accepted');
+        await tools.throwAt(0, 103, async () => {
+            const dart = tools.read().game, acceptedSeq = dart.seq;
+            dartsAssert(mode === '501' ? dart.lastDart.reason === 'bust' : Object.keys(dart.lastDart.penalties).length === 3, 'Accepted in-flight fixture has the intended Bust or penalty event');
+            frames.forEach(f => { f.contentWindow.__dartsNow = dart.turnStartedAt + dart.turnMs + 1; });
+            await dartsApi(a).controller().expire();
+            await until(() => frames.every(f => dartsApi(f).snapshot().match.seq > acceptedSeq), 'authoritative timeout supersedes the accepted flight before impact');
+        });
+        const current = tools.read().game;
+        for (const f of frames) {
+            const presentation = dartsApi(f).snapshot().feedback, uid = dartsApi(f).snapshot().uid;
+            const sameDevice = before.owners[previous] === uid && current.owners[current.active] === uid && previous !== current.active;
+            dartsAssert(!presentation.notice || presentation.notice.kind !== 'bust', 'Impact cannot replay a Bust superseded by timeout');
+            dartsAssert(!dartsDoc(f).querySelector('.player-penalty') && Object.keys(presentation.penalties).length === 0, 'Impact cannot replay penalty effects superseded by timeout');
+            dartsAssert(!dartsDoc(f).getElementById('handoff-overlay').hidden === sameDevice, 'Superseded flight announces the latest accepted turn with actual slot ownership');
+            if (presentation.handoff) dartsAssert(presentation.handoff.player === current.active, 'Superseded flight cannot leave an old-player handoff pending');
+        }
+        await dartsApi(a).controller().leave(); await dartsApi(b).controller().leave(); frames.forEach(f => f.remove());
+    }
 }
 async function checkDartsAccountNames() {
     const key = 'gamebox:account-name', account = document.createElement('iframe');
@@ -226,7 +277,7 @@ async function checkDartsAccountNames() {
         'Known Google name becomes the local default without loading Firebase');
     await dartsAdd(f, 1);
     dartsAssert(dartsData(f).participants[dartsData(f).seatOrder[1]].name === 'Player 2', 'Other local slots retain numbered names');
-    await dartsStartLocal(f); dartsApi(f).gesture(); dartsApi(f).land();
+    await dartsStartLocal(f); dartsThrow(f);
     switchName('Beatrice Example'); await sleep(30);
     dartsAssert(dartsData(f).participants[primary].name === 'Alice Example', 'An active match keeps its captured player name');
     await dartsReturn(f);
@@ -273,7 +324,7 @@ async function checkDartsLocalV2() {
     await dartsChange(f, 'mode-select', 'countup'); await dartsChange(f, 'rounds-select', 5); await dartsChange(f, 'timer-select', 0);
     await dartsStartLocal(f);
     dartsAssert(api.snapshot().match.history.length === 0, 'New match starts a new history');
-    for (let i = 0; i < 15; i++) { api.gesture(); api.land(); }
+    for (let i = 0; i < 15; i++) dartsThrow(f);
     dartsAssert(api.snapshot().match.status === 'over' && api.snapshot().match.stats[slot].darts === 15, 'Configurable solo Count-Up completes');
     dartsAssert(!doc.getElementById('leg-result').hidden && !doc.getElementById('lobby').open, 'Results remain visible before returning');
     dartsClick(f, 'result-room-btn');
@@ -281,7 +332,7 @@ async function checkDartsLocalV2() {
     await dartsAdd(f, 3);
     await dartsChange(f, 'rounds-select', 15);
     await dartsStartLocal(f);
-    for (let i = 0; i < 72; i++) { api.gesture(); api.land(); }
+    for (let i = 0; i < 72; i++) dartsThrow(f);
     dartsAssert(api.snapshot().match.history.length === 24, 'Match history updates one entry per three-dart turn');
     doc.querySelector('.darts-player').click();
     dartsAssert(doc.querySelectorAll('.history-turn').length === 6, 'Four-player personal history filter');
@@ -291,7 +342,8 @@ async function checkDartsLocalV2() {
     dartsAssert(list.scrollHeight > list.clientHeight, 'History body scrolls');
     list.scrollTop = 200;
     const anchor = [...list.children].find(el => el.getBoundingClientRect().bottom > list.getBoundingClientRect().top), key = anchor.dataset.historyKey, offset = anchor.getBoundingClientRect().top;
-    api.gesture(); api.land();
+    // This is an accepted scoring fixture, independent of blocked modal input.
+    api.accepted(dartsHit(20));
     const kept = [...list.children].find(el => el.dataset.historyKey === key);
     dartsAssert(kept && Math.abs(kept.getBoundingClientRect().top - offset) <= 1, 'Accepted live history preserves reading position');
     const before = api.snapshot().darts;
@@ -305,6 +357,134 @@ async function checkDartsLocalV2() {
     await dartsFlick(f, doc.getElementById('mode-panel')); dartsAssert(api.snapshot().darts === before, 'Lobby dialog blocks background throws');
     dartsClick(f, 'lobby-close-btn');
     dartsAssert(!w.ArcadeNet, 'Full local flow remains independent of network');
+    f.remove();
+}
+async function checkDartsHandoffV2() {
+    const f = await dartsBoot('handoff-player', 320, 568), doc = dartsDoc(f), api = dartsApi(f), w = f.contentWindow;
+    await dartsAdd(f, 3); await dartsChange(f, 'mode-select', 'countup'); await dartsChange(f, 'timer-select', 0);
+    await dartsStartLocal(f);
+    const overlay = doc.getElementById('handoff-overlay'), board = doc.getElementById('throw-surface'), panel = doc.getElementById('mode-panel');
+    const bounds = board.getBoundingClientRect(), originalBoard = [bounds.x, bounds.y, bounds.width, bounds.height];
+    dartsAssert(overlay.hidden, 'The initial player does not require a device handoff');
+    dartsThrow(f); dartsThrow(f);
+    dartsAssert(overlay.hidden, 'Consecutive darts by the same player do not require confirmation');
+    const previous = api.snapshot().match.active; dartsThrow(f);
+    const next = api.snapshot().match.active, seq = api.snapshot().match.seq, count = api.snapshot().darts;
+    dartsAssert(next !== previous && !overlay.hidden && api.snapshot().feedback.blocking, 'A change between locally owned player slots requires handoff confirmation');
+    dartsAssert(doc.getElementById('handoff-title').textContent.includes(dartsData(f).roster[next]), 'Handoff and accepted active player agree');
+    const readyBounds = doc.getElementById('handoff-ready-btn').getBoundingClientRect(), overlayBounds = overlay.getBoundingClientRect();
+    dartsAssert(readyBounds.top >= overlayBounds.top && readyBounds.bottom <= overlayBounds.bottom && readyBounds.left >= overlayBounds.left && readyBounds.right <= overlayBounds.right, 'Handoff confirmation fits a small mobile board');
+    dartsAssert(!api.gesture(), 'The gesture entry point rejects unconfirmed handoff');
+    await dartsFlick(f, panel);
+    dartsAssert(api.snapshot().match.seq === seq && api.snapshot().darts === count, 'The bottom mode-panel gesture cannot throw through handoff');
+    const p = panel.getBoundingClientRect(), x = p.left + p.width / 2, y = p.bottom - 10;
+    panel.dispatchEvent(new w.PointerEvent('pointerdown', { bubbles: true, clientX: x, clientY: y, pointerId: 17, isPrimary: true }));
+    const ready = doc.getElementById('handoff-ready-btn');
+    ready.dispatchEvent(new w.PointerEvent('pointerdown', { bubbles: true, clientX: readyBounds.x, clientY: readyBounds.y, pointerId: 18, isPrimary: true }));
+    ready.click();
+    w.dispatchEvent(new w.PointerEvent('pointerup', { clientX: x, clientY: y - 200, pointerId: 17, isPrimary: true })); api.land();
+    dartsAssert(overlay.hidden && !api.snapshot().gestureActive && api.snapshot().match.seq === seq, 'Confirmation and stale pointer release cannot become the next throw');
+    api.refresh(); api.refresh();
+    dartsAssert(overlay.hidden, 'Repeated accepted snapshots preserve handoff confirmation');
+    await dartsFlick(f, panel);
+    dartsAssert(api.snapshot().match.seq === seq + 1, 'A fresh bottom-panel gesture works after confirmation');
+    const after = board.getBoundingClientRect();
+    dartsAssert([after.x, after.y, after.width, after.height].every((n, i) => Math.abs(n - originalBoard[i]) <= .6), 'Handoff cannot move or resize the dartboard');
+    dartsClick(f, 'restart-btn');
+    await until(() => doc.getElementById('lobby').open && dartsData(f).phase === 'lobby', 'handoff test returns to setup');
+    await dartsChange(f, 'timer-select', 30000); await dartsStartLocal(f);
+    for (let i = 0; i < 3; i++) dartsThrow(f);
+    dartsAssert(!overlay.hidden, 'Timed local match also requests a handoff');
+    const pendingActive = api.snapshot().match.active, pendingKey = api.snapshot().feedback.handoff.key;
+    ready.dispatchEvent(new w.PointerEvent('pointerdown', { bubbles: true, pointerId: 22, isPrimary: true }));
+    w.__dartsNow = api.snapshot().match.turnStartedAt + api.snapshot().match.turnMs + 1;
+    await until(() => api.snapshot().match.active !== pendingActive, 'an unconfirmed handoff does not freeze the turn timer');
+    dartsAssert(api.snapshot().match.lastTurn.reason === 'timeout' && api.snapshot().feedback.handoff.key !== pendingKey, 'Timeout replaces the stale handoff with the accepted current turn');
+    ready.click();
+    dartsAssert(!overlay.hidden && api.snapshot().feedback.blocking, 'A handoff button pressed before timeout cannot confirm the new player after timeout');
+    dartsClick(f, 'handoff-ready-btn');
+    panel.dispatchEvent(new w.PointerEvent('pointerdown', { bubbles: true, clientX: x, clientY: y, pointerId: 23, isPrimary: true }));
+    dartsAssert(api.snapshot().gestureActive, 'A fresh confirmed player may begin a gesture');
+    const draggingPlayer = api.snapshot().match.active;
+    w.__dartsNow = api.snapshot().match.turnStartedAt + api.snapshot().match.turnMs + 1;
+    await until(() => api.snapshot().match.active !== draggingPlayer, 'timeout advances during an unfinished gesture');
+    dartsAssert(!api.snapshot().gestureActive, 'An accepted turn change cancels an unfinished gesture');
+    const timeoutSeq = api.snapshot().match.seq;
+    dartsClick(f, 'handoff-ready-btn');
+    w.dispatchEvent(new w.PointerEvent('pointerup', { clientX: x, clientY: y - 200, pointerId: 23, isPrimary: true })); api.land();
+    dartsAssert(api.snapshot().match.seq === timeoutSeq, 'A gesture released after timeout and confirmation cannot throw for the new player');
+    dartsClick(f, 'restart-btn');
+    await until(() => doc.getElementById('lobby').open, 'clear timed handoff');
+    dartsAssert(overlay.hidden && !api.snapshot().feedback.blocking, 'Returning to Lobby clears pending presentation/input state');
+    f.remove();
+}
+async function checkDartsBustV2() {
+    const f = await dartsBoot('bust-player'), doc = dartsDoc(f), api = dartsApi(f), w = f.contentWindow;
+    await dartsAdd(f, 1); await dartsChange(f, 'mode-select', '501'); await dartsChange(f, 'timer-select', 0);
+    await dartsStartLocal(f);
+    const state = api.snapshot().match, player = state.active;
+    state.scores[player] = 50; state.turnStartScore = 50;
+    api.accepted(dartsHit(20)); api.accepted(dartsHit(20, 2));
+    const accepted = api.snapshot().match;
+    dartsAssert(accepted.lastDart.reason === 'bust' && accepted.scores[player] === 50 && accepted.lastTurn.points === 0 && accepted.history[0].darts.length === 2, 'A second-dart Bust restores turn-start score and preserves both physical darts');
+    dartsAssert(api.snapshot().feedback.blocking && doc.getElementById('handoff-overlay').hidden && !doc.getElementById('turn-notice').hidden, 'Bust is explained before showing the queued handoff while input is already blocked');
+    dartsAssert(doc.getElementById('turn-notice').textContent.includes('50') && doc.getElementById('turn-notice').textContent.includes('BUST'), 'Bust notice shows the actual restored score');
+    w.ArcadeCommon.i18n.setLocale('zh');
+    dartsAssert(doc.getElementById('turn-notice').textContent.includes('爆分') && !doc.getElementById('dart-feedback').textContent.includes('爆鏢'), 'Chinese Bust terminology is consistent in gameplay feedback');
+    dartsClick(f, 'history-btn');
+    dartsAssert(doc.querySelector('.history-turn').textContent.includes('爆分') && !doc.querySelector('.history-turn').textContent.includes('爆鏢'), 'History uses the same Bust terminology');
+    dartsClick(f, 'history-close-btn');
+    w.__dartsNow += 1500; api.refresh();
+    dartsAssert(!doc.getElementById('handoff-overlay').hidden && doc.getElementById('turn-notice').hidden, 'Bust expires into one handoff overlay without stacked notices');
+    dartsClick(f, 'handoff-ready-btn'); api.refresh();
+    dartsAssert(doc.getElementById('handoff-overlay').hidden && doc.getElementById('turn-notice').hidden, 'Confirmed snapshots do not replay the previous Bust');
+    // A first-dart Bust must also restore the accepted turn-start value.
+    const current = api.snapshot().match; current.scores[current.active] = 10; current.turnStartScore = 10;
+    api.accepted(dartsHit(20));
+    dartsAssert(api.snapshot().feedback.notice.restoredScore === 10 && api.snapshot().match.history.at(-1).darts.length === 1, 'First-dart Bust uses its own actual rollback score');
+    f.remove();
+}
+async function checkDartsResultsV2() {
+    const f = await dartsBoot('result-copy'), w = f.contentWindow, R = w.DartsRules;
+    const make = (mode, extra = {}) => R.create(Object.assign({ mode, turnMs: 0, roundLimit: mode === 'countup' ? 5 : 10 }, extra), ['A', 'B'], w.__dartsNow, 0);
+    function cap(mode, variant, tied = false) {
+        let s = make(mode, { cricketVariant: variant });
+        s.players.forEach(id => { s.turns[id] = s.roundLimit - 1; });
+        s.scores.A = mode === '501' ? 80 : 40; s.scores.B = tied ? s.scores.A : mode === '501' ? 120 : 20; s.turnStartScore = s.scores.A;
+        for (let i = 0; i < 6; i++) s = R.throwDart(s, s.active, { miss: true }, w.__dartsNow);
+        return s;
+    }
+    function closed(variant) {
+        let s = make('cricket', { cricketVariant: variant });
+        R.TARGETS.forEach(n => { s.marks.A[n] = n === 25 ? 2 : 3; });
+        s.scores.A = 30; s.scores.B = 30;
+        return R.throwDart(s, 'A', dartsHit(25), w.__dartsNow);
+    }
+    let checkout = make('501', { legsToWin: 2 }); checkout.scores.A = 40; checkout.turnStartScore = 40;
+    checkout = R.throwDart(checkout, 'A', dartsHit(20, 2), w.__dartsNow);
+    let cork = cap('countup', 'standard', true);
+    cork = R.throwDart(cork, cork.active, dartsHit(25), w.__dartsNow, { x: 10, y: 0 });
+    cork = R.throwDart(cork, cork.active, dartsHit(25), w.__dartsNow, { x: 20, y: 0 });
+    const cases = [
+        [checkout, 'dartsResultCheckout', []],
+        [cap('501'), 'dartsResult501Limit', [10, 80]],
+        [closed('standard'), 'dartsResultStandardClosed', [30]],
+        [closed('cutthroat'), 'dartsResultCutthroatClosed', [30]],
+        [cap('cricket', 'standard'), 'dartsResultStandardLimit', [10, 40]],
+        [cap('cricket', 'cutthroat'), 'dartsResultCutthroatLimit', [10, 20]],
+        [cap('countup'), 'dartsResultCountup', [5, 40]],
+        [cork, 'dartsResultCork', ['10.0 mm']],
+    ];
+    for (const locale of ['en', 'zh']) {
+        w.ArcadeCommon.i18n.setLocale(locale);
+        for (const [state, key, args] of cases) {
+            dartsAssert(state.status === (state === checkout ? 'between' : 'over'), 'Accepted result fixture finishes in the expected Leg/Match phase');
+            const m = w.DartsHud.model({ state, now: w.__dartsNow, name: id => id, you: 'You' });
+            const expected = w.ArcadeCommon.i18n.t(key, ...args);
+            dartsAssert(expected !== key && w.DartsHud.resultReason(m, w.ArcadeCommon.i18n.t) === expected,
+                'Mode-aware result reason uses accepted outcome, configured cap, winner score and Cork distance: ' + locale + ' ' + key);
+        }
+    }
     f.remove();
 }
 async function checkDartsMixedV2() {
@@ -339,8 +519,17 @@ async function checkDartsMixedV2() {
     dartsAssert(!await dartsApi(a).controller().configure({ outRule: 'double' }), 'Room cannot mutate active rules');
     const turns = [];
     for (let turn = 0; turn < 4; turn++) {
-        turns.push(tools.read().game.active);
+        const before = tools.read().game, previous = before.active;
+        turns.push(previous);
         for (let dart = 0; dart < 3; dart++) await tools.throwAt(0, 80);
+        const accepted = tools.read().game;
+        for (const f of [a, b]) {
+            const uid = dartsApi(f).snapshot().uid;
+            const expected = before.owners[previous] === uid && accepted.owners[accepted.active] === uid;
+            dartsAssert(!dartsDoc(f).getElementById('handoff-overlay').hidden === expected,
+                'Mixed two-plus-two ownership requests handoff only between slots on this device');
+            if (!expected) dartsAssert(dartsApi(f).snapshot().feedback.notice && dartsApi(f).snapshot().feedback.notice.kind === 'turn', 'Cross-device turns use a nonblocking notice');
+        }
     }
     dartsAssert(new Set(turns).size === 4 && tools.read().game.history.length === 4, 'Both devices can control each of their two seats');
     for (const f of [a, b]) {
@@ -384,17 +573,39 @@ async function checkDartsMixedV2() {
     const thrower = tools.read().game.active;
     tools.mutate(data => { data.game.marks[thrower][20] = 3; });
     await until(() => [a, b].every(f => dartsApi(f).snapshot().match.marks[thrower][20] === 3), 'Cut-Throat fixture');
-    await tools.throwAt(0, 103);
+    await tools.throwAt(0, 103, () => {
+        dartsAssert([a, b].every(f => !dartsDoc(f).querySelector('.player-penalty')), 'Remote penalty effects wait for the accepted dart to land');
+    });
     dartsAssert(tools.read().game.scores[thrower] === 0 && tools.read().game.players.filter(id => id !== thrower).every(id => tools.read().game.scores[id] === 60), 'Cut-Throat penalties reach all applicable opponents');
     for (const f of [a, b]) {
         const doc = dartsDoc(f);
         dartsAssert(doc.getElementById('match-meta').textContent.includes('Cut-Throat') && doc.getElementById('dart-feedback').textContent.includes('+60'), 'Cut-Throat HUD explains recipient penalties');
+        const affected = [...doc.querySelectorAll('.darts-player.penalty-flash')];
+        dartsAssert(affected.length === 3 && affected.every(card => card.dataset.playerUid !== thrower && card.querySelector('.player-penalty').textContent === '+60'), 'Only the three actual accepted penalty recipients show warning badges');
         dartsAssert(doc.querySelectorAll('.cricket-table thead th').length === 5 && doc.querySelectorAll('.cricket-table tbody tr').length === 7, 'Four-player Cricket marks matrix');
         dartsAssert(doc.getElementById('turn-timer').hidden, 'Timer off hidden online');
         dartsClick(f, 'history-btn');
         dartsAssert(dartsDoc(f).querySelector('.history-turn-summary').textContent.includes('+60'), 'Penalty history matches actual recipients');
         dartsClick(f, 'history-close-btn');
     }
+    for (const count of [2, 1, 0]) {
+        [a, b].forEach(f => { f.contentWindow.__dartsNow += 1500; dartsApi(f).refresh(); });
+        dartsAssert([a, b].every(f => !dartsDoc(f).querySelector('.player-penalty')), 'Penalty badges expire without changing permanent score/history');
+        const expectedThrower = tools.read().game.active, opponents = tools.read().game.players.filter(id => id !== expectedThrower);
+        tools.mutate(data => {
+            data.game.marks[expectedThrower][20] = 3;
+            opponents.forEach((id, index) => { data.game.marks[id][20] = index < count ? 0 : 3; });
+        });
+        await until(() => [a, b].every(f => opponents.every((id, index) => dartsApi(f).snapshot().match.marks[id][20] === (index < count ? 0 : 3))), 'accepted eligible penalty recipients');
+        await tools.throwAt(0, 103);
+        for (const f of [a, b]) {
+            const cards = [...dartsDoc(f).querySelectorAll('.darts-player.penalty-flash')];
+            dartsAssert(cards.length === count && cards.every(card => opponents.slice(0, count).includes(card.dataset.playerUid)), 'Closed opponents and the thrower receive no visual penalty: ' + count);
+        }
+    }
+    const snapshotSeq = tools.read().game.seq;
+    await dartsApi(a).controller().service.heartbeat(code, 0); await sleep(30);
+    dartsAssert([a, b].every(f => !dartsDoc(f).querySelector('.player-penalty')) && tools.read().game.seq === snapshotSeq, 'A repeated room snapshot cannot replay the last accepted penalty effect');
     await dartsApi(a).controller().leave(); await dartsApi(b).controller().leave(); a.remove(); b.remove();
 }
 async function checkDartsLeaveRestoreV2() {
@@ -410,18 +621,19 @@ async function checkDartsLeaveRestoreV2() {
     await dartsChange(f, 'mode-select', 'countup'); await dartsChange(f, 'timer-select', 0); await dartsChange(f, 'rounds-select', 5);
     await dartsStartLocal(f);
     dartsAssert(dartsApi(f).snapshot().match.players.length === 3 && Object.values(dartsApi(f).snapshot().match.owners).every(id => id === 'local-controller'), 'Restored slots start a local Count-Up match');
-    for (let i = 0; i < 3; i++) { dartsApi(f).gesture(); dartsApi(f).land(); }
+    for (let i = 0; i < 3; i++) dartsThrow(f);
+    dartsConfirmHandoff(f);
     await dartsFlick(f, dartsDoc(f).getElementById('mode-panel'));
     dartsAssert(dartsApi(f).snapshot().darts === 4, 'Restored local device can throw for the next owned seat');
     dartsClick(f, 'restart-btn');
     await until(() => dartsData(f).phase === 'lobby' && dartsDoc(f).getElementById('lobby').open, 'Local restart returns to configuration');
     await dartsChange(f, 'mode-select', '501'); await dartsChange(f, 'out-select', 'open'); await dartsChange(f, 'match-select', 2); await dartsChange(f, 'timer-select', 0);
     await dartsStartLocal(f);
-    dartsApi(f).gesture(); dartsApi(f).land();
+    dartsThrow(f);
     const fixture = dartsApi(f).snapshot().match, points = fixture.lastDart.result.score;
     dartsAssert(points > 0, 'Deterministic local checkout fixture has a scoring dart');
     fixture.scores[fixture.active] = points; fixture.turnStartScore = points;
-    dartsApi(f).gesture(); dartsApi(f).land();
+    dartsThrow(f);
     dartsAssert(dartsApi(f).snapshot().match.status === 'between', 'Local checkout reaches between-Leg state');
     dartsClick(f, 'settings-btn');
     dartsAssert(dartsDoc(f).getElementById('back-lobby-btn').hidden && dartsDoc(f).getElementById('out-select').disabled, 'Local between-Leg rules remain locked');
@@ -509,6 +721,9 @@ async function checkDartsLayoutsV2() {
         f.style.cssText = 'position:fixed;inset:0;width:' + width + 'px;height:' + height + 'px;border:0;z-index:10';
         await dartsAdd(f, 3); await dartsChange(f, 'mode-select', 'cricket'); await dartsChange(f, 'timer-select', 0);
         await dartsStartLocal(f); dartsApi(f).previewCricket(); await sleep(60);
+        const fixture = dartsApi(f).snapshot().match;
+        fixture.players.forEach(id => { fixture.marks[id][20] = id === fixture.active ? 3 : 0; });
+        dartsApi(f).accepted(dartsHit(20));
     }
 }
 async function checkDartsLobbyV2() {

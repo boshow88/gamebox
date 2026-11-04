@@ -68,6 +68,13 @@
                         <canvas class="stage-canvas drag-stage" id="stage" width="480" height="600" role="img" aria-label="Dartboard"></canvas>
                     </div>
                     <div class="hit-toast" id="hit-toast" aria-hidden="true" hidden></div>
+                    <div class="turn-notice" id="turn-notice" role="status" aria-live="polite" hidden>
+                        <strong id="turn-notice-title"></strong><span id="turn-notice-message"></span>
+                    </div>
+                    <div class="handoff-overlay" id="handoff-overlay" role="group" aria-labelledby="handoff-title" hidden>
+                        <h2 id="handoff-title"></h2><p id="handoff-message"></p>
+                        <button class="btn btn-primary" id="handoff-ready-btn" type="button">Ready to Throw</button>
+                    </div>
                     <div class="leg-result" id="leg-result" hidden>
                         <h2 id="result-title"></h2><strong id="result-winner"></strong><p id="result-reason"></p>
                         <button class="btn btn-primary" id="next-leg-btn" type="button" data-i18n="dartsNextLeg">Next leg</button>
@@ -171,6 +178,7 @@
     <script src="../js/firebase-config.js"></script>
     <script src="../js/games/darts-rules.js"></script>
     <script src="../js/games/darts-room.js"></script>
+    <script src="../js/games/darts-feedback.js"></script>
     <script src="../js/games/darts-hud.js"></script>
     <script src="../js/games/darts-history.js"></script>
     <script src="../js/games/darts-lobby.js"></script>

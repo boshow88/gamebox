@@ -380,7 +380,7 @@ assert.equal(R.create({ mode: 'cricket' }, ['A', 'B'], 0).roundLimit, 15);
 
 // Execute the real physics independently of DOM/rendering and compare with the original
 // implementation's expected trajectory. This catches accidental changes to the skill mechanic.
-const sandbox = { window: { DartsRules: R, ArcadeCommon: { i18n: { STRINGS: { en: {}, zh: {} }, t: k => k },
+const sandbox = { window: { DartsRules: R, DartsFeedback: require('../js/games/darts-feedback.js'), ArcadeCommon: { i18n: { STRINGS: { en: {}, zh: {} }, t: k => k },
     math: { clamp: (v, a, b) => Math.max(a, Math.min(b, v)) } } },
     document: { readyState: 'loading', addEventListener() {}, getElementById: id => id === 'stage' ? { getContext: () => ({}) } : null } };
 let source = fs.readFileSync(require('node:path').join(__dirname, '../js/games/darts.js'), 'utf8');

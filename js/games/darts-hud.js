@@ -41,7 +41,31 @@
             winner: s ? s.winner || s.legWinner : null, draw: !!(s && s.draw),
             forfeit: !!(s && s.endReason === 'left'),
             endReason: s ? s.endReason : null,
+            legEndReason: s ? s.legEndReason : null,
+            winnerDistance: s && s.corkDistances ? s.corkDistances[s.winner || s.legWinner] : null,
+            effects: input.effects || { penalties: {} },
         };
+    }
+    function distanceText(distance) { return Number.isFinite(distance) && distance < 1e9 ? distance.toFixed(1) + ' mm' : ''; }
+    // Explanations use the accepted finish reason, including between-Leg results.
+    function resultReason(m, t) {
+        if (m.forfeit || m.endReason === 'left' || m.legEndReason === 'left') return t('dartsLeft');
+        if (m.endReason === 'practice-ended' || m.endReason === 'cancelled' || m.draw) return '';
+        var reason = m.legEndReason || m.endReason;
+        var winner = m.players.find(function (p) { return p.id === m.winner; });
+        if (!winner) return '';
+        if (reason === 'cork') return t('dartsResultCork', distanceText(m.winnerDistance));
+        if (m.mode === '501') {
+            if (reason === 'checkout') return t('dartsResultCheckout');
+            if (reason === 'round-limit') return t('dartsResult501Limit', m.roundLimit, winner.score);
+        }
+        if (m.mode === 'cricket') {
+            var prefix = m.cricketVariant === 'cutthroat' ? 'dartsResultCutthroat' : 'dartsResultStandard';
+            if (reason === 'closed') return t(prefix + 'Closed', winner.score);
+            if (reason === 'round-limit') return t(prefix + 'Limit', m.roundLimit, winner.score);
+        }
+        if (m.mode === 'countup' && reason === 'round-limit') return t('dartsResultCountup', m.roundLimit, winner.score);
+        return '';
     }
     function create(options) {
         var doc = options.document, t = options.t, label = options.resultLabel;
@@ -59,7 +83,7 @@
             return Object.keys(penalties || {}).filter(function (id) { return penalties[id] > 0; })
                 .map(function (id) { return (names[id] || id) + ' +' + penalties[id]; }).join(options.locale() === 'zh' ? '、' : ', ');
         }
-        function distanceText(distance) { return Number.isFinite(distance) && distance < 1e9 ? distance.toFixed(1) + ' mm' : '—'; }
+        function shownDistance(distance) { return distanceText(distance) || '—'; }
         function ruleSummary(m) {
             if (m.throwPhase === 'cork') return t('dartsCork') + ' · ' + valueLabel('dartsCorkRound', m.corkRound);
             var parts = [];
@@ -69,32 +93,44 @@
             if (m.roundLimit) parts.push(valueLabel('dartsRoundLimit', m.roundLimit));
             return parts.join(' · ');
         }
+        function renderEffects(m) {
+            var penalties = m.effects && m.effects.penalties || {};
+            Array.from(get('player-scores').children).forEach(function (card) {
+                var amount = penalties[card.dataset.playerUid], affected = Number.isFinite(amount) && amount > 0;
+                card.classList.toggle('penalty-flash', affected);
+                var badge = card.querySelector('.player-penalty');
+                if (!affected) { if (badge) badge.remove(); return; }
+                if (!badge) { badge = el('span', 'player-penalty'); badge.setAttribute('aria-hidden', 'true'); card.append(badge); }
+                var text = '+' + amount;
+                if (badge.textContent !== text) badge.textContent = text;
+            });
+        }
         var lastKey = '', lastPlayersKey = '';
         function render(m) {
             // Clock updates should not rebuild the table, reset focus, or repeat live announcements.
             get('turn-timer').hidden = m.timer === null;
             get('turn-timer').textContent = m.timer === null ? '' : m.timer + 's';
-            var withoutClock = JSON.stringify([Object.assign({}, m, { timer: null }), options.locale(), options.isFlying()]);
-            if (withoutClock === lastKey) return;
+            var withoutClock = JSON.stringify([Object.assign({}, m, { timer: null, effects: null }), options.locale(), options.isFlying()]);
+            if (withoutClock === lastKey) { renderEffects(m); return; }
             lastKey = withoutClock;
             var names = Object.fromEntries(m.players.map(function (p) { return [p.id, p.name]; }));
             var mode = options.modeName(m.mode);
-            var variant = variantLabel(m), endedPractice = m.mode === 'practice' && m.phase === 'over', cancelled = m.endReason === 'cancelled';
+            var variant = variantLabel(m), endedPractice = m.mode === 'practice' && m.endReason === 'practice-ended', cancelled = m.endReason === 'cancelled';
             get('match-meta').textContent = mode + (variant ? ' · ' + variant : '') +
-                (m.leg ? ' · ' + valueLabel('dartsLeg', m.leg) + ' · ' + valueLabel('dartsLegsToWin', m.legsToWin) : '');
+                (m.leg ? ' · ' + t('dartsLegNumber', m.leg) + ' · ' + t('dartsMatchFormat', m.legsToWin) : '');
+            get('match-meta').title = get('match-meta').textContent;
             if (get('mode-rule-summary')) get('mode-rule-summary').textContent = ruleSummary(m);
             var status = cancelled ? t('dartsMatchEnded') : endedPractice ? t('dartsPracticeEnded') : m.phase === 'between' || m.phase === 'over' ? (m.draw ? t('dartsDraw') :
                 t(m.phase === 'over' ? 'dartsMatchWon' : 'dartsLegWon') + ' · ' + names[m.winner]) :
                 m.mode === 'practice' && m.players.length === 1 ? t('dartsFlickPrompt') :
-                    (options.isOnline() ? t(controls(m.active) ? 'dartsYourTurn' : 'dartsWaiting') : t('dartsTurn')) +
-                    ' · ' + names[m.active] + ' · ' + valueLabel('dartsDart', m.dart + '/' + (m.throwPhase === 'cork' ? 1 : 3));
+                    t('dartsTurnOf', names[m.active]) + ' · ' + t('dartsDartProgress', m.dart, m.throwPhase === 'cork' ? 1 : 3);
             get('turn-status').textContent = status;
             if ((m.mode !== 'practice' || m.players.length > 1) && m.phase === 'playing') {
                 var indicator = get('turn-status'); indicator.replaceChildren();
-                indicator.append(el('span', 'status-name', (options.isOnline() ? t(controls(m.active) ? 'dartsYourTurn' : 'dartsWaiting') : t('dartsTurn')) + ' · ' + names[m.active]),
-                    el('span', 'status-dart', valueLabel('dartsDart', m.dart + '/' + (m.throwPhase === 'cork' ? 1 : 3))));
+                var turnName = el('span', 'status-name', t('dartsTurnOf', names[m.active])); turnName.title = turnName.textContent;
+                indicator.append(turnName, el('span', 'status-dart', t('dartsDartProgress', m.dart, m.throwPhase === 'cork' ? 1 : 3)));
                 if (m.throwPhase === 'cork') indicator.append(el('span', 'status-round', valueLabel('dartsCorkRound', m.corkRound)));
-                else if (m.round) indicator.append(el('span', 'status-round', valueLabel('dartsRound', m.round + '/' + m.roundLimit)));
+                else if (m.round) indicator.append(el('span', 'status-round', t('dartsRoundProgress', m.round, m.roundLimit)));
             }
             var playersKey = JSON.stringify([m.players, m.mode, options.locale()]);
             if (playersKey !== lastPlayersKey) {
@@ -125,6 +161,7 @@
                     if (replacement) replacement.focus({ preventScroll: true });
                 }
             }
+            renderEffects(m);
             get('player-score-label').textContent = t(m.mode === '501' ? 'dartsRemaining' : m.mode === 'practice' ? 'dartsDarts' : 'dartsPoints');
             var cricket = m.mode === 'cricket';
             get('cricket-board').hidden = !cricket || m.throwPhase === 'cork';
@@ -162,13 +199,13 @@
                         el('span', 'turn-dart-score', m.turn.phase === 'cork' ? '' : r ? r.score : '—'));
                     darts.append(slot);
                 }
-                get('turn-score').textContent = m.turn.phase === 'cork' ? t('dartsDistance') + ' · ' + distanceText(m.turn.distance) :
+                get('turn-score').textContent = m.turn.phase === 'cork' ? t('dartsDistance') + ' · ' + shownDistance(m.turn.distance) :
                     cricket && m.cricketVariant === 'cutthroat' ? t('dartsPenalties') + ' · ' + (penaltiesText(m.turn.penalties, names) || '—') :
                         t('dartsTurnScore') + ' · ' + m.turn.points;
             }
             var last = m.feedback, feedback = get('dart-feedback');
             feedback.textContent = m.timedOut ? t('dartsTimeout') : last ?
-                (last.phase === 'cork' ? t('dartsCork') + ' · ' + valueLabel('dartsDistance', distanceText(last.distance)) :
+                (last.phase === 'cork' ? t('dartsCork') + ' · ' + valueLabel('dartsDistance', shownDistance(last.distance)) :
                     last.reason === 'bust' ? t('dartsBust') : last.reason === 'checkout' ? t('dartsCheckout') : cricket ? label(last.result) +
                         (m.cricketVariant === 'cutthroat' ? ' · ' + t('dartsPenalties') + ' · ' + (penaltiesText(last.penalties, names) || '—') : '') : '') : '';
             feedback.classList.toggle('bust', !!(last && last.reason === 'bust'));
@@ -179,12 +216,12 @@
             var result = get('leg-result'); result.hidden = options.isFlying() || !['between', 'over'].includes(m.phase);
             get('result-title').textContent = cancelled ? t('dartsMatchEnded') : endedPractice ? t('dartsPracticeEnded') : m.draw ? t('dartsDraw') : t(m.phase === 'over' ? 'dartsMatchWon' : 'dartsLegWon');
             get('result-winner').textContent = m.draw || endedPractice || cancelled ? '' : names[m.winner] || '';
-            get('result-reason').textContent = m.forfeit ? t('dartsLeft') : m.endReason === 'round-limit' ? t('dartsRoundLimitReached') : '';
+            get('result-reason').textContent = resultReason(m, t);
             get('next-leg-btn').hidden = m.phase !== 'between';
             get('play-again-btn').hidden = true;
             get('result-room-btn').hidden = m.phase !== 'over';
         }
         return { render: render };
     }
-    return { model: model, create: create };
+    return { model: model, create: create, resultReason: resultReason };
 });

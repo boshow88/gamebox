@@ -32,6 +32,8 @@
     var localRoom = null, onlineLoading = null, observedOnlinePhase = null, lastRoomSnapshot = null;
     var localController = 'local-controller', localSeatSerial = 0;
     var hud = null, historyView = null;
+    var feedback = window.DartsFeedback.create(), feedbackState = feedback.snapshot(Date.now());
+    var pendingFeedbackEvent = null, feedbackKey = '', presentationTurnKey = '', handoffPressKey = null;
 
     // =================================================================
     // i18n (gameplay strings; launcher card strings live in launcher.js)
@@ -120,7 +122,7 @@
         dartsWithdrawn: '已離開', dartsThisTurn: '本回合', dartsPreviousTurn: '上一回合', dartsTarget: '目標', dartsBullShort: '紅心',
         dartsReleaseSpeed: '放手速度', dartsPracticeTip: '按住、往上輕甩，再放開。', dartsStatistics: '詳細統計',
         dartsYou: '你', dartsGuest: '訪客', dartsTurn: '輪到', dartsDart: '第幾鏢', dartsRound: '回合', dartsLeg: '局',
-        dartsWaiting: '等待對手投擲', dartsYourTurn: '輪到你投擲', dartsBust: '爆鏢——本回合得分取消',
+        dartsWaiting: '等待對手投擲', dartsYourTurn: '輪到你投擲', dartsBust: '爆分（BUST）——本回合得分取消',
         dartsCheckout: '成功結鏢', dartsTimeout: '時間到——換人投擲', dartsLegWon: '本局獲勝', dartsMatchWon: '對戰獲勝',
         dartsDraw: '平手——重打本局', dartsNextLeg: '開始下一局', dartsAgain: '再玩一次', dartsResults: '結果／房間',
         dartsTurnScore: '本回合得分', dartsPoints: '分數', dartsRemaining: '剩餘分數', dartsClosed: '已關閉',
@@ -197,11 +199,50 @@
         dartsMatchEnded: '比賽已結束',
         dartsRulesLocked: '本場規則已鎖定。', dartsWaitReady: '等待其他裝置準備。',
         dartsRuleCountup: '在設定的回合內累積得分，每位玩家都有相同回合數。最高分平手時加賽比靶心。',
-        dartsRule501: '從501分扣至恰好零分，依所選開分與結鏢條件判定。爆鏢時，分數與開分狀態回復至本回合開始時。',
+        dartsRule501: '從501分扣至恰好零分，依所選開分與結鏢條件判定。爆分時，分數與開分狀態回復至本回合開始時。',
         dartsRuleCricket: '20到15與紅心各需三個記號關閉。標準玩法由多餘記號為自己得分；Cut-Throat則為符合條件的對手加罰分。',
         dartsRoomGone: '已結束房間連線，本機房間已準備好。',
         dartsSettingsHint: '在房間設定下一場玩法；進行中的比賽規則維持鎖定。',
         dartsDraw: '平手——加賽比靶心', dartsHistoryClock: '查看紀錄時，回合仍會繼續倒數。',
+    });
+
+    Object.assign(AC.i18n.STRINGS.en, {
+        dartsTurnOf: function (name) { return name + "'s turn"; },
+        dartsDartProgress: function (n, total) { return 'Dart ' + n + '/' + total; },
+        dartsRoundProgress: function (n, total) { return 'Round ' + n + '/' + total; },
+        dartsLegNumber: function (n) { return 'Leg ' + n; },
+        dartsMatchFormat: function (n) { return n === 1 ? 'One leg' : 'First to ' + n + ' legs'; },
+        dartsHandoffTitle: function (name) { return name + "'s Turn"; },
+        dartsHandoffMessage: 'Pass the device to the next player.', dartsHandoffReady: 'Ready to Throw',
+        dartsBustTitle: 'BUST',
+        dartsBustRestored: function (score) { return 'Turn cancelled · Score restored to ' + score; },
+        dartsResultCheckout: 'Finished on exactly zero under the selected Out rule.',
+        dartsResult501Limit: function (rounds, score) { return rounds + ' rounds completed · Lowest remaining score: ' + score + '.'; },
+        dartsResultStandardClosed: function (score) { return 'All targets closed with ' + score + ' points, matching or beating every opponent.'; },
+        dartsResultCutthroatClosed: function (score) { return 'All targets closed with ' + score + ' penalty points, no higher than any opponent.'; },
+        dartsResultStandardLimit: function (rounds, score) { return rounds + ' rounds completed · Highest score: ' + score + '.'; },
+        dartsResultCutthroatLimit: function (rounds, score) { return rounds + ' rounds completed · Lowest penalty score: ' + score + '.'; },
+        dartsResultCountup: function (rounds, score) { return rounds + ' rounds completed · Highest total: ' + score + '.'; },
+        dartsResultCork: function (distance) { return 'Won the closest-to-Bull tiebreak' + (distance ? ' · Distance: ' + distance : '') + '.'; },
+    });
+    Object.assign(AC.i18n.STRINGS.zh, {
+        dartsTurnOf: function (name) { return name + '的回合'; },
+        dartsDartProgress: function (n, total) { return '第' + n + '/' + total + '鏢'; },
+        dartsRoundProgress: function (n, total) { return '第' + n + '/' + total + '回合'; },
+        dartsLegNumber: function (n) { return '第' + n + '局'; },
+        dartsMatchFormat: function (n) { return n === 1 ? '一局決勝' : '先贏' + n + '局'; },
+        dartsHandoffTitle: function (name) { return '輪到' + name; },
+        dartsHandoffMessage: '請將裝置交給下一位玩家', dartsHandoffReady: '準備投鏢',
+        dartsBustTitle: 'BUST · 爆分',
+        dartsBustRestored: function (score) { return '本回合得分取消，剩餘分數回復為' + score; },
+        dartsResultCheckout: '依本場結鏢條件扣至恰好零分。',
+        dartsResult501Limit: function (rounds, score) { return '已完成' + rounds + '回合，以最低剩餘分數' + score + '分獲勝。'; },
+        dartsResultStandardClosed: function (score) { return '已關閉所有目標，得分' + score + '分且不低於任何對手。'; },
+        dartsResultCutthroatClosed: function (score) { return '已關閉所有目標，罰分' + score + '分且不高於任何對手。'; },
+        dartsResultStandardLimit: function (rounds, score) { return '已完成' + rounds + '回合，以最高得分' + score + '分獲勝。'; },
+        dartsResultCutthroatLimit: function (rounds, score) { return '已完成' + rounds + '回合，以最低罰分' + score + '分獲勝。'; },
+        dartsResultCountup: function (rounds, score) { return '已完成' + rounds + '回合，以最高總分' + score + '分獲勝。'; },
+        dartsResultCork: function (distance) { return '加賽比靶心，以最接近靶心獲勝' + (distance ? '，距離' + distance : '') + '。'; },
     });
 
     // =================================================================
@@ -524,6 +565,7 @@
 
     function canThrow() {
         return shell && shell.isPlaying() && !sending && !document.querySelector('.darts-dialog[open]') &&
+            !feedback.snapshot(Date.now()).blocking &&
             roomData().phase === 'playing' && match && match.status === 'playing' && controlsPlayer(match.active) &&
             (!usesSharedMatch() || Date.now() >= match.readyAt) && (!match.turnMs || Date.now() < match.turnStartedAt + match.turnMs) &&
             (G.dartState === 'ready' || G.dartState === 'landed');
@@ -620,9 +662,17 @@
         }
         sndHit(res);
         if (match && !usesSharedMatch()) {
-            acceptLocal(Rules.throwDart(match, match.active, physical, Date.now(), G.impact));
-        } else if (room) viewMatch = match;
-        else {
+            var accepted = Rules.throwDart(match, match.active, physical, Date.now(), G.impact);
+            queueDartFeedback(accepted);
+            acceptLocal(accepted);
+        } else if (room) {
+            viewMatch = match;
+            // A timeout can supersede the accepted flight before it lands. Never
+            // reinterpret a previous dart as an effect for that newer turn.
+            if (match.lastThrow && match.lastDart && match.lastThrow.seq === match.seq) {
+                queueDartFeedback(match, match.matchId + ':' + match.lastThrow.seq);
+            }
+        } else {
             G.practiceHistory.push({ uid: 'practice', leg: 0, turn: G.darts, round: 0, darts: [res],
                 points: res.score, score: G.total, reason: 'complete', finished: true });
             if (G.practiceHistory.length > Rules.HISTORY_LIMIT) { G.practiceHistory.shift(); G.practiceHistoryDropped++; }
@@ -718,6 +768,7 @@
     }
 
     function render() {
+        syncPresentation();
         updateCamDolly();
         drawBackground();
         drawBoard();
@@ -733,7 +784,9 @@
     function syncThrowFeedback() {
         var toast = document.getElementById('hit-toast'); if (!toast) return;
         var result = G.dartState === 'landed' && G.resultT > 0 && G.result;
-        toast.hidden = G.hintT <= 0 && !result;
+        var s = viewMatch || match;
+        toast.hidden = !!(feedbackState.blocking || feedbackState.notice || s && s.status !== 'playing' ||
+            roomData().phase === 'lobby') || G.hintT <= 0 && !result;
         toast.textContent = G.hintT > 0 ? G.hint : result ? resultLabel(result) : '';
         toast.classList.toggle('danger', G.hintT > 0 || !!(result && result.miss));
     }
@@ -1173,14 +1226,58 @@
         return localRoom.phase === 'lobby' && Rules.eligibility(localRoom.options, localRoom.seatOrder.length).allowed;
     }
     function renderLobby() { if (lobby) lobby.render(); }
+    function queueDartFeedback(g, eventId) {
+        if (!g || !g.lastDart) return;
+        pendingFeedbackEvent = { id: eventId || g.matchId + ':' + g.seq, dart: g.lastDart,
+            restoredScore: g.scores[g.lastDart.uid] };
+    }
+    function syncPresentation() {
+        if (!localRoom) return;
+        var s = viewMatch || match, now = Date.now(), data = roomData();
+        var turnKey = s ? [s.matchId, s.leg, s.phase, s.round, s.active, s.status].join(':') : '';
+        if (turnKey !== presentationTurnKey) { gesture = null; presentationTurnKey = turnKey; }
+        if (data.phase === 'lobby' || !s) {
+            feedback.reset(); pendingFeedbackEvent = null;
+        } else {
+            feedback.update(s, { controllerId: controllerId(), now: now, throwEvent: pendingFeedbackEvent });
+            pendingFeedbackEvent = null;
+        }
+        feedbackState = feedback.snapshot(now);
+        var key = JSON.stringify([feedbackState, AC.i18n.locale]);
+        if (key === feedbackKey) return;
+        feedbackKey = key;
+        if (feedbackState.blocking) gesture = null;
+        var handoff = document.getElementById('handoff-overlay'), pending = feedbackState.handoff;
+        handoff.hidden = !pending || !pending.visible;
+        if (pending) {
+            document.getElementById('handoff-title').textContent = t('dartsHandoffTitle', playerName(pending.player));
+            document.getElementById('handoff-message').textContent = t('dartsHandoffMessage');
+            var ready = document.getElementById('handoff-ready-btn');
+            ready.textContent = t('dartsHandoffReady'); ready.dataset.handoffKey = pending.key;
+        }
+        var notice = document.getElementById('turn-notice'), event = feedbackState.notice;
+        notice.hidden = !event;
+        notice.classList.toggle('bust', !!event && event.kind === 'bust');
+        document.getElementById('turn-notice-title').textContent = !event ? '' :
+            event.kind === 'bust' ? t('dartsBustTitle') : t('dartsTurnOf', playerName(event.player));
+        document.getElementById('turn-notice-message').textContent = event && event.kind === 'bust' ?
+            t('dartsBustRestored', event.restoredScore) : '';
+        // Expiring effects also update card badges while the accepted state is unchanged.
+        renderHud();
+    }
+    function renderHud() {
+        if (!hud || !localRoom) return;
+        var s = viewMatch || match, data = roomData();
+        hud.render(window.DartsHud.model({ state: s, effects: feedbackState, online: usesSharedMatch(), now: Date.now(), name: playerName,
+            you: (data.participants[data.seatOrder[0]] || {}).name || t('dartsPlayerNumber', 1),
+            practice: { darts: G.darts, result: G.last, speed: G.analysis && G.analysis.speed != null ? G.analysis.speed : null } }));
+    }
     function syncGameUi() {
         if (!hud || !localRoom) return;
         var s = viewMatch || match, data = roomData();
         document.getElementById('mode-description').textContent = ruleText(data.options.mode);
         document.getElementById('debug-btn').hidden = !!s && s.mode !== 'practice';
-        hud.render(window.DartsHud.model({ state: s, online: usesSharedMatch(), now: Date.now(), name: playerName,
-            you: (data.participants[data.seatOrder[0]] || {}).name || t('dartsPlayerNumber', 1),
-            practice: { darts: G.darts, result: G.last, speed: G.analysis && G.analysis.speed != null ? G.analysis.speed : null } }));
+        syncPresentation(); renderHud();
         document.getElementById('next-leg-btn').disabled = G.dartState === 'flying' || sending || !!(usesSharedMatch() && match && Date.now() < match.readyAt);
         var stats = document.getElementById('stats-details'), summary = document.getElementById('result-summary');
         stats.hidden = !s || s.status === 'playing' || s.mode !== 'countup';
@@ -1354,6 +1451,7 @@
             !Object.values(match.owners).every(function (owner) { return owner === controllerId(); })) return false;
         var g = match;
         var owned = data.seatOrder.map(function (id) { return Object.assign({}, data.participants[id], { controllerId: localController }); });
+        feedback.rebindController(controllerId(), localController);
         online.leave().catch(function () {}); room = null;
         localRoom = newLocalRoom(); localRoom.options = Rules.options(data.options);
         localRoom.participants = Object.fromEntries(owned.map(function (p) { return [p.id, p]; }));
@@ -1405,6 +1503,18 @@
         hideShellOverlay(); syncGameUi(); shell.syncButtons();
     }
     function setupControls() {
+        var handoffReady = document.getElementById('handoff-ready-btn');
+        handoffReady.addEventListener('pointerdown', function () { handoffPressKey = handoffReady.dataset.handoffKey; });
+        handoffReady.addEventListener('keydown', function (event) {
+            if (event.key === 'Enter' || event.key === ' ') handoffPressKey = handoffReady.dataset.handoffKey;
+        });
+        handoffReady.addEventListener('click', function () {
+            var expectedKey = handoffPressKey || handoffReady.dataset.handoffKey;
+            handoffPressKey = null; gesture = null;
+            syncPresentation();
+            if (match && match.turnMs && Date.now() >= match.turnStartedAt + match.turnMs) return;
+            feedback.confirm(Date.now(), expectedKey); syncPresentation();
+        });
         document.getElementById('next-leg-btn').addEventListener('click', function () {
             if (usesSharedMatch()) online.nextLeg().catch(showNetError);
             else { acceptLocal(Rules.nextLeg(match, Date.now())); clearBoard(); }

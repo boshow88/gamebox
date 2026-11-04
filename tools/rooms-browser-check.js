@@ -187,10 +187,10 @@ ${dartsOnly ? fs.readFileSync(path.join(__dirname, 'helpers/darts-browser-v2.js'
         }
     } else {
         const codec = await import('/js/net/rtdb-values.mjs'); encode = codec.encodeRoomValue; decode = codec.decodeRoomValue;
-        if(dartsOnly) { await checkDartsAccountNames(); await checkDartsContextV2(); await checkDartsLocalV2(); await checkDartsReservedLocalV2(); await checkDartsReservedLossV2(); await checkDartsLeaveRestoreV2(); await checkDartsMixedV2(); await checkDartsFourV2(); await checkDartsLayoutsV2(); await checkDartsLobbyV2(); }
+        if(dartsOnly) { await checkDartsAccountNames(); await checkDartsContextV2(); await checkDartsLocalV2(); await checkDartsHandoffV2(); await checkDartsBustV2(); await checkDartsResultsV2(); await checkDartsReservedLocalV2(); await checkDartsReservedLossV2(); await checkDartsLeaveRestoreV2(); await checkDartsMixedV2(); await checkDartsSupersededFlightV2(); await checkDartsFourV2(); await checkDartsLayoutsV2(); await checkDartsLobbyV2(); }
         else { await check('beam', 'beam_rooms', 'beam'); await check('rune-stones', 'duel_rooms', 'rd'); }
     }
-    document.getElementById('result').textContent = 'PASS (' + mode + '): ' + (mode === 'invalid' ? 'disabled online rooms and working account profiles.' : dartsOnly ? 'Darts unified offline/online lobby, local and mixed player slots, immutable rules/readiness, persistent matches, history, throw input and responsive geometry.' : 'real browser room flows, backend selection and account isolation.');
+    document.getElementById('result').textContent = 'PASS (' + mode + '): ' + (mode === 'invalid' ? 'disabled online rooms and working account profiles.' : dartsOnly ? 'Darts local/mixed room flows, handoff and stale-pointer safety, timed transitions, Bust rollback, accepted penalty feedback, mode-aware results, history and responsive geometry.' : 'real browser room flows, backend selection and account isolation.');
 })().catch(error => { document.getElementById('result').textContent = 'FAIL: ' + error.stack; });
 </script>`;
 
@@ -216,10 +216,12 @@ async function main() {
             if (file.endsWith('net.js')) body = body.toString().replace('const BASE = `https://www.gstatic.com/firebasejs/${SDK}`;', "const BASE = location.origin + '/__sdk';");
             if (file.endsWith('darts.js') && dartsOnly) body = body.toString().replace(/\}\)\(\);\s*$/, `
                 window.__dartsTest = {
-                    gesture: function () { if (G.dartState === 'landed') freshDart(); launchThrow(analyseGesture([{t:0,x:0,y:0},{t:.05,x:0,y:50},{t:.1,x:0,y:140},{t:.15,x:0,y:230}])); },
+                    gesture: function () { if (!canThrow()) return false; if (G.dartState === 'landed') freshDart(); launchThrow(analyseGesture([{t:0,x:0,y:0},{t:.05,x:0,y:50},{t:.1,x:0,y:140},{t:.15,x:0,y:230}])); return true; },
                     land: function () { update(1); }, controller: function () { return online; },
+                    refresh: function () { syncGameUi(); },
+                    accepted: function (result, impact) { var accepted = Rules.throwDart(match, match.active, result, Date.now(), impact); queueDartFeedback(accepted); acceptLocal(accepted); },
                     previewCricket: function () { match.players.forEach(function (id, i) { match.scores[id]=[120,80,40,95][i]; Rules.TARGETS.forEach(function(n,r){match.marks[id][n]=(r+i)%4;}); }); viewMatch=match; syncGameUi(); },
-                    snapshot: function () { return {match:match,room:room,uid:room && online ? online.service.currentPlayer().uid : 'local-controller',data:roomData(),darts:G.darts,dartState:G.dartState,shellState:shell.state}; }
+                    snapshot: function () { return {match:match,room:room,uid:room && online ? online.service.currentPlayer().uid : 'local-controller',data:roomData(),darts:G.darts,dartState:G.dartState,shellState:shell.state,feedback:feedbackState,gestureActive:!!gesture}; }
                 }; })();`);
             if (file.endsWith('.html')) {
                 type = 'text/html';
