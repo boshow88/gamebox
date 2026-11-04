@@ -9,28 +9,31 @@ covers Console setup and Firestore room retirement.
 `js/net/net.js` handles authentication and exposes `ArcadeNet.rooms.create(options)`,
 `rooms.presence(options)` and `rooms.lobby(options)`.
 
-Games supply the lobby's translated text, player badges, results and actions,
-while the shared view owns its DOM and layout. Match simulation, heartbeat cadence
-and timeouts remain game-specific. Configuration and synchronous lifecycle hooks
-replace separate copies of room CRUD and readiness checks.
+Beam and Rune Stones supply translated text, player badges, results and actions
+to the shared lobby view. Darts uses its own unified lobby view on the same room
+service so one device can control several participants. Match simulation,
+heartbeat cadence and timeouts remain game-specific. Configuration and
+synchronous lifecycle hooks replace separate copies of room CRUD and readiness
+checks.
 
 ## Existing game policies
 
 | Policy | Beam | Rune Stones | Darts |
 | --- | --- | --- | --- |
 | Collection | `beam_rooms` | `duel_rooms` | `darts_rooms` |
-| Identity | One player per page instance; same account can occupy multiple seats | One player per page instance; same account can occupy both seats | Same as Rune Stones |
-| Capacity | 2–4 | Exactly 2 | 2–4 |
-| Seat layout | Join `order`, stable player colour indices | `slots`, host and guest | Four `slots`; lobby remains joinable until Start |
-| Start | Host presses Start; guests must be ready | Host presses Start; guest must be ready | Host starts after every guest is ready |
+| Identity | One player per page instance; same account can occupy multiple seats | One player per page instance; same account can occupy both seats | One connection per page instance; each connection controls one or more participant slots |
+| Capacity | 2–4 | Exactly 2 | 1–4 participants across 1–4 devices |
+| Seat layout | Join `order`, stable player colour indices | `slots`, host and guest | Connection `slots` plus separate `participants` and `seatOrder`; four participant slots total |
+| Start | Host presses Start; guests must be ready | Host presses Start; guest must be ready | Host starts after all guest controllers confirm the current configuration; mode validates participant count |
 | Spectators | Watch without joining or consuming a seat | Disabled | Disabled |
-| Departure | Clear only the departing player's ready flag; match continues | Record a forfeit during play, clear both ready flags, preserve the room and wait for replacement | Continue with 2+ players; skip departed seats; final survivor wins by forfeit |
-| Rematch | Host resets the same room; guests ready again, then host starts | Same flow | Same flow |
-| Closing results | Leave the room and return to solo ready screen | Same flow | Same flow |
-| Host availability | Game supplies heartbeat-based `isAvailable` | Per-player presence counters; release missing peers after 15 seconds | Same as Rune Stones |
+| Departure | Clear only the departing player's ready flag; match continues | Record a forfeit during play, clear both ready flags, preserve the room and wait for replacement | Withdraw all slots owned by the departing controller; competitive play continues with 2+ remaining participants, Practice with 1+ |
+| Rematch | Host resets the same room; guests ready again, then host starts | Same flow | Return to the same lobby, retain slots/names/configuration and finished results, then configure and start a new match |
+| Closing results | Leave the room and return to solo ready screen | Same flow | Keep room membership; leaving is an explicit action |
+| Host availability | Game supplies heartbeat-based `isAvailable` | Per-player presence counters; release missing peers after 15 seconds | Same per-connection presence and host migration; temporary loss retains every owned participant slot |
 
-[Darts](DEV.md#darts-implementation) uses the same service with guarded turn/revision updates,
-canonical throw events, a configurable turn timer and first-to-one/two leg wins.
+[Darts](DEV.md#darts-implementation) uses the same service with guarded turn/revision
+updates, physical throw events, optional turn timers, configurable rules and
+first-to-one/two/three leg wins.
 
 The logical collection names and room layouts are retained, including
 Rune Stones' distinction between an occupied room (`status: 'playing'`) and a
@@ -39,48 +42,89 @@ codes such as `ABCD`. The adapter keeps the existing `R-ABCD` RTDB key and store
 metadata, so active rooms and published rules need no migration. Firestore rooms
 remain retired; four-character input always addresses RTDB.
 
-## Darts match protocol
+## Darts room and match protocol
 
-Publish the updated **Realtime Database** rules from `database.rules.json` before
-using this version online. The new group is `/rooms/darts_rooms/R-XXXX`; public
-codes remain four characters. Firestore rules and shared room implementation do
-not need changes. A website deployment does not publish Firebase rules.
+V2 keeps the existing `/rooms/darts_rooms/R-XXXX` path and four-character public
+codes. No additional Firebase rule change is needed if the current
+`database.rules.json`, which already permits `darts_rooms`, has been published.
+Firestore room access remains retired.
 
-The policy uses four independent page seats, host Start after all guests Ready,
-3-second piggybacked heartbeats, 15-second missing-peer release and host migration.
-The room remains `waiting` while gathering 2–4 players, then changes to `playing`
-on Start. A departure skips that player and retains the running match while 2+
-remain; the last player wins by forfeit. Departed players stay in the match HUD
-with a muted "Left" indicator, and names are retained in the room's match roster.
-Replacement players can join after a rematch reset, not during a running leg/match.
-Host Rematch resets the same room and readiness; guests ready again before
-the next host Start. Opening the room panel during play does not pause a match.
-Closing the result room panel leaves the room and restores the local ready screen.
-Brief reconnects retain the seat and resume the authoritative snapshot. A released
-page cannot enter or write a replacement match; it can join again explicitly.
-As with the existing games, reloading creates a new page identity rather than
-recovering the old page's seat; the old seat is released by presence handling.
+Darts opens a local lobby with one participant. Local Practice, Count-Up and
+shared-device games use the same lobby without opening a network room. Invite or
+Join loads the online service; creating an invitation promotes the current local
+participants and configuration into a shared room. Solo Practice and Count-Up
+require one participant; 501 and Cricket require two. Every mode allows at most
+four participants.
 
-Every throw is an `updateMatch` transaction guarded by match ID, monotonically
-increasing turn `round`, revision `seq` and status. The transaction verifies the
-active player, presentation gate and turn deadline before calculating a result
-from the supplied flight and applying rules to the authoritative snapshot. This
-prevents stale/double submissions and competing turn advances. Between-leg state
-also counts as a running match, so it cannot be overwritten by Start/Rematch or
-joined mid-match. This uses the existing honor-system access policy, not a new
-server-authoritative anti-cheat implementation.
+The shared service's `players`, connection `slots`, `hostUid`, readiness and
+presence still identify page connections. Darts stores participant slots
+separately in `participants`, ordered by `seatOrder`. A participant has a display
+name, controller connection ID and type. Each connection can add, rename or
+remove its own local participants in the lobby, retaining at least one owned
+participant; a remote join and local addition share the same four-slot capacity
+check inside transactions. Names and participant IDs survive invitation creation
+and successive matches.
 
-The default online turn is 60 seconds; creation settings offer 30/60/90 seconds.
-Unused darts are forfeited on timeout; valid points already scored remain. Either
-peer's watchdog can advance an expired turn once. The next player's deadline
-starts after the previous flight/result presentation, giving a full turn to aim.
-Deadlines follow the existing games' client wall-clock convention.
+The room's `phase` is `lobby`, `playing` or `results`; the transport status is
+`waiting`, `playing` or `results` respectively. Host-only lobby configuration can
+change modes, in/out and Bull rules, Cricket variant, round limits, target leg
+wins and turn timers. Configuration and membership changes increment the lobby
+`revision` and clear device readiness. A controller confirms Ready once for all
+its local participants, against the revision it saw. A stale confirmation after
+a rules change is rejected. The host's Start action confirms its own readiness;
+all other controllers must have confirmed the current configuration. The shared
+service's optional `canStart(data, availableIds, uid)` policy hook rechecks mode,
+participant capacity, controller availability and room phase inside the start
+transaction.
 
-Accepted throws store one compact `lastThrow` event (flight, impact, canonical
-result and sequence). Both clients animate the same trajectory and reveal the
-committed scoreboard at impact. Rules are committed before presentation, so a
-throttled/hidden tab does not control scoring correctness. Presence snapshots do
-not replay a throw. No pointer samples or per-frame movement are networked.
+Start captures the mode/rules, participant list, participant-to-controller
+`game.owners` map and display-name `roster`. The active match owns this immutable
+configuration; lobby edits cannot change a match in progress. Each accepted
+throw derives the active participant from the current game and checks its frozen
+owner against the calling connection. Changing a supplied participant ID cannot
+select another controller's turn. The `updateMatch` transaction also checks match
+ID, monotonically increasing turn `round`, revision `seq`, status, presentation
+gate and enabled turn deadline, preventing stale/double submissions and competing
+turn advances through this client protocol. The Firebase rules retain the
+existing authenticated honor-system access policy; these transactions do not
+introduce server-authoritative anti-cheat enforcement.
+
+Between-leg state counts as a running match. New connections and participant
+changes are allowed only in the lobby. On match completion, results remain in
+the same room. Host Return to Lobby clears readiness while preserving
+participants, names, room code, selected configuration and the finished match's
+results/history. A new Start replaces only match-specific state with a new match
+ID. The host can also end unlimited Practice and return to this lobby without
+awarding a winner. Closing the room panel leaves membership intact; Leave is
+explicit. No new invitation is needed to switch modes or play again.
+
+Presence uses the existing 3-second piggybacked connection heartbeats,
+15-second missing-peer grace period and host migration. Brief reconnects retain
+all slots owned by the connection. Release or intentional departure withdraws
+all those slots together from the captured match; departed names and seats remain
+in the match HUD/history. Competitive matches continue with at least two
+participants and award a forfeit to the final survivor; Practice continues with
+one. A released page cannot act in a replacement match and can join again from
+the lobby. Reloading still creates a new page identity, so the previous
+connection's slots are released through normal presence handling.
+
+Timers offer Off/30/60/90 seconds, defaulting to Off for Practice and 60 seconds
+for competitive modes. Unused darts are forfeited on timeout; valid points
+already scored remain. Any seated controller's watchdog can advance an expired
+turn once. The next participant's deadline starts after the previous flight and
+result presentation, giving a full turn to aim. An Off timer never expires.
+Opening lobby or history panels does not stop an enabled timer. Deadlines follow
+the existing games' client wall-clock convention.
+
+Accepted throws store one compact `lastThrow` event with flight, physical impact,
+configured result and sequence. Bull scoring preserves the physical inner/outer
+category, and Cut-Throat Cricket records the applicable opponent penalties. All
+clients animate the accepted flight and reveal committed scores/history at
+impact. Presence snapshots do not replay throws; pointer samples and per-frame
+movement are not networked. Round limits apply per participant, with equal turn
+opportunities before settlement. Ties use one closest-to-Bull dart per tied
+participant, repeating only among those still tied. History spans the match's
+legs, is bounded to 500 turns and resets on the next match's Start.
 
 ## Creating a service
 
@@ -122,6 +166,9 @@ Additional configuration:
   separate pulse only when this player's own committed activity is not recent.
 - `isPlaying(data)` defaults to checking `game.status === 'playing'`; games with a
   different match schema can supply their own predicate and `startPatch`.
+- `canStart(data, availablePlayerIds, uid)` optionally adds game-specific start
+  requirements after the shared host, readiness and minimum-count checks. It runs
+  in both local eligibility checks and the Start transaction and defaults to true.
 - `onReset(data)` customizes the host's rematch reset. The default reset clears
   `game`, `round` and readiness and restores the waiting status.
 
@@ -157,7 +204,7 @@ that interval; silent players still send their regular heartbeats.
 | `leave(code)` | Remove this player, migrate the host, delete an empty room; observers do not mutate membership |
 | `setReady(code, ready = true)` | Member-only, transactional readiness; ignored during play |
 | `playerIds(data, availableOnly = false)`, `host(data)` | Seat order and host selection |
-| `canStart(data)` | Local UI eligibility, including host, readiness and minimum player count |
+| `canStart(data)` | Local UI eligibility, including host, readiness, minimum player count and optional game policy |
 | `primaryAction(data, { finished }?)` | Shared action policy: join, start, ready, wait-ready, rematch, wait-rematch, or no action |
 | `start(code)` | Recheck eligibility in a transaction and apply the game's start patch once |
 | `reset(code)` | Host-only rematch reset; ignored during play |
@@ -179,7 +226,7 @@ Gameplay `update` remains available for the game's own synchronization protocol.
 These client checks use the RTDB access rules; they are not server
 authority or cheat prevention.
 
-Both games render their primary action from `primaryAction`, then supply their
+Beam and Rune Stones render their primary action from `primaryAction`, then supply their
 own translated text and handlers to the shared lobby. A host sees a disabled Start
 until the guest is ready, a ready guest waits for the host, and results offer
 Rematch only to the host while guests see a waiting message. Rematch clears all
@@ -360,7 +407,7 @@ This is separate from **Firestore Database > Rules**.
 
 The supplied rules allow authenticated users, including existing anonymous guest
 accounts, to use `/rooms/beam_rooms`, `/rooms/duel_rooms` and `/rooms/darts_rooms`. Publish
-the updated RTDB rules before enabling Darts online; see [Darts match protocol](#darts-match-protocol).
+the current RTDB rules before using online rooms; see [Darts room and match protocol](#darts-room-and-match-protocol).
 They validate basic
 room metadata and index `lastActionAt` for cleanup. The project's existing
 honor-system room policy remains; these are not server-authoritative anti-cheat

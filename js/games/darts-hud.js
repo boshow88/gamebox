@@ -7,29 +7,40 @@
     'use strict';
     var COLORS = ['#86efac', '#7dd3fc', '#f9a8d4', '#fcd34d'];
     function model(input) {
-        var s = input.state, practice = input.practice, ids = s ? s.players : ['practice'];
+        var s = input.state, practice = input.practice || { darts: 0, result: null, speed: null }, ids = s ? s.players : ['practice'];
         var current = s && (s.turnDarts || []).length > 0;
-        var previous = s && !current && s.lastTurn;
+        var cork = !!(s && s.phase === 'cork');
+        var previous = s && !current && s.lastTurn && (!cork || s.lastTurn.phase === 'cork') ? s.lastTurn : null;
+        var mode = s ? s.mode : 'practice', limit = s ? s.roundLimit || 0 : 0;
         return {
-            mode: s ? s.mode : 'practice', phase: s ? s.status : 'playing',
-            leg: s ? s.leg : 0, bestOf: s ? s.bestOf : 1,
-            round: s && s.mode === 'countup' ? Math.min(8, s.turns[s.active] + 1) : 0,
-            active: s ? s.active : 'practice', dart: s ? Math.min(3, s.dart + 1) : 0,
-            timer: input.online && s && s.status === 'playing' ? Math.min(s.turnMs / 1000,
+            mode: mode, phase: s ? s.status : 'playing', throwPhase: cork ? 'cork' : 'play',
+            leg: s && mode !== 'practice' ? s.leg : 0, bestOf: s ? s.bestOf : 1,
+            legsToWin: s ? s.legsToWin || (s.bestOf === 3 ? 2 : 1) : 1,
+            round: s && limit && !cork ? Math.min(limit, (s.turns[s.active] || 0) + 1) : 0,
+            roundLimit: limit, corkRound: s ? s.corkRound || 1 : 1,
+            inRule: s ? s.inRule || 'open' : 'open', outRule: s ? s.outRule || 'double' : 'double',
+            bullMode: s ? s.bullMode || '25-50' : '25-50', cricketVariant: s ? s.cricketVariant || 'standard' : 'standard',
+            active: s ? s.active : 'practice', dart: s ? Math.min(cork ? 1 : 3, s.dart + 1) : 0,
+            timer: s && s.turnMs > 0 && s.status === 'playing' ? Math.min(s.turnMs / 1000,
                 Math.max(0, Math.ceil((s.turnStartedAt + s.turnMs - input.now) / 1000))) : null,
             players: ids.map(function (id, index) { return { id: id, seat: index + 1, color: COLORS[index],
-                name: s ? input.name(id) : input.you, score: s ? s.scores[id] : practice.darts,
-                legs: s ? s.wins[id] : 0, left: s ? (s.withdrawn || []).includes(id) : false,
+                name: s ? input.name(id) : input.you, score: s ? mode === 'practice' ? s.stats[id].darts : s.scores[id] : practice.darts,
+                legs: s ? s.wins[id] : 0, entered: !s || !s.entered || s.entered[id] !== false,
+                left: s ? (s.withdrawn || []).includes(id) : false,
                 active: s ? id === s.active && s.status === 'playing' : true,
                 marks: s ? s.marks[id] : null }; }),
             turn: s ? { owner: previous ? previous.uid : s.active, previous: !!previous,
                 darts: previous ? previous.darts || [] : s.turnDarts || [],
-                points: previous ? previous.points : s.turnPoints } : null,
+                points: previous ? previous.points : s.turnPoints,
+                penalties: previous ? previous.penalties || {} : s.turnPenalties || {},
+                phase: previous ? previous.phase || 'play' : cork ? 'cork' : 'play',
+                distance: previous ? previous.distance : cork && s.corkDistances ? s.corkDistances[s.active] : null } : null,
             feedback: s ? s.lastDart : null,
             timedOut: !!(previous && previous.reason === 'timeout'),
-            practice: practice,
+            practice: { darts: practice.darts, result: s && s.lastDart ? s.lastDart.result : practice.result, speed: practice.speed },
             winner: s ? s.winner || s.legWinner : null, draw: !!(s && s.draw),
             forfeit: !!(s && s.endReason === 'left'),
+            endReason: s ? s.endReason : null,
         };
     }
     function create(options) {
@@ -39,6 +50,24 @@
             if (text != null) node.textContent = text; return node;
         }
         function get(id) { return doc.getElementById(id); }
+        function controls(id) { return options.controlsPlayer ? options.controlsPlayer(id) : id === options.myUid(); }
+        function gateLabel(rule, suffix) { return t('darts' + ({ open: 'Open', master: 'Master', double: 'Double' }[rule] || 'Open') + suffix); }
+        function variantLabel(m) { return m.mode === '501' ? gateLabel(m.outRule, 'Out') :
+            m.mode === 'cricket' ? t(m.cricketVariant === 'cutthroat' ? 'dartsCutThroatCricket' : 'dartsStandardCricket') : ''; }
+        function penaltiesText(penalties, names) {
+            return Object.keys(penalties || {}).filter(function (id) { return penalties[id] > 0; })
+                .map(function (id) { return (names[id] || id) + ' +' + penalties[id]; }).join(', ');
+        }
+        function distanceText(distance) { return Number.isFinite(distance) && distance < 1e9 ? distance.toFixed(1) + ' mm' : '—'; }
+        function ruleSummary(m) {
+            if (m.throwPhase === 'cork') return t('dartsCork') + ' · ' + t('dartsCorkRound') + ' ' + m.corkRound;
+            var parts = [];
+            if (m.mode === '501') parts.push(gateLabel(m.inRule, 'In'), gateLabel(m.outRule, 'Out'));
+            if (m.mode === '501' || m.mode === 'countup') parts.push(t(m.bullMode === '50-50' ? 'dartsBull5050' : 'dartsBull2550'));
+            if (m.mode === 'cricket') parts.push(variantLabel(m), t(m.cricketVariant === 'cutthroat' ? 'dartsLowestWins' : 'dartsHighestWins'));
+            if (m.roundLimit) parts.push(t('dartsRoundLimit') + ' ' + m.roundLimit);
+            return parts.join(' · ');
+        }
         var lastKey = '', lastPlayersKey = '';
         function render(m) {
             // Clock updates should not rebuild the table, reset focus, or repeat live announcements.
@@ -49,18 +78,22 @@
             lastKey = withoutClock;
             var names = Object.fromEntries(m.players.map(function (p) { return [p.id, p.name]; }));
             var mode = options.modeName(m.mode);
-            get('match-meta').textContent = mode + (m.leg ? ' · ' + t('dartsLeg') + ' ' + m.leg + ' · ' + t(m.bestOf === 3 ? 'dartsBO3' : 'dartsBO1') : '');
-            var status = m.phase === 'between' || m.phase === 'over' ? (m.draw ? t('dartsDraw') :
+            var variant = variantLabel(m), endedPractice = m.mode === 'practice' && m.phase === 'over', cancelled = m.endReason === 'cancelled';
+            get('match-meta').textContent = mode + (variant ? ' · ' + variant : '') +
+                (m.leg ? ' · ' + t('dartsLeg') + ' ' + m.leg + ' · ' + t('dartsLegsToWin') + ' ' + m.legsToWin : '');
+            if (get('mode-rule-summary')) get('mode-rule-summary').textContent = ruleSummary(m);
+            var status = cancelled ? t('dartsMatchEnded') : endedPractice ? t('dartsPracticeEnded') : m.phase === 'between' || m.phase === 'over' ? (m.draw ? t('dartsDraw') :
                 t(m.phase === 'over' ? 'dartsMatchWon' : 'dartsLegWon') + ' · ' + names[m.winner]) :
-                m.mode === 'practice' ? t('dartsFlickPrompt') :
-                    (options.isOnline() ? t(m.active === options.myUid() ? 'dartsYourTurn' : 'dartsWaiting') : t('dartsTurn')) +
-                    ' · ' + names[m.active] + ' · ' + t('dartsDart') + ' ' + m.dart + '/3' + (m.round ? ' · ' + t('dartsRound') + ' ' + m.round + '/8' : '');
+                m.mode === 'practice' && m.players.length === 1 ? t('dartsFlickPrompt') :
+                    (options.isOnline() ? t(controls(m.active) ? 'dartsYourTurn' : 'dartsWaiting') : t('dartsTurn')) +
+                    ' · ' + names[m.active] + ' · ' + t('dartsDart') + ' ' + m.dart + '/' + (m.throwPhase === 'cork' ? 1 : 3);
             get('turn-status').textContent = status;
-            if (m.mode !== 'practice' && m.phase === 'playing') {
+            if ((m.mode !== 'practice' || m.players.length > 1) && m.phase === 'playing') {
                 var indicator = get('turn-status'); indicator.replaceChildren();
-                indicator.append(el('span', 'status-name', (options.isOnline() ? t(m.active === options.myUid() ? 'dartsYourTurn' : 'dartsWaiting') : t('dartsTurn')) + ' · ' + names[m.active]),
-                    el('span', 'status-dart', t('dartsDart') + ' ' + m.dart + '/3'));
-                if (m.round) indicator.append(el('span', 'status-round', t('dartsRound') + ' ' + m.round + '/8'));
+                indicator.append(el('span', 'status-name', (options.isOnline() ? t(controls(m.active) ? 'dartsYourTurn' : 'dartsWaiting') : t('dartsTurn')) + ' · ' + names[m.active]),
+                    el('span', 'status-dart', t('dartsDart') + ' ' + m.dart + '/' + (m.throwPhase === 'cork' ? 1 : 3)));
+                if (m.throwPhase === 'cork') indicator.append(el('span', 'status-round', t('dartsCorkRound') + ' ' + m.corkRound));
+                else if (m.round) indicator.append(el('span', 'status-round', t('dartsRound') + ' ' + m.round + '/' + m.roundLimit));
             }
             var playersKey = JSON.stringify([m.players, m.mode, options.locale()]);
             if (playersKey !== lastPlayersKey) {
@@ -79,7 +112,8 @@
                 var score = el('strong', 'darts-player-score', p.score);
                 score.setAttribute('aria-label', t(m.mode === '501' ? 'dartsRemaining' : m.mode === 'practice' ? 'dartsDarts' : 'dartsPoints') + ' ' + p.score);
                 card.append(seat, name, score);
-                if (m.mode !== 'practice') card.append(el('span', 'darts-player-legs', p.left ? t('dartsWithdrawn') : t('dartsLegWins') + ' ' + p.legs));
+                if (m.mode !== 'practice') card.append(el('span', 'darts-player-legs', p.left ? t('dartsWithdrawn') :
+                    m.mode === '501' && !p.entered ? t('dartsNotEntered') : t('dartsLegWins') + ' ' + p.legs));
                 players.append(card);
                 });
                 if (focusedUid) {
@@ -89,9 +123,10 @@
             }
             get('player-score-label').textContent = t(m.mode === '501' ? 'dartsRemaining' : m.mode === 'practice' ? 'dartsDarts' : 'dartsPoints');
             var cricket = m.mode === 'cricket';
-            get('cricket-board').hidden = !cricket; get('turn-panel').hidden = cricket || m.mode === 'practice';
-            get('practice-panel').hidden = m.mode !== 'practice';
-            if (cricket) {
+            get('cricket-board').hidden = !cricket || m.throwPhase === 'cork';
+            get('turn-panel').hidden = m.throwPhase !== 'cork' && (cricket || m.mode === 'practice');
+            get('practice-panel').hidden = m.mode !== 'practice' || m.throwPhase === 'cork';
+            if (cricket && m.throwPhase !== 'cork') {
                 var table = el('table', 'cricket-table'), head = el('thead'), row = el('tr');
                 row.append(el('th', '', t('dartsTarget')));
                 m.players.forEach(function (p) {
@@ -111,33 +146,39 @@
                 }); table.append(body); get('cricket-board').replaceChildren(table);
             }
             if (m.turn) {
-                get('turn-owner').textContent = t(m.turn.previous ? 'dartsPreviousTurn' : 'dartsThisTurn') + ' · ' + names[m.turn.owner];
+                var owner = m.players.find(function (p) { return p.id === m.turn.owner; });
+                get('turn-owner').textContent = t(m.turn.phase === 'cork' ? 'dartsCork' : m.turn.previous ? 'dartsPreviousTurn' : 'dartsThisTurn') + ' · ' + names[m.turn.owner] +
+                    (m.mode === '501' && owner && !owner.entered && m.turn.phase !== 'cork' ? ' · ' + t('dartsNotEntered') : '');
                 var darts = get('turn-darts'); darts.replaceChildren();
-                for (var i = 0; i < 3; i++) {
+                for (var i = 0; i < (m.turn.phase === 'cork' ? 1 : 3); i++) {
                     var r = m.turn.darts[i], slot = el('div', 'turn-dart');
                     slot.append(el('span', 'turn-dart-number', t('dartsDart') + ' ' + (i + 1)),
                         el('strong', 'turn-dart-hit' + (r && r.base === 25 ? ' bull-hit' : ''), r ?
                             r.miss ? t('dartsMiss') : r.base === 25 ? t(r.mult === 2 ? 'dartsBullShort' : 'dartsOuterBull') : r.label : '—'),
-                        el('span', 'turn-dart-score', r ? r.score : '—'));
+                        el('span', 'turn-dart-score', m.turn.phase === 'cork' ? '' : r ? r.score : '—'));
                     darts.append(slot);
                 }
-                get('turn-score').textContent = t('dartsTurnScore') + ' · ' + m.turn.points;
+                get('turn-score').textContent = m.turn.phase === 'cork' ? t('dartsDistance') + ' · ' + distanceText(m.turn.distance) :
+                    cricket && m.cricketVariant === 'cutthroat' ? t('dartsPenalties') + ' · ' + (penaltiesText(m.turn.penalties, names) || '—') :
+                        t('dartsTurnScore') + ' · ' + m.turn.points;
             }
             var last = m.feedback, feedback = get('dart-feedback');
             feedback.textContent = m.timedOut ? t('dartsTimeout') : last ?
-                (last.reason === 'bust' ? t('dartsBust') : last.reason === 'checkout' ? t('dartsCheckout') : cricket ? label(last.result) : '') : '';
+                (last.phase === 'cork' ? t('dartsCork') + ' · ' + t('dartsDistance') + ' ' + distanceText(last.distance) :
+                    last.reason === 'bust' ? t('dartsBust') : last.reason === 'checkout' ? t('dartsCheckout') : cricket ? label(last.result) +
+                        (m.cricketVariant === 'cutthroat' ? ' · ' + t('dartsPenalties') + ' · ' + (penaltiesText(last.penalties, names) || '—') : '') : '') : '';
             feedback.classList.toggle('bust', !!(last && last.reason === 'bust'));
             if (m.mode === 'practice') {
                 get('practice-hit').textContent = m.practice.result ? label(m.practice.result) : '—';
                 get('practice-speed').textContent = m.practice.speed === null ? '—' : Math.round(m.practice.speed) + ' px/s';
             }
             var result = get('leg-result'); result.hidden = options.isFlying() || !['between', 'over'].includes(m.phase);
-            get('result-title').textContent = m.draw ? t('dartsDraw') : t(m.phase === 'over' ? 'dartsMatchWon' : 'dartsLegWon');
-            get('result-winner').textContent = m.draw ? '' : names[m.winner];
-            get('result-reason').textContent = m.forfeit ? t('dartsLeft') : '';
+            get('result-title').textContent = cancelled ? t('dartsMatchEnded') : endedPractice ? t('dartsPracticeEnded') : m.draw ? t('dartsDraw') : t(m.phase === 'over' ? 'dartsMatchWon' : 'dartsLegWon');
+            get('result-winner').textContent = m.draw || endedPractice || cancelled ? '' : names[m.winner] || '';
+            get('result-reason').textContent = m.forfeit ? t('dartsLeft') : m.endReason === 'round-limit' ? t('dartsRoundLimitReached') : '';
             get('next-leg-btn').hidden = m.phase !== 'between';
-            get('play-again-btn').hidden = m.phase !== 'over' || options.isOnline();
-            get('result-room-btn').hidden = m.phase !== 'over' || !options.isOnline();
+            get('play-again-btn').hidden = true;
+            get('result-room-btn').hidden = m.phase !== 'over';
         }
         return { render: render };
     }

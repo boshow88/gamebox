@@ -427,8 +427,11 @@ timings (`ANSWER_SEC`, `countSec`, memorise scaling), and the late-match speed-u
 
 ## Darts
 
-Gesture-based darts with Practice, Count-Up, 501 and Cricket. Multiplayer modes
-support local or online matches with up to four players.
+Gesture-based darts with one persistent lobby for Practice, Count-Up, 501 and
+Cricket. Each room holds 1–4 player slots. One device can control several local
+players; invited friends can control the other slots on their own devices.
+Solo play starts in a local room and does not require an account, room code or
+network connection. Darts remains marked WIP in the game menu.
 
 ### Throwing
 
@@ -456,45 +459,126 @@ support local or online matches with up to four players.
 ### Scoring
 
 A standard board has singles, the **triple** (inner) and **double** (outer) rings,
-the **outer bull** (25) and the **bullseye** (50). The player panel shows each
-player's score; the mode panel shows current-turn darts and mode-specific details.
+the **outer bull** and the **inner bull/bullseye**. 501 and Count-Up can use
+**25/50** Bull scoring (the default) or **50/50**. These change the numerical
+points; an Outer Bull remains an Outer Bull, including when it scores 50.
+The player panel contains primary scores; the mode panel contains turn results,
+Cricket marks and the active rule summary. Practice player cards show darts thrown.
 
 ### Modes and outcomes
 
-- Practice: unlimited throws; D toggles the original gesture/trajectory diagnostics.
-- Count-Up: 1–4 local or 2–4 online players; eight turns and at most 24 darts per player.
-  Outer Bull scores 25 and inner Bull 50. Solo results include average per three
-  actual darts, best round, Bulls and Triple 20s.
-- 501: 2–4 local/online players, double-out including inner Bull. A negative remainder,
-  remainder of one, or zero without a double immediately restores the turn's
-  starting score and passes play.
-- Cricket: 2–4 local/online players, 20–15 and Bull. Closing-dart excess marks score
-  once while any remaining opponent has the target open. Close all targets with
-  at least as many points as every remaining opponent to win. Withdrawn players
-  do not block scoring or victory.
+- **Practice: 1–4 players.** One player has unlimited free throws, with one history
+  record per dart. With several players, each receives three darts before control
+  passes in seat order. There is no round limit or winner. The host can end practice
+  and return everyone to the same lobby. D toggles gesture/trajectory diagnostics.
+- **Count-Up: 1–4 players.** Add all points, without Bust or checkout rules. Choose
+  5/8/10/15 rounds (default 8, at most 24 darts per player). The highest total wins
+  after every remaining player receives all permitted turns. Results include the
+  average per three actual darts, best round, Bulls and Triple 20s.
+- **501: 2–4 players.** Start at 501 and reach exactly zero. Choose Open, Master or
+  Double Out; Open In is the default, with Master/Double In under advanced settings.
+  Default rules preserve Open In / Double Out and 25/50 Bull scoring.
+- **Cricket: 2–4 players.** Close 20–15 and Bull with three marks each. Singles,
+  doubles and triples give one/two/three marks; Outer and Inner Bull give one/two.
+  Extra marks on the dart completing closure count immediately. A player must
+  close all targets and meet the selected scoring condition to win. Departed
+  players do not block scoring or victory.
 
-Multiplayer/local matches support first to one/two leg wins. First to two is BO3
-with two players; with four players it can take five decisive legs, so the UI uses
-"First to 2 legs" rather than promising a maximum of three. A Count-Up draw awards
-no leg win and offers a replay for all remaining players. The leg counter includes
-drawn attempts.
-Local solo Count-Up always plays one leg. The initial online starter is selected
-from the room's random seed; subsequent legs rotate through remaining players,
-including drawn legs.
-Either player can continue from the persistent between-leg result screen.
+### 501 entry, checkout and Bust
+
+**Open In/Out** accepts any scoring hit. **Master In/Out** accepts a Double,
+Triple, Outer Bull or Inner Bull. **Double In/Out** accepts a Double or Inner
+Bull. In/Out eligibility follows the physical hit category: a 50-point Outer
+Bull under 50/50 scoring still cannot qualify for Double In or Double Out.
+
+Before Master/Double In has opened, non-qualifying throws consume darts but do
+not subtract points. The opening hit itself counts; the player stays open on
+later turns. A Bust ends the turn and restores both the score and entry state
+to the beginning of that turn, while preserving its recorded throws.
+
+Every Out rule busts below zero. Master/Double Out also bust at one remaining,
+or at zero reached without a legal checkout. Open Out permits a remainder of
+one and allows S1 to finish it. For example, S20 finishes from 20 under Open Out,
+T20 finishes from 60 under Master Out, and D10 finishes from 20 under Double Out.
+
+### Cricket scoring variants
+
+**Standard** awards extra-mark points to the thrower while at least one active
+opponent has that target open. The thrower receives the points once, regardless
+of how many opponents have it open. Closing every target with at least as many
+points as every remaining opponent wins.
+
+**Cut-Throat** adds those points as penalties to each active opponent who still
+has the target open. The thrower and already-closed opponents receive none.
+Closing every target with no more points than any remaining opponent wins.
+Penalty updates can also make an already-closed non-throwing player the winner;
+all remaining players are checked. If several become eligible together at the
+same lowest score, Cork settles that tie.
+
+For example, two marks followed by T20 closes 20 and leaves two extra marks:
+Standard awards the thrower 40 if an opponent is open; Cut-Throat adds 40 to
+each applicable opponent. History and feedback list the actual penalty recipients.
+Bull marks always retain their ordinary Cricket values.
+
+The lobby's Automatic choice selects Standard for two players and Cut-Throat
+for three/four at match start. Explicit Standard/Cut-Throat choices are preserved
+when players join or leave; active-match rules remain fixed.
+
+### Rounds, tied scores and Legs
+
+501 and Cricket allow 10/15/unlimited rounds (default 15). Count-Up allows
+5/8/10/15 (default 8). A round gives every active participant a turn of up to
+three darts. The limit is applied per player; settlement waits until every
+remaining player has received the same allowed number of turns. An ordinary
+checkout or Cricket victory can end a Leg immediately.
+
+At the limit, 501 uses the lowest remaining score, Standard Cricket and Count-Up
+use the highest total, and Cut-Throat uses the lowest total. Tied leaders enter
+**Cork**: each throws one dart, closest to the physical Bull centre wins. Points
+remain unchanged during Cork. Distances are compared in millimetres; distances
+within 0.001 mm repeat among those still tied. A timed-out Cork opportunity is
+forfeited. Other players do not enter the tie-break.
+
+Competitive matches use **first to 1/2/3 Leg wins**, including solo Count-Up.
+The wording does not assume a fixed maximum number of Legs: four players can
+need five decisive Legs before anyone reaches two wins. The initial starting
+seat is random; subsequent Legs rotate predictably through remaining players.
+Starting-player Cork is not currently offered. Any participating controller can
+continue from the persistent between-Leg result screen.
 
 ### Rooms and history
 
-Online play uses one seat per page, including separate tabs of the same account.
-Guests choose Ready, then the host starts. The host can reset the same room for
-a rematch; guests ready again. Leaving skips a player's future turns; the last
-remaining player wins by forfeit. The selected 30/60/90-second online timer
-forfeits unused darts on timeout and retains valid points already scored.
+Enter Darts to see one local player in the lobby. Add/edit/remove local slots,
+choose the mode and relevant rules, and start. Invite or join by the existing
+room-code mechanism when another device is needed. A device can control multiple
+slots, including combinations such as two local players plus two on another
+device. Throwing input is accepted only for a slot controlled by the current
+device. Separate tabs remain independent controllers, even on the same account.
+
+The host chooses the next configuration. Guests confirm Ready once per device
+for all their slots, then the host starts. Rule or participant changes clear
+Ready confirmations. Match rules and participants are captured at Start and
+cannot be edited during play. The room code, connections, names and surviving
+slots remain after results and Back to Lobby, so the next match may use a
+different mode without recreating the room. Finished results/history remain
+available until a new match starts.
+
+The turn timer supports Off/30/60/90 seconds, defaulting to Off for Practice
+and 60 seconds for competitive modes. Timeout forfeits unused darts and retains
+valid points already scored. Timed games continue while a dialog is open.
+Intentional controller departure withdraws all its slots together; a brief
+disconnect keeps them during the existing reconnect grace period. Remaining
+competitive players continue with at least two slots; the last wins by forfeit.
+Practice can continue with one remaining player. New active players join in
+the lobby, rather than being inserted into a match already underway.
 
 Click a player card for that player's throw history or History for everyone.
 History includes turn results, busts, checkouts, timeouts and departures, and
-retains the latest 500 turns per match (500 throws in Practice). Viewing history
-or settings does not pause online play; a rematch starts a fresh history.
+retains the latest 500 turns per match (500 individual throws in solo Practice).
+Multi-player Practice records three-dart turns. Cork records each one-dart
+opportunity and its distance. History spans Legs, retains departed player names,
+and records effective Bust totals and Cut-Throat recipients. Viewing history or
+the lobby does not pause a running timer; a genuinely new match starts fresh history.
 
 ### Debug / practice view
 
@@ -508,8 +592,9 @@ or settings does not pause online play; a rematch starts a fresh history.
 ### Controls
 
 - **Throw**: hold + flick + release on the board or mode panel.
-- **`D`** debug view · **`R`** reset the session · **`P`** / `Esc` pause · **`M`**
-  mute.
+- **`D`** debug view in Practice · **`R`** return a local match to the lobby ·
+  **`M`** mute. Local games with Timer Off support **`P`** / `Esc` pause;
+  online or timed matches keep their shared/wall-clock turn timer running.
 
 ### Tuning
 
@@ -519,6 +604,10 @@ base speed, the compressed tempo range, gravity, the hand height, the board
 geometry, and the perspective. The throw maths (`analyseGesture`, `computeThrow`,
 `computeImpact`, `scoreAt`) are kept pure and separate from rendering so the feel
 can be retuned — or the physics swapped out — without touching the draw code.
+`handYOffset: -292` places the release 29.2 cm below the Bull. `pitchOffsetDeg: 0`
+adds no extra tilt; positive/negative values rotate the complete release velocity
+up/down while preserving speed and gesture relationships, without moving the
+camera or release point. The existing physics and desktop board crop are retained.
 
 ---
 

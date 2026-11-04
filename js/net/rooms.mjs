@@ -69,6 +69,7 @@ export function createRoomService({ store, getUser, sessionId, generateCode = ra
         presenceField: null,
         isAvailable: () => true,
         isPlaying: data => !!(data.game && data.game.status === 'playing'),
+        canStart: () => true,
         onCreate: () => ({}), onJoin: () => ({}), onLeave: () => ({}), onReset: () => ({}),
         startPatch: () => ({ game: { status: 'playing' } }),
     }, options);
@@ -161,7 +162,7 @@ export function createRoomService({ store, getUser, sessionId, generateCode = ra
         if (!data || config.isPlaying(data) || !uid || host(data) !== uid) return false;
         const ids = playerIds(data, true), ready = data.ready || {};
         return ids.length >= config.minPlayers && ids.every(id =>
-            (config.startMode === 'host' && id === uid) || ready[id]);
+            (config.startMode === 'host' && id === uid) || ready[id]) && config.canStart(data, ids, uid);
     }
     function primaryAction(data, { finished = !!(data && data.game && data.game.status === 'over') } = {}) {
         const player = currentPlayer();

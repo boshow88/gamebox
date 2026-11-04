@@ -74,6 +74,27 @@
 .darts-postgame { margin-top: 12px; font-size: .8rem; color: var(--text-secondary); }
 .darts-dialog { width: min(560px, calc(100vw - 24px)); max-height: calc(100svh - 24px); padding: 16px; margin: auto; border: 1px solid var(--border-strong); border-radius: 12px; color: var(--text-primary); background: var(--bg-secondary); overflow: auto; box-sizing: border-box; }
 .darts-dialog::backdrop { background: rgba(0,0,0,.72); }
+.mode-rule-summary { margin: 0; color: #9ca3af; font-size: .65rem; line-height: 1.4; }
+.darts-lobby { width: min(660px, calc(100vw - 24px)); }
+.darts-lobby[open] { display: flex; flex-direction: column; gap: 12px; }
+.darts-lobby > * { flex-shrink: 0; }
+.darts-lobby .darts-rule { margin: 0; }
+.darts-lobby .darts-settings { grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 0; }
+.lobby-section-line { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; font-size: .85rem; }
+.darts-lobby-slots { display: grid; gap: 6px; margin-bottom: 8px; }
+.darts-lobby-slot { display: grid; grid-template-columns: 20px minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 7px 9px; border: 1px solid var(--border-color); border-radius: 8px; }
+.darts-lobby-slot .slot-name { width: 100%; min-width: 0; padding: 5px 7px; color: var(--text-primary); background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 5px; font: inherit; font-size: .85rem; }
+.slot-meta { grid-column: 2; font-size: .65rem; color: var(--text-muted); }
+.slot-remove { grid-column: 3; grid-row: 1 / 3; font-size: .7rem; padding: 5px 8px; }
+.lobby-connection-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
+.lobby-connection-actions .lobby-code { margin: 0; font-size: 1.5rem; }
+#room-code-input { width: 6em; min-width: 0; padding: 8px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-primary); color: var(--text-primary); font: 700 1rem var(--font-mono); letter-spacing: .1em; }
+.lobby-footer { display: flex; align-items: center; flex-wrap: wrap; justify-content: flex-end; gap: 10px; padding-top: 10px; border-top: 1px solid var(--border-color); }
+.lobby-footer #lobby-start-reason { flex: 1; min-width: 120px; font-size: .75rem; }
+#lobby-status:empty, #lobby-start-reason:empty { display: none; }
+.darts-lobby details > summary { cursor: pointer; font-size: .8rem; }
+.darts-lobby details[open] > summary { margin-bottom: 10px; }
+#lobby-slots input:disabled { opacity: 1; border-color: transparent; background: transparent; }
 .dialog-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .dialog-header h2 { font-size: 1.1rem; margin: 0; }
 .history-dialog[open] { display: flex; flex-direction: column; gap: 12px; height: min(680px, calc(100svh - 24px)); overflow: hidden; }
@@ -99,6 +120,8 @@
     .game-title .game-icon { width: 28px; height: 28px; }
     .game-topbar .back-link { padding: 4px; font-size: .8rem; }
     .darts-settings { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .darts-lobby .darts-settings { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .darts-lobby { padding: 12px; }
     .darts-viewport { grid-template-areas: 'header' 'players' 'board' 'mode'; grid-template-columns: minmax(0, 1fr); grid-template-rows: 64px 60px minmax(0, 1fr) 194px; aspect-ratio: 3 / 5; max-width: 60cqh; }
     .viewport-header { flex-direction: column-reverse; justify-content: center; align-items: stretch; padding: 4px 8px; gap: 3px; }
     .viewport-controls { justify-content: flex-end; gap: 4px; }
@@ -116,6 +139,7 @@
     .player-seat { font-size: .6rem; }
     .darts-player-legs { display: none; }
     .darts-mode-panel { padding: 8px 10px; border: 0; border-top: 1px solid var(--border-color); gap: 4px; }
+    .mode-rule-summary { font-size: .6rem; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
     .turn-panel { gap: 10px; }
     .turn-darts { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
     .turn-dart { display: flex; flex-direction: column; gap: 4px; padding: 5px 0; }
@@ -124,7 +148,7 @@
     .turn-dart-score { font-size: .8rem; }
     #turn-score { font-size: .8rem; }
     .cricket-table thead th { padding-bottom: 2px; }
-    .cricket-table tbody th, .cricket-table td { height: 19px; }
+    .cricket-table tbody th, .cricket-table td { height: 17px; }
     .cricket-table td { font-size: 1.05rem; line-height: 1; }
     .cricket-table th { font-size: .65rem; }
     .practice-panel { display: grid; grid-template-columns: 1fr 1fr; align-items: center; gap: 10px; }

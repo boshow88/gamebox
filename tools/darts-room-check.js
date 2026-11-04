@@ -1,4 +1,4 @@
-/** node tools/darts-room-check.js — actual darts controller on the real RTDB adapter, no network. */
+/** node tools/darts-room-check.js — persistent Darts rooms on the real RTDB adapter. */
 'use strict';
 const assert = require('node:assert/strict');
 const R = require('../js/games/darts-rules.js');
@@ -7,158 +7,205 @@ const createRoom = require('../js/games/darts-room.js');
     const modules = Object.assign({}, await import('../js/net/rooms.mjs'), await import('../js/net/rtdb-rooms.mjs'), await import('../js/net/rtdb-values.mjs'));
     const db = require('./helpers/rtdb-fixtures.js').realtimeGameBackend(modules);
     let clock = 1000, session = 0;
-    const errors = [];
+    const errors = [], clients = {};
     function make() {
         const id = 'darts-tab-' + ++session, user = { uid: 'same-account', name: id };
-        return createRoom({ now: () => clock,
+        const client = createRoom({ now: () => clock,
             net: { rooms: { presence: options => modules.createRoomPresence({ ...options, now: () => clock }),
                 create: config => modules.createRoomService({ store: db.createStore(config, () => user, id, () => clock),
                     getUser: () => user, sessionId: id, generateCode: () => 'ABCD', now: () => clock }, config) } },
             onChange() {}, onError: e => errors.push(e),
-            resolveThrow: th => ({ impact: { x: th.vel.x, y: 100, t: .2 }, result: R.hit(th.vel.x, th.vel.y) }),
+            resolveThrow: th => ({ impact: { x: th.vel.x, y: th.vel.y, t: .2 }, result: R.hit(th.vel.x, th.vel.y) }),
         });
+        clients[client.service.currentPlayer().uid] = client;
+        return client;
     }
-    const a = make(), b = make(), third = make();
+    const a = make(), b = make(), c = make(), d = make(), e = make();
     const A = a.service.currentPlayer().uid, B = b.service.currentPlayer().uid;
+    const C = c.service.currentPlayer().uid, D = d.service.currentPlayer().uid;
     const get = () => db.get('darts_rooms/R-ABCD'), game = () => get().game;
     const flight = (base = 20, mult = 3) => ({ pos: { x: 0, y: -292, z: 0 }, vel: { x: base, y: mult, z: 12600 }, tempo: 1 });
-    const active = () => game().active === A ? a : b;
-    const wait = () => { clock = Math.max(clock + 1, game().readyAt); };
-    async function shoot(base, mult) { wait(); assert.equal(await active().submit(flight(base, mult)), true); await db.flush(); }
-    await a.create({ mode: '501', bestOf: 3, turnMs: 60000 }); await db.flush();
-    await b.join(' r-abcd '); await db.flush();
-    assert.notEqual(A, B); assert.deepEqual(get().slots, [A, B, null, null]);
-    assert.equal(await a.start(), false); assert.equal(await b.start(), false);
-    await b.ready(); await db.flush(); assert.equal(game().status, undefined);
-    await a.start(); await db.flush(); assert.equal(game().status, 'playing');
-    await assert.rejects(third.join('ABCD'));
+    const active = () => clients[game().owners[game().active]];
+    const ids = () => get().seatOrder;
+    const wait = () => { clock = Math.max(clock + 1, game().readyAt || 0); };
+    async function flush(result) { const value = await result; await db.flush(); return value; }
+    async function shoot(base, mult) { wait(); assert.equal(await flush(active().submit(flight(base, mult))), true); }
+    async function readyGuests(host) {
+        for (const uid of Object.keys(get().players)) if (uid !== host) assert.equal(await flush(clients[uid].ready()), true);
+    }
+    async function fixture(fields) { await flush(a.service.update('ABCD', fields)); }
+
+    // Solo starts without a second device; a local slot survives promotion unchanged.
+    await flush(a.create({ mode: 'practice' }, [{ id: 'local-you', name: 'You' }]));
+    assert.equal(get().phase, 'lobby'); assert.deepEqual(ids(), ['local-you']);
+    assert.equal(get().participants['local-you'].controllerId, A);
+    assert.equal(a.canStart(), true); assert.equal(await flush(a.start()), true);
+    assert.equal(game().mode, 'practice'); assert.equal(game().turnMs, 0);
     const firstMatch = { ...game() };
-    const inactive = active() === a ? b : a;
-    assert.equal(await inactive.submit(flight()), false, 'Only active player can score');
-    const owner = game().active;
-    const concurrency = await Promise.all([active().submit(flight()), active().submit(flight())]); await db.flush();
-    assert.equal(concurrency.filter(Boolean).length, 1); assert.equal(game().scores[owner], 441); assert.equal(game().dart, 1);
-    assert.equal(game().history.length, 1); assert.equal(game().history[0].darts.length, 1, 'Duplicate submissions cannot duplicate history');
-    assert.equal(game().lastThrow.result.label, 'T20'); assert.equal(game().lastThrow.flight.vel.z, 12600);
-    assert.equal(await active().submit(flight()), false, 'Presentation cannot be skipped by another write');
-    await shoot(20, 3); await shoot(20, 3); assert.notEqual(game().active, owner); assert.equal(game().round, 2);
-    assert.equal(game().history[0].darts.length, 3); assert.equal(game().history[0].finished, true);
-    assert.equal(await a.submit(flight(), firstMatch), false, 'Delayed throw from old round is rejected');
-    assert.equal(await b.rematch(), false); assert.equal(await a.rematch(), false, 'No rematches during play');
+    const dup = await Promise.all([a.submit(flight()), a.submit(flight())]); await db.flush();
+    assert.equal(dup.filter(Boolean).length, 1); assert.equal(game().history.length, 1);
+    assert.equal(game().history[0].darts.length, 1, 'A duplicate release cannot duplicate history');
+    assert.equal(await a.submit({ ...flight(), vel: { x: 20, y: 3, z: NaN } }), false);
+    clock += 100000; assert.equal(await flush(a.expire()), false, 'Timer Off never expires');
+    assert.equal(await flush(a.backToLobby()), true);
+    assert.equal(game().endReason, 'practice-ended'); assert.equal(game().winner, null);
+    assert.equal(game().matchId, firstMatch.matchId); assert.equal(game().history.length, 1);
+    assert.equal(get().phase, 'lobby');
 
-    // Configure authoritative checkout/bust fixtures, then execute actual handlers.
-    async function setRemaining(score) {
-        const uid = game().active;
-        await a.service.update('ABCD', { ['game.scores.' + uid]: score, 'game.turnStartScore': score }); await db.flush();
-        return uid;
+    await flush(a.configure({ mode: '501' }));
+    assert.equal(get().options.turnMs, 60000, 'Changing mode uses the same timer defaults as a local lobby');
+    assert.equal(get().options.roundLimit, 15);
+    assert.equal(a.canStart(), false); assert.equal(await flush(a.start()), false, '501 needs at least two slots');
+    await flush(a.configure({ mode: 'cricket' }));
+    assert.equal(a.canStart(), false, 'Cricket needs at least two slots');
+    await flush(a.configure({ mode: 'countup' }));
+    assert.equal(a.canStart(), true, 'Solo Count-Up can start');
+    await flush(a.configure({ mode: 'practice', turnMs: 0 }));
+    assert.equal(await flush(a.addLocalPlayer('Alice')), true);
+    const aLocal = a.ownedPlayerIds(get()).find(id => id !== 'local-you');
+    await flush(b.join(' r-abcd '));
+    assert.equal(game().history.length, 1, 'A lobby join preserves finished match results');
+    assert.equal(await flush(b.addLocalPlayer('Bob two')), true);
+    const bSlots = b.ownedPlayerIds(get());
+    assert.equal(bSlots.length, 2); assert.equal(ids().length, 4);
+    await assert.rejects(c.join('ABCD'), error => error.code === 'room/full');
+    assert.equal(await flush(a.addLocalPlayer('Overflow')), false);
+    assert.equal(await flush(a.renamePlayer(bSlots[0], 'Impersonated')), false);
+    assert.equal(await flush(a.removeLocalPlayer(bSlots[0])), false);
+    assert.equal(await flush(b.removeLocalPlayer(bSlots[0])), true);
+    assert.equal(await flush(b.addLocalPlayer('Bob two')), true);
+    const bPracticeSlots = b.ownedPlayerIds(get());
+    assert.equal(await flush(b.renamePlayer(bPracticeSlots[0], 'Bob')), true);
+    assert.equal(await flush(a.renamePlayer(aLocal, 'Alice local')), true);
+
+    // Device readiness covers both owned slots. A recovered connection keeps both.
+    await readyGuests(A); assert.equal(await flush(a.start()), true);
+    assert.equal(game().owners[aLocal], A);
+    await flush(a.tick()); await flush(b.tick());
+    db.disconnectPlayer(B); await db.flush();
+    clock += 10000; await flush(a.tick());
+    assert(bPracticeSlots.every(id => get().participants[id]), 'Grace period retains every slot of a disconnected controller');
+    await flush(b.service.update('ABCD', { ['presence.' + B]: 999 }));
+    clock += 6000; await flush(a.tick());
+    assert(bPracticeSlots.every(id => get().participants[id]), 'Recovered controller keeps every local slot');
+    await flush(b.leave());
+    assert.equal(ids().length, 2); assert.equal(game().status, 'playing');
+    assert(bPracticeSlots.every(id => game().withdrawn.includes(id)));
+    assert.equal(game().players.length, 4, 'Departures never mutate the captured match roster');
+    await assert.rejects(c.join('ABCD'), error => error.code === 'room/started');
+    assert.equal(await flush(a.backToLobby()), true);
+    await flush(b.join('ABCD')); await flush(b.addLocalPlayer('Bob two'));
+    assert.equal(ids().length, 4);
+
+    // Any material change invalidates all device Ready confirmations, including stale clicks.
+    await flush(a.configure({ mode: '501', inRule: 'open', outRule: 'double', legsToWin: 2, roundLimit: 15, turnMs: 60000 }));
+    assert.equal(await flush(b.configure({ outRule: 'open' })), false, 'Only host configures the next match');
+    const staleReady = await Promise.all([a.configure({ outRule: 'open' }), b.ready()]); await db.flush();
+    assert.equal(staleReady[0], true); assert.equal(staleReady[1], false);
+    assert.deepEqual(get().ready, {}, 'A confirmation based on old rules is rejected atomically');
+    await flush(b.ready()); assert.equal(get().ready[B], true);
+    await flush(a.configure({ outRule: 'double' })); assert.deepEqual(get().ready, {});
+    assert.equal(await flush(a.start()), false, 'Changed rules need a new confirmation');
+    await readyGuests(A); assert.equal(await flush(a.start()), true);
+    const capturedOptions = R.options(game(), game().players.length), capturedId = game().matchId;
+    assert.equal(game().players.length, 4); assert.equal(Object.keys(game().owners).length, 4);
+    assert.equal(await flush(a.configure({ mode: 'cricket' })), false);
+    assert.equal(await flush(a.addLocalPlayer('Late')), false);
+    assert.equal(await flush(a.removeLocalPlayer(aLocal)), false);
+    assert.deepEqual(R.options(game(), 4), capturedOptions);
+    const wrong = active() === a ? b : a;
+    assert.equal(await flush(wrong.submit({ ...flight(), uid: game().active, controllerId: game().owners[game().active] })), false,
+        'Caller-supplied IDs cannot impersonate another controller');
+    assert.equal(await a.submit(flight(), firstMatch), false, 'Old match cannot submit into a newer match');
+    const seatsSeen = [], devicesSeen = {};
+    for (let turn = 0; turn < 4; turn++) {
+        const slot = game().active, owner = game().owners[slot];
+        seatsSeen.push(slot); devicesSeen[owner] = (devicesSeen[owner] || 0) + 1;
+        for (let dart = 0; dart < 3; dart++) await shoot(20, 3);
     }
-    const busted = await setRemaining(60); await shoot(20, 1); await shoot(20, 1); await shoot(20, 3);
-    assert.equal(game().scores[busted], 60); assert.notEqual(game().active, busted); assert.equal(game().lastDart.reason, 'bust');
-    const starter = firstMatch.active;
-    const win1 = await setRemaining(40); await shoot(20, 2);
-    assert.equal(game().status, 'between'); assert.equal(game().wins[win1], 1);
-    assert.equal(await a.start(), false); assert.equal(await a.rematch(), false);
-    wait(); const leg = { ...game() };
-    const next = await Promise.all([a.nextLeg(leg), b.nextLeg(leg)]); await db.flush();
-    assert.equal(next.filter(Boolean).length, 1); assert.equal(game().leg, 2); assert.notEqual(game().active, starter);
-    assert.equal(game().scores[A], 501); assert.equal(game().scores[B], 501); assert.equal(game().lastThrow, null);
-    // Give the same player a second checkout so BO3 ends at two wins.
-    if (game().active !== win1) { clock = game().turnStartedAt + game().turnMs; await a.expire(); await db.flush(); }
-    await setRemaining(50); await shoot(25, 2);
-    assert.equal(game().status, 'over'); assert.equal(game().winner, win1); assert.equal(game().wins[win1], 2);
-    assert.equal(await b.rematch(), false); assert.equal(await a.rematch(), true); await db.flush();
-    assert.deepEqual(get().ready, {}); assert.equal(game().status, undefined);
-    await b.ready(); await a.start(); await db.flush(); assert.notEqual(game().matchId, firstMatch.matchId);
-    assert.deepEqual(game().history, [], 'Rematch starts a fresh history in the same room');
-    assert.equal(await a.submit(flight(), firstMatch), false);
+    assert.equal(new Set(seatsSeen).size, 4); assert.deepEqual(devicesSeen, { [game().owners[seatsSeen[0]]]: 2, [game().owners[seatsSeen.find(id => game().owners[id] !== game().owners[seatsSeen[0]])]]: 2 });
+    assert(game().players.every(id => game().scores[id] === 321));
+    assert.equal(game().history.length, 4);
+    assert.deepEqual(a.current().data.game.history, b.current().data.game.history);
 
-    // Simultaneous watchdogs advance a timed-out turn once and retain landed darts.
-    await shoot(20, 1); const timedOut = game().active, before = game().round;
-    clock = game().turnStartedAt + game().turnMs;
-    const expires = await Promise.all([a.expire(), b.expire()]); await db.flush();
-    assert.equal(expires.filter(Boolean).length, 1); assert.equal(game().round, before + 1);
-    assert.equal(game().scores[timedOut], 481); assert.equal(game().lastTurn.reason, 'timeout');
+    // Actual 501 checkout, Leg rotation and retained room/history on match completion.
+    const win1 = game().active, starter1 = game().legStarter;
+    await fixture({ ['game.scores.' + win1]: 40, 'game.turnStartScore': 40 });
+    await shoot(20, 2); assert.equal(game().status, 'between'); assert.equal(game().wins[win1], 1);
+    wait(); const oldLeg = { ...game() };
+    const legs = await Promise.all([a.nextLeg(oldLeg), b.nextLeg(oldLeg)]); await db.flush();
+    assert.equal(legs.filter(Boolean).length, 1); assert.equal(game().leg, 2); assert.notEqual(game().legStarter, starter1);
+    assert.equal(game().owners[aLocal], A); assert(game().history.length >= 5);
+    while (game().active !== win1) { clock = game().turnStartedAt + game().turnMs; assert.equal(await flush(a.expire()), true); }
+    await fixture({ ['game.scores.' + win1]: 40, 'game.turnStartScore': 40 });
+    await shoot(20, 2); assert.equal(game().winner, win1); assert.equal(get().phase, 'results');
+    assert.equal(game().wins[win1], 2); assert.equal(game().matchId, capturedId);
+    await assert.rejects(c.join('ABCD'), error => error.code === 'room/started');
+    assert.equal(await flush(b.backToLobby()), false); assert.equal(await flush(a.backToLobby()), true);
+    const finishedHistory = structuredClone(game().history);
+    assert.deepEqual(get().ready, {}); assert.equal(ids().length, 4);
+    assert.deepEqual(game().history, finishedHistory, 'Back to Lobby retains finished results for viewing');
 
-    // Disconnect marker, reconnect before deadline, eviction, migration and replacement.
-    await Promise.all([a.service.heartbeat('ABCD'), b.service.heartbeat('ABCD')]); await db.flush();
-    await a.tick(); await b.tick(); await db.flush();
-    db.disconnectPlayer(A); await db.flush();
-    clock += 10000; await b.tick(); await db.flush(); assert(get().players[A]);
-    await a.service.update('ABCD', { ['presence.' + A]: 999 }); await db.flush();
-    clock += 6000; await b.tick(); await db.flush(); assert(get().players[A], 'Recovered peer keeps its seat');
-    clock += 16000; await b.tick(); await db.flush();
-    assert.equal(get().players[A], undefined); assert.equal(get().hostUid, B); assert.equal(game().winner, B);
-    assert.equal(game().endReason, 'left'); assert.deepEqual(get().ready, {});
-    await third.join('ABCD'); await db.flush(); await third.ready(); await b.start(); await db.flush();
-    assert.equal(game().status, 'playing'); assert.equal(await a.submit(flight()), false, 'Evicted tab cannot affect a replacement match');
-    await third.leave(); await db.flush(); assert.equal(game().winner, B);
-    await b.leave(); await db.flush(); assert.equal(get(), null);
-    await a.leave();
+    // Switch mode in the same room and settle a full 5-round Count-Up with 50/50 Bulls.
+    assert.equal(await flush(a.removeLocalPlayer(aLocal)), true);
+    const bExtra = b.ownedPlayerIds(get())[1];
+    assert.equal(await flush(b.removeLocalPlayer(bExtra)), true);
+    assert.equal(await flush(b.removeLocalPlayer(b.ownedPlayerIds(get())[0])), false, 'Each connection retains one primary player');
+    await flush(a.configure({ mode: 'countup', roundLimit: 5, bullMode: '50-50', legsToWin: 1, turnMs: 0 }));
+    await readyGuests(A); assert.equal(await flush(a.start()), true);
+    assert.notEqual(game().matchId, capturedId); assert.deepEqual(game().history, []);
+    assert.equal(game().roundLimit, 5); assert.equal(game().bullMode, '50-50'); assert.equal(game().turnMs, 0);
+    for (let dart = 0; dart < 30; dart++) await shoot(game().owners[game().active] === A ? 25 : 20, 1);
+    const winner = game().players.find(id => game().owners[id] === A);
+    assert.equal(game().winner, winner); assert.equal(game().scores[winner], 750);
+    assert(game().players.every(id => game().turns[id] === 5));
+    const outer = game().history.flatMap(row => row.darts).find(hit => hit.region === 'bull');
+    assert.equal(outer.score, 50); assert.equal(outer.mult, 1, 'Configured Bull points retain the physical category');
+    assert.equal(await flush(a.backToLobby()), true);
 
-    // A full online Count-Up match, tie replay and eight rounds with partial-turn timeouts.
-    await a.create({ mode: 'countup', bestOf: 1 }); await b.join('ABCD'); await db.flush();
-    await b.ready(); await a.start(); await db.flush();
-    for (let i = 0; i < 48; i++) await shoot(0, 0);
-    assert.equal(game().status, 'between'); assert.equal(game().draw, true);
-    const tieStarter = game().players[game().firstStarter];
-    wait(); await a.nextLeg(); await db.flush(); assert.notEqual(game().active, tieStarter);
-    for (let i = 0; i < 48; i++) await shoot(game().active === A ? 25 : 20, game().active === A ? 1 : 3);
-    assert.equal(game().winner, B); assert.equal(game().stats[A].darts, 24); assert.equal(game().scores[A], 600);
-    assert.equal(game().scores[B], 1440);
-    await a.leave(); await b.leave(); await db.flush();
-    await a.create({ mode: 'cricket', bestOf: 1 }); await b.join('ABCD'); await db.flush();
-    await b.ready(); await a.start(); await db.flush();
-    const cricketWinner = game().active;
-    for (const target of [20, 19, 18]) await shoot(target, 3);
-    for (let i = 0; i < 3; i++) await shoot(0, 0);
-    for (const target of [17, 16, 15]) await shoot(target, 3);
-    for (let i = 0; i < 3; i++) await shoot(0, 0);
-    await shoot(25, 2); await shoot(25, 1);
-    assert.equal(game().winner, cricketWinner); assert.equal(game().status, 'over');
-    assert(R.TARGETS.every(target => game().marks[cricketWinner][target] === 3));
-    await a.leave(); await b.leave(); await db.flush();
-    assert.equal(errors.length, 0, errors.map(String).join('\n'));
-
-    // The same shared service admits four, checks every guest, rotates all seats,
-    // continues after departure, and rejects departed/delayed writes.
-    const c = make(), d = make(), e = make();
-    await a.create({ mode: 'countup', bestOf: 1 }); await b.join('ABCD'); await c.join('ABCD'); await d.join('ABCD'); await db.flush();
-    const C = c.service.currentPlayer().uid, D = d.service.currentPlayer().uid;
-    assert.equal(Object.keys(get().players).length, 4); assert.equal(get().maxPlayers, 4);
+    // Four independent remote controllers share the same slot cap and Cricket penalty state.
+    await flush(c.join('ABCD')); await flush(d.join('ABCD'));
+    assert.equal(Object.keys(get().players).length, 4); assert.equal(ids().length, 4);
     await assert.rejects(e.join('ABCD'), error => error.code === 'room/full');
-    await b.ready(); await c.ready(); assert.equal(await a.start(), false, 'Every guest must be ready');
-    await d.ready(); assert.equal(await a.start(), true); await db.flush();
-    const clients = { [A]: a, [B]: b, [C]: c, [D]: d };
-    const seen = [];
-    for (let i = 0; i < 4; i++) {
-        seen.push(game().active);
-        for (let j = 0; j < 3; j++) { wait(); await clients[game().active].submit(flight(20, 3)); await db.flush(); }
-    }
-    assert.equal(new Set(seen).size, 4); assert.equal(game().active, seen[0]);
-    assert.equal(game().history.length, 4); assert.equal(new Set(game().history.map(row => row.uid)).size, 4);
-    assert.deepEqual(a.current().data.game.history, b.current().data.game.history, 'All players receive the same accepted history');
-    const departed = game().active, departureClient = clients[departed], delayed = { ...game() };
-    await departureClient.leave(); await db.flush();
-    assert.equal(game().status, 'playing'); assert.equal(Object.keys(get().players).length, 3); assert.notEqual(game().active, departed);
-    assert(game().withdrawn.includes(departed)); assert.equal(await departureClient.submit(flight(), delayed), false);
-    const hostNow = clients[get().hostUid];
-    const survivors = game().players.filter(uid => uid !== departed);
-    // Complete all eight rounds with the current roster, keeping enough peers for a rematch.
-    while (game().status === 'playing') {
-        wait(); await clients[game().active].submit(flight(game().active === survivors[0] ? 20 : 1, 3)); await db.flush();
-    }
-    assert.equal(game().winner, survivors[0]); assert(survivors.every(uid => game().stats[uid].darts === 24));
-    assert.equal(await hostNow.rematch(), true); await db.flush();
-    await e.join('ABCD'); await db.flush(); assert.equal(Object.keys(get().players).length, 4);
-    const all = Object.assign({}, clients, { [e.service.currentPlayer().uid]: e });
-    for (const uid of Object.keys(get().players)) if (uid !== get().hostUid) await all[uid].ready();
-    await hostNow.start(); await db.flush(); assert.equal(game().players.length, 4); assert.deepEqual(game().withdrawn, []);
-    const hostId = get().hostUid; await all[hostId].leave(); await db.flush();
-    assert.notEqual(get().hostUid, hostId); assert.equal(game().status, 'playing', 'Host departure preserves a multi-player match');
-    const nextHost = get().hostUid; await all[nextHost].leave(); await db.flush(); assert.equal(game().status, 'playing');
-    const finalTwo = Object.keys(get().players); await all[finalTwo[0]].leave(); await db.flush();
-    assert.equal(game().winner, finalTwo[1]); assert.equal(game().endReason, 'left');
-    await all[finalTwo[1]].leave(); await db.flush(); assert.equal(get(), null);
+    await flush(a.configure({ mode: 'cricket', cricketVariant: 'cutthroat', roundLimit: 15, turnMs: 60000 }));
+    await b.ready(); await c.ready(); await db.flush(); assert.equal(await a.start(), false);
+    await flush(d.ready()); assert.equal(await flush(a.start()), true);
+    const thrower = game().active, opponents = game().players.filter(id => id !== thrower);
+    await fixture({ ['game.marks.' + thrower + '.20']: 2 });
+    await shoot(20, 3);
+    assert.equal(game().scores[thrower], 0);
+    assert(opponents.every(id => game().scores[id] === 40), 'Every applicable opponent receives Cut-Throat penalties');
+    assert.deepEqual(game().lastDart.penalties, Object.fromEntries(opponents.map(id => [id, 40])));
+    assert.deepEqual(a.current().data.game, d.current().data.game);
+    assert.equal(game().history[0].darts[0].label, 'T20');
+    const disconnectedSlot = a.ownedPlayerIds(get())[0], stale = { ...game() };
+    // All other peers first observe a valid heartbeat, then a silent host is evicted once.
+    for (const client of [a, b, c, d]) await flush(client.tick());
+    db.disconnectPlayer(A); await db.flush();
+    clock += 10000; await flush(b.tick()); assert(get().players[A]);
+    clock += 6000; await flush(b.tick());
+    assert.equal(get().players[A], undefined); assert.equal(get().hostUid, B);
+    assert.equal(get().participants[disconnectedSlot], undefined); assert(game().withdrawn.includes(disconnectedSlot));
+    assert.equal(game().status, 'playing'); assert.equal(game().players.length, 4);
+    assert.equal(await a.submit(flight(), stale), false);
+    await flush(c.leave()); assert.equal(game().status, 'playing');
+    await flush(d.leave()); assert.equal(game().status, 'over');
+    assert.equal(game().winner, b.ownedPlayerIds(get())[0]); assert.equal(game().endReason, 'left');
+    assert.equal(await flush(b.backToLobby()), true);
+    await flush(e.join('ABCD')); assert.equal(ids().length, 2, 'Replacement joins the retained lobby');
+    await flush(e.leave()); await flush(b.leave()); assert.equal(get(), null);
+    await a.leave(); await c.leave(); await d.leave();
+
+    // Legacy incomplete lobby values are migrated at start, without changing connection IDs.
+    await flush(a.create({ mode: 'countup' }));
+    const legacy = get();
+    delete legacy.participants; delete legacy.seatOrder; delete legacy.phase; delete legacy.revision;
+    legacy.options = { mode: 'countup', bestOf: 1 };
+    db.put('darts_rooms/R-ABCD', legacy); await db.flush();
+    assert.equal(await flush(a.start()), true);
+    assert.deepEqual(game().players, [A]); assert.equal(game().owners[A], A);
+    assert.equal(game().roundLimit, 8); assert.equal(game().legsToWin, 1);
+    await flush(a.leave()); assert.equal(get(), null);
     assert.equal(errors.length, 0, errors.map(String).join('\n'));
-    console.log('PASS: darts RTDB 2–4 players, capacity/readiness, atomic throws, turns/starters, rematch, timers, recovery/host migration, departures and full Count-Up/Cricket.');
+    console.log('PASS: persistent Darts rooms, solo/mixed/4-device slots, ownership, Ready/configuration guards, rule snapshots, full matches, history, recovery and host migration.');
 })().catch(error => { console.error(error); process.exitCode = 1; });

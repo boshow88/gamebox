@@ -461,6 +461,82 @@ game policy for the existing `ArcadeNet.rooms` service and RTDB adapter.
 `darts-hud.js` maps shared state into player/turn/mode presentation data and renders
 the components; responsive composition lives in `css/darts.css`.
 `darts-history.js` owns the accessible, scrollable player/all-player history dialog.
+`darts-lobby.js` presents the unified local/online room, participant editing,
+contextual configuration and per-controller Ready/Start actions.
+
+### Room, participant and match lifetimes
+
+The page immediately creates a local room with one human slot. Adding local
+players, configuring rules and completing a local match do not initialize
+`ArcadeNet`; networking is imported only when Invite/Join is requested. Promoting
+the room preserves its local slots and names. Online connections continue to use
+the existing tab identity, RTDB room service, session/presence handling and host
+transfer. This is game policy on shared infrastructure, not a second transport.
+
+Room `players` identify connected controllers. Separately, `participants` and
+`seatOrder` describe 1–4 seats, each with a name, `controllerId` and `type:'human'`.
+One controller can own several slots; the separation leaves room for a future CPU
+without adding CPU behavior or controls now. Lobby edits validate capacity and
+ownership and clear Ready state. Readiness is per controller, covering all its
+slots. A host-start convention allows the host to acknowledge settings by Start
+after each guest controller readies up.
+
+Room `options` configure the next match. At Start, `Rules.create` captures the
+normalized options and participant order, and `game.owners` captures controller
+ownership. Active input and submitted actions derive the active slot and verify
+its owner rather than accepting a supplied participant ID. Existing match-ID,
+turn, status and sequence guards serialize scoring actions. A match can pass
+through playing/between-Legs/results without destroying the room; Back to Lobby
+keeps the last game, history, settings, names and slots until a new match replaces
+them. The host can stop Practice, which has no formal winner. Other active
+competitive matches retain locked configuration and membership.
+
+The existing reconnect grace period retains every slot owned by a temporarily
+disconnected controller. Intentional departure/eviction withdraws those slots
+atomically through `Rules.withdrawMany`, preventing a departing controller's
+second seat from becoming a transient winner. Frozen match players/owners and
+roster names remain available for history; remaining live room seats determine
+the next match. No new active participants join an in-progress match.
+
+### Explicit game configuration
+
+`Rules.options` validates `mode`, `legsToWin`, `turnMs`, `roundLimit`, `inRule`,
+`outRule`, `bullMode` and `cricketVariant`. Legacy `bestOf` input remains compatible;
+the UI uses first-to-1/2/3 Leg wins instead of promising a fixed Leg count.
+`Rules.eligibility` permits Practice/Count-Up with 1–4 slots and 501/Cricket with
+2–4. Practice defaults to unlimited rounds and Timer Off; competitive modes
+default to 60 seconds. Timers can also be Off/30/60/90 seconds. 501/Cricket offer
+10/15/unlimited rounds (default 15); Count-Up offers 5/8/10/15 (default 8).
+
+The lobby shows only relevant rules: 501 In/Out and Bull settings, Cricket
+Standard/Cut-Throat, and Count-Up rounds/Bull settings. Automatic Cricket resolves
+to Standard for two and Cut-Throat for three/four when the match is created;
+explicit choices survive population changes. Mode changes select appropriate
+round/timer defaults, while explicit values in the same update take precedence.
+Rules are copied into the match and are not read from mutable lobby options.
+
+`scoreAt`/`normalize` preserve physical Bull region and multiplier. Only
+`scoreResult` applies 25/50 or 50/50 numeric Bull scoring for 501/Count-Up; a
+50-point Outer Bull remains ineligible for Double In/Out. Master accepts Doubles,
+Triples and either Bull; Double accepts Doubles/Inner Bull. `entered` and
+`turnStartEntered` accompany the existing starting-score snapshot, so Bust restores
+both score and entry state for the complete turn. Open Out permits one remaining;
+Master/Double Out bust there or on an illegal checkout.
+
+Cut-Throat keeps the thrower's score unchanged and applies excess-mark penalties
+to every active opponent with that target open. `turnPenalties`, `lastDart.penalties`
+and history recipient maps make the difference explicit. Victory detection checks
+all contenders: penalties may make an already-closed non-throwing player lowest.
+Standard awards excess points once to the thrower and compares all contenders.
+
+Finite limits use each participant's completed-turn count, not the global turn
+revision. Everyone receives the configured opportunities before score settlement,
+unless normal checkout/closure wins immediately. Settlement uses lowest remainder
+for 501, highest Standard/Count-Up total and lowest Cut-Throat total. Tied leaders
+enter `phase:'cork'`: one dart each, unchanged scores, physical distance from the
+Bull passed as the optional fifth `throwDart` argument. Distances within 0.001 mm
+repeat only among those still tied. A Cork timeout forfeits the opportunity.
+Normal scoring and Cork history/feedback carry distinct phase data.
 
 ### Gameplay viewport
 
@@ -470,9 +546,10 @@ panel the right. At narrower widths, a compact 2x2 player summary sits above the
 board and the mode panel sits below it. The mobile viewport is portrait (3:5),
 desktop is landscape (3:2). The page header stays visible and the game fits in the
 remaining screen height from the initial ready screen onward. Start/Restart do
-not hide page sections, change viewport geometry or force a scroll. Settings,
-rules/help and detailed post-leg statistics live in a Settings dialog available
-from the persistent game toolbar. No mobile/desktop scoring branches are needed.
+not hide page sections, change viewport geometry or force a scroll. The native
+lobby dialog contains slots, invitations, contextual rules/help and detailed
+post-leg statistics; its toolbar action remains available during play, with
+match settings locked. No mobile/desktop scoring branches are needed.
 
 Panel bounds stay constant across Practice, 501, Cricket and Count-Up. Primary
 scores appear only in the player summary. The mode panel shows three individual
@@ -480,42 +557,58 @@ turn darts and subtotal, Cricket's seven-row mark matrix, or practice release
 feedback. Numbered/coloured seats link four-player marks to the player summary
 without long names in table headers. Current player, dart, mode, leg/round and
 optional timer remain visible. Completed turns retain their three results under
-an explicit "Last turn" label until the next player throws.
+an explicit "Last turn" label until the next player throws. Cork replaces mode
+details with one dart and its distance. Practice player cards show per-slot darts,
+and its feedback preserves the established free-throw interaction.
 
 Pointer-downs in `#throw-surface` or `#mode-panel` can begin a throw, allowing a
 mobile flick to start below the board. Buttons, links, inputs, player cards and
-result overlays keep normal interaction. History/Settings dialogs block throwing
+result overlays keep normal interaction. History/lobby dialogs block throwing
 behind them; history scrolling uses native vertical touch scrolling. Movements
 and releases can continue across the window. Secondary pointers are ignored and
 resize cancels a gesture. The
 renderer is cropped around the existing board centre, without changing gesture
-maths, tuning or ballistics. Backing resolution follows its display size. Detailed
-Count-Up statistics are expandable after a leg inside Settings.
+maths, tuning or ballistics. Desktop keeps its 15% smaller board and centre at 44%
+of the board region; the mobile crop is unchanged. Backing resolution follows its
+display size. `pitchOffsetDeg` remains 0 by default; changing it rigidly rotates the
+gesture-derived launch velocity in Y/Z, preserving speed, release point and
+camera. `handYOffset` remains -292 mm. Detailed Count-Up statistics are expandable
+after a Leg inside the lobby.
+
+Timed local matches use the same wall-clock deadline policy and cannot pause;
+Timer-Off local matches can pause. Local expiry waits while an accepted dart is
+flying so its score cannot be applied to a newly advanced slot. Online clients
+present the accepted throw before showing its updated score/history; presentation
+does not apply a second physical pitch transformation.
 
 ### Throw history
 
 Click a player card for that player's records, or History for the entire roster.
 The dialog filters by player and shows newest turns first: leg, per-player round,
 three individual hits, effective turn points, resulting score, and bust/checkout/
-timeout/departure/in-progress status. Reading history does not pause an online
-turn; a visible note explains this while its timer is running.
+timeout/departure/in-progress status. Cut-Throat lists actual penalty recipients;
+Cork lists one dart, tie-break round and distance. Reading history does not pause
+a timed turn; a visible note explains this while its timer is running.
 
 Rules maintain `game.history` and `game.historyDropped` in the same guarded
 transaction as scoring. Each turn is appended once and updated as its darts land;
 rejected or duplicate submissions cannot create extra records. History survives
-leg changes and brief reconnects, but a new match/rematch clears it. Departed
-players keep their names through the existing match roster. Practice records
-landed throws in local session memory. There is no profile or permanent archive.
+Leg changes and brief reconnects. Returning to the lobby preserves the finished
+game; a new match clears history. Departed players keep names through the match
+roster. Solo Practice stores one record per accepted throw with `leg:0`;
+multiplayer Practice stores three-dart turns while rotating seat order without
+a winner or round limit. Both local and remote Practice use the same rules data.
+There is no profile or permanent archive.
 
 To bound RTDB room payloads, retain the latest 500 turns per match, or 500 throws
-in Practice. A visible notice appears if older records were trimmed. An open
+in solo Practice. A visible notice appears if older records were trimmed. An open
 history dialog refreshes without resetting its filter, focus or the visible row
 when new records arrive. Native modal focus trapping, Escape/Close and restored
 player-card focus support touch and keyboard use. Game shortcuts do not propagate
 out of these dialogs.
 
 Modes and scoring live in [rules.md](rules.md#darts); network guards and departure
-policy live in [ROOMS.md](ROOMS.md#darts-match-protocol). Run the checks listed in
+policy live in [ROOMS.md](ROOMS.md#darts-room-and-match-protocol). Run the checks listed in
 [DEBUG.md](DEBUG.md#darts-checks).
 
 ## Logging

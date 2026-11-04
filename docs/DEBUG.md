@@ -70,19 +70,39 @@ node tools/rooms-browser-check.js --darts
 node tools/rooms-browser-check.js --darts --invalid-rtdb
 ```
 
-The first two checks run without packages or network. The room check uses the real
-room core, darts controller and RTDB adapter against the native-tree fixture,
-including contention, timer races, reconnect/eviction, forfeit, rematch, full
-Count-Up and a tied-leg replay. The browser check uses real pages, physics,
-canvas, shared lobby and modules with only Firebase SDK imports redirected to
-local fakes. It exercises practice, solo completion, online turn/leg/match flow,
-opponent presentation, rematches, result closing, translations and 320/768px
-layout. All game test hooks are injected by the local test server, never shipped
-in the game page. Four-client checks cover readiness, turn rotation, host migration
-and continued play after departure. Stress tests compare exact board/player/mode
-panel bounds across modes at 320/390/768/1200px, including four-player Cricket and
-HUD drags that must not initiate throws. Optional screenshot checks write ignored
-artifacts to `.cache/darts-mobile.png` and `.cache/darts-desktop.png`:
+The first two checks run without packages or network. The rules check covers
+Open/Master/Double In and Out, whole-turn score/entry rollback, physical Bull
+identity under 25/50 and 50/50 scoring, Standard/Cut-Throat recipients and wins
+(including a non-throwing winner), per-participant round limits, score settlement
+and Cork distances/repeated ties. It also covers unlimited single/multiple-player
+Practice, first-to-1/2/3 Leg progression, history retention and atomic controller
+departures. The real gesture/ballistics functions still run against their golden
+velocities and deterministic pitch-rotation checks.
+
+The room check uses the actual room core, Darts policy and RTDB adapter against
+the native-tree fixture. It exercises separate controllers and player slots,
+one- and multiple-slot ownership, same-device and mixed-device matches, capacity,
+configuration/Ready races, locked match snapshots, rejected impersonation and
+duplicate throws, timers including Off, full Count-Up, Cut-Throat penalties,
+same-code mode switching, retained results/history and reconnect/eviction with
+host transfer. It also checks older room values can start a normalized match.
+
+The browser check loads real pages, physics, canvas, the unified lobby and modules
+with only Firebase SDK imports redirected to local fakes. Its V2 scenarios live
+in `tools/helpers/darts-browser-v2.js`, injected by the local server; game test
+hooks are never shipped in the production page. Scenarios cover immediate
+offline Practice/Count-Up without loading networking, mode minimums, promotion
+preserving local slots, two players per device, four remote controllers,
+Ready invalidation, ownership, match locking, results and another mode in the
+same room. History scenarios exercise player/all filtering, independent scrolling,
+live-update anchor preservation, modal input blocking and focus restoration.
+Invalid-backend checks leave local Practice and account profiles working.
+
+Layout checks compare board/player/mode bounds before and after Start and across
+modes at 320/390/768/1200px. They cover four-player Cricket, visible dart counters,
+player HUD drags that must not throw, and board/bottom-panel gestures that must.
+Optional screenshot checks write ignored artifacts to `.cache/darts-mobile.png`
+and `.cache/darts-desktop.png`:
 
 ```text
 node tools/rooms-browser-check.js --darts-mobile
