@@ -522,6 +522,55 @@ tiedLowest = R.throwDart(tiedLowest, tiedLowest.active, miss, 200001, { x: 20, y
 assert.equal(tiedLowest.winner, 'A'); assert.equal(tiedLowest.legCorkPurpose, 'tie');
 assert.equal(R.create({ mode: 'x01', settlement: 'cork' }, four, 1000).phase, 'play', 'Direct limit Cork does not force opening Cork');
 assert.equal(R.create({ mode: 'x01', startingPlayer: 'cork' }, four, 1000).settlement, 'score-then-cork', 'Opening Cork does not change limit settlement');
+
+// Every Cork purpose can narrow the field, repeat consecutive physical ties and then resolve.
+// These deterministic world coordinates exercise the real 0.001 mm comparison, not screen pixels.
+for (const purpose of ['opening', 'tie', 'limit']) for (const count of [2, 3, 4]) {
+    const players = four.slice(0, count);
+    let game = R.create(purpose === 'opening' ? { mode: 'x01', startingPlayer: 'cork' } :
+        purpose === 'tie' ? { mode: 'countup', roundLimit: 5 } :
+            { mode: 'x01', roundLimit: 10, settlement: 'cork' }, players, 1000);
+    if (purpose !== 'opening') {
+        // Unequal X01 remainders must not restrict a direct Cork field; Count-Up leaders tie.
+        players.forEach((id, index) => { game.scores[id] = purpose === 'tie' ? 100 : 12 + index * 40; });
+        game.turnStartScore = game.scores[game.active];
+        for (let turn = 0; turn < count * game.roundLimit; turn++) game = R.timeout(game, 40000 + turn * 60000);
+    }
+    assert.equal(game.phase, 'cork'); assert.equal(game.corkPurpose, purpose);
+    assert.deepEqual(game.corkPlayers, players);
+    const normal = JSON.stringify([game.scores, game.marks, game.turns, game.stats]);
+    const firstRound = [{ x: 3, y: 4 }, { x: 0, y: 5.0005 }, { x: 0, y: 8 }, { x: 0, y: 12 }];
+    for (let i = 0; i < count; i++) {
+        assert.equal(game.active, players[i]);
+        game = R.throwDart(game, game.active, miss, 1000000 + i, firstRound[i]);
+    }
+    assert.equal(game.corkRound, 2); assert.deepEqual(game.corkPlayers, ['A', 'B']);
+    for (const id of players.slice(2)) assert.equal(R.throwDart(game, id, miss, 1000010, { x: 0, y: 0 }), null,
+        'A player outside the closest tie cannot enter its rethrow');
+    const secondRound = [{ x: 6, y: 8 }, { x: -6, y: -8 }];
+    for (let i = 0; i < 2; i++) {
+        assert.equal(game.active, players[i]);
+        game = R.throwDart(game, game.active, miss, 1000020 + i, secondRound[i]);
+    }
+    assert.equal(game.phase, 'cork'); assert.equal(game.corkRound, 3);
+    assert.deepEqual(game.corkPlayers, ['A', 'B'], 'Only the same two tied finalists survive consecutive ties');
+    const thirdRound = [{ x: 5, y: 12 }, { x: 9, y: 12 }];
+    for (let i = 0; i < 2; i++) game = R.throwDart(game, game.active, miss, 1000030 + i, thirdRound[i]);
+    assert.equal(JSON.stringify([game.scores, game.marks, game.turns, game.stats]), normal,
+        'Rethrows cannot change ordinary scoring, marks, turn counts or statistics');
+    const corkHistory = game.history.filter(row => row.phase === 'cork');
+    assert.equal(corkHistory.length, count + 4); assert(corkHistory.every(row => row.corkPurpose === purpose));
+    assert.deepEqual(corkHistory.filter(row => row.corkRound === 2).map(row => row.uid), ['A', 'B']);
+    assert.deepEqual(corkHistory.filter(row => row.corkRound === 3).map(row => row.uid), ['A', 'B']);
+    if (purpose === 'opening') {
+        assert.equal(game.status, 'playing'); assert.equal(game.phase, 'play'); assert.equal(game.openingWinner, 'A');
+        assert.equal(game.active, 'A'); assert.equal(game.legStarter, 'A'); assert.equal(game.wins.A, 0);
+    } else {
+        assert.equal(game.status, 'over'); assert.equal(game.winner, 'A'); assert.equal(game.endReason, 'cork');
+        assert.equal(game.legCorkPurpose, purpose); assert.equal(game.wins.A, 1);
+    }
+}
+
 let legacy = R.create({ mode: '501', roundLimit: 15 }, ['A', 'B'], 1000);
 legacy.mode = '501'; delete legacy.startingScore; delete legacy.roundLimitExplicit; delete legacy.startingPlayer; delete legacy.settlement;
 legacy = dart(legacy, 20, 3);

@@ -341,6 +341,67 @@ const createRoom = require('../js/games/darts-room.js');
     assert.equal(get().options.roundLimit, 30);
     await flush(a.leave()); await flush(b.leave()); await flush(c.leave()); await flush(d.leave()); assert.equal(get(), null);
 
+    // Cork rethrows keep ownership and accepted-event guards through consecutive ties in every purpose.
+    for (const purpose of ['opening', 'tie', 'limit']) {
+        await flush(a.create({ mode: purpose === 'tie' ? 'countup' : 'x01', roundLimit: purpose === 'tie' ? 5 : 10,
+            startingPlayer: purpose === 'opening' ? 'cork' : 'random',
+            settlement: purpose === 'limit' ? 'cork' : 'score-then-cork', turnMs: 30000 }));
+        await flush(b.join('ABCD')); await flush(c.join('ABCD')); await flush(d.join('ABCD'));
+        await readyGuests(A); assert.equal(await flush(a.start()), true);
+        const retrySeats = game().players.slice(), eligible = retrySeats.slice(0, 2);
+        if (purpose !== 'opening') {
+            const nearLimit = structuredClone(game());
+            retrySeats.forEach((id, index) => {
+                nearLimit.turns[id] = nearLimit.roundLimit - 1;
+                nearLimit.scores[id] = purpose === 'tie' ? 100 : 12 + index * 40;
+            });
+            nearLimit.turnStartScore = nearLimit.scores[nearLimit.active];
+            await fixture({ game: nearLimit });
+            for (let dart = 0; dart < 12; dart++) await shoot(0, 0);
+        }
+        assert.equal(game().phase, 'cork'); assert.equal(game().corkPurpose, purpose);
+        const normal = JSON.stringify([game().scores, game().marks, game().turns, game().stats]);
+        let staleFirstRound;
+        for (let dart = 0; dart < 4; dart++) {
+            staleFirstRound = structuredClone(game());
+            const id = game().active;
+            await shoot(...(id === eligible[0] ? [3, 4] : id === eligible[1] ? [-3, -4] : [20, 0]));
+        }
+        assert.equal(game().corkRound, 2); assert.deepEqual(game().corkPlayers, eligible);
+        wait();
+        const beforeRejected = structuredClone(game());
+        for (const client of [c, d]) assert.equal(await flush(client.submit(flight(0, 0))), false,
+            'An excluded Cork controller cannot submit into a finalists-only rethrow');
+        assert.equal(await flush(active().submit(flight(0, 0), staleFirstRound)), false,
+            'A stale first-round event cannot submit into the new Cork round');
+        assert.deepEqual(game(), beforeRejected);
+        const duplicateExpected = structuredClone(game()), seq = game().seq, retryOwner = active();
+        const duplicates = await Promise.all([retryOwner.submit(flight(6, 8), duplicateExpected), retryOwner.submit(flight(6, 8), duplicateExpected)]);
+        await db.flush();
+        assert.equal(duplicates.filter(Boolean).length, 1, 'Concurrent duplicate Cork throws are accepted once');
+        assert.equal(game().seq, seq + 1);
+        await shoot(-6, -8);
+        assert.equal(game().corkRound, 3); assert.deepEqual(game().corkPlayers, eligible);
+        wait();
+        assert.equal(await flush(active().submit(flight(0, 0), duplicateExpected)), false,
+            'A synchronized event from the previous rethrow cannot replay in a later one');
+        for (const client of [c, d]) assert.equal(await flush(client.submit(flight(0, 0))), false);
+        for (let dart = 0; dart < 2; dart++) await shoot(...(game().active === eligible[0] ? [5, 12] : [9, 12]));
+        assert.equal(JSON.stringify([game().scores, game().marks, game().turns, game().stats]), normal);
+        assert.deepEqual(a.current().data.game, d.current().data.game);
+        const rethrows = game().history.filter(row => row.phase === 'cork' && row.corkRound > 1);
+        assert.equal(rethrows.length, 4); assert(rethrows.every(row => eligible.includes(row.uid) && row.corkPurpose === purpose));
+        if (purpose === 'opening') {
+            assert.equal(game().phase, 'play'); assert.equal(game().openingWinner, eligible[0]);
+            assert.equal(game().active, eligible[0]); assert.equal(game().status, 'playing');
+        } else {
+            assert.equal(game().winner, eligible[0]); assert.equal(game().status, 'over');
+            assert.equal(game().legCorkPurpose, purpose);
+        }
+        await flush(a.leave()); await flush(b.leave()); await flush(c.leave()); await flush(d.leave());
+        assert.equal(get(), null);
+    }
+
     // Legacy 501 configurations normalize to 501-point X01, including local result uploads.
     for (const legacyCap of [10, undefined]) {
         await flush(a.create({ mode: '501', startingScore: 1501, roundLimit: 10 }, [{ id: 'legacy-one', name: 'One' }, { id: 'legacy-two', name: 'Two' }]));

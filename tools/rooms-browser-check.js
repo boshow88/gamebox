@@ -10,7 +10,8 @@ const root = path.resolve(__dirname, '..');
 const args = process.argv.slice(2);
 const mode = args.includes('--invalid-rtdb') ? 'invalid' : 'rtdb';
 const lobbyPreview = args.includes('--darts-lobby');
-const preview = args.includes('--darts-mobile') ? 'mobile' : args.includes('--darts-desktop') ? 'desktop' : lobbyPreview ? 'mobile' : '';
+const corkPreview = args.includes('--darts-cork');
+const preview = args.includes('--darts-mobile') ? 'mobile' : args.includes('--darts-desktop') ? 'desktop' : lobbyPreview || corkPreview ? 'mobile' : '';
 const dartsOnly = args.includes('--darts') || !!preview;
 const chrome = args.find(arg => !arg.startsWith('--')) || 'C:/Program Files/Google/Chrome/Application/chrome.exe';
 const database = require('./helpers/browser-rtdb.js');
@@ -46,6 +47,7 @@ const mode = '${mode}';
 const dartsOnly = ${dartsOnly};
 const preview = '${preview}';
 const lobbyPreview = ${lobbyPreview};
+const corkPreview = ${corkPreview};
 let encode = value => value, decode = value => value;
 addEventListener('message', event => { if (event.data && event.data.roomError) errors.push(event.data.roomError); });
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -191,14 +193,15 @@ ${dartsOnly ? fs.readFileSync(path.join(__dirname, 'helpers/darts-browser-v2.js'
             for (const check of [checkDartsAccountNames, checkDartsContextV2, checkDartsLocalV2, checkDartsHandoffV2,
                 checkDartsBustV2, checkDartsResultsV2, checkDartsExpandedSettingsV2, checkDartsOpeningCorkV2,
                 checkDartsFinalHitV2, checkDartsReservedLocalV2, checkDartsReservedLossV2, checkDartsLeaveRestoreV2,
-                checkDartsMixedV2, checkDartsSupersededFlightV2, checkDartsFourV2, checkDartsLayoutsV2, checkDartsLobbyV2]) {
+                checkDartsMixedV2, checkDartsSupersededFlightV2, checkDartsFourV2, checkDartsLayoutsV2, checkDartsLobbyV2,
+                checkDartsStatusOverflowV2, checkDartsCorkRethrowsV2, checkDartsRemoteCorkRethrowsV2, checkDartsCorkPreviewV2]) {
                 document.getElementById('result').textContent = 'RUNNING: ' + check.name;
                 await check();
             }
         }
         else { await check('beam', 'beam_rooms', 'beam'); await check('rune-stones', 'duel_rooms', 'rd'); }
     }
-    document.getElementById('result').textContent = 'PASS (' + mode + '): ' + (mode === 'invalid' ? 'disabled online rooms and working account profiles.' : dartsOnly ? 'Darts X01 settings, opening/settlement Cork, final-hit timing, local/mixed room flows, handoff safety, accepted scoring feedback, history and responsive geometry.' : 'real browser room flows, backend selection and account isolation.');
+    document.getElementById('result').textContent = 'PASS (' + mode + '): ' + (mode === 'invalid' ? 'disabled online rooms and working account profiles.' : dartsOnly ? 'Darts Cork contexts/rethrows/ownership, overflow and reduced-motion detail, X01 settings, final-hit timing, local/mixed rooms, history and responsive geometry.' : 'real browser room flows, backend selection and account isolation.');
 })().catch(error => { document.getElementById('result').textContent = 'FAIL: ' + error.stack; });
 </script>`;
 
@@ -234,7 +237,16 @@ async function main() {
             if (file.endsWith('.html')) {
                 type = 'text/html';
                 body = body.toString().replace('<head>', '<head><script>addEventListener("error",e=>parent.postMessage({roomError:e.message},location.origin));addEventListener("unhandledrejection",e=>parent.postMessage({roomError:String(e.reason)},location.origin));</script>');
-                if (file.endsWith('darts.html') && dartsOnly) body = body.toString().replace('<head>', '<head><script>window.__dartsNow=Date.now();Date.now=function(){return window.__dartsNow;};</script>');
+                if (file.endsWith('darts.html') && dartsOnly) body = body.toString().replace('<head>', `<head><script>
+                    window.__dartsNow=Date.now();Date.now=function(){return window.__dartsNow;};
+                    const originalMatchMedia=window.matchMedia.bind(window), reducedMotion=new EventTarget();
+                    let reduced=false;
+                    Object.defineProperties(reducedMotion,{matches:{get:()=>reduced},media:{value:'(prefers-reduced-motion: reduce)'}});
+                    reducedMotion.addListener=cb=>reducedMotion.addEventListener('change',cb);
+                    reducedMotion.removeListener=cb=>reducedMotion.removeEventListener('change',cb);
+                    window.matchMedia=query=>query.replace(/\\s+/g,'')==='(prefers-reduced-motion:reduce)'?reducedMotion:originalMatchMedia(query);
+                    window.__dartsReducedMotion=value=>{reduced=!!value;const event=new Event('change');Object.defineProperty(event,'matches',{value:reduced});reducedMotion.dispatchEvent(event);};
+                </script>`);
             } else if (file.endsWith('.css')) type = 'text/css';
             else if (file.endsWith('.svg')) type = 'image/svg+xml';
         }
@@ -247,10 +259,10 @@ async function main() {
         const extra = [];
         if (preview) {
             const target = path.join(root, '.cache'); fs.mkdirSync(target, { recursive: true });
-            extra.push('--screenshot=' + path.join(target, 'darts-' + (lobbyPreview ? 'lobby-' : '') + preview + '.png'), '--window-size=' + (preview === 'mobile' ? '390,844' : '1200,800'), '--hide-scrollbars');
+            extra.push('--screenshot=' + path.join(target, 'darts-' + (lobbyPreview ? 'lobby-' : corkPreview ? 'cork-' : '') + preview + '.png'), '--window-size=' + (preview === 'mobile' ? '390,844' : '1200,800'), '--hide-scrollbars');
         }
         browser = spawn(chrome, ['--headless=new', '--disable-gpu', '--no-first-run', '--no-default-browser-check', ...extra,
-            '--disable-background-networking', '--user-data-dir=' + profile, '--dump-dom', '--virtual-time-budget=' + (dartsOnly ? 90000 : 45000),
+            '--disable-background-networking', '--user-data-dir=' + profile, '--dump-dom', '--virtual-time-budget=' + (dartsOnly ? 180000 : 45000),
             'http://127.0.0.1:' + server.address().port + '/__check'], { windowsHide: true });
         let output = '', diagnostics = '';
         browser.stdout.on('data', chunk => { output += chunk; }); browser.stderr.on('data', chunk => { diagnostics += chunk; });

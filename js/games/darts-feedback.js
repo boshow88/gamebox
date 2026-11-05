@@ -6,7 +6,7 @@
     else root.DartsFeedback = feedback;
 })(typeof window === 'object' ? window : globalThis, function () {
     'use strict';
-    var TIMING = Object.freeze({ turn: 1200, bust: 1200, penalty: 1300, finalHit: 1000 });
+    var TIMING = Object.freeze({ turn: 1200, bust: 1200, penalty: 1300, finalHit: 1000, cork: 1600 });
     function timestamp(value) { return Number.isFinite(value) ? value : Date.now(); }
     function owner(state, player) {
         return state.owners && state.owners[player] != null ? state.owners[player] : player;
@@ -19,15 +19,26 @@
         return JSON.stringify([state.matchId == null ? '' : state.matchId, state.leg,
             state.phase, state.round, state.active]);
     }
+    function corkIdentity(state) {
+        return state.status === 'playing' && state.phase === 'cork' ? JSON.stringify([
+            state.matchId || '', state.leg, state.corkPurpose || 'tie', state.corkRound || 1,
+            state.corkPlayers || []]) : '';
+    }
     function create(options) {
         var controllerId = options && options.controllerId;
-        var previous, handoff, notice, penalties, penaltyUntil, eventKey, seen, finalHit, finalUntil;
+        var previous, handoff, notice, penalties, penaltyUntil, eventKey, seen, finalHit, finalUntil, queuedCork;
         function reset() {
             previous = null; handoff = null; notice = null;
             penalties = {}; penaltyUntil = 0; eventKey = ''; seen = new Set();
             finalHit = null; finalUntil = 0;
+            queuedCork = null;
         }
         reset();
+        function showQueuedCork(now) {
+            if (queuedCork && !handoff && (!notice || notice.value.kind === 'turn' || now >= notice.until)) {
+                notice = { value: queuedCork, until: now + TIMING.cork }; queuedCork = null;
+            }
+        }
         function snapshot(at) {
             var now = timestamp(at), currentNotice = notice && now < notice.until ? notice : null;
             var resultPending = !!finalHit && now < finalUntil;
@@ -58,6 +69,11 @@
                 return snapshot(now);
             }
             var key = identity(state), changed = previous && key !== previous.key;
+            var corkKey = corkIdentity(state), corkChanged = corkKey && (!previous || previous.corkKey !== corkKey);
+            if (!corkKey) {
+                queuedCork = null;
+                if (notice && ['cork', 'cork-rethrow'].includes(notice.value.kind)) notice = null;
+            }
             if ((previous && previous.leg !== state.leg) || state.status === 'playing' ||
                 ['left', 'cancelled', 'practice-ended'].includes(state.endReason)) {
                 finalHit = null; finalUntil = 0;
@@ -75,6 +91,12 @@
                 } else {
                     notice = { value: { kind: 'turn', player: state.active, key: key }, until: now + TIMING.turn };
                 }
+            }
+            if (corkChanged) {
+                queuedCork = { kind: previous && previous.phase === 'cork' && previous.corkPurpose === (state.corkPurpose || 'tie') &&
+                    (state.corkRound || 1) > previous.corkRound ? 'cork-rethrow' : 'cork',
+                    key: corkKey, purpose: state.corkPurpose || 'tie', round: state.corkRound || 1,
+                    roundLimit: state.roundLimit || 0, players: (state.corkPlayers || []).slice() };
             }
             var event = context.throwEvent;
             if (event && event.id != null && !seen.has(String(event.id))) {
@@ -104,12 +126,14 @@
                 }
             }
             if (state.status !== 'playing') {
-                handoff = null; notice = null;
+                handoff = null; notice = null; queuedCork = null;
             } else if (handoff && (!notice || notice.value.kind !== 'bust')) {
                 notice = null;
             }
+            showQueuedCork(now);
             previous = { key: key, matchId: matchId, seq: state.seq, active: state.active,
-                owner: owner(state, state.active), human: human(state, state.active), leg: state.leg, phase: state.phase };
+                owner: owner(state, state.active), human: human(state, state.active), leg: state.leg, phase: state.phase,
+                corkKey: corkKey, corkPurpose: state.corkPurpose || 'tie', corkRound: state.corkRound || 1 };
             return snapshot(now);
         }
         function confirm(at, expectedKey) {
@@ -117,6 +141,7 @@
             if (!current.handoff || !current.handoff.visible ||
                 (expectedKey != null && current.handoff.key !== expectedKey)) return false;
             handoff = null;
+            showQueuedCork(timestamp(at));
             return true;
         }
         // A coded local match may retain the same device after its room reservation is lost.

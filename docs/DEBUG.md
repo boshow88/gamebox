@@ -88,6 +88,13 @@ with 2/3/4 players, tied retries, timeouts, controller departures, unchanged nor
 statistics and later-Leg rotation. Direct X01 limit Cork includes all contenders
 regardless of prior scores; numeric ties retain the existing tied-leader Cork.
 
+The Cork coverage audit found existing exact-distance/tolerance rethrows and a
+four-controller opening tie. Additional deterministic cases now cover all three
+purposes with 2/3/4 players: a tolerance tie, a second exact tie and a decisive
+third round. Only tied players rethrow and normal scoring data stays unchanged.
+Room cases exercise each purpose with four remote controllers, excluded-owner
+rejection, stale-round guards and concurrent duplicates accepted only once.
+
 The feedback check covers same-device ownership transitions, fresh confirmation,
 stale confirmations after timeouts, snapshot/event deduplication, actual accepted
 penalty recipients, Bust-to-handoff sequencing and result priority. The HUD check
@@ -143,6 +150,14 @@ opening Cork covers 2/3/4 slots; mixed-device Cork uses actual accepted flights.
 Decisive X01/Cricket/Count-Up/Cork impacts show their hit for one second before
 the result appears, on both clients when shared. Expanded advanced settings keep
 Start/Ready reachable on small mobile viewports.
+
+Cork clarity checks verify context-specific entry/rethrow notices, handoff-first
+queuing, current eligibility and retained comparison distances on mobile/desktop.
+Status checks measure real overflow, inspect the paused-endpoint animation,
+confirm no animation for fitting text and test resize/language/state resets.
+Reduced-motion checks disable movement while preserving the accessible full-text
+popup. Fixed region bounds, timer/control separation and page horizontal overflow
+are checked at 320x568, 390x844 and desktop sizes in EN/ZH.
 
 Lobby checks keep the header/footer visible at every content scroll position
 with four players and expanded rules at 320x568, 390x844 and 1200x420. They verify

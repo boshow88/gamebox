@@ -675,6 +675,30 @@ visibility updates outside its content cache so expiry reveals the result even
 without a new accepted state. New match/Leg/lobby transitions clear pending
 presentation; timeout/forfeit endings have no artificial winning-hit delay.
 
+During active Cork, the top meta prioritizes a short purpose label instead of
+ordinary X01 rules. The existing mode region shows a compact Cork comparison
+panel: current eligible players, physical hits and millimetre distances, with
+previous-round distances retained for excluded players and those awaiting a
+rethrow. Names/seat colours identify the field; excluded players never appear
+as waiting. This is derived from accepted phase/history data, not another score
+store. No scoring or physical comparison code changes for presentation.
+
+Cork phase notices use match/Leg/purpose/round/eligible-field identity, so repeated
+snapshots cannot replay or extend them. Opening, tied-result and direct-limit
+purposes have distinct copy. A rethrow gets a new notice. Pending handoff takes
+priority; the Cork notice waits until confirmation and remains nonblocking.
+Resolved phases, results, lobby and new matches discard queued notices. Existing
+timers and Bust/final-hit timing continue independently.
+
+The meta button contains one full text strip. `ResizeObserver` measures actual
+overflow and only animates the hidden distance, with 1.8-second endpoint pauses
+and roughly 20 pixels/second movement. Content/width changes reset the animation;
+clock and ordinary snapshot refreshes do not. Reduced motion cancels it. The full
+text is always available through the button's accessible label/title and a small
+tap/keyboard popup, dismissed by Escape or an outside click. Only this rules/phase
+strip moves; active-player information, timer, controls and viewport geometry stay
+stationary.
+
 ### Throw history
 
 Click a player card for that player's records, or History for the entire roster.

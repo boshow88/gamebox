@@ -233,4 +233,45 @@ for (const legsToWin of [1, 2]) {
     assert.equal(update(f, null, 250).finalHit, null, 'Leaving clears the pending impact');
 }
 
-console.log('Darts feedback: handoff safety, accepted scoring, bust sequencing and final-hit presentation passed.');
+// Context notices are accepted-phase presentation; handoff stays the only input gate.
+for (const purpose of ['opening', 'tie', 'limit']) {
+    let s = purpose === 'opening' ? create('x01', ['A', 'B'], { startingPlayer: 'cork' }) : create('x01', ['A', 'B']);
+    const f = F.create({ controllerId: 'device1' });
+    if (purpose !== 'opening') {
+        update(f, s, 0);
+        s = { ...s, seq: s.seq + 1, round: s.round + 1, phase: 'cork', corkPurpose: purpose,
+            corkRound: 1, corkPlayers: ['A', 'B'], corkDistances: {} };
+    }
+    let v = update(f, s, 100);
+    assert.equal(v.notice.kind, 'cork'); assert.equal(v.notice.purpose, purpose);
+    assert.deepEqual(v.notice.players, ['A', 'B']); assert.equal(v.blocking, false);
+    const key = v.notice.key;
+    update(f, s, 200);
+    assert.equal(f.snapshot(100 + F.TIMING.cork).notice, null, 'A repeated snapshot does not extend a phase notice');
+    s = { ...s, seq: s.seq + 1, round: s.round + 1, corkRound: 2 };
+    v = update(f, s, 1800);
+    assert.equal(v.notice.kind, 'cork-rethrow'); assert.equal(v.notice.round, 2); assert.notEqual(v.notice.key, key);
+    update(f, s, 1900);
+    assert.equal(f.snapshot(1800 + F.TIMING.cork).notice, null);
+    s = { ...s, seq: s.seq + 1, phase: 'play', corkPurpose: null, corkPlayers: [] };
+    assert.equal(update(f, s, 3500).notice, null, 'Resolved Cork cannot leave a special-phase notice behind');
+}
+{
+    let s = create('x01', ['A', 'B']);
+    const f = F.create({ controllerId: 'device1' }); update(f, s, 0);
+    s = { ...s, seq: 1, round: 2, phase: 'cork', corkPurpose: 'limit', corkRound: 1,
+        corkPlayers: ['A', 'B'], active: 'B', corkDistances: {} };
+    const queued = update(f, s, 100);
+    assert.equal(queued.handoff.player, 'B'); assert.equal(queued.notice, null);
+    assert.equal(f.confirm(200, queued.handoff.key), true);
+    assert.equal(f.snapshot(200).notice.kind, 'cork'); assert.equal(f.snapshot(200).blocking, false);
+    assert.equal(update(f, s, 300).notice.key, f.snapshot(200).notice.key);
+    s = { ...s, seq: 2, round: 3, active: 'A', corkRound: 2 };
+    const next = update(f, s, 400); assert.equal(next.notice, null); assert.equal(next.handoff.player, 'A');
+    // Resolving before confirmation must discard the queued rethrow announcement.
+    s = { ...s, seq: 3, status: 'over', winner: 'A', legWinner: 'A', endReason: 'cork' };
+    assert.equal(update(f, s, 500).notice, null); assert.equal(f.confirm(501), false);
+    f.reset(); assert.equal(f.snapshot(502).notice, null);
+}
+
+console.log('Darts feedback: handoff safety, scoring, final hits and deduplicated Cork phase announcements passed.');

@@ -746,7 +746,7 @@ async function checkDartsLayoutsV2() {
             f.remove();
         }
     }
-    if (preview && !lobbyPreview) {
+    if (preview && !lobbyPreview && !corkPreview) {
         const width = preview === 'mobile' ? 390 : 1200, height = preview === 'mobile' ? 844 : 800;
         const f = await dartsBoot('preview-player', width, height);
         f.style.cssText = 'position:fixed;inset:0;width:' + width + 'px;height:' + height + 'px;border:0;z-index:10';
@@ -877,7 +877,7 @@ async function checkDartsOpeningCorkV2() {
         await dartsStartLocal(f);
         const initial = api.snapshot().match, seats = initial.players.slice(), distances = new Map();
         dartsAssert(initial.phase === 'cork' && initial.corkPurpose === 'opening', 'Opening Cork starts before normal Leg scoring');
-        dartsAssert(doc.getElementById('match-meta').textContent.startsWith('301') && !doc.getElementById('match-meta').textContent.includes('X01'), 'Gameplay names the actual X01 variant');
+        dartsAssert(doc.getElementById('match-meta').textContent.includes('Cork') && !doc.getElementById('match-meta').textContent.includes('Double Out'), 'Opening Cork takes priority over ordinary X01 rule text');
         dartsClick(f, 'settings-btn');
         for (const id of ['starting-score-select', 'starting-player-select', 'settlement-select']) dartsAssert(doc.getElementById(id).disabled, 'New match configuration is locked during opening Cork: ' + id);
         dartsClick(f, 'lobby-close-btn');
@@ -898,6 +898,7 @@ async function checkDartsOpeningCorkV2() {
         }
         const started = api.snapshot().match, expectedStarter = [...distances].sort((a, b) => a[1] - b[1])[0][0];
         dartsAssert(started.phase === 'play' && started.status === 'playing' && started.active === expectedStarter && started.legStarter === expectedStarter, 'Closest physical Bull distance selects the opening starter');
+        dartsAssert(doc.getElementById('match-meta').textContent.startsWith('301') && !doc.getElementById('match-meta').textContent.includes('X01'), 'Ordinary gameplay restores the actual X01 variant after opening Cork');
         dartsAssert(JSON.stringify(started.players) === JSON.stringify(seats), 'Opening Cork preserves participant seat order');
         dartsAssert(seats.every(id => started.scores[id] === 301 && started.turns[id] === 0 && started.stats[id].darts === 0 && started.stats[id].points === 0 && Object.values(started.marks[id]).every(n => n === 0)), 'Opening Cork never consumes scores, marks, normal darts or permitted turns');
         dartsAssert(started.history.length === (count === 4 ? 6 : count) && started.history.every(entry => entry.phase === 'cork' && entry.corkPurpose === 'opening'), 'Opening Cork is recorded separately in match history');
@@ -975,6 +976,224 @@ async function checkDartsFinalHitV2() {
     dartsFinishPresentation(f);
     dartsAssert(!api.snapshot().feedback.resultPending && doc.getElementById('turn-notice').hidden, 'Leaving the match clears scheduled final-hit presentation');
     f.remove();
+}
+function dartsBox(element) {
+    const b = element.getBoundingClientRect(); return [b.x, b.y, b.width, b.height];
+}
+function dartsSameBox(actual, expected, label) {
+    dartsAssert(actual.every((value, index) => Math.abs(value - expected[index]) <= .6), label + ': ' + JSON.stringify([actual, expected]));
+}
+function dartsCorkRows(f) { return [...dartsDoc(f).querySelectorAll('#cork-results .cork-result')]; }
+async function dartsPrepareCork(f, purpose) {
+    await dartsAdd(f, 3);
+    await dartsChange(f, 'mode-select', purpose === 'tie' ? 'countup' : 'x01');
+    await dartsChange(f, 'timer-select', 0);
+    if (purpose === 'opening') await dartsChange(f, 'starting-player-select', 'cork');
+    else if (purpose === 'limit') { await dartsChange(f, 'rounds-select', 10); await dartsChange(f, 'settlement-select', 'cork'); }
+    await dartsStartLocal(f);
+    if (purpose !== 'opening') {
+        const state = dartsApi(f).snapshot().match;
+        state.players.forEach((id, index) => { state.turns[id] = state.roundLimit - 1; state.scores[id] = purpose === 'limit' ? [12, 38, 91, 150][index] : 0; });
+        state.turnStartScore = state.scores[state.active];
+        for (let i = 0; i < state.players.length * 3; i++) {
+            dartsConfirmHandoff(f); dartsApi(f).accepted({ miss: true });
+        }
+    }
+    dartsAssert(dartsApi(f).snapshot().match.phase === 'cork' && dartsApi(f).snapshot().match.corkPurpose === purpose, 'Fixture reaches the accepted ' + purpose + ' Cork context');
+}
+function dartsCorkImpact(f, distance) {
+    dartsConfirmHandoff(f);
+    return dartsApi(f).accepted(f.contentWindow.DartsRules.scoreAt(distance, 0), { x: distance, y: 0 });
+}
+function dartsAssertCorkContext(f, purpose) {
+    const doc = dartsDoc(f), w = f.contentWindow, state = dartsApi(f).snapshot().match;
+    const key = purpose === 'opening' ? 'dartsOpeningCorkStatus' : purpose === 'limit' ? 'dartsLimitCorkStatus' : 'dartsTieCorkStatus';
+    dartsAssert(doc.getElementById('match-meta').textContent === w.ArcadeCommon.i18n.t(key), 'Top status immediately prioritizes the accepted Cork purpose');
+    dartsAssert(doc.getElementById('match-meta').classList.contains('cork-phase') && !doc.getElementById('cork-panel').hidden && doc.getElementById('turn-panel').hidden,
+        'Cork uses its identifiable information panel without duplicating ordinary turn slots');
+    dartsAssert(doc.querySelectorAll('.status-round').length === 1 && !doc.querySelector('.status-round').textContent.includes('/'), 'Cork never presents misleading ordinary-round progress');
+    dartsAssert(dartsCorkRows(f).length === state.players.length && dartsCorkRows(f).filter(row => row.classList.contains('current')).length === 1,
+        'The Cork panel identifies every participant and exactly one active thrower');
+    const heading = doc.getElementById('cork-heading').textContent;
+    dartsAssert(heading && !heading.startsWith('darts') && doc.getElementById('cork-instruction').textContent, 'Cork heading and instruction are localized');
+}
+async function checkDartsStatusOverflowV2() {
+    for (const [width, height] of [[320, 568], [390, 844], [1200, 800]]) {
+        const f = await dartsBoot('status-overflow-' + width, width, height), doc = dartsDoc(f), w = f.contentWindow, api = dartsApi(f);
+        // Keep this animation-specific fixture visible so headless offscreen RAF throttling
+        // cannot consume the virtual budget while waiting for preference/resize observers.
+        f.style.cssText = 'position:fixed;inset:0;width:' + width + 'px;height:' + height + 'px;border:0';
+        const meta = doc.getElementById('match-meta'), strip = meta.querySelector('.status-strip'), detail = doc.getElementById('status-detail');
+        await sleep(30);
+        dartsAssert(strip && strip.getAnimations().length === 0, 'Short Practice status is static at ' + width);
+        function keyboardDetail(expectedState) {
+            for (const key of ['Enter', ' ']) {
+                const event = new w.KeyboardEvent('keydown', { key, code: key === ' ' ? 'Space' : 'Enter', bubbles: true, cancelable: true });
+                meta.dispatchEvent(event);
+                dartsAssert(!event.defaultPrevented && api.snapshot().shellState === expectedState, 'Status keyboard activation preserves button defaults without starting/resuming the shell');
+                // Dispatching a synthetic key cannot produce the browser's trusted click;
+                // follow it with the native button action to exercise the same popup path.
+                meta.click();
+                dartsAssert(!detail.hidden && api.snapshot().shellState === expectedState, 'Keyboard status detail can open while the shell remains ' + expectedState);
+                doc.getElementById('turn-status').click();
+            }
+        }
+        dartsClick(f, 'lobby-close-btn'); keyboardDetail('idle'); dartsClick(f, 'settings-btn');
+        await dartsAdd(f, 3); await dartsChange(f, 'mode-select', 'x01'); await dartsChange(f, 'starting-score-select', 701);
+        await dartsChange(f, 'match-select', 3); await dartsChange(f, 'timer-select', 30000); await dartsStartLocal(f);
+        const board = dartsBox(doc.getElementById('throw-surface'));
+        let previousAnimation;
+        for (const locale of ['en', 'zh']) {
+            w.ArcadeCommon.i18n.setLocale(locale); await sleep(35);
+            const controls = dartsBox(doc.querySelector('.viewport-controls')), timer = dartsBox(doc.getElementById('turn-timer'));
+            const fullText = meta.textContent, overflows = strip.scrollWidth > meta.clientWidth + 1;
+            dartsAssert(meta.title === fullText && meta.getAttribute('aria-label') === fullText, 'Complete ordinary status stays available to assistive technology');
+            dartsAssert(meta.dataset.overflow === String(overflows), 'Overflow is measured from actual rendered text at ' + width + ' ' + locale);
+            if (overflows) {
+                await until(() => strip.getAnimations().length === 1, 'Overflowing status receives one animation');
+                const animation = strip.getAnimations()[0], timing = animation.effect.getTiming();
+                if (previousAnimation) dartsAssert(animation !== previousAnimation, 'A locale/text change cancels the old scrolling text');
+                const frames = animation.effect.getKeyframes(), end = frames.reduce((a, b) => new w.DOMMatrix(b.transform).m41 < new w.DOMMatrix(a.transform).m41 ? b : a);
+                animation.currentTime = timing.duration * end.offset; await sleep(1);
+                const contentBounds = strip.getBoundingClientRect(), clip = meta.getBoundingClientRect();
+                dartsAssert(contentBounds.left < clip.left && contentBounds.right <= clip.right + 1, 'Animation reveals the entire hidden end of the status text');
+                const beforeTime = animation.currentTime;
+                api.accepted({ miss: true }); await sleep(1);
+                dartsAssert(strip.getAnimations()[0] === animation && animation.currentTime >= beforeTime, 'A same-meta accepted dart does not restart the animation');
+                previousAnimation = animation;
+            } else dartsAssert(strip.getAnimations().length === 0, 'Fitting status text does not animate on desktop');
+            dartsSameBox(dartsBox(doc.getElementById('throw-surface')), board, 'Status animation cannot change board geometry');
+            dartsSameBox(dartsBox(doc.querySelector('.viewport-controls')), controls, 'Controls remain stationary');
+            dartsSameBox(dartsBox(doc.getElementById('turn-timer')), timer, 'The timer remains stationary and outside the animated strip');
+            w.__dartsReducedMotion(true);
+            await until(() => strip.getAnimations().length === 0 && meta.dataset.scrolling === 'false', 'Reduced-motion change cancels status animation');
+            dartsAssert(strip.getAnimations().length === 0 && meta.dataset.scrolling === 'false', 'Reduced-motion preference disables scrolling immediately: ' + JSON.stringify({ width, locale, reduced: w.matchMedia('(prefers-reduced-motion: reduce)').matches, scrolling: meta.dataset.scrolling, animations: strip.getAnimations().map(a => a.playState) }));
+            meta.click();
+            dartsAssert(!detail.hidden && detail.textContent === fullText && meta.getAttribute('aria-expanded') === 'true', 'Touch/click reveals complete status without opening Room');
+            const bounds = detail.getBoundingClientRect();
+            dartsAssert(bounds.left >= -.6 && bounds.right <= w.innerWidth + .6, 'Expanded status details stay inside the viewport');
+            meta.dispatchEvent(new w.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+            dartsAssert(detail.hidden && meta.getAttribute('aria-expanded') === 'false', 'Escape closes the lightweight status detail');
+            meta.click(); doc.getElementById('turn-status').click();
+            dartsAssert(detail.hidden, 'Clicking outside the status closes its detail');
+            dartsAssert(doc.documentElement.scrollWidth <= w.innerWidth + 1, 'Status animation/detail does not create horizontal page overflow');
+            w.__dartsReducedMotion(false); await sleep(30);
+        }
+        const originalClip = meta.clientWidth, oldAnimation = strip.getAnimations()[0], acceptedSeq = api.snapshot().match.seq;
+        f.style.width = (width < 761 ? 1200 : 320) + 'px'; f.style.height = (width < 761 ? 800 : 568) + 'px';
+        w.dispatchEvent(new w.Event('resize'));
+        await until(() => meta.clientWidth !== originalClip && meta.dataset.overflow === String(strip.scrollWidth > meta.clientWidth + 1), 'Resize remeasures actual status overflow');
+        if (strip.scrollWidth > meta.clientWidth + 1) {
+            await until(() => strip.getAnimations().length === 1 && strip.getAnimations()[0] !== oldAnimation, 'Resize creates an animation for the new clipping width');
+        } else dartsAssert(strip.getAnimations().length === 0, 'Resizing until text fits cancels the old scrolling animation');
+        dartsAssert(api.snapshot().match.seq === acceptedSeq && doc.documentElement.scrollWidth <= w.innerWidth + 1, 'Status resize changes neither accepted scoring nor horizontal page bounds');
+        f.style.width = width + 'px'; f.style.height = height + 'px'; w.dispatchEvent(new w.Event('resize'));
+        await until(() => meta.clientWidth === originalClip, 'Original status viewport is restored');
+        dartsSameBox(dartsBox(doc.getElementById('throw-surface')), board, 'Returning to the original viewport restores the same board geometry');
+        w.ArcadeCommon.i18n.setLocale('en');
+        dartsClick(f, 'restart-btn'); await until(() => doc.getElementById('lobby').open, 'Status state reset reaches lobby');
+        await dartsChange(f, 'mode-select', 'practice'); await dartsStartLocal(f); await sleep(30);
+        dartsAssert(strip.textContent === w.ArcadeCommon.i18n.t('dartsPractice') && strip.getAnimations().length === 0 && detail.hidden, 'A new short-mode status removes stale animation/detail');
+        dartsClick(f, 'pause-btn'); keyboardDetail('paused');
+        f.remove();
+    }
+}
+async function checkDartsCorkRethrowsV2() {
+    for (const [width, height] of [[320, 568], [390, 844], [1200, 800]]) {
+        for (const purpose of ['opening', 'tie', 'limit']) {
+            const f = await dartsBoot('cork-clarity-' + width + '-' + purpose, width, height), doc = dartsDoc(f), api = dartsApi(f), w = f.contentWindow;
+            await dartsPrepareCork(f, purpose);
+            const board = dartsBox(doc.getElementById('throw-surface')), panel = dartsBox(doc.getElementById('mode-panel')), seats = api.snapshot().match.players.slice();
+            dartsAssertCorkContext(f, purpose);
+            dartsConfirmHandoff(f); api.refresh();
+            const entry = api.snapshot().feedback.notice;
+            dartsAssert(entry && entry.kind === 'cork' && entry.purpose === purpose, 'Entering Cork announces the accepted purpose after any handoff');
+            if (purpose === 'limit') dartsAssert(doc.getElementById('turn-notice').textContent.includes('10'), 'Round-limit announcement uses the actual configured cap');
+            dartsAssert(doc.getElementById('handoff-overlay').hidden && !doc.getElementById('turn-notice').hidden, 'Cork announcement and handoff never overlap');
+            api.refresh(); dartsAssert(api.snapshot().feedback.notice.key === entry.key, 'Repeated accepted snapshots preserve one Cork announcement');
+            for (let i = 0; i < seats.length; i++) {
+                const id = api.snapshot().match.active, index = seats.indexOf(id);
+                dartsCorkImpact(f, index < 2 ? 5 : 10 + index * 5);
+            }
+            for (const round of [2, 3]) {
+                const state = api.snapshot().match;
+                dartsAssert(state.corkRound === round && state.corkPlayers.length === 2 && state.corkPlayers.every(id => seats.slice(0, 2).includes(id)), 'Only the equal closest participants enter Cork round ' + round);
+                dartsConfirmHandoff(f); api.refresh();
+                const rethrow = api.snapshot().feedback.notice;
+                dartsAssert(rethrow && rethrow.kind === 'cork-rethrow' && rethrow.round === round && rethrow.players.length === 2, 'A new Cork tie round receives its own concise rethrow announcement');
+                for (const locale of ['en', 'zh']) {
+                    w.ArcadeCommon.i18n.setLocale(locale); dartsAssertCorkContext(f, purpose);
+                    const rows = dartsCorkRows(f), eligible = rows.filter(row => row.classList.contains('eligible'));
+                    dartsAssert(eligible.length === 2 && eligible.every(row => seats.slice(0, 2).includes(row.dataset.playerUid) && row.dataset.state === 'rethrow'), 'Tied eligible rows are explicitly marked for another throw');
+                    dartsAssert(rows.filter(row => row.classList.contains('excluded')).every(row => row.dataset.state === 'excluded' && /\d+\.0 mm/.test(row.querySelector('.cork-distance').textContent)), 'Excluded participants retain their distance without appearing to wait');
+                    dartsAssert(doc.getElementById('cork-round-note').textContent.includes(String(round)), 'The panel states the current rethrow round');
+                    dartsAssert(doc.documentElement.scrollWidth <= w.innerWidth + 1 && doc.getElementById('mode-panel').scrollHeight <= doc.getElementById('mode-panel').clientHeight + 1, 'Compact Cork rows fit the fixed mobile/desktop mode panel');
+                    dartsSameBox(dartsBox(doc.getElementById('throw-surface')), board, 'Cork phase/rethrow never moves the board');
+                    dartsSameBox(dartsBox(doc.getElementById('mode-panel')), panel, 'Cork phase/rethrow never resizes the mode panel');
+                }
+                for (let i = 0; i < 2; i++) dartsCorkImpact(f, round === 2 ? 5 : i === 0 ? 8 : 3);
+            }
+            const finished = api.snapshot().match;
+            dartsAssert(finished.phase === 'play' && purpose === 'opening' || finished.status === 'over' && purpose !== 'opening', 'Repeated ties resolve into the correct starter or Leg winner outcome');
+            dartsAssert(!api.snapshot().feedback.notice || !['cork', 'cork-rethrow'].includes(api.snapshot().feedback.notice.kind), 'Cork resolution cancels old phase/rethrow announcements');
+            f.remove();
+        }
+    }
+}
+async function checkDartsRemoteCorkRethrowsV2() {
+    const frames = [];
+    for (let i = 0; i < 4; i++) frames.push(await dartsBoot('remote-rethrow-' + i));
+    await dartsChange(frames[0], 'mode-select', 'x01'); await dartsChange(frames[0], 'starting-player-select', 'cork');
+    await dartsChange(frames[0], 'timer-select', 30000);
+    const code = await dartsPromote(frames[0]), tools = dartsRoomTools(code, frames);
+    for (const f of frames.slice(1)) await dartsJoin(f, code);
+    await dartsStartOnline(frames[0], frames.slice(1));
+    const seats = tools.read().game.players.slice();
+    for (let i = 0; i < seats.length; i++) {
+        const index = seats.indexOf(tools.read().game.active);
+        await tools.throwAt(index < 2 ? 3 : 10 + index * 5, index < 2 ? 4 : 0);
+    }
+    dartsAssert(tools.read().game.corkRound === 2 && tools.read().game.corkPlayers.length === 2, 'Actual accepted remote impact distances deterministically produce a Cork tie');
+    const rethrowState = structuredClone(tools.read().game), rethrowSeq = rethrowState.seq;
+    for (const f of frames) {
+        dartsAssertCorkContext(f, 'opening');
+        dartsAssert(dartsCorkRows(f).filter(row => row.classList.contains('eligible')).length === 2 && dartsApi(f).snapshot().feedback.notice.kind === 'cork-rethrow', 'Every remote client announces the same tied subset');
+        const id = rethrowState.players.find(id => rethrowState.owners[id] === dartsApi(f).snapshot().uid);
+        if (!rethrowState.corkPlayers.includes(id)) {
+            dartsAssert(!dartsApi(f).gesture() && !await dartsApi(f).controller().submit(dartsFlight(1, 0)), 'An excluded remote controller cannot throw or impersonate a finalist');
+        }
+    }
+    tools.syncClock();
+    const active = tools.active(), expected = structuredClone(tools.read().game);
+    const duplicate = await Promise.all([dartsApi(active).controller().submit(dartsFlight(3, 4), expected), dartsApi(active).controller().submit(dartsFlight(3, 4), expected)]);
+    await until(() => frames.every(f => dartsApi(f).snapshot().match.seq === rethrowSeq + 1), 'One accepted remote rethrow reaches every client');
+    frames.forEach(f => dartsApi(f).land());
+    dartsAssert(duplicate.filter(Boolean).length === 1 && tools.read().game.seq === rethrowSeq + 1, 'Duplicate synchronized Cork submissions score only once');
+    dartsAssert(!await dartsApi(active).controller().submit(dartsFlight(1, 0), expected), 'A stale rethrow state cannot submit another accepted event');
+    await tools.throwAt(3, 4);
+    dartsAssert(tools.read().game.corkRound === 3, 'Consecutive deterministic remote ties require another eligible-only Cork round');
+    frames.forEach(f => { f.contentWindow.__dartsNow += 5000; dartsApi(f).refresh(); });
+    const before = tools.read().game.seq;
+    await dartsApi(frames[0]).controller().service.heartbeat(code, 0); await sleep(30);
+    dartsAssert(frames.every(f => !dartsApi(f).snapshot().feedback.notice) && tools.read().game.seq === before, 'A duplicate heartbeat cannot replay an expired Cork rethrow announcement');
+    await tools.throwAt(8, 0); await tools.throwAt(2, 0);
+    dartsAssert(tools.read().game.phase === 'play' && frames.every(f => !dartsApi(f).snapshot().feedback.notice || !['cork', 'cork-rethrow'].includes(dartsApi(f).snapshot().feedback.notice.kind)), 'Remote resolution clears stale special notices and begins normal scoring');
+    for (const f of frames) { await dartsApi(f).controller().leave(); f.remove(); }
+}
+async function checkDartsCorkPreviewV2() {
+    if (!corkPreview) return;
+    const width = preview === 'desktop' ? 1200 : 390, height = preview === 'desktop' ? 800 : 844;
+    const f = await dartsBoot('cork-preview', width, height), api = dartsApi(f);
+    f.style.cssText = 'position:fixed;inset:0;width:' + width + 'px;height:' + height + 'px;border:0;z-index:20';
+    await dartsPrepareCork(f, 'limit');
+    const seats = api.snapshot().match.players;
+    for (let i = 0; i < seats.length; i++) dartsCorkImpact(f, seats.indexOf(api.snapshot().match.active) < 2 ? 5 : 20 + i * 5);
+    dartsConfirmHandoff(f); f.contentWindow.__dartsNow += 5000; api.refresh();
+    const w = f.contentWindow, doc = dartsDoc(f), englishColors = ['settings-btn', 'history-btn'].map(id => w.getComputedStyle(doc.getElementById(id)).color);
+    w.ArcadeCommon.i18n.setLocale('zh'); await doc.fonts.ready; await sleep(60);
+    const chineseColors = ['settings-btn', 'history-btn'].map(id => w.getComputedStyle(doc.getElementById(id)).color);
+    dartsAssert(chineseColors.every((color, index) => color === englishColors[index] && color === w.getComputedStyle(doc.body).color),
+        'Cork and localization preserve toolbar foreground contrast: ' + JSON.stringify({ englishColors, chineseColors, body: w.getComputedStyle(doc.body).color }));
 }
 async function checkDartsInvalidV2() {
     const f = await dartsBoot('invalid-room'), doc = dartsDoc(f), w = f.contentWindow;

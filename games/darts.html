@@ -36,9 +36,10 @@
             <section class="darts-viewport" id="match-panel" aria-label="Darts game">
                 <header class="viewport-header">
                     <div class="darts-game-status">
-                        <div class="darts-match-meta" id="match-meta"></div>
+                        <button class="darts-match-meta" id="match-meta" type="button" aria-expanded="false" aria-controls="status-detail"><span class="status-strip"></span></button>
                         <div class="darts-turn-line"><strong id="turn-status" role="status" aria-live="polite"></strong><span id="turn-timer" hidden></span></div>
                     </div>
+                    <div class="status-detail" id="status-detail" hidden></div>
                     <div class="viewport-controls">
                         <button class="btn" id="settings-btn" type="button" aria-haspopup="dialog" data-i18n="dartsRoom">Room</button>
                         <button class="btn" id="history-btn" type="button" aria-haspopup="dialog" data-i18n="dartsHistory">History</button>
@@ -99,6 +100,12 @@
                         <div class="turn-darts" id="turn-darts"></div>
                         <strong id="turn-score"></strong>
                     </div>
+                    <section class="cork-panel" id="cork-panel" aria-labelledby="cork-heading" hidden>
+                        <strong id="cork-heading"></strong>
+                        <p id="cork-instruction"></p>
+                        <p id="cork-round-note"></p>
+                        <div id="cork-results"></div>
+                    </section>
                     <div class="practice-panel" id="practice-panel">
                         <span class="panel-caption" data-i18n="dartsLast">Last</span><strong id="practice-hit">—</strong>
                         <span class="panel-caption" data-i18n="dartsReleaseSpeed">Release speed</span><span id="practice-speed">—</span>

@@ -6,6 +6,30 @@
 })(typeof window === 'object' ? window : globalThis, function (Rules) {
     'use strict';
     var COLORS = ['#86efac', '#7dd3fc', '#f9a8d4', '#fcd34d'];
+    function corkModel(s) {
+        var purpose = s.corkPurpose || 'tie', distances = s.corkDistances || {}, round = s.corkRound || 1;
+        var eligible = (s.corkPlayers || []).filter(function (id) { return !(s.withdrawn || []).includes(id); });
+        return { purpose: purpose, round: round, eligible: eligible, rethrow: round > 1,
+            entries: s.players.map(function (id) {
+                var latest = null, previous = null;
+                (s.history || []).slice().reverse().some(function (entry) {
+                    if (entry.uid !== id || entry.leg !== s.leg || entry.phase !== 'cork' ||
+                        (entry.corkPurpose || 'tie') !== purpose || entry.corkRound > round) return false;
+                    if (!latest) latest = entry;
+                    if (entry.corkRound < round && !previous) previous = entry;
+                    return !!latest && !!previous;
+                });
+                var left = (s.withdrawn || []).includes(id), included = !left && eligible.includes(id);
+                var hasThrown = Object.prototype.hasOwnProperty.call(distances, id);
+                var distance = hasThrown && Number.isFinite(distances[id]) && distances[id] < 1e9 ? distances[id] : null;
+                var status = left ? 'left' : !included ? 'excluded' : hasThrown ? distance === null ? 'forfeited' : 'thrown' : round > 1 ? 'rethrow' : 'waiting';
+                return { id: id, eligible: included, active: included && s.status === 'playing' && s.active === id,
+                    hasThrown: hasThrown, distance: distance,
+                    previousDistance: previous && Number.isFinite(previous.distance) && previous.distance < 1e9 ? previous.distance : null,
+                    result: latest && latest.darts && latest.darts[0] || null, status: status,
+                    lastDistance: latest && Number.isFinite(latest.distance) && latest.distance < 1e9 ? latest.distance : null };
+            }) };
+    }
     function model(input) {
         var s = input.state, practice = input.practice || { darts: 0, result: null, speed: null }, ids = s ? s.players : ['practice'];
         var current = s && (s.turnDarts || []).length > 0;
@@ -16,6 +40,7 @@
             mode: mode, startingScore: s ? s.startingScore || 501 : 501,
             phase: s ? s.status : 'playing', throwPhase: cork ? 'cork' : 'play',
             corkPurpose: s ? s.corkPurpose || 'tie' : null,
+            cork: cork ? corkModel(s) : null,
             leg: s && mode !== 'practice' ? s.leg : 0, bestOf: s ? s.bestOf : 1,
             legsToWin: s ? s.legsToWin || (s.bestOf === 3 ? 2 : 1) : 1,
             round: s && limit && !cork ? Math.min(limit, (s.turns[s.active] || 0) + 1) : 0,
@@ -90,6 +115,70 @@
         }
         function shownDistance(distance) { return distanceText(distance) || '—'; }
         function corkLabel(purpose) { return t(purpose === 'opening' ? 'dartsOpeningCork' : purpose === 'limit' ? 'dartsLimitCork' : 'dartsTieCork'); }
+        function corkStatusLabel(purpose) { return t(purpose === 'opening' ? 'dartsOpeningCorkStatus' : purpose === 'limit' ? 'dartsLimitCorkStatus' : 'dartsTieCorkStatus'); }
+        function corkInstruction(purpose) { return t(purpose === 'opening' ? 'dartsCorkStarts' : 'dartsCorkWins'); }
+        var win = doc.defaultView, meta = get('match-meta'), strip = meta.querySelector('.status-strip');
+        if (!strip) { strip = el('span', 'status-strip', meta.textContent); meta.replaceChildren(strip); }
+        var detail = get('status-detail'), overflowAnimation = null, measureFrame = 0, measureKey = '', metaText = '', detailText = '';
+        var reducedMotion = win.matchMedia ? win.matchMedia('(prefers-reduced-motion: reduce)') : null;
+        function closeDetail() { if (detail) detail.hidden = true; meta.setAttribute('aria-expanded', 'false'); }
+        function stopOverflow() {
+            if (overflowAnimation) overflowAnimation.cancel(); overflowAnimation = null;
+            strip.style.transform = ''; meta.dataset.scrolling = 'false';
+        }
+        function measureOverflow() {
+            measureFrame = 0;
+            var distance = Math.max(0, Math.ceil(strip.scrollWidth - meta.clientWidth));
+            var reduced = !!(reducedMotion && reducedMotion.matches), key = JSON.stringify([metaText, distance, reduced]);
+            if (key === measureKey) return;
+            measureKey = key; stopOverflow();
+            meta.dataset.overflow = distance > 1 ? 'true' : 'false';
+            if (distance <= 1 || reduced || typeof strip.animate !== 'function') return;
+            // Keep both ends still long enough to read; move only the measured hidden distance.
+            var pause = 1800, travel = Math.max(1800, distance / 20 * 1000), duration = pause * 2 + travel * 2;
+            var end = 'translateX(-' + distance + 'px)';
+            overflowAnimation = strip.animate([
+                { transform: 'translateX(0)', offset: 0 },
+                { transform: 'translateX(0)', offset: pause / duration },
+                { transform: end, offset: (pause + travel) / duration },
+                { transform: end, offset: (pause * 2 + travel) / duration },
+                { transform: 'translateX(0)', offset: 1 },
+            ], { duration: duration, iterations: Infinity, easing: 'linear' });
+            meta.dataset.scrolling = 'true';
+        }
+        function queueMeasure() {
+            if (!measureFrame) measureFrame = win.requestAnimationFrame(measureOverflow);
+        }
+        function setMeta(text, fullText) {
+            fullText = fullText || text;
+            if (metaText === text && detailText === fullText) return;
+            metaText = text; detailText = fullText; measureKey = ''; stopOverflow(); closeDetail();
+            strip.textContent = text; meta.title = fullText; meta.setAttribute('aria-label', fullText);
+            if (detail) detail.textContent = fullText;
+            queueMeasure();
+        }
+        meta.addEventListener('click', function () {
+            if (!detail) return;
+            detail.hidden = !detail.hidden; meta.setAttribute('aria-expanded', String(!detail.hidden));
+        });
+        meta.addEventListener('keydown', function (event) {
+            // Keep native button activation away from the shell's Start/Space shortcuts.
+            if (event.key === 'Enter' || event.key === ' ') event.stopPropagation();
+        });
+        doc.addEventListener('click', function (event) {
+            if (!meta.contains(event.target) && !(detail && detail.contains(event.target))) closeDetail();
+        });
+        doc.addEventListener('keydown', function (event) {
+            if (event.key === 'Escape' && detail && !detail.hidden) { closeDetail(); event.preventDefault(); event.stopPropagation(); }
+        });
+        if (win.ResizeObserver) {
+            var overflowObserver = new win.ResizeObserver(queueMeasure); overflowObserver.observe(meta); overflowObserver.observe(strip);
+        } else win.addEventListener('resize', queueMeasure);
+        if (reducedMotion) {
+            if (reducedMotion.addEventListener) reducedMotion.addEventListener('change', queueMeasure);
+            else if (reducedMotion.addListener) reducedMotion.addListener(queueMeasure);
+        }
+        if (doc.fonts && doc.fonts.ready) doc.fonts.ready.then(queueMeasure);
         function ruleSummary(m) {
             if (m.throwPhase === 'cork') return corkLabel(m.corkPurpose) + ' · ' + t('dartsCorkAttempt', m.corkRound);
             var parts = [];
@@ -124,9 +213,12 @@
             var names = Object.fromEntries(m.players.map(function (p) { return [p.id, p.name]; }));
             var mode = options.modeName(m.mode, m);
             var variant = variantLabel(m), endedPractice = m.mode === 'practice' && m.endReason === 'practice-ended', cancelled = m.endReason === 'cancelled';
-            get('match-meta').textContent = mode + (variant ? ' · ' + variant : '') +
+            var playingCork = m.throwPhase === 'cork' && m.phase === 'playing';
+            meta.classList.toggle('cork-phase', playingCork);
+            var ordinaryMeta = mode + (variant ? ' · ' + variant : '') +
                 (m.leg ? ' · ' + t('dartsLegNumber', m.leg) + ' · ' + t('dartsMatchFormat', m.legsToWin) : '');
-            get('match-meta').title = get('match-meta').textContent;
+            setMeta(playingCork ? corkStatusLabel(m.corkPurpose) : ordinaryMeta,
+                playingCork ? corkLabel(m.corkPurpose) + ' · ' + corkInstruction(m.corkPurpose) + ' · ' + t('dartsCorkAttempt', m.corkRound) : ordinaryMeta);
             if (get('mode-rule-summary')) get('mode-rule-summary').textContent = ruleSummary(m);
             var status = finalDart ? finalDart.phase === 'cork' ? t('dartsCork') + ' · ' + shownDistance(finalDart.distance) :
                 t('dartsLast') + ' · ' + label(finalDart.result) :
@@ -137,8 +229,8 @@
             get('turn-status').textContent = status;
             if ((m.mode !== 'practice' || m.players.length > 1) && m.phase === 'playing') {
                 var indicator = get('turn-status'); indicator.replaceChildren();
-                var turnName = el('span', 'status-name', t('dartsTurnOf', names[m.active])); turnName.title = turnName.textContent;
-                indicator.append(turnName, el('span', 'status-dart', t('dartsDartProgress', m.dart, m.throwPhase === 'cork' ? 1 : 3)));
+                var turnName = el('span', 'status-name', t(playingCork ? 'dartsCorkTurnOf' : 'dartsTurnOf', names[m.active])); turnName.title = turnName.textContent;
+                indicator.append(turnName, el('span', 'status-dart', playingCork ? t('dartsCorkDart') : t('dartsDartProgress', m.dart, 3)));
                 if (m.throwPhase === 'cork') indicator.append(el('span', 'status-round', t('dartsCorkAttempt', m.corkRound)));
                 else if (m.round) indicator.append(el('span', 'status-round', t('dartsRoundProgress', m.round, m.roundLimit)));
             }
@@ -175,8 +267,30 @@
             get('player-score-label').textContent = t(Rules.isX01(m.mode) ? 'dartsRemaining' : m.mode === 'practice' ? 'dartsDarts' : 'dartsPoints');
             var cricket = m.mode === 'cricket';
             get('cricket-board').hidden = !cricket || m.throwPhase === 'cork';
-            get('turn-panel').hidden = m.throwPhase !== 'cork' && (cricket || m.mode === 'practice');
+            get('turn-panel').hidden = m.throwPhase === 'cork' || cricket || m.mode === 'practice';
             get('practice-panel').hidden = m.mode !== 'practice' || m.throwPhase === 'cork';
+            get('mode-panel').classList.toggle('cork-active', m.throwPhase === 'cork');
+            var corkPanel = get('cork-panel'); corkPanel.hidden = !m.cork;
+            if (m.cork) {
+                get('cork-heading').textContent = corkLabel(m.corkPurpose);
+                get('cork-instruction').textContent = corkInstruction(m.corkPurpose);
+                get('cork-round-note').textContent = m.cork.rethrow ? t('dartsCorkRethrow', m.cork.round) : t('dartsCorkAttempt', m.cork.round);
+                var results = get('cork-results'); results.replaceChildren();
+                m.cork.entries.forEach(function (entry) {
+                    var player = m.players.find(function (p) { return p.id === entry.id; });
+                    var row = el('div', 'cork-result ' + (entry.eligible ? 'eligible' : 'excluded') + (entry.active ? ' current' : ''));
+                    row.dataset.playerUid = entry.id; row.dataset.state = entry.status; row.style.setProperty('--player-color', player.color);
+                    var name = el('span', 'cork-player-name'), seat = el('span', 'player-seat', player.seat);
+                    name.append(seat, el('span', 'cork-name-text', player.name)); name.title = player.name;
+                    var hit = entry.result, region = !hit ? '—' : hit.miss ? t('dartsMiss') : hit.base === 25 ? t(hit.mult === 2 ? 'dartsBullShort' : 'dartsOuterBull') : hit.label;
+                    var distance = entry.status === 'thrown' ? shownDistance(entry.distance) : entry.status === 'forfeited' ? t('dartsCorkForfeited') :
+                        entry.status === 'left' ? t('dartsWithdrawn') :
+                            (Number.isFinite(entry.lastDistance) ? shownDistance(entry.lastDistance) + ' · ' : '') +
+                            t(entry.status === 'excluded' ? 'dartsCorkExcluded' : entry.status === 'rethrow' ? 'dartsCorkAgain' : 'dartsCorkWaiting');
+                    row.append(name, el('span', 'cork-hit', region), el('span', 'cork-distance', distance));
+                    results.append(row);
+                });
+            }
             if (cricket && m.throwPhase !== 'cork') {
                 var table = el('table', 'cricket-table'), head = el('thead'), row = el('tr');
                 row.append(el('th', '', t('dartsTarget')));

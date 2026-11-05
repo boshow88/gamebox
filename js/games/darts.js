@@ -211,6 +211,14 @@
         dartsRuleX01: function (score) { return 'Start at ' + score + ' and finish on exactly zero under the selected In / Out rules. A bust restores the score and opening state from the start of the turn.'; },
         dartsOpeningCork: 'Starting-player Cork', dartsLimitCork: 'Round-limit Cork', dartsTieCork: 'Tiebreak Cork',
         dartsCorkAttempt: function (n) { return 'Cork round ' + n; },
+        dartsOpeningCorkStatus: 'Opening Cork', dartsTieCorkStatus: 'Tiebreak Cork', dartsLimitCorkStatus: 'Limit Cork',
+        dartsCorkStarts: 'Closest to Bull starts.', dartsCorkWins: 'Closest to Bull wins.',
+        dartsCorkTurnOf: function (name) { return name + "'s Cork"; }, dartsCorkDart: 'Dart 1',
+        dartsCorkWaiting: 'Waiting', dartsCorkAgain: 'Rethrow', dartsCorkExcluded: 'Not in this round', dartsCorkForfeited: 'Forfeited',
+        dartsCorkRethrow: function (round) { return 'Tie · Eligible players rethrow · Round ' + round; },
+        dartsCorkLimitReached: function (rounds) { return rounds + '-round limit reached'; },
+        dartsCorkLimitDecider: 'Cork decider · Closest to Bull wins.',
+        dartsCorkTieNotice: 'Tied result · Cork', dartsCorkRethrowTitle: 'Tie · Cork again',
         dartsResultLimitCork: function (rounds, distance) { return rounds + '-round limit reached · Won by closest to Bull' + (distance ? ' · Distance: ' + distance : '') + '.'; },
         dartsTurnOf: function (name) { return name + "'s turn"; },
         dartsDartProgress: function (n, total) { return 'Dart ' + n + '/' + total; },
@@ -235,6 +243,14 @@
         dartsRuleX01: function (score) { return '從' + score + '分扣至恰好零分，依所選開分與結鏢條件判定。爆分時，分數與開分狀態回復至本回合開始時。'; },
         dartsOpeningCork: '先手比靶心', dartsLimitCork: '回合上限比靶心', dartsTieCork: '平手比靶心',
         dartsCorkAttempt: function (n) { return '第' + n + '輪'; },
+        dartsOpeningCorkStatus: '開局比靶心', dartsTieCorkStatus: '平手比靶心', dartsLimitCorkStatus: '比靶心決勝',
+        dartsCorkStarts: '最接近靶心者取得先手', dartsCorkWins: '最接近靶心者獲勝',
+        dartsCorkTurnOf: function (name) { return name + '的比靶心'; }, dartsCorkDart: '第1鏢',
+        dartsCorkWaiting: '待投', dartsCorkAgain: '重投', dartsCorkExcluded: '本輪不參與', dartsCorkForfeited: '未完成',
+        dartsCorkRethrow: function (round) { return '平手，參與者重投 · 第' + round + '輪'; },
+        dartsCorkLimitReached: function (rounds) { return '已達' + rounds + '回合上限'; },
+        dartsCorkLimitDecider: '進入比靶心決勝',
+        dartsCorkTieNotice: '平手加賽 · 比靶心', dartsCorkRethrowTitle: '平手，重投比靶心',
         dartsResultLimitCork: function (rounds, distance) { return '已達' + rounds + '回合上限，以比靶心決勝' + (distance ? '，勝者距離' + distance : '') + '。'; },
         dartsTurnOf: function (name) { return name + '的回合'; },
         dartsDartProgress: function (n, total) { return '第' + n + '/' + total + '鏢'; },
@@ -1276,12 +1292,19 @@
             ready.textContent = t('dartsHandoffReady'); ready.dataset.handoffKey = pending.key;
         }
         var notice = document.getElementById('turn-notice'), event = feedbackState.notice;
+        var corkNotice = event && (event.kind === 'cork' || event.kind === 'cork-rethrow');
         notice.hidden = !event;
         notice.classList.toggle('bust', !!event && event.kind === 'bust');
+        notice.classList.toggle('cork', !!corkNotice);
         document.getElementById('turn-notice-title').textContent = !event ? '' :
-            event.kind === 'bust' ? t('dartsBustTitle') : t('dartsTurnOf', playerName(event.player));
+            event.kind === 'bust' ? t('dartsBustTitle') : corkNotice ?
+                event.kind === 'cork-rethrow' ? t('dartsCorkRethrowTitle') : event.purpose === 'opening' ? t('dartsOpeningCorkStatus') :
+                    event.purpose === 'limit' ? t('dartsCorkLimitReached', event.roundLimit) : t('dartsCorkTieNotice') :
+                t('dartsTurnOf', playerName(event.player));
         document.getElementById('turn-notice-message').textContent = event && event.kind === 'bust' ?
-            t('dartsBustRestored', event.restoredScore) : '';
+            t('dartsBustRestored', event.restoredScore) : corkNotice ?
+                event.kind === 'cork-rethrow' ? t('dartsCorkRethrow', event.round) :
+                    t(event.purpose === 'opening' ? 'dartsCorkStarts' : event.purpose === 'limit' ? 'dartsCorkLimitDecider' : 'dartsCorkWins') : '';
         // Expiring effects also update card badges while the accepted state is unchanged.
         renderHud(); syncThrowFeedback();
     }

@@ -131,4 +131,58 @@ assert.equal(H.resultReason(m, tr), '');
 m.draw = true; m.endReason = null; m.legEndReason = 'round-limit';
 assert.equal(H.resultReason(m, tr), '');
 
-console.log('PASS: accepted Leg/Match reason matrix, all mode caps, tied Cricket closure, Cork distances, restored Bust/history, penalty recipients and ended sessions.');
+// Cork rows identify current-round eligibility and retain meaningful prior distances.
+for (const purpose of ['opening', 'tie', 'limit']) {
+    const ids = ['A', 'B', 'C', 'D'];
+    let state = R.create({ mode: 'x01', startingPlayer: purpose === 'opening' ? 'cork' : 'random',
+        settlement: purpose === 'limit' ? 'cork' : 'score-then-cork', roundLimit: 10, legsToWin: 2 }, ids, 1000);
+    if (purpose !== 'opening') {
+        state.players.forEach(id => { state.turns[id] = 9; });
+        for (let i = 0; i < 12; i++) state = dart(state, miss);
+    }
+    assert.equal(state.corkPurpose, purpose);
+    let view = model(state);
+    assert.equal(view.round, 0, 'Cork cannot look like another ordinary X01 round');
+    assert.deepEqual(view.cork.eligible, ids); assert.equal(view.cork.rethrow, false);
+    assert(view.cork.entries.every(entry => entry.status === 'waiting' && entry.distance === null));
+    const before = JSON.stringify(state);
+    model(state); assert.equal(JSON.stringify(state), before, 'Cork comparison views cannot modify accepted state');
+    for (const impact of [{ x: 3, y: 4 }, { x: 5, y: 0 }, { x: 12, y: 5 }, { x: 30, y: 40 }]) state = dart(state, miss, impact);
+    view = model(state);
+    assert.equal(view.cork.round, 2); assert.equal(view.cork.rethrow, true);
+    assert.deepEqual(view.cork.eligible, ['A', 'B']);
+    assert.deepEqual(view.cork.entries.map(entry => entry.status), ['rethrow', 'rethrow', 'excluded', 'excluded']);
+    assert.deepEqual(view.cork.entries.map(entry => entry.previousDistance), [5, 5, 13, 50]);
+    assert.deepEqual(view.cork.entries.map(entry => entry.lastDistance), [5, 5, 13, 50]);
+    assert.equal(view.cork.entries.filter(entry => entry.active).length, 1);
+    assert.equal(view.cork.entries.find(entry => entry.active).id, state.active);
+    state = dart(state, miss, { x: 6, y: 8 });
+    view = model(state);
+    assert.equal(view.cork.entries[0].status, 'thrown'); assert.equal(view.cork.entries[0].distance, 10);
+    assert.equal(view.cork.entries[1].status, 'rethrow'); assert.equal(view.cork.entries[1].previousDistance, 5);
+    state = dart(state, miss, { x: 10, y: 0 });
+    view = model(state);
+    assert.equal(view.cork.round, 3); assert.deepEqual(view.cork.eligible, ['A', 'B']);
+    assert.deepEqual(view.cork.entries.map(entry => entry.lastDistance), [10, 10, 13, 50], 'Consecutive ties update only the eligible players’ comparison distances');
+    state = dart(state, miss, { x: 1, y: 0 }); state = dart(state, miss, { x: 2, y: 0 });
+    view = model(state);
+    if (purpose === 'opening') {
+        assert.equal(state.phase, 'play'); assert.equal(view.cork, null);
+        assert.equal(state.active, 'A'); assert.equal(view.round, 1);
+    } else {
+        assert.equal(state.status, 'between'); assert.equal(view.cork.entries[0].distance, 1);
+        assert.equal(view.cork.entries[1].distance, 2); assert.equal(view.winnerDistance, 1);
+        assert.equal(view.cork.entries[2].status, 'excluded');
+    }
+}
+{
+    let state = R.create({ mode: 'x01', startingPlayer: 'cork', turnMs: 30000 }, ['A', 'B'], 1000);
+    state = R.timeout(state, 31000);
+    const view = model(state);
+    assert.equal(view.cork.entries[0].status, 'forfeited');
+    assert.equal(view.cork.entries[0].distance, null, 'A timed-out sentinel is never a displayed physical distance');
+    assert.equal(view.cork.entries[1].status, 'waiting'); assert.equal(view.cork.entries[1].active, true);
+    assert.equal(view.round, 0);
+}
+
+console.log('PASS: accepted results, scoring history, Cork context/eligibility and repeated-tie distance comparisons.');
