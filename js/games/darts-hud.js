@@ -53,6 +53,8 @@
             timer: s && s.turnMs > 0 && s.status === 'playing' ? Math.min(s.turnMs / 1000,
                 Math.max(0, Math.ceil((s.turnStartedAt + s.turnMs - input.now) / 1000))) : null,
             players: ids.map(function (id, index) { return { id: id, seat: index + 1, color: COLORS[index],
+                type: s && s.participants && s.participants[id] ? s.participants[id].type : 'human',
+                difficulty: s && s.participants && s.participants[id] ? s.participants[id].difficulty : null,
                 name: s ? input.name(id) : input.you, score: s ? mode === 'practice' ? s.stats[id].darts : s.scores[id] : practice.darts,
                 legs: s ? s.wins[id] : 0, entered: !s || !s.entered || s.entered[id] !== false,
                 left: s ? (s.withdrawn || []).includes(id) : false,
@@ -245,14 +247,17 @@
                 m.players.forEach(function (p) {
                 var card = el('button', 'darts-player' + (p.active ? ' active' : '') + (p.left ? ' withdrawn' : ''));
                 card.type = 'button'; card.setAttribute('aria-haspopup', 'dialog');
-                var owned = controls(p.id), ownership = t(owned ? 'dartsThisDevice' : 'dartsOtherDevice');
+                var owned = controls(p.id), cpu = p.type === 'cpu', ownership = cpu ? t('dartsCpu') + ' · ' +
+                    t('dartsCpu' + p.difficulty.charAt(0).toUpperCase() + p.difficulty.slice(1)) : t(owned ? 'dartsThisDevice' : 'dartsOtherDevice');
                 card.setAttribute('aria-label', p.name + ' · ' + ownership + ' · ' + t('dartsHistory'));
                 card.title = p.name + ' · ' + ownership;
                 card.style.setProperty('--player-color', p.color); card.dataset.playerUid = p.id;
                 if (p.active) card.setAttribute('aria-current', 'true');
                 var seat = el('span', 'player-seat', p.seat); seat.setAttribute('aria-hidden', 'true');
                 if (owned) { seat.classList.add('owned-seat'); seat.title = ownership; }
-                var name = el('span', 'darts-player-name', p.left ? t('dartsWithdrawn') + ' · ' + p.name : p.name); name.title = p.name;
+                var name = el('span', 'darts-player-name' + (cpu ? ' cpu-name' : '')); name.title = p.name;
+                name.append(el('span', 'darts-name-text', p.left ? t('dartsWithdrawn') + ' · ' + p.name : p.name));
+                if (cpu) name.append(el('span', 'cpu-tag', t('dartsCpu')));
                 var score = el('strong', 'darts-player-score', p.score);
                 score.setAttribute('aria-label', valueLabel(Rules.isX01(m.mode) ? 'dartsRemaining' : m.mode === 'practice' ? 'dartsDarts' : 'dartsPoints', p.score));
                 card.append(seat, name, score);

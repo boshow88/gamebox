@@ -60,6 +60,8 @@
                 var player = service.currentPlayer(), imported = input.participants;
                 if (!Array.isArray(imported)) imported = imported && typeof imported === 'object' ? Object.values(imported) : [];
                 if (!imported.length) imported = [{ name: player.name }];
+                if (imported.some(function (slot) { return slot && slot.type === 'cpu'; }))
+                    throw roomError('cpu-local-only', 'CPU participants are available only in local matches.');
                 if (imported.length > 4) throw roomError('full', 'A Darts room has four player slots.');
                 var slots = {}, ids = [];
                 imported.forEach(function (slot, index) {

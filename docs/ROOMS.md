@@ -56,6 +56,11 @@ participants and configuration into a shared room. Solo Practice and Count-Up
 require one participant; X01 and Cricket require two. Every mode allows at most
 four participants.
 
+Local Darts can include CPU slots, but room-code matches remain human-only.
+Creating/joining is unavailable while CPUs are present, and the room policy
+rejects CPU imports rather than coercing their type. No CPU controller, online
+bot service or new synchronization transport is introduced.
+
 The shared service's `players`, connection `slots`, `hostUid`, readiness and
 presence still identify page connections. Darts stores participant slots
 separately in `participants`, ordered by `seatOrder`. A participant has a display

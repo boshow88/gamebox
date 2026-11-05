@@ -36,6 +36,9 @@ const createRoom = require('../js/games/darts-room.js');
     async function fixture(fields) { await flush(a.service.update('ABCD', fields)); }
 
     // A code-only room reserves its seats while every throw stays local to the host device.
+    await assert.rejects(a.create({ mode: 'countup' }, [{ id: 'human', name: 'Human', type: 'human' },
+        { id: 'cpu', name: 'CPU 1', type: 'cpu', difficulty: 'normal' }]), error => error.code === 'room/cpu-local-only');
+    assert.equal(get(), null, 'An online invitation cannot silently convert a local CPU into a human slot');
     await flush(a.create({ mode: 'practice' }, [{ id: 'local-you', name: 'Alex' }]));
     assert.equal(get().phase, 'lobby'); assert.deepEqual(ids(), ['local-you']);
     assert.equal(get().participants['local-you'].controllerId, A);

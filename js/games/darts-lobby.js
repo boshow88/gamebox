@@ -47,6 +47,13 @@
         dartsLobbyInviteLocal: 'Enter a room code to join, or create a code to invite other players.',
         dartsLobbyInviteShared: 'Share this code to invite other players.',
         dartsLobbyInvitePlaying: 'New players can join after the host returns to the lobby.',
+        dartsAddCpu: 'Add CPU', dartsCpu: 'CPU', dartsCpuDifficulty: 'CPU difficulty',
+        dartsCpuEasy: 'Easy', dartsCpuNormal: 'Normal', dartsCpuHard: 'Hard', dartsCpuInsane: 'Insane',
+        dartsCpuChooseMode: 'Choose X01, Cricket or Count-Up to add CPU opponents.',
+        dartsCpuPracticeUnavailable: 'Practice does not support CPU players. Change mode or remove the CPUs.',
+        dartsCpuOnlineUnavailable: 'CPU opponents are available only in local games.',
+        dartsCpuRemoveForOnline: 'Remove CPU players before creating or joining a room.',
+        dartsCpuHumanRequired: 'Keep at least one human player.',
     });
     Object.assign(window.ArcadeCommon.i18n.STRINGS.zh, {
         dartsLobbyGestureHelp: '投擲操作',
@@ -94,10 +101,17 @@
         dartsLobbyInviteLocal: '輸入房號加入，或建立房號邀請其他玩家。',
         dartsLobbyInviteShared: '分享此房號即可邀請其他玩家。',
         dartsLobbyInvitePlaying: '本場開始後，新玩家須等房主返回大廳才能加入。',
+        dartsAddCpu: '加入CPU', dartsCpu: 'CPU', dartsCpuDifficulty: 'CPU難度',
+        dartsCpuEasy: '簡單', dartsCpuNormal: '普通', dartsCpuHard: '困難', dartsCpuInsane: '瘋狂',
+        dartsCpuChooseMode: '選擇X01、Cricket或Count-Up即可加入CPU對手。',
+        dartsCpuPracticeUnavailable: '練習模式不支援CPU，請切換模式或移除CPU。',
+        dartsCpuOnlineUnavailable: 'CPU對手僅支援本機遊戲。',
+        dartsCpuRemoveForOnline: '請先移除CPU，再建立或加入房間。',
+        dartsCpuHumanRequired: '至少須保留一位真人玩家。',
     });
     window.createDartsLobby = function (options) {
         var doc = options.document, t = options.t, dialog = doc.getElementById('lobby');
-        var lastSlots = '', busy = false, starting = false;
+        var lastSlots = '', busy = false, starting = false, pendingCpuFocus = null;
         var content = doc.getElementById('lobby-content'), viewport = window.visualViewport, viewportFrame = 0;
         var fields = { 'mode-select': 'mode', 'match-select': 'legsToWin', 'timer-select': 'turnMs',
             'rounds-select': 'roundLimit', 'out-select': 'outRule', 'in-select': 'inRule',
@@ -112,9 +126,14 @@
             return t(key).replace(/\{(\w+)\}/g, function (_, name) { return values[name]; });
         }
         function setText(id, text) { var el = get(id); if (el.textContent !== text) el.textContent = text; }
-        function ruleSummary(config, count) {
-            var eligibility = window.DartsRules.eligibility(config, count), parts = [];
-            if (!eligibility.allowed) return t('dartsMinimumPlayers', options.modeName(config.mode, config), eligibility.minPlayers);
+        function eligibilityReason(config, eligibility) {
+            if (eligibility.reason === 'cpu-practice') return t('dartsCpuPracticeUnavailable');
+            if (eligibility.reason === 'needs-human') return t('dartsCpuHumanRequired');
+            return t('dartsMinimumPlayers', options.modeName(config.mode, config), eligibility.minPlayers);
+        }
+        function ruleSummary(config, count, participants) {
+            var eligibility = window.DartsRules.eligibility(config, count, participants), parts = [];
+            if (!eligibility.allowed) return eligibilityReason(config, eligibility);
             if (window.DartsRules.isX01(config.mode)) {
                 parts.push(t('darts' + ({ open: 'Open', master: 'Master', double: 'Double' }[config.inRule]) + 'In'),
                     t('darts' + ({ open: 'Open', master: 'Master', double: 'Double' }[config.outRule]) + 'Out'));
@@ -131,9 +150,9 @@
             if (config.mode === 'practice' && config.turnMs) parts.push(format('dartsLobbySecondsShort', { seconds: config.turnMs / 1000 }));
             return parts.join(' · ');
         }
-        function description(config, count) {
-            var eligibility = window.DartsRules.eligibility(config, count), parts = [], variant;
-            if (!eligibility.allowed) return t('dartsMinimumPlayers', options.modeName(config.mode, config), eligibility.minPlayers);
+        function description(config, count, participants) {
+            var eligibility = window.DartsRules.eligibility(config, count, participants), parts = [], variant;
+            if (!eligibility.allowed) return eligibilityReason(config, eligibility);
             if (config.mode === 'practice') {
                 parts.push(count === 1 ? t('dartsLobbyPracticeSolo') : format('dartsLobbyPracticeShared', { n: count }));
                 if (config.turnMs) parts.push(format('dartsLobbyPracticeTimer', { seconds: config.turnMs / 1000 }));
@@ -203,28 +222,44 @@
         function render() {
             var model = options.model(), data = model.data, uid = model.uid, ids = data.seatOrder || [];
             var config = data.options, editable = data.phase === 'lobby', host = data.hostUid === uid;
-            var locked = busy || !editable, localIds = ids.filter(function (id) { return data.participants[id].controllerId === uid; });
+            var locked = busy || !editable, participants = ids.map(function (id) { return data.participants[id]; });
+            var hasCpu = participants.some(function (p) { return p.type === 'cpu'; });
+            var localHumanIds = ids.filter(function (id) { return data.participants[id].controllerId === uid && data.participants[id].type !== 'cpu'; });
             var slotsKey = JSON.stringify([ids.map(function (id) { return data.participants[id]; }), data.ready, data.hostUid, locked, uid, options.locale()]);
             if (slotsKey !== lastSlots) {
                 lastSlots = slotsKey;
                 var focused = doc.activeElement, selectedId = focused && focused.dataset.slotId;
+                var selectedCpu = focused && focused.dataset.cpuSlot || pendingCpuFocus;
                 var selection = selectedId ? [focused.selectionStart, focused.selectionEnd, focused.value] : null;
                 get('lobby-slots').replaceChildren();
                 ids.forEach(function (id, index) {
-                    var p = data.participants[id], owned = p.controllerId === uid;
-                    var row = node('div', 'darts-lobby-slot' + (owned ? ' owned' : '')); row.dataset.slotId = id;
-                    var seat = node('div', 'slot-seat'); seat.append(node('span', 'player-seat', index + 1), deviceBadge(owned)); row.append(seat);
+                    var p = data.participants[id], owned = p.controllerId === uid, cpu = p.type === 'cpu';
+                    var row = node('div', 'darts-lobby-slot' + (cpu ? ' cpu' : owned ? ' owned' : '')); row.dataset.slotId = id;
+                    var seat = node('div', 'slot-seat'); seat.append(node('span', 'player-seat', index + 1));
+                    if (!cpu) seat.append(deviceBadge(owned));
+                    row.append(seat);
                     var input = node('input', 'slot-name'); input.value = p.name || t('dartsGuest'); input.maxLength = 32;
                     input.dataset.slotId = id; input.disabled = locked || !owned;
                     input.setAttribute('aria-label', t('dartsLabelValue', t('dartsPlayerName'), index + 1));
                     var nameWrap = node('div', 'slot-name-wrap'); nameWrap.append(input);
-                    if (p.controllerId === data.hostUid && ids.find(function (slot) { return data.participants[slot].controllerId === data.hostUid; }) === id)
+                    if (cpu) nameWrap.append(iconBadge(t('dartsCpu'), t('dartsCpu'), 'slot-badge cpu'));
+                    if (!cpu && p.controllerId === data.hostUid && ids.find(function (slot) { return data.participants[slot].type !== 'cpu' && data.participants[slot].controllerId === data.hostUid; }) === id)
                         nameWrap.append(iconBadge('★', t('dartsHost'), 'slot-badge'));
-                    if (data.ready && data.ready[p.controllerId]) nameWrap.append(iconBadge('✓', t('dartsReadyTag'), 'slot-badge ready'));
+                    if (!cpu && data.ready && data.ready[p.controllerId]) nameWrap.append(iconBadge('✓', t('dartsReadyTag'), 'slot-badge ready'));
                     row.append(nameWrap);
-                    if (owned && localIds.length > 1) {
+                    if (owned && (cpu || localHumanIds.length > 1)) {
                         var remove = node('button', 'btn slot-remove', t('dartsRemovePlayer')); remove.type = 'button';
                         remove.disabled = locked; remove.dataset.removeSlot = id; row.append(remove);
+                    }
+                    if (cpu) {
+                        var difficulty = node('label', 'slot-cpu-settings'); difficulty.append(node('span', '', t('dartsCpuDifficulty')));
+                        var select = node('select', 'slot-difficulty'); select.dataset.cpuSlot = id;
+                        select.disabled = locked || !owned || model.online;
+                        select.setAttribute('aria-label', t('dartsLabelValue', p.name || t('dartsCpu'), t('dartsCpuDifficulty')));
+                        ['easy', 'normal', 'hard', 'insane'].forEach(function (level) {
+                            var option = node('option', '', t('dartsCpu' + level[0].toUpperCase() + level.slice(1))); option.value = level; select.append(option);
+                        });
+                        select.value = p.difficulty || 'normal'; difficulty.append(select); row.append(difficulty);
                     }
                     get('lobby-slots').append(row);
                 });
@@ -232,9 +267,18 @@
                     var replacement = Array.from(get('lobby-slots').querySelectorAll('input')).find(function (input) { return input.dataset.slotId === selectedId; });
                     if (replacement && !replacement.disabled) { replacement.value = selection[2]; replacement.focus({ preventScroll: true }); replacement.setSelectionRange(selection[0], selection[1]); }
                 }
+                if (selectedCpu) {
+                    var cpuReplacement = Array.from(get('lobby-slots').querySelectorAll('select')).find(function (select) { return select.dataset.cpuSlot === selectedCpu; });
+                    if (cpuReplacement && !cpuReplacement.disabled) { cpuReplacement.focus({ preventScroll: true }); pendingCpuFocus = null; }
+                    else if (!cpuReplacement) pendingCpuFocus = null;
+                }
             }
             get('lobby-capacity').textContent = ids.length + ' / 4';
             get('add-player-btn').disabled = locked || ids.length >= 4;
+            get('add-cpu-btn').disabled = locked || ids.length >= 4 || model.online || config.mode === 'practice';
+            get('add-cpu-btn').setAttribute('aria-describedby', 'lobby-cpu-note');
+            var cpuNote = model.online ? t('dartsCpuOnlineUnavailable') : config.mode === 'practice' ? t(hasCpu ? 'dartsCpuPracticeUnavailable' : 'dartsCpuChooseMode') : '';
+            setText('lobby-cpu-note', cpuNote); get('lobby-cpu-note').hidden = !cpuNote;
             Object.keys(fields).forEach(function (id) {
                 var field = get(id); field.disabled = locked || !host;
                 if (doc.activeElement !== field) field.value = String(config[fields[id]]);
@@ -257,8 +301,8 @@
                 rounds.forEach(function (n) { var opt = node('option', '', n ? n : t('dartsUnlimited')); opt.value = n; roundField.append(opt); });
             }
             roundField.value = String(config.roundLimit);
-            var eligibility = window.DartsRules.eligibility(config, ids.length);
-            var reason = !editable ? t('dartsRulesLocked') : !eligibility.allowed ? t('dartsMinimumPlayers', options.modeName(config.mode, config), eligibility.minPlayers) : '';
+            var eligibility = window.DartsRules.eligibility(config, ids.length, participants);
+            var reason = !editable ? t('dartsRulesLocked') : !eligibility.allowed ? eligibilityReason(config, eligibility) : '';
             var ready = !!(data.ready && data.ready[uid]), btn = get('lobby-start-btn');
             btn.hidden = !editable;
             btn.textContent = t(starting ? 'dartsLobbyStarting' : host ? config.mode === 'practice' ? 'dartsLobbyStartPractice' : 'dartsLobbyStartGame' : ready ? 'dartsLobbyWaitingHost' : 'dartsReadyUp');
@@ -268,7 +312,7 @@
                 else if (!host) reason = t('dartsLobbyOnlyHost');
                 else if (model.canStart) reason = t('dartsLobbyReadyToStart');
                 else {
-                    var waiting = new Set(ids.map(function (id) { return data.participants[id].controllerId; }).filter(function (id) { return id !== data.hostUid && !(data.ready || {})[id]; })).size;
+                    var waiting = new Set(participants.filter(function (p) { return p.type !== 'cpu'; }).map(function (p) { return p.controllerId; }).filter(function (id) { return id !== data.hostUid && !(data.ready || {})[id]; })).size;
                     reason = waiting ? format(waiting === 1 ? 'dartsLobbyWaitingDevice' : 'dartsLobbyWaitingDevices', { n: waiting }) : t('dartsWaitReady');
                 }
             }
@@ -278,7 +322,7 @@
             get('back-lobby-btn').hidden = editable || !host || (data.game.status !== 'over' && data.game.mode !== 'practice');
             get('back-lobby-btn').disabled = busy;
             setText('lobby-rule-title', options.modeName(config.mode, config));
-            setText('lobby-rule-summary', ruleSummary(config, ids.length));
+            setText('lobby-rule-summary', ruleSummary(config, ids.length, participants));
             var matchParts = [];
             if (competitive) {
                 matchParts.push(t('dartsMatchFormat', config.legsToWin));
@@ -290,15 +334,15 @@
             var longMatch = competitive && config.roundLimit >= 20;
             setText('lobby-round-note', longMatch ? format('dartsLobbyMaxDarts', { darts: config.roundLimit * 3 }) : '');
             get('lobby-round-note').hidden = !longMatch;
-            setText('lobby-rule-note', description(config, ids.length));
-            get('invite-note').textContent = t(model.online ? editable ? 'dartsLobbyInviteShared' : 'dartsLobbyInvitePlaying' : 'dartsLobbyInviteLocal');
+            setText('lobby-rule-note', description(config, ids.length, participants));
+            get('invite-note').textContent = t(model.online ? editable ? 'dartsLobbyInviteShared' : 'dartsLobbyInvitePlaying' : hasCpu ? 'dartsCpuRemoveForOnline' : 'dartsLobbyInviteLocal');
             get('room-code').hidden = !model.online; get('room-code').textContent = model.code || '';
             get('copy-room-btn').hidden = !model.online;
             get('leave-room-btn').hidden = !model.online;
-            get('create-room-btn').hidden = model.online; get('create-room-btn').disabled = locked;
+            get('create-room-btn').hidden = model.online; get('create-room-btn').disabled = locked || hasCpu;
             get('join-row').hidden = model.online;
-            get('join-room-btn').disabled = locked;
-            get('room-code-input').disabled = locked;
+            get('join-room-btn').disabled = locked || hasCpu;
+            get('room-code-input').disabled = locked || hasCpu;
         }
         get('lobby-close-btn').addEventListener('click', close);
         dialog.addEventListener('cancel', function (event) { event.preventDefault(); close(); });
@@ -307,7 +351,9 @@
         window.addEventListener('resize', fitViewport);
         if (viewport) { viewport.addEventListener('resize', fitViewport); viewport.addEventListener('scroll', fitViewport); }
         get('add-player-btn').addEventListener('click', function () { run(options.addPlayer); });
+        get('add-cpu-btn').addEventListener('click', function () { run(options.addCpu); });
         get('lobby-slots').addEventListener('change', function (event) {
+            if (event.target.dataset.cpuSlot) { var cpuId = event.target.dataset.cpuSlot, level = event.target.value; pendingCpuFocus = cpuId; run(function () { return options.setCpuDifficulty(cpuId, level); }); return; }
             if (event.target.dataset.slotId) { var id = event.target.dataset.slotId, name = event.target.value; run(function () { return options.renamePlayer(id, name); }); }
         });
         get('lobby-slots').addEventListener('click', function (event) {

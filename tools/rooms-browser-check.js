@@ -11,8 +11,9 @@ const args = process.argv.slice(2);
 const mode = args.includes('--invalid-rtdb') ? 'invalid' : 'rtdb';
 const lobbyPreview = args.includes('--darts-lobby');
 const corkPreview = args.includes('--darts-cork');
+const cpuOnly = args.includes('--darts-cpu');
 const preview = args.includes('--darts-mobile') ? 'mobile' : args.includes('--darts-desktop') ? 'desktop' : lobbyPreview || corkPreview ? 'mobile' : '';
-const dartsOnly = args.includes('--darts') || !!preview;
+const dartsOnly = args.includes('--darts') || cpuOnly || !!preview;
 const chrome = args.find(arg => !arg.startsWith('--')) || 'C:/Program Files/Google/Chrome/Application/chrome.exe';
 const database = require('./helpers/browser-rtdb.js');
 
@@ -48,6 +49,7 @@ const dartsOnly = ${dartsOnly};
 const preview = '${preview}';
 const lobbyPreview = ${lobbyPreview};
 const corkPreview = ${corkPreview};
+const cpuOnly = ${cpuOnly};
 let encode = value => value, decode = value => value;
 addEventListener('message', event => { if (event.data && event.data.roomError) errors.push(event.data.roomError); });
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -190,18 +192,19 @@ ${dartsOnly ? fs.readFileSync(path.join(__dirname, 'helpers/darts-browser-v2.js'
     } else {
         const codec = await import('/js/net/rtdb-values.mjs'); encode = codec.encodeRoomValue; decode = codec.decodeRoomValue;
         if(dartsOnly) {
-            for (const check of [checkDartsAccountNames, checkDartsContextV2, checkDartsLocalV2, checkDartsHandoffV2,
+            for (const check of cpuOnly ? [checkDartsCpuLobbyV2, checkDartsCpuMatchesV2, checkDartsCpuHandoffV2, checkDartsCpuCancellationV2, checkDartsCpuRulesAndCorkV2, checkDartsCpuPreviewV2] : [checkDartsAccountNames, checkDartsContextV2, checkDartsLocalV2, checkDartsHandoffV2,
                 checkDartsBustV2, checkDartsResultsV2, checkDartsExpandedSettingsV2, checkDartsOpeningCorkV2,
                 checkDartsFinalHitV2, checkDartsReservedLocalV2, checkDartsReservedLossV2, checkDartsLeaveRestoreV2,
                 checkDartsMixedV2, checkDartsSupersededFlightV2, checkDartsFourV2, checkDartsLayoutsV2, checkDartsLobbyV2,
-                checkDartsStatusOverflowV2, checkDartsCorkRethrowsV2, checkDartsRemoteCorkRethrowsV2, checkDartsCorkFinalPresentationV2, checkDartsCorkPreviewV2]) {
+                checkDartsStatusOverflowV2, checkDartsCorkRethrowsV2, checkDartsRemoteCorkRethrowsV2, checkDartsCorkFinalPresentationV2,
+                checkDartsCpuLobbyV2, checkDartsCpuMatchesV2, checkDartsCpuHandoffV2, checkDartsCpuCancellationV2, checkDartsCpuRulesAndCorkV2, checkDartsCorkPreviewV2]) {
                 document.getElementById('result').textContent = 'RUNNING: ' + check.name;
                 await check();
             }
         }
         else { await check('beam', 'beam_rooms', 'beam'); await check('rune-stones', 'duel_rooms', 'rd'); }
     }
-    document.getElementById('result').textContent = 'PASS (' + mode + '): ' + (mode === 'invalid' ? 'disabled online rooms and working account profiles.' : dartsOnly ? 'Darts Cork contexts/rethrows/ownership, overflow and reduced-motion detail, X01 settings, final-hit timing, local/mixed rooms, history and responsive geometry.' : 'real browser room flows, backend selection and account isolation.');
+    document.getElementById('result').textContent = 'PASS (' + mode + '): ' + (mode === 'invalid' ? 'disabled online rooms and working account profiles.' : cpuOnly ? 'Darts local CPU slots, physical gestures, all compositions, pacing, cancellation, handoff, timers, Cricket and Cork.' : dartsOnly ? 'Darts CPU opponents, Cork contexts/rethrows/ownership, overflow and reduced-motion detail, X01 settings, final-hit timing, local/mixed rooms, history and responsive geometry.' : 'real browser room flows, backend selection and account isolation.');
 })().catch(error => { document.getElementById('result').textContent = 'FAIL: ' + error.stack; });
 </script>`;
 
@@ -230,6 +233,13 @@ async function main() {
                     gesture: function () { if (!canThrow()) return false; if (G.dartState === 'landed') freshDart(); launchThrow(analyseGesture([{t:0,x:0,y:0},{t:.05,x:0,y:50},{t:.1,x:0,y:140},{t:.15,x:0,y:230}])); return true; },
                     land: function () { update(1); }, controller: function () { return online; },
                     refresh: function () { syncGameUi(); render(); },
+                    step: function (ms, dt) { window.__dartsNow += ms || 0; if (shell.isPlaying()) update(dt || 0); else tickCpu(); syncGameUi(); render(); },
+                    cpu: function () { return { pending: cpuPending, last: lastCpuThrow }; },
+                    physics: function (samples) { var analysis = analyseGesture(samples), launch = computeThrow(analysis), impact = computeImpact(launch); return { analysis: analysis, launch: launch, impact: impact, result: scoreAt(impact.x, impact.y) }; },
+                    cpuSeed: function (seed) { cpuRandom = window.DartsCpuGesture.seeded(seed); },
+                    addCpu: addCpuPlayer, setCpuDifficulty: setCpuDifficulty, removePlayer: removeLocalPlayer, invite: inviteFriends, join: joinRoom,
+                    replace: function (state) { if (!room) localRoom.phase = state.status === 'over' ? 'results' : 'playing'; acceptLocal(state); render(); },
+                    expire: function () { if (match && match.turnMs && match.status === 'playing' && G.dartState !== 'flying' && Date.now() >= match.turnStartedAt + match.turnMs) acceptLocal(Rules.timeout(match, Date.now())); },
                     accepted: function (result, impact) { var accepted = Rules.throwDart(match, match.active, result, Date.now(), impact); queueDartFeedback(accepted); acceptLocal(accepted); render(); return accepted; },
                     previewCricket: function () { match.players.forEach(function (id, i) { match.scores[id]=[120,80,40,95][i]; Rules.TARGETS.forEach(function(n,r){match.marks[id][n]=(r+i)%4;}); }); viewMatch=match; syncGameUi(); },
                     snapshot: function () { return {match:match,room:room,uid:room && online ? online.service.currentPlayer().uid : 'local-controller',data:roomData(),darts:G.darts,dartState:G.dartState,shellState:shell.state,feedback:feedbackState,gestureActive:!!gesture}; }
@@ -259,7 +269,7 @@ async function main() {
         const extra = [];
         if (preview) {
             const target = path.join(root, '.cache'); fs.mkdirSync(target, { recursive: true });
-            extra.push('--screenshot=' + path.join(target, 'darts-' + (lobbyPreview ? 'lobby-' : corkPreview ? 'cork-' : '') + preview + '.png'), '--window-size=' + (preview === 'mobile' ? '390,844' : '1200,800'), '--hide-scrollbars');
+            extra.push('--screenshot=' + path.join(target, 'darts-' + (cpuOnly ? 'cpu-' : '') + (lobbyPreview ? 'lobby-' : corkPreview ? 'cork-' : '') + preview + '.png'), '--window-size=' + (preview === 'mobile' ? '390,844' : '1200,800'), '--hide-scrollbars');
         }
         browser = spawn(chrome, ['--headless=new', '--disable-gpu', '--no-first-run', '--no-default-browser-check', ...extra,
             '--disable-background-networking', '--user-data-dir=' + profile, '--dump-dom', '--virtual-time-budget=' + (dartsOnly ? 180000 : 45000),

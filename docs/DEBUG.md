@@ -68,11 +68,15 @@ node tools/darts-rules-check.js
 node tools/darts-room-check.js
 node tools/darts-feedback-check.js
 node tools/darts-hud-check.js
+node tools/darts-cpu-physics-check.js
+node tools/darts-cpu-strategy-check.js
+node tools/darts-cpu-calibrate.js
 node tools/rooms-browser-check.js --darts
+node tools/rooms-browser-check.js --darts-cpu
 node tools/rooms-browser-check.js --darts --invalid-rtdb
 ```
 
-The four Darts module checks run without packages or network. The rules check covers
+The Darts module checks and CPU calibration run without packages or network. The rules check covers
 Open/Master/Double In and Out, whole-turn score/entry rollback, physical Bull
 identity under 25/50 and 50/50 scoring, Standard/Cut-Throat recipients and wins
 (including a non-throwing winner), per-participant round limits, score settlement
@@ -164,6 +168,27 @@ confirm no animation for fitting text and test resize/language/state resets.
 Reduced-motion checks disable movement while preserving the accessible full-text
 popup. Fixed region bounds, timer/control separation and page horizontal overflow
 are checked at 320x568, 390x844 and desktop sizes in EN/ZH.
+
+CPU feasibility loads the actual private human physics through a test-only VM
+helper. It proves all 20 sectors/single-double-triple rings, both Bulls and an
+intentional miss, deterministic samples/impacts, logical-coordinate viewport
+normalization and cache reuse. Seeded gesture execution produces measured PPR,
+miss/target distributions, turn variance, D16 checkout and Cork distance metrics.
+The strategy check covers all six X01 starts and In/Out/Bull rules, legal
+multi-dart routes, distinct Cricket attacks/closures and eligible-only Cork. The
+calibration script reports ordinary versus full-game PPR, Cricket MPR/closing
+efficiency/penalties and matchup samples; see DEV's local CPU section for its
+definition and known Easy Cricket limitation.
+
+`--darts-cpu` runs the focused real-browser subset (also included in `--darts`).
+It completes five-round Count-Up for all four human/CPU compositions through real
+synthetic gestures and replays each sample to verify its physical impact. It
+checks no Firebase requirement, visible difficulty, locked roster, human input
+blocking, human handoff across CPUs, pacing, unchanged deadlines, pause/modal/
+timeout/reset/replacement cancellation, both Cricket variants and every Cork
+purpose including ties and final-impact holds. No test hook ships in the game.
+Optional `--darts-cpu --darts-mobile`, `--darts-cpu --darts-desktop` and
+`--darts-cpu --darts-lobby --darts-mobile` write ignored CPU screenshots in `.cache`.
 
 Lobby checks keep the header/footer visible at every content scroll position
 with four players and expanded rules at 320x568, 390x844 and 1200x420. They verify

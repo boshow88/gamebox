@@ -34,6 +34,8 @@
     var hud = null, historyView = null;
     var feedback = window.DartsFeedback.create(), feedbackState = feedback.snapshot(Date.now());
     var pendingFeedbackEvent = null, feedbackKey = '', presentationTurnKey = '', handoffPressKey = null;
+    var cpuGesture = null, cpuRandom = null, cpuPending = null, lastCpuThrow = null;
+    var CPU_THINK_MS = 900;
 
     // =================================================================
     // i18n (gameplay strings; launcher card strings live in launcher.js)
@@ -155,6 +157,7 @@
         dartsInvite: 'Invite / join',
         dartsLabelValue: function (label, value) { return label + ' ' + value; },
         dartsPlayerNumber: function (n) { return 'Player ' + n; },
+        dartsCpuNumber: function (n) { return 'CPU ' + n; },
         dartsMinimumPlayers: function (mode, n) { return mode + ' requires at least ' + n + ' players.'; },
         dartsAddPlayer: 'Add local player', dartsRemovePlayer: 'Remove', dartsPlayerName: 'Player name', dartsPlayer: 'Player',
         dartsThisDevice: 'This device', dartsOtherDevice: 'Other device', dartsEnableInvite: 'Get invitation code',
@@ -182,6 +185,7 @@
         dartsInvite: '邀請／加入',
         dartsLabelValue: function (label, value) { return label + value; },
         dartsPlayerNumber: function (n) { return '玩家' + n; },
+        dartsCpuNumber: function (n) { return 'CPU' + n; },
         dartsMinimumPlayers: function (mode, n) { return mode + '至少需要' + n + '位玩家。'; },
         dartsAddPlayer: '新增同機玩家', dartsRemovePlayer: '移除', dartsPlayerName: '玩家名稱', dartsPlayer: '玩家',
         dartsThisDevice: '此裝置控制', dartsOtherDevice: '其他裝置控制', dartsEnableInvite: '取得邀請房號',
@@ -624,14 +628,19 @@
         var samples = gesture.samples;
         gesture = null;
         if (!canThrow()) return;
+        submitGesture(samples);
+    }
+    function submitGesture(samples) {
         var an = analyseGesture(samples);
+        G.analysis = an;
         if (!an.valid) {
             // Not a throw (tap / too soft / not upward) — keep the dart, but remember it for debug.
-            G.analysis = an;
-            flashHint(an.reason === 'down' ? t('dartsThrowUp') : t('dartsShort'));
-            return;
+            if (!isCpuPlayer(match && match.active)) flashHint(an.reason === 'down' ? t('dartsThrowUp') : t('dartsShort'));
+            return false;
         }
+        if (match && match.turnMs > 0 && Date.now() >= match.turnStartedAt + match.turnMs) return false;
         launchThrow(an);
+        return true;
     }
 
     // A tap / too-soft / non-upward gesture is deliberately NOT a throw — but it must still
@@ -677,6 +686,9 @@
         var physical = scoreAt(G.impact.x, G.impact.y);
         var res = match ? Rules.scoreResult(match, physical) : physical;
         G.result = res;
+        if (lastCpuThrow && lastCpuThrow.launch === G.throw) {
+            lastCpuThrow.result = res; lastCpuThrow.error = Math.hypot(G.impact.x - lastCpuThrow.target.x, G.impact.y - lastCpuThrow.target.y);
+        }
         G.dartState = 'landed';
         G.resultT = TUNING.resultHoldSec;
         G.trajT = TUNING.trajShowSec;
@@ -772,6 +784,28 @@
             G.resultT -= dt;
             if (G.resultT <= 0) freshDart();
         }
+        tickCpu();
+    }
+    function tickCpu() {
+        var now = Date.now(), effects = feedback.snapshot(now);
+        if (!shell || !shell.isPlaying() || room || roomData().phase !== 'playing' || !match || match.status !== 'playing' ||
+            !isCpuPlayer(match.active) || G.dartState !== 'ready' || effects.blocking || effects.resultPending ||
+            document.querySelector('.darts-dialog[open]') || match.turnMs && now >= match.turnStartedAt + match.turnMs) {
+            cpuPending = null; return;
+        }
+        var key = [match.matchId, match.leg, match.phase, match.round, match.seq, match.active].join(':');
+        if (!cpuPending || cpuPending.key !== key) { cpuPending = { key: key, at: now + CPU_THINK_MS }; return; }
+        if (now < cpuPending.at) return;
+        cpuPending = null;
+        var participant = match.participants[match.active];
+        var target = window.DartsCpuStrategy.choose(match, match.active, participant.difficulty, cpuRandom);
+        if (!target) return;
+        var generated = cpuGesture.generate(target, participant.difficulty, cpuRandom);
+        // The same entry point analyses human and CPU samples; only physics decides the hit.
+        var launched = submitGesture(generated.samples);
+        lastCpuThrow = { player: match.active, difficulty: participant.difficulty, target: target, samples: generated.samples,
+            diagnostics: generated.diagnostics, accepted: launched, analysis: G.analysis,
+            launch: launched ? G.throw : null, impact: launched ? G.impact : null };
     }
 
     // =================================================================
@@ -1222,8 +1256,9 @@
             game: match, phase: match.status === 'over' ? 'results' : 'playing' }) : data;
     }
     function controlsPlayer(id) {
-        return !!match && (match.owners ? match.owners[id] : id) === controllerId();
+        return !!match && !isCpuPlayer(id) && (match.owners ? match.owners[id] : id) === controllerId();
     }
+    function isCpuPlayer(id) { return !!(match && match.participants && match.participants[id] && match.participants[id].type === 'cpu'); }
     function playerName(uid) {
         var data = roomData(), roster = data.roster || {}, participant = (data.participants || {})[uid];
         return roster[uid] || participant && participant.name || t('dartsGuest');
@@ -1261,7 +1296,8 @@
         return t('dartsPlayerNumber', n);
     }
     function localCanStart() {
-        return localRoom.phase === 'lobby' && Rules.eligibility(localRoom.options, localRoom.seatOrder.length).allowed;
+        return localRoom.phase === 'lobby' && Rules.eligibility(localRoom.options, localRoom.seatOrder.length,
+            localRoom.seatOrder.map(function (id) { return localRoom.participants[id]; })).allowed;
     }
     function renderLobby() { if (lobby) lobby.render(); }
     function queueDartFeedback(g, eventId) {
@@ -1342,6 +1378,7 @@
         renderLobby();
     }
     function clearBoard() {
+        cpuPending = null;
         gesture = null; freshDart(); G.stuck = []; G.last = null; G.traj = null; G.analysis = null; camDolly = 0;
     }
     function hideShellOverlay() { document.getElementById('overlay').hidden = true; }
@@ -1352,7 +1389,7 @@
     }
     function openLobby(invite) {
         if (!lobby) return;
-        gesture = null; lobby.open(invite === true);
+        gesture = null; cpuPending = null; lobby.open(invite === true);
     }
     function acceptLocal(g) {
         if (!g) return false;
@@ -1377,6 +1414,18 @@
         localRoom.participants[id] = { id: id, name: defaultPlayerName(localRoom), controllerId: localController, type: 'human' };
         localRoom.seatOrder.push(id); localRoom.ready = {}; syncGameUi(); return true;
     }
+    function addCpuPlayer() {
+        if (room || localRoom.phase !== 'lobby' || localRoom.options.mode === 'practice' || localRoom.seatOrder.length >= 4) return false;
+        var id = 'cpu-' + ++localSeatSerial, n = 1, names = new Set(Object.values(localRoom.participants).map(function (p) { return p.name; }));
+        while (names.has(t('dartsCpuNumber', n))) n++;
+        localRoom.participants[id] = { id: id, name: t('dartsCpuNumber', n), controllerId: localController, type: 'cpu', difficulty: 'normal' };
+        localRoom.seatOrder.push(id); localRoom.ready = {}; syncGameUi(); return true;
+    }
+    function setCpuDifficulty(id, difficulty) {
+        var p = localRoom.participants[id];
+        if (room || localRoom.phase !== 'lobby' || !p || p.type !== 'cpu' || !['easy', 'normal', 'hard', 'insane'].includes(difficulty)) return false;
+        p.difficulty = difficulty; localRoom.ready = {}; syncGameUi(); return true;
+    }
     function renamePlayer(id, name) {
         if (room) return online.renamePlayer(id, name);
         if (localRoom.phase !== 'lobby' || !localRoom.participants[id] || !String(name || '').trim()) return false;
@@ -1387,6 +1436,7 @@
     function removeLocalPlayer(id) {
         if (room) return online.removeLocalPlayer(id);
         if (localRoom.phase !== 'lobby' || localRoom.seatOrder.length < 2 || !localRoom.participants[id]) return false;
+        if (localRoom.participants[id].type !== 'cpu' && Object.values(localRoom.participants).filter(function (p) { return p.type !== 'cpu'; }).length < 2) return false;
         delete localRoom.participants[id]; localRoom.seatOrder = localRoom.seatOrder.filter(function (p) { return p !== id; });
         localRoom.ready = {}; syncGameUi(); return true;
     }
@@ -1399,7 +1449,9 @@
         var ids = localRoom.seatOrder.slice();
         var g = Rules.create(localRoom.options, ids, Date.now(), Math.floor(Math.random() * ids.length));
         g.matchId = crypto.getRandomValues(new Uint32Array(4)).join('-');
-        g.owners = Object.fromEntries(ids.map(function (id) { return [id, localController]; }));
+        g.participants = JSON.parse(JSON.stringify(localRoom.participants));
+        g.owners = Object.fromEntries(ids.map(function (id) { return [id, g.participants[id].type === 'cpu' ? 'local-cpu' : localController]; }));
+        g.cpuSeed = crypto.getRandomValues(new Uint32Array(1))[0]; cpuRandom = window.DartsCpuGesture.seeded(g.cpuSeed); lastCpuThrow = null;
         localRoom.roster = Object.fromEntries(ids.map(function (id) { return [id, localRoom.participants[id].name]; }));
         localRoom.phase = 'playing'; localRoom.game = match = viewMatch = g;
         clearBoard(); G.darts = 0; G.total = 0; lobby.close();
@@ -1469,11 +1521,13 @@
     }
     async function inviteFriends() {
         if (room || localRoom.phase !== 'lobby') return false;
+        if (Object.values(localRoom.participants).some(function (p) { return p.type === 'cpu'; })) { lobby.refs.status.textContent = t('dartsCpuRemoveForOnline'); return false; }
         await ensureOnline();
         return online.create(localRoom.options, localRoom.seatOrder.map(function (id) { return localRoom.participants[id]; }));
     }
     async function joinRoom(code) {
         if (room || localRoom.phase !== 'lobby') return false;
+        if (Object.values(localRoom.participants).some(function (p) { return p.type === 'cpu'; })) { lobby.refs.status.textContent = t('dartsCpuRemoveForOnline'); return false; }
         await ensureOnline(); return online.join(code);
     }
     async function leaveRoom() {
@@ -1586,6 +1640,7 @@
     }
 
     function init() {
+        cpuGesture = window.DartsCpuGesture.create({ analyseGesture: analyseGesture, computeThrow: computeThrow, computeImpact: computeImpact });
         localRoom = newLocalRoom();
         hud = window.DartsHud.create({ document: document, t: t, resultLabel: resultLabel, modeName: modeName,
             locale: function () { return AC.i18n.locale; }, isOnline: usesSharedMatch,
@@ -1614,7 +1669,7 @@
             overlayContent: overlayContent,
             canPause: function () { return !usesSharedMatch() && !!match && !match.turnMs && match.status === 'playing' && roomData().phase === 'playing'; },
             canRestart: function () { return !usesSharedMatch(); },
-            onPause: function () { gesture = null; },
+            onPause: function () { gesture = null; cpuPending = null; },
             onStart: function () {
                 syncGameUi(); fitCanvas();
                 if (roomData().phase !== 'playing') queueMicrotask(function () { shell.goIdle(); openLobby(); });
@@ -1624,7 +1679,8 @@
             cancelGesture: function () { gesture = null; }, onError: showNetError,
             model: function () { return { data: roomData(), uid: controllerId(), online: !!room, code: room && room.code,
                 canStart: room ? online.canStart(room.data) : localCanStart() }; },
-            addPlayer: addLocalPlayer, renamePlayer: renamePlayer, removePlayer: removeLocalPlayer, configure: configure,
+            addPlayer: addLocalPlayer, addCpu: addCpuPlayer, setCpuDifficulty: setCpuDifficulty,
+            renamePlayer: renamePlayer, removePlayer: removeLocalPlayer, configure: configure,
             start: startMatch, backToLobby: backToLobby, invite: inviteFriends, join: joinRoom, leave: leaveRoom });
         // Delegate only board/mode-panel presses; controls and dialogs retain normal input.
         var pad = document.getElementById('match-panel');

@@ -603,6 +603,72 @@ history, last-dart and last-turn data carry the context. `legCorkPurpose` preser
 the completed context for result presentation. Timeout and controller withdrawal
 continue through the same shared Cork resolution code.
 
+### Local CPU players
+
+CPU V1 uses normal participant slots (`type:'cpu'`, `difficulty`) and requires at
+least one human. X01, Standard/Cut-Throat Cricket and Count-Up support 1–3 CPUs;
+Practice cannot start with CPU slots and does not silently remove them. The
+current local roster is cloned into `game.participants` at Start, alongside a
+local `cpuSeed`, so difficulty stays fixed across Legs and ordinary history keeps
+the same participant IDs. CPU owns no human input; its owner tag is `local-cpu`.
+The existing rules engine remains independent of participant skill/type.
+
+`darts-cpu-strategy.js` chooses physical target centres. X01 uses bounded legal
+checkout lookahead, actual In/Out/Bull qualification and safe setup targets;
+Cricket weighs closure and attacks differently for Standard and Cut-Throat.
+Easy often chooses broad single beds, Normal generally aims at Bull, and
+Hard/Insane generally aim at T20. In 50/50 scoring the latter prefer Bull after
+measured expected-score comparison. Cork always aims at physical centre and
+checks current eligibility.
+
+`darts-cpu-gesture.js` calibrates a 17-sample accelerating gesture through the
+actual `analyseGesture`, `computeThrow` and `computeImpact` callbacks. A small
+two-variable numerical solve needs about 5–8 evaluations for a new target; cached
+targets need no new search. This solves the intended input before execution
+errors. Seeded velocity, timing and acceleration-shape errors, including rare
+large lapses, modify only samples. `submitGesture` is shared by human and CPU;
+flight, impact and scoring use unchanged existing code. No actual hit is adjusted
+or retried. An invalid upward gesture has the same no-dart behavior as human
+input, then the scheduler can attempt another gesture later.
+
+CPU scheduling is polled in the game update with a 900 ms recognition interval
+after the previous result presentation ends. A pending key contains match, Leg,
+phase, turn, accepted sequence and player. Pauses/dialogs, deadlines, new states,
+results and resets cancel pending work; there is no detached asynchronous throw.
+Timers are neither paused nor reset for CPU. Human pointer input is blocked on
+CPU turns. Handoff never asks a CPU to confirm; remembered confirmed human
+ownership preserves H1 → CPU → H2 handoff and skips H1 → CPU → H1. Existing
+direct human-to-human and remote-human behavior stays intact.
+
+Room codes remain human-only. UI invitation/join guards run before loading
+networking; the room policy also rejects CPU imports instead of silently
+converting them into human slots. `lastCpuThrow` holds local diagnostic samples,
+analysis, launch, impact, physical result and target error for test injection;
+these diagnostics are not written into ordinary throw history or a new overlay.
+
+Seed version 1 calibration (`node tools/darts-cpu-calibrate.js`) uses 6,000 accepted
+ordinary darts per tier, 25/50 Bull, Open In and 1,000 remaining without checkout
+pressure. PPR is total physical points / accepted darts × 3; real misses count,
+and invalid gestures are reported separately. This benchmark is distinct from
+complete-game net PPR with Bust and checkout effects.
+
+| Difficulty | Ordinary PPR | Physical miss | Cork mean distance | Standard Cricket target MPR |
+| --- | ---: | ---: | ---: | ---: |
+| Easy | 22.10 | 42.62% | 100.45 mm | 0.83 |
+| Normal | 41.29 | 2.55% | 37.23 mm | 1.94 |
+| Hard | 71.99 | 0.83% | 19.13 mm | 3.18 |
+| Insane | 98.38 | 0.30% | 11.89 mm | 4.77 |
+
+For 301 Open In/Double Out simulations, net game PPR is respectively
+13.01/34.49/62.08/82.57. A separate 1,000-dart D16 probe converts a 32-point
+checkout on 1.3/11.7/24.7/33.9% of darts. The script also reports turn distributions,
+Busts, closing efficiency, penalties, Cork medians/near-Bull frequency and small
+matchup samples. Stronger tiers generally perform better; Hard still wins some
+seeded games against Insane. Easy did not close all Cricket targets in the
+sampled 30-round games, which therefore use normal cap settlement. These are
+Gamebox tuning measurements, not real-world player classifications or guaranteed
+scores. Physical phone pacing/performance still benefits from manual playtesting.
+
 ### Gameplay viewport
 
 The same fixed viewport holds essential gameplay information in every mode.

@@ -115,10 +115,15 @@
         if (explicitLimit) { next.roundLimit = patch.roundLimit; next.roundLimitExplicit = true; }
         return options(next);
     }
-    function eligibility(input, count) {
+    function eligibility(input, count, participants) {
         var mode = options(input).mode, min = isX01(mode) || mode === 'cricket' ? 2 : 1;
-        return { allowed: Number.isInteger(count) && count >= min && count <= 4,
-            minPlayers: min, maxPlayers: 4, reason: count < min ? 'min-players' : count > 4 ? 'max-players' : null };
+        var reason = count < min ? 'min-players' : count > 4 ? 'max-players' : null;
+        if (Array.isArray(participants)) {
+            if (!participants.some(function (p) { return p.type !== 'cpu'; })) reason = 'needs-human';
+            else if (mode === 'practice' && participants.some(function (p) { return p.type === 'cpu'; })) reason = 'cpu-practice';
+        }
+        return { allowed: Number.isInteger(count) && count >= min && count <= 4 && !reason,
+            minPlayers: min, maxPlayers: 4, reason: reason };
     }
     // Numeric scoring is configuration-dependent; the physical region/multiplier never changes.
     function scoreResult(config, result) {

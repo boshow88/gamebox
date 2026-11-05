@@ -50,12 +50,12 @@
     }
     function create(options) {
         var controllerId = options && options.controllerId;
-        var previous, handoff, notice, penalties, penaltyUntil, eventKey, seen, finalHit, finalUntil, queuedCork, queuedOutcome;
+        var previous, handoff, notice, penalties, penaltyUntil, eventKey, seen, finalHit, finalUntil, queuedCork, queuedOutcome, lastHuman;
         function reset() {
             previous = null; handoff = null; notice = null;
             penalties = {}; penaltyUntil = 0; eventKey = ''; seen = new Set();
             finalHit = null; finalUntil = 0;
-            queuedCork = null; queuedOutcome = null;
+            queuedCork = null; queuedOutcome = null; lastHuman = null;
         }
         reset();
         function showQueuedCork(now) {
@@ -88,6 +88,7 @@
             var controllerChanged = Object.prototype.hasOwnProperty.call(context, 'controllerId') &&
                 controllerId !== context.controllerId;
             if (Object.prototype.hasOwnProperty.call(context, 'controllerId')) controllerId = context.controllerId;
+            if (controllerChanged) lastHuman = null;
             var matchId = state.matchId == null ? '' : state.matchId;
             if (previous && previous.matchId !== matchId) reset();
             // A delayed older snapshot must not revive a confirmed or obsolete handoff.
@@ -111,8 +112,9 @@
                 }
             }
             if (changed && !controllerChanged && state.status === 'playing' && previous.active !== state.active) {
-                if (controllerId != null && previous.owner === controllerId && owner(state, state.active) === controllerId &&
-                    previous.human && human(state, state.active)) {
+                var priorHuman = previous.human ? previous.owner === controllerId ? previous.active : null :
+                    lastHuman && lastHuman.owner === controllerId ? lastHuman.player : null;
+                if (controllerId != null && priorHuman && priorHuman !== state.active && owner(state, state.active) === controllerId && human(state, state.active)) {
                     handoff = { key: key, player: state.active, visibleAt: now };
                 } else {
                     notice = { value: { kind: 'turn', player: state.active, key: key }, until: now + TIMING.turn };
@@ -128,6 +130,9 @@
             if (event && event.id != null && !seen.has(String(event.id))) {
                 eventKey = String(event.id); seen.add(eventKey);
                 var dart = event.dart || {}, actual = dart.penalties || {};
+                if (dart.uid && human(state, dart.uid) && owner(state, dart.uid) === controllerId) {
+                    lastHuman = { player: dart.uid, owner: controllerId };
+                }
                 var corkOutcome = corkFinish(state, dart);
                 if ((state.status !== 'playing' || corkOutcome) && dart.result &&
                     !['left', 'cancelled', 'practice-ended'].includes(state.endReason)) {
@@ -163,6 +168,9 @@
                 notice = null;
             }
             showQueuedCork(now);
+            if (!handoff && human(state, state.active) && owner(state, state.active) === controllerId) {
+                lastHuman = { player: state.active, owner: controllerId };
+            }
             previous = { key: key, matchId: matchId, seq: state.seq, active: state.active,
                 owner: owner(state, state.active), human: human(state, state.active), leg: state.leg, phase: state.phase,
                 corkKey: corkKey, corkPurpose: state.corkPurpose || 'tie', corkRound: state.corkRound || 1 };
@@ -173,6 +181,7 @@
             if (!current.handoff || !current.handoff.visible ||
                 (expectedKey != null && current.handoff.key !== expectedKey)) return false;
             handoff = null;
+            if (previous.human && previous.owner === controllerId) lastHuman = { player: previous.active, owner: controllerId };
             showQueuedCork(timestamp(at));
             return true;
         }
@@ -181,6 +190,7 @@
             if (controllerId !== from) return false;
             controllerId = to;
             if (previous && previous.owner === from) previous.owner = to;
+            if (lastHuman && lastHuman.owner === from) lastHuman.owner = to;
             return true;
         }
         return { update: update, snapshot: snapshot, confirm: confirm, reset: reset,

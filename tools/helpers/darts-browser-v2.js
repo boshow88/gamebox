@@ -56,7 +56,7 @@ async function dartsAdd(f, count) {
 }
 async function dartsStartLocal(f) {
     dartsClick(f, 'lobby-start-btn');
-    dartsAssert(dartsDoc(f).getElementById('lobby-start-btn').disabled && dartsDoc(f).getElementById('lobby-start-btn').textContent === 'Starting…', 'Pending start has a disabled Starting label');
+    dartsAssert(dartsDoc(f).getElementById('lobby-start-btn').disabled && dartsDoc(f).getElementById('lobby-start-btn').textContent === f.contentWindow.ArcadeCommon.i18n.t('dartsLobbyStarting'), 'Pending start has a disabled Starting label');
     await until(() => dartsApi(f).snapshot().match && dartsApi(f).snapshot().match.status === 'playing' && !dartsDoc(f).getElementById('lobby').open, 'local match start');
 }
 async function dartsReturn(f) {
@@ -1262,6 +1262,260 @@ async function checkDartsCorkPreviewV2() {
     const chineseColors = ['settings-btn', 'history-btn'].map(id => w.getComputedStyle(doc.getElementById(id)).color);
     dartsAssert(chineseColors.every((color, index) => color === englishColors[index] && color === w.getComputedStyle(doc.body).color),
         'Cork and localization preserve toolbar foreground contrast: ' + JSON.stringify({ englishColors, chineseColors, body: w.getComputedStyle(doc.body).color }));
+}
+async function dartsAddCpu(f, difficulty = 'normal') {
+    const count = dartsData(f).seatOrder.length;
+    await until(() => !dartsDoc(f).getElementById('add-cpu-btn').disabled, 'CPU slot available');
+    dartsClick(f, 'add-cpu-btn');
+    await until(() => dartsData(f).seatOrder.length === count + 1 && !dartsDoc(f).getElementById('lobby-start-btn').disabled, 'CPU slot accepted');
+    const id = dartsData(f).seatOrder.at(-1);
+    if (difficulty !== 'normal') await dartsCpuDifficulty(f, id, difficulty);
+    return id;
+}
+async function dartsCpuDifficulty(f, id, difficulty) {
+    const select = [...dartsDoc(f).querySelectorAll('.slot-difficulty')].find(el => el.dataset.cpuSlot === id);
+    await until(() => select && !select.disabled, 'editable CPU difficulty');
+    select.focus(); select.value = difficulty;
+    select.dispatchEvent(new f.contentWindow.Event('change', { bubbles: true }));
+    await until(() => dartsData(f).participants[id].difficulty === difficulty && [...dartsDoc(f).querySelectorAll('.slot-difficulty')].some(el => el.dataset.cpuSlot === id && !el.disabled), 'CPU difficulty accepted');
+}
+async function dartsCpuStart(f, starter = 0) {
+    const w = f.contentWindow, previous = w.Math.random, count = dartsData(f).seatOrder.length;
+    w.Math.random = () => (starter + .1) / count;
+    try { await dartsStartLocal(f); } finally { w.Math.random = previous; }
+    dartsApi(f).cpuSeed(45291);
+}
+function dartsCpuSettleDisplay(f) {
+    const api = dartsApi(f);
+    if (api.snapshot().feedback.resultPending) api.step(1001, 0);
+    if (api.snapshot().dartState === 'landed') api.step(0, 1);
+    dartsConfirmHandoff(f);
+}
+function dartsCpuDart(f, pacing = false) {
+    const api = dartsApi(f), w = f.contentWindow;
+    dartsCpuSettleDisplay(f);
+    const before = api.snapshot().match, uid = before.active, seq = before.seq;
+    dartsAssert(before.participants[uid].type === 'cpu', 'CPU helper only operates the active CPU');
+    dartsAssert(!api.gesture(), 'Human gesture entry is blocked throughout a CPU turn');
+    api.step(0, 0);
+    const pending = api.cpu().pending;
+    dartsAssert(pending, 'A ready CPU schedules one ordinary throw');
+    const remaining = Math.max(0, pending.at - w.__dartsNow);
+    if (pacing && remaining > 0) {
+        api.step(remaining - 1, 0);
+        dartsAssert(api.snapshot().dartState === 'ready' && api.snapshot().match.seq === seq, 'CPU waits before its actual flight');
+        api.step(1, 0);
+    } else api.step(remaining, 0);
+    const shot = api.cpu().last, physical = api.physics(shot.samples);
+    dartsAssert(shot.player === uid && shot.accepted && api.snapshot().dartState === 'flying', 'CPU launches a synthetic gesture through the ordinary flight');
+    dartsAssert(physical.analysis.valid && Math.hypot(physical.impact.x - shot.impact.x, physical.impact.y - shot.impact.y) < 1e-8, 'Replaying CPU samples through unchanged physics reproduces its physical impact');
+    dartsAssert(api.snapshot().match.seq === seq, 'Starting a CPU flight does not assign an early score');
+    api.step(0, 1);
+    const accepted = api.snapshot().match;
+    dartsAssert(accepted.seq === seq + 1 && accepted.lastDart.uid === uid, 'A physical CPU impact is accepted exactly once');
+    const result = w.DartsRules.scoreResult(before, physical.result);
+    dartsAssert(accepted.lastDart.result.base === result.base && accepted.lastDart.result.mult === result.mult && accepted.lastDart.result.score === result.score,
+        'Physics and the active Bull rule determine the CPU scored region');
+    api.step(0, 0);
+    dartsAssert(api.snapshot().match.seq === seq + 1, 'Repeated scheduler polls cannot score the landed CPU dart again');
+    return { shot, dart: accepted.lastDart, before, after: accepted };
+}
+function dartsHumanDart(f) {
+    dartsCpuSettleDisplay(f); dartsAssert(dartsApi(f).gesture(), 'The confirmed human can throw after CPU presentation');
+    dartsApi(f).step(0, 1);
+}
+async function checkDartsCpuLobbyV2() {
+    for (const [width, height] of [[320, 568], [390, 844], [1200, 800]]) {
+        const f = await dartsBoot('cpu-lobby-' + width, width, height), doc = dartsDoc(f), api = dartsApi(f), w = f.contentWindow;
+        dartsAssert(!w.ArcadeNet && doc.getElementById('add-cpu-btn').disabled && doc.getElementById('lobby-cpu-note').textContent.includes('X01'), 'Practice explains how to enable local CPU opponents without networking');
+        await dartsChange(f, 'mode-select', 'x01');
+        const id = await dartsAddCpu(f), human = dartsData(f).seatOrder[0];
+        dartsAssert(dartsData(f).participants[id].type === 'cpu' && dartsData(f).participants[id].difficulty === 'normal', 'New CPUs occupy a normal slot at Normal difficulty');
+        dartsAssert(doc.querySelector('.darts-lobby-slot.cpu .slot-badge.cpu') && !doc.querySelector('[data-remove-slot="' + human + '"]') && !api.removePlayer(human), 'CPU is identified and the sole human cannot be removed');
+        for (const difficulty of ['easy', 'hard', 'insane', 'normal']) {
+            dartsData(f).ready = { test: true }; await dartsCpuDifficulty(f, id, difficulty);
+            dartsAssert(!Object.keys(dartsData(f).ready).length && doc.activeElement.dataset.cpuSlot === id, 'CPU difficulty clears Ready and preserves keyboard focus');
+        }
+        dartsAssert(doc.getElementById('create-room-btn').disabled && doc.getElementById('join-room-btn').disabled && doc.getElementById('room-code-input').disabled, 'CPU slots block invitation and join controls');
+        dartsAssert(!await api.invite() && !await api.join('ABCD') && !w.ArcadeNet, 'Main invitation/join guards reject CPUs before loading Firebase');
+        await dartsChange(f, 'mode-select', 'practice');
+        dartsAssert(dartsData(f).participants[id].type === 'cpu' && doc.getElementById('lobby-start-btn').disabled && doc.getElementById('lobby-start-reason').textContent.includes('CPU'), 'Switching to Practice preserves CPU slots and explains its blocked start');
+        await dartsChange(f, 'mode-select', 'countup');
+        const bounds = doc.getElementById('lobby').getBoundingClientRect();
+        for (const row of doc.querySelectorAll('.darts-lobby-slot')) {
+            dartsAssert(row.scrollWidth <= row.clientWidth + 1, 'CPU row fits viewport ' + width);
+            const select = row.querySelector('select');
+            if (select) { const rect = select.getBoundingClientRect(); dartsAssert(rect.left >= bounds.left && rect.right <= bounds.right, 'CPU difficulty stays inside lobby ' + width); }
+        }
+        dartsAssert(await api.removePlayer(id), 'CPU removal remains available');
+        const code = await dartsPromote(f);
+        dartsAssert(doc.getElementById('add-cpu-btn').disabled && doc.getElementById('lobby-cpu-note').textContent.includes('local') && !api.addCpu(), 'Any active room code disables CPU additions with an explanation');
+        await api.controller().leave(); f.remove();
+    }
+}
+async function checkDartsCpuMatchesV2() {
+    for (const [humans, cpus] of [[1, 1], [1, 3], [2, 2], [3, 1]]) {
+        const f = await dartsBoot('cpu-composition-' + humans + '-' + cpus), api = dartsApi(f), w = f.contentWindow;
+        await dartsChange(f, 'mode-select', 'countup'); await dartsChange(f, 'rounds-select', 5); await dartsChange(f, 'timer-select', 0);
+        if (humans > 1) await dartsAdd(f, humans - 1);
+        const levels = cpus === 3 ? ['easy', 'hard', 'insane'] : cpus === 2 ? ['normal', 'hard'] : ['normal'];
+        for (let i = 0; i < cpus; i++) await dartsAddCpu(f, levels[i]);
+        await dartsCpuStart(f);
+        const config = JSON.stringify(api.snapshot().match.participants), seen = new Set();
+        for (let i = 0; api.snapshot().match.status === 'playing' && i < 150; i++) {
+            const state = api.snapshot().match, cpu = state.participants[state.active].type === 'cpu';
+            if (cpu) { dartsCpuDart(f, !seen.has(state.active)); seen.add(state.active); dartsAssert(!api.snapshot().feedback.handoff || api.snapshot().match.participants[api.snapshot().match.active].type !== 'cpu', 'CPU transitions never require CPU Ready to Throw'); }
+            else dartsHumanDart(f);
+        }
+        const state = api.snapshot().match;
+        dartsAssert(state.status === 'over' && seen.size === cpus && state.history.length >= (humans + cpus) * 5, 'Five-round Count-Up completes through real throws for composition ' + humans + '+' + cpus);
+        dartsAssert(JSON.stringify(state.participants) === config && state.players.every(id => state.stats[id].darts === 15), 'CPU type/difficulty remain locked and every participant gets fifteen ordinary darts');
+        dartsAssert(!w.ArcadeNet && state.history.every(row => !('samples' in row) && !('diagnostics' in row)), 'CPU gameplay remains offline and history contains ordinary game events');
+        api.step(1001, 1); dartsClick(f, 'history-btn');
+        dartsAssert(dartsDoc(f).getElementById('history-list').textContent.includes(dartsData(f).roster[[...seen][0]]), 'CPU throw history is available through the ordinary history view');
+        f.remove();
+    }
+}
+async function checkDartsCpuHandoffV2() {
+    const f = await dartsBoot('cpu-intervening-handoff'), api = dartsApi(f), doc = dartsDoc(f);
+    await dartsChange(f, 'mode-select', 'countup'); await dartsChange(f, 'timer-select', 0);
+    await dartsAddCpu(f); await dartsAdd(f, 1); await dartsAddCpu(f); await dartsCpuStart(f);
+    const seats = api.snapshot().match.players;
+    for (let i = 0; i < 3; i++) dartsHumanDart(f);
+    dartsAssert(api.snapshot().match.active === seats[1] && !api.snapshot().feedback.handoff, 'Human-to-CPU uses a normal turn notice');
+    const rect = doc.getElementById('mode-panel').getBoundingClientRect(), w = f.contentWindow;
+    doc.getElementById('mode-panel').dispatchEvent(new w.PointerEvent('pointerdown', { bubbles: true, pointerId: 1, isPrimary: true, clientX: rect.x + 20, clientY: rect.y + 20 }));
+    dartsAssert(!api.snapshot().gestureActive, 'Actual pointer input cannot begin during the CPU turn');
+    for (let i = 0; i < 3; i++) dartsCpuDart(f);
+    dartsAssert(api.snapshot().match.active === seats[2] && api.snapshot().feedback.handoff && api.snapshot().feedback.handoff.player === seats[2], 'A different human following an intervening CPU still requires device handoff');
+    dartsAssert(!api.gesture(), 'The second human cannot bypass its handoff'); dartsConfirmHandoff(f);
+    for (let i = 0; i < 3; i++) dartsHumanDart(f);
+    for (let i = 0; i < 3; i++) dartsCpuDart(f);
+    dartsAssert(api.snapshot().feedback.handoff && api.snapshot().feedback.handoff.player === seats[0], 'The CPU-separated return to the first human preserves handoff protection');
+    f.remove();
+    const solo = await dartsBoot('cpu-one-human-handoff'), soloApi = dartsApi(solo);
+    await dartsChange(solo, 'mode-select', 'countup'); await dartsChange(solo, 'timer-select', 0); await dartsAddCpu(solo); await dartsCpuStart(solo);
+    for (let i = 0; i < 3; i++) dartsHumanDart(solo);
+    for (let i = 0; i < 3; i++) dartsCpuDart(solo);
+    dartsAssert(!soloApi.snapshot().feedback.handoff && soloApi.snapshot().feedback.notice.kind === 'turn', 'The sole human returns from CPU play with a clear notice and no redundant confirmation');
+    solo.remove();
+}
+async function checkDartsCpuCancellationV2() {
+    const f = await dartsBoot('cpu-cancellation'), api = dartsApi(f), doc = dartsDoc(f), w = f.contentWindow;
+    await dartsChange(f, 'mode-select', 'countup'); await dartsChange(f, 'timer-select', 0); await dartsAddCpu(f); await dartsCpuStart(f, 1);
+    api.step(0, 0); dartsAssert(api.cpu().pending, 'Initial CPU has a scheduled throw');
+    dartsClick(f, 'pause-btn'); api.step(2000, 0);
+    dartsAssert(!api.cpu().pending && api.snapshot().match.seq === 0, 'Pause cancels CPU work without advancing its score');
+    dartsClick(f, 'pause-btn'); api.step(0, 0); dartsAssert(api.cpu().pending.at > w.__dartsNow, 'Resume starts a fresh CPU recognition delay');
+    dartsClick(f, 'settings-btn'); api.step(2000, 0);
+    dartsAssert(!api.cpu().pending && api.snapshot().match.seq === 0, 'Lobby dialog cancels CPU execution');
+    dartsClick(f, 'lobby-close-btn'); api.step(0, 0); dartsAssert(api.cpu().pending, 'Closing Lobby reschedules the still-current CPU');
+    dartsClick(f, 'history-btn'); api.step(2000, 0);
+    dartsAssert(!api.cpu().pending && api.snapshot().match.seq === 0, 'History blocks CPU flight while open');
+    dartsClick(f, 'history-close-btn'); api.step(0, 0);
+    const replaced = structuredClone(api.snapshot().match); replaced.matchId += '-replacement';
+    api.step(899, 0); api.replace(replaced); api.step(1, 0);
+    dartsAssert(api.snapshot().match.seq === 0 && api.cpu().pending.key.includes('-replacement') && api.cpu().pending.at > w.__dartsNow, 'Replacing a match invalidates the stale pending dart');
+    dartsClick(f, 'restart-btn'); await until(() => doc.getElementById('lobby').open, 'CPU restart returns to Lobby');
+    api.step(5000, 1); dartsAssert(!api.cpu().pending && api.snapshot().match.seq === 1 && dartsData(f).phase === 'lobby', 'Restart cancels pending CPU work and cannot replay its stale throw');
+    await dartsCpuStart(f, 1); api.step(0, 0); api.step(900, 0);
+    dartsAssert(api.snapshot().dartState === 'flying' && api.snapshot().match.seq === 0, 'A CPU flight is still unscored before its impact');
+    dartsClick(f, 'restart-btn'); await until(() => doc.getElementById('lobby').open, 'restart during CPU flight');
+    api.step(5000, 1);
+    dartsAssert(api.snapshot().dartState === 'ready' && api.snapshot().match.seq === 1 && !api.snapshot().match.history.length && !api.cpu().pending, 'Restart clears an in-flight CPU dart before it can become a stale hit');
+    await dartsChange(f, 'mode-select', 'x01'); await dartsChange(f, 'timer-select', 30000); await dartsCpuStart(f, 1);
+    const timed = api.snapshot().match, deadline = timed.turnStartedAt + timed.turnMs;
+    dartsCpuDart(f, true); dartsAssert(api.snapshot().match.turnStartedAt + api.snapshot().match.turnMs === deadline, 'CPU pacing does not reset authoritative turn time');
+    api.step(deadline - w.__dartsNow, 1); const seq = api.snapshot().match.seq;
+    dartsAssert(!api.cpu().pending && api.snapshot().dartState !== 'flying', 'An expired CPU deadline cannot launch another dart');
+    api.expire(); api.step(5000, 0);
+    dartsAssert(api.snapshot().match.seq === seq + 1 && api.snapshot().match.participants[api.snapshot().match.active].type === 'human' && !api.cpu().pending, 'Existing timeout handling changes the turn and cancels CPU work');
+    f.remove();
+    const invalid = await dartsBoot('cpu-invalid-gesture'), rejected = dartsApi(invalid);
+    await dartsChange(invalid, 'mode-select', 'countup'); await dartsChange(invalid, 'timer-select', 0);
+    await dartsAddCpu(invalid, 'easy'); await dartsCpuStart(invalid, 1);
+    rejected.cpuSeed(8549); rejected.step(0, 0); rejected.step(900, 0);
+    dartsAssert(!rejected.cpu().last.accepted && rejected.snapshot().dartState === 'ready' && rejected.snapshot().match.seq === 0 && !rejected.snapshot().match.history.length,
+        'A deterministic invalid CPU gesture consumes an input attempt without launching or scoring a dart');
+    dartsAssert(dartsDoc(invalid).getElementById('hit-toast').hidden, 'A CPU fumble does not show misleading human throwing instructions');
+    rejected.cpuSeed(45291); const actual = dartsCpuDart(invalid);
+    dartsAssert(actual.after.seq === 1 && actual.after.stats[actual.shot.player].darts === 1, 'A later valid CPU gesture, including a real miss, is counted once');
+    invalid.remove();
+    const boundary = await dartsBoot('cpu-deadline-during-planning'), clocked = dartsApi(boundary), bw = boundary.contentWindow;
+    await dartsChange(boundary, 'mode-select', 'countup'); await dartsChange(boundary, 'timer-select', 30000);
+    await dartsAddCpu(boundary); await dartsCpuStart(boundary, 1); clocked.step(0, 0);
+    const expiresAt = clocked.snapshot().match.turnStartedAt + clocked.snapshot().match.turnMs, choose = bw.DartsCpuStrategy.choose;
+    bw.DartsCpuStrategy.choose = (...args) => { const target = choose(...args); bw.__dartsNow = expiresAt; return target; };
+    try { clocked.step(900, 0); } finally { bw.DartsCpuStrategy.choose = choose; }
+    dartsAssert(clocked.snapshot().dartState === 'ready' && clocked.snapshot().match.seq === 0 && !clocked.cpu().last.accepted,
+        'A deadline reached during target/gesture planning is rechecked before flight launch');
+    clocked.expire(); dartsAssert(clocked.snapshot().match.seq === 1, 'The ordinary timeout settles the expired CPU turn once');
+    boundary.remove();
+}
+async function checkDartsCpuRulesAndCorkV2() {
+    const longGame = await dartsBoot('cpu-long-x01'), longApi = dartsApi(longGame);
+    await dartsChange(longGame, 'mode-select', 'x01'); await dartsChange(longGame, 'starting-score-select', 1501);
+    await dartsChange(longGame, 'rounds-select', 0); await dartsChange(longGame, 'timer-select', 0);
+    const longCpu = await dartsAddCpu(longGame, 'insane'); await dartsCpuStart(longGame);
+    for (let dart = 0; longApi.snapshot().match.status === 'playing' && dart < 500; dart++) {
+        if (longApi.snapshot().match.participants[longApi.snapshot().match.active].type === 'cpu') dartsCpuDart(longGame);
+        else dartsHumanDart(longGame);
+    }
+    const complete = longApi.snapshot().match;
+    dartsAssert(complete.status === 'over' && complete.legEndReason === 'checkout' && complete.startingScore === 1501 &&
+        complete.stats[longCpu].darts >= 15 && complete.history.length >= 15, 'A long 1501 Double-Out game finishes through real human/CPU gestures without score fixtures');
+    longGame.remove();
+    for (const variant of ['standard', 'cutthroat']) {
+        const f = await dartsBoot('cpu-cricket-' + variant), api = dartsApi(f);
+        await dartsChange(f, 'mode-select', 'cricket'); await dartsChange(f, 'cricket-select', variant); await dartsChange(f, 'timer-select', 0); await dartsAddCpu(f, 'hard'); await dartsCpuStart(f, 1);
+        for (let i = 0; i < 6; i++) {
+            if (api.snapshot().match.participants[api.snapshot().match.active].type === 'cpu') dartsCpuDart(f, i === 0);
+            else dartsHumanDart(f);
+        }
+        dartsAssert(api.snapshot().match.cricketVariant === variant && api.snapshot().match.history.some(row => row.uid.startsWith('cpu-')), 'CPU physical darts use the selected ' + variant + ' Cricket rules');
+        f.remove();
+    }
+    const f = await dartsBoot('cpu-opening-cork'), api = dartsApi(f), doc = dartsDoc(f), w = f.contentWindow;
+    await dartsChange(f, 'mode-select', 'x01'); await dartsChange(f, 'timer-select', 0); const cpuId = await dartsAddCpu(f, 'insane'); await dartsChange(f, 'starting-player-select', 'cork'); await dartsCpuStart(f);
+    dartsHumanDart(f);
+    const event = dartsCpuDart(f, true);
+    dartsAssert(event.shot.target.x === 0 && event.shot.target.y === 0 && api.snapshot().match.phase === 'play', 'Opening Cork CPU aims at physical center and resolves the starting player');
+    dartsAssert(api.snapshot().feedback.resultPending && api.snapshot().feedback.finalHit.corkOutcome.kind === 'starter' && !doc.getElementById('cork-panel').hidden, 'A final CPU Cork dart preserves the completed impact comparison');
+    api.step(999, 1); dartsAssert(!api.cpu().pending, 'The starter cannot launch before the final Cork impact interval ends');
+    api.step(2, 0); dartsAssert(!api.snapshot().feedback.resultPending, 'The held CPU Cork outcome expires normally');
+    if (api.snapshot().match.active === cpuId) { api.step(0, 0); dartsAssert(api.cpu().pending && api.cpu().pending.at > w.__dartsNow, 'A CPU starter gets a fresh delay after final Cork presentation'); }
+    const base = structuredClone(api.snapshot().match), humanId = base.players.find(id => id !== cpuId);
+    for (const purpose of ['tie', 'limit']) {
+        const state = structuredClone(base); state.matchId += '-' + purpose; state.phase = 'cork'; state.corkPurpose = purpose; state.corkRound = 1;
+        state.active = cpuId; state.corkPlayers = state.players.slice(); state.corkDistances = {}; state.dart = 0; state.turnDarts = []; state.turnPoints = 0; state.history = []; state.seq = 0;
+        api.replace(state); api.step(0, 1); const actual = dartsCpuDart(f);
+        dartsAssert(actual.dart.corkPurpose === purpose && actual.dart.distance === Math.hypot(actual.shot.impact.x, actual.shot.impact.y), 'CPU ' + purpose + ' Cork records actual physical distance');
+        const same = actual.shot.impact; dartsConfirmHandoff(f);
+        api.accepted(w.DartsRules.scoreAt(same.x, same.y), { x: same.x, y: same.y });
+        dartsAssert(api.snapshot().match.corkRound === 2 && api.snapshot().feedback.finalHit.corkOutcome.kind === 'rethrow', 'A physical CPU distance can produce a legal tied Cork rethrow');
+        api.step(1001, 1); dartsConfirmHandoff(f);
+        const rethrow = dartsCpuDart(f);
+        dartsAssert(rethrow.dart.corkRound === 2, 'The eligible CPU performs an actual synthetic rethrow');
+        api.accepted({ miss: true }, { x: 1000, y: 0 });
+        const decisiveState = structuredClone(state); decisiveState.matchId += '-decisive'; decisiveState.active = humanId;
+        api.replace(decisiveState); api.accepted({ miss: true }, { x: 1000, y: 0 });
+        const decisive = dartsCpuDart(f);
+        dartsAssert(decisive.after.status === 'over' && decisive.after.winner === cpuId && api.snapshot().feedback.finalHit.corkOutcome.kind === 'win', 'A final CPU Cork impact settles the Leg using ordinary distance comparison');
+        api.step(5000, 1); dartsAssert(!api.cpu().pending && !doc.getElementById('leg-result').hidden, 'Settled CPU Cork victory cancels future throws and shows the normal result');
+    }
+    f.remove();
+}
+async function checkDartsCpuPreviewV2() {
+    if (!cpuOnly || !preview) return;
+    const width = preview === 'desktop' ? 1200 : 390, height = preview === 'desktop' ? 800 : 844;
+    const f = await dartsBoot('cpu-preview', width, height), doc = dartsDoc(f);
+    f.style.cssText = 'position:fixed;inset:0;width:' + width + 'px;height:' + height + 'px;border:0;z-index:20';
+    await dartsChange(f, 'mode-select', 'x01'); await dartsChange(f, 'timer-select', 0);
+    for (const level of ['normal', 'hard', 'insane']) await dartsAddCpu(f, level);
+    f.contentWindow.ArcadeCommon.i18n.setLocale('zh');
+    if (lobbyPreview) { doc.getElementById('lobby-content').scrollTop = 0; }
+    else { await dartsCpuStart(f, 1); dartsCpuDart(f); dartsCpuDart(f); }
+    await doc.fonts.ready; await sleep(60);
 }
 async function checkDartsInvalidV2() {
     const f = await dartsBoot('invalid-room'), doc = dartsDoc(f), w = f.contentWindow;

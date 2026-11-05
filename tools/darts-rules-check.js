@@ -369,6 +369,14 @@ s = R.withdrawMany(s, ['A', 'B'], 5000); assert.equal(s.winner, null, 'Bulk cont
 s = R.create({ mode: '501' }, four, 1000); s = R.withdrawMany(s, ['A', 'C'], 5000);
 assert.equal(s.status, 'playing'); assert.equal(s.active, 'B'); assert.deepEqual(s.withdrawn, ['A', 'C']);
 
+// CPU slots meet competitive minimums, while the player-facing lobby requires a human.
+for (const [humans, cpus] of [[1, 1], [1, 3], [2, 2], [3, 1]]) {
+    const roster = Array.from({ length: humans }, () => ({ type: 'human' })).concat(Array.from({ length: cpus }, () => ({ type: 'cpu' })));
+    for (const mode of ['x01', 'cricket', 'countup']) assert.equal(R.eligibility({ mode }, roster.length, roster).allowed, true);
+    assert.equal(R.eligibility({ mode: 'practice' }, roster.length, roster).reason, 'cpu-practice');
+}
+assert.equal(R.eligibility({ mode: 'x01' }, 2, [{ type: 'cpu' }, { type: 'cpu' }]).reason, 'needs-human');
+
 // Existing live snapshots retain their old caps while newly created matches get V2 defaults.
 for (const mode of ['501', 'cricket', 'countup']) {
     s = create(mode); delete s.roundLimit;

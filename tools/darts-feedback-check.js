@@ -334,4 +334,125 @@ for (const purpose of ['opening', 'tie', 'limit']) for (const ties of [false, tr
     f.reset(); assert.equal(f.snapshot(1050).notice, null);
 }
 
-console.log('Darts feedback: handoff safety, scoring, all Cork outcomes and deduplicated final-hit presentation passed.');
+function cpuMatch(ids, extra = {}) {
+    const s = create('x01', ids, extra);
+    s.owners = Object.fromEntries(ids.map(id => [id, id.startsWith('CPU') ? 'local-cpu' : 'device1']));
+    s.participants = Object.fromEntries(ids.map(id => [id, id.startsWith('CPU') ?
+        { type: 'cpu', difficulty: 'normal' } : { type: 'human' }]));
+    return s;
+}
+
+// The last human holding a shared device remains relevant across CPU turns.
+{
+    let s = cpuMatch(['A', 'CPU1', 'B']);
+    const f = F.create({ controllerId: 'device1' }); update(f, s, 0);
+    s = finishTurn(s); let v = update(f, s, 100, true);
+    assert.equal(s.active, 'CPU1'); assert.equal(v.handoff, null);
+    assert.equal(v.notice.kind, 'turn'); assert.equal(v.notice.player, 'CPU1');
+    assert.equal(f.confirm(101), false, 'A CPU never needs Ready to Throw');
+    s = finishTurn(s); v = update(f, s, 200, true);
+    assert.equal(s.active, 'B'); assert.equal(v.handoff.player, 'B'); assert.equal(v.blocking, true);
+    assert.equal(f.confirm(201, v.handoff.key), true, 'A different human still receives the shared device after CPU');
+}
+{
+    // B exists on this device but is outside this tied Cork's eligible subset.
+    let s = cpuMatch(['A', 'CPU1', 'B']);
+    s = { ...s, phase: 'cork', corkPurpose: 'tie', corkPlayers: ['A', 'CPU1'], corkRound: 1, corkDistances: {} };
+    const f = F.create({ controllerId: 'device1' }); update(f, s, 0);
+    s = R.throwDart(s, 'A', R.hit(25, 1), 10, { x: 10, y: 0 });
+    assert.equal(update(f, s, 10, true).handoff, null);
+    s = R.throwDart(s, 'CPU1', R.hit(25, 1), 20, { x: 10, y: 0 });
+    let v = update(f, s, 20, true);
+    assert.equal(s.active, 'A'); assert.equal(s.corkRound, 2);
+    assert.equal(v.handoff, null, 'The same human needs no exchange merely because another human exists');
+    assert.equal(v.resultPending, true); assert.equal(v.blocking, true);
+    assert.equal(f.confirm(21), false);
+    v = update(f, s, 20 + F.TIMING.finalHit);
+    assert.equal(v.handoff, null); assert.equal(v.blocking, false); assert.equal(v.notice.kind, 'cork-rethrow');
+}
+{
+    let s = cpuMatch(['A', 'CPU1', 'CPU2', 'CPU3']);
+    const f = F.create({ controllerId: 'device1' }); update(f, s, 0);
+    for (let turn = 0; turn < 12; turn++) {
+        s = finishTurn(s); const v = update(f, s, 100 + turn * 10, true);
+        assert.equal(v.handoff, null, 'One human and three CPUs never exchange a shared device');
+        assert.equal(v.blocking, false); assert.equal(f.confirm(101 + turn * 10), false);
+    }
+}
+{
+    let s = cpuMatch(['CPU1', 'A', 'B']);
+    const f = F.create({ controllerId: 'device1' }); update(f, s, 0);
+    s = finishTurn(s); const v = update(f, s, 100, true);
+    assert.equal(s.active, 'A'); assert.equal(v.handoff, null, 'An initial CPU has no previous human holder');
+    assert.equal(v.notice.player, 'A'); assert.equal(v.blocking, false);
+}
+{
+    let s = cpuMatch(['A', 'B', 'CPU1']);
+    const f = F.create({ controllerId: 'device1' }); update(f, s, 0);
+    s = finishTurn(s); const pending = update(f, s, 100, true);
+    assert.equal(pending.handoff.player, 'B', 'Direct local human handoff is preserved');
+    const stale = s;
+    s = R.timeout(s, 31000); let v = update(f, s, 31000);
+    assert.equal(s.active, 'CPU1'); assert.equal(v.handoff, null);
+    assert.equal(f.confirm(31001, pending.handoff.key), false, 'An obsolete human confirmation cannot target CPU');
+    s = finishTurn(s); v = update(f, s, 31100, true);
+    assert.equal(s.active, 'A'); assert.equal(v.handoff, null, 'Unconfirmed B did not take the device from A');
+    assert.equal(v.blocking, false);
+    assert.equal(update(f, stale, 31101, true).handoff, null, 'An old B snapshot cannot restore the obsolete handoff');
+}
+
+// Room aliases migrate the retained human holder; a new Match clears that history.
+{
+    let s = cpuMatch(['A', 'CPU1', 'B']);
+    const f = F.create({ controllerId: 'device1' }); update(f, s, 0);
+    s = finishTurn(s); update(f, s, 100, true);
+    assert.equal(f.rebindController('device1', 'local-controller'), true);
+    s = { ...s, owners: { A: 'local-controller', CPU1: 'local-cpu', B: 'local-controller' } };
+    assert.equal(f.update(s, { controllerId: 'local-controller', now: 110 }).handoff, null);
+    s = finishTurn(s); const v = update(f, s, 200, true);
+    assert.equal(v.handoff.player, 'B', 'Alias rebinding preserves A as the previous human holder across CPU');
+    assert.equal(f.confirm(201, v.handoff.key), true);
+    let next = cpuMatch(['CPU2', 'A', 'B']); next.matchId = 'different-cpu-match';
+    assert.equal(update(f, next, 300).handoff, null);
+    next = finishTurn(next); next.owners.A = 'local-controller'; next.owners.B = 'local-controller';
+    assert.equal(update(f, next, 400, true).handoff, null, 'The new Match does not carry B over as device holder');
+}
+
+// The last Cork impact gates CPU as well as human gestures until presentation finishes.
+{
+    let s = cpuMatch(['A', 'CPU1'], { startingPlayer: 'cork' });
+    const f = F.create({ controllerId: 'device1' }); update(f, s, 0);
+    s = R.throwDart(s, 'A', R.hit(25, 1), 10, { x: 10, y: 0 }); update(f, s, 10, true);
+    s = R.throwDart(s, 'CPU1', R.hit(25, 2), 20, { x: 5, y: 0 });
+    let v = update(f, s, 20, true);
+    assert.equal(s.active, 'CPU1'); assert.equal(s.phase, 'play');
+    assert.equal(v.finalHit.corkOutcome.kind, 'starter'); assert.equal(v.finalHit.corkOutcome.player, 'CPU1');
+    assert.equal(v.resultPending, true); assert.equal(v.blocking, true); assert.equal(v.handoff, null);
+    assert.equal(f.confirm(21), false, 'CPU cannot confirm away Cork presentation');
+    assert.equal(f.snapshot(20 + F.TIMING.finalHit - 1).blocking, true, 'CPU cannot launch early during Cork hold');
+    v = update(f, s, 20 + F.TIMING.finalHit);
+    assert.equal(v.blocking, false); assert.equal(v.handoff, null); assert.equal(v.notice.kind, 'cork-starter');
+    assert.equal(v.notice.player, 'CPU1');
+}
+for (const ties of [false, true]) {
+    let s = cpuMatch(['A', 'B', 'CPU1'], { startingPlayer: 'cork' });
+    const f = F.create({ controllerId: 'device1' }); update(f, s, 0);
+    s = R.throwDart(s, 'A', R.hit(25, 2), 10, { x: 5, y: 0 });
+    let v = update(f, s, 10, true); assert.equal(v.handoff.player, 'B');
+    assert.equal(f.confirm(11, v.handoff.key), true);
+    s = R.throwDart(s, 'B', R.hit(25, ties ? 2 : 1), 20, { x: ties ? 5 : 10, y: 0 });
+    assert.equal(update(f, s, 20, true).handoff, null);
+    s = R.throwDart(s, 'CPU1', R.hit(25, 1), 30, { x: 15, y: 0 });
+    v = update(f, s, 30, true);
+    assert.equal(s.active, 'A'); assert.equal(v.resultPending, true); assert.equal(v.blocking, true);
+    assert.equal(v.handoff.player, 'A'); assert.equal(v.handoff.visible, false);
+    assert.equal(v.finalHit.corkOutcome.kind, ties ? 'rethrow' : 'starter');
+    assert.equal(f.confirm(31, v.handoff.key), false, 'Human handoff waits for the final CPU Cork impact');
+    v = update(f, s, 30 + F.TIMING.finalHit);
+    assert.equal(v.handoff.visible, true); assert.equal(v.handoff.outcome.kind, ties ? 'rethrow' : 'starter');
+    assert.equal(v.blocking, true); assert.equal(f.confirm(1031, v.handoff.key), true);
+    assert.equal(f.snapshot(1031).blocking, false);
+    if (ties) assert.equal(f.snapshot(1031).notice.kind, 'cork-rethrow');
+}
+
+console.log('Darts feedback: human/CPU handoff safety, scoring, all Cork outcomes and deduplicated final-hit presentation passed.');

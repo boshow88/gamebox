@@ -123,7 +123,8 @@
             <section aria-label="Player slots">
                 <div class="lobby-section-line"><strong data-i18n="dartsPlayers">Players</strong><span id="lobby-capacity"></span></div>
                 <div id="lobby-slots" class="darts-lobby-slots"></div>
-                <button class="btn" id="add-player-btn" type="button" data-i18n="dartsAddPlayer">Add local player</button>
+                <div class="lobby-participant-actions"><button class="btn" id="add-player-btn" type="button" data-i18n="dartsAddPlayer">Add local player</button><button class="btn" id="add-cpu-btn" type="button" data-i18n="dartsAddCpu" aria-describedby="lobby-cpu-note">Add CPU</button></div>
+                <p class="darts-rule" id="lobby-cpu-note" hidden></p>
             </section>
             <section class="darts-settings" id="lobby-rules" aria-label="Game settings">
                 <label><span data-i18n="dartsMode">Mode</span>
@@ -196,6 +197,8 @@
     <script src="../js/games/darts-hud.js"></script>
     <script src="../js/games/darts-history.js"></script>
     <script src="../js/games/darts-lobby.js"></script>
+    <script src="../js/games/darts-cpu-gesture.js"></script>
+    <script src="../js/games/darts-cpu-strategy.js"></script>
     <script src="../js/games/darts.js"></script>
 </body>
 
