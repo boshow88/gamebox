@@ -32,29 +32,31 @@
     }
     function model(input) {
         var s = input.state, practice = input.practice || { darts: 0, result: null, speed: null }, ids = s ? s.players : ['practice'];
+        var finalCork = input.effects && input.effects.finalHit && input.effects.finalHit.corkState;
+        var corkState = finalCork || s;
         var current = s && (s.turnDarts || []).length > 0;
-        var cork = !!(s && s.phase === 'cork');
+        var cork = !!(s && (finalCork || s.phase === 'cork'));
         var previous = s && !current && s.lastTurn && (!cork || s.lastTurn.phase === 'cork') ? s.lastTurn : null;
         var mode = s ? s.mode : 'practice', limit = s ? s.roundLimit || 0 : 0;
         return {
             mode: mode, startingScore: s ? s.startingScore || 501 : 501,
             phase: s ? s.status : 'playing', throwPhase: cork ? 'cork' : 'play',
-            corkPurpose: s ? s.corkPurpose || 'tie' : null,
-            cork: cork ? corkModel(s) : null,
+            corkPurpose: corkState ? corkState.corkPurpose || 'tie' : null,
+            cork: cork ? corkModel(corkState) : null,
             leg: s && mode !== 'practice' ? s.leg : 0, bestOf: s ? s.bestOf : 1,
             legsToWin: s ? s.legsToWin || (s.bestOf === 3 ? 2 : 1) : 1,
             round: s && limit && !cork ? Math.min(limit, (s.turns[s.active] || 0) + 1) : 0,
-            roundLimit: limit, corkRound: s ? s.corkRound || 1 : 1,
+            roundLimit: limit, corkRound: corkState ? corkState.corkRound || 1 : 1,
             inRule: s ? s.inRule || 'open' : 'open', outRule: s ? s.outRule || 'double' : 'double',
             bullMode: s ? s.bullMode || '25-50' : '25-50', cricketVariant: s ? s.cricketVariant || 'standard' : 'standard',
-            active: s ? s.active : 'practice', dart: s ? Math.min(cork ? 1 : 3, s.dart + 1) : 0,
+            active: finalCork ? finalCork.active : s ? s.active : 'practice', dart: s ? Math.min(cork ? 1 : 3, s.dart + 1) : 0,
             timer: s && s.turnMs > 0 && s.status === 'playing' ? Math.min(s.turnMs / 1000,
                 Math.max(0, Math.ceil((s.turnStartedAt + s.turnMs - input.now) / 1000))) : null,
             players: ids.map(function (id, index) { return { id: id, seat: index + 1, color: COLORS[index],
                 name: s ? input.name(id) : input.you, score: s ? mode === 'practice' ? s.stats[id].darts : s.scores[id] : practice.darts,
                 legs: s ? s.wins[id] : 0, entered: !s || !s.entered || s.entered[id] !== false,
                 left: s ? (s.withdrawn || []).includes(id) : false,
-                active: s ? id === s.active && s.status === 'playing' : true,
+                active: finalCork ? id === finalCork.active : s ? id === s.active && s.status === 'playing' : true,
                 marks: s ? s.marks[id] : null }; }),
             turn: s ? { owner: previous ? previous.uid : s.active, previous: !!previous,
                 darts: previous ? previous.darts || [] : s.turnDarts || [],
@@ -213,7 +215,7 @@
             var names = Object.fromEntries(m.players.map(function (p) { return [p.id, p.name]; }));
             var mode = options.modeName(m.mode, m);
             var variant = variantLabel(m), endedPractice = m.mode === 'practice' && m.endReason === 'practice-ended', cancelled = m.endReason === 'cancelled';
-            var playingCork = m.throwPhase === 'cork' && m.phase === 'playing';
+            var playingCork = m.throwPhase === 'cork' && (m.phase === 'playing' || !!(finalDart && finalDart.phase === 'cork'));
             meta.classList.toggle('cork-phase', playingCork);
             var ordinaryMeta = mode + (variant ? ' · ' + variant : '') +
                 (m.leg ? ' · ' + t('dartsLegNumber', m.leg) + ' · ' + t('dartsMatchFormat', m.legsToWin) : '');
@@ -227,7 +229,7 @@
                 m.mode === 'practice' && m.players.length === 1 ? t('dartsFlickPrompt') :
                     t('dartsTurnOf', names[m.active]) + ' · ' + t('dartsDartProgress', m.dart, m.throwPhase === 'cork' ? 1 : 3);
             get('turn-status').textContent = status;
-            if ((m.mode !== 'practice' || m.players.length > 1) && m.phase === 'playing') {
+            if (!finalDart && (m.mode !== 'practice' || m.players.length > 1) && m.phase === 'playing') {
                 var indicator = get('turn-status'); indicator.replaceChildren();
                 var turnName = el('span', 'status-name', t(playingCork ? 'dartsCorkTurnOf' : 'dartsTurnOf', names[m.active])); turnName.title = turnName.textContent;
                 indicator.append(turnName, el('span', 'status-dart', playingCork ? t('dartsCorkDart') : t('dartsDartProgress', m.dart, 3)));

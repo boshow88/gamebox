@@ -898,6 +898,7 @@ async function checkDartsOpeningCorkV2() {
         }
         const started = api.snapshot().match, expectedStarter = [...distances].sort((a, b) => a[1] - b[1])[0][0];
         dartsAssert(started.phase === 'play' && started.status === 'playing' && started.active === expectedStarter && started.legStarter === expectedStarter, 'Closest physical Bull distance selects the opening starter');
+        dartsFinishPresentation(f);
         dartsAssert(doc.getElementById('match-meta').textContent.startsWith('301') && !doc.getElementById('match-meta').textContent.includes('X01'), 'Ordinary gameplay restores the actual X01 variant after opening Cork');
         dartsAssert(JSON.stringify(started.players) === JSON.stringify(seats), 'Opening Cork preserves participant seat order');
         dartsAssert(seats.every(id => started.scores[id] === 301 && started.turns[id] === 0 && started.stats[id].darts === 0 && started.stats[id].points === 0 && Object.values(started.marks[id]).every(n => n === 0)), 'Opening Cork never consumes scores, marks, normal darts or permitted turns');
@@ -1154,6 +1155,11 @@ async function checkDartsRemoteCorkRethrowsV2() {
         await tools.throwAt(index < 2 ? 3 : 10 + index * 5, index < 2 ? 4 : 0);
     }
     dartsAssert(tools.read().game.corkRound === 2 && tools.read().game.corkPlayers.length === 2, 'Actual accepted remote impact distances deterministically produce a Cork tie');
+    dartsAssert(frames.every(f => dartsApi(f).snapshot().feedback.resultPending && dartsApi(f).snapshot().feedback.finalHit.corkOutcome.kind === 'rethrow' &&
+        dartsDoc(f).getElementById('handoff-overlay').hidden && dartsDoc(f).getElementById('turn-notice').hidden && dartsCorkRows(f).every(row => row.dataset.state === 'thrown')),
+        'Every remote client shows the completed Cork comparison before announcing a tied rethrow');
+    dartsAssert(!dartsApi(tools.active()).gesture(), 'The next remote finalist cannot begin a gesture during the last Cork impact');
+    frames.forEach(dartsFinishPresentation);
     const rethrowState = structuredClone(tools.read().game), rethrowSeq = rethrowState.seq;
     for (const f of frames) {
         dartsAssertCorkContext(f, 'opening');
@@ -1172,13 +1178,75 @@ async function checkDartsRemoteCorkRethrowsV2() {
     dartsAssert(!await dartsApi(active).controller().submit(dartsFlight(1, 0), expected), 'A stale rethrow state cannot submit another accepted event');
     await tools.throwAt(3, 4);
     dartsAssert(tools.read().game.corkRound === 3, 'Consecutive deterministic remote ties require another eligible-only Cork round');
+    frames.forEach(dartsFinishPresentation);
     frames.forEach(f => { f.contentWindow.__dartsNow += 5000; dartsApi(f).refresh(); });
     const before = tools.read().game.seq;
     await dartsApi(frames[0]).controller().service.heartbeat(code, 0); await sleep(30);
     dartsAssert(frames.every(f => !dartsApi(f).snapshot().feedback.notice) && tools.read().game.seq === before, 'A duplicate heartbeat cannot replay an expired Cork rethrow announcement');
     await tools.throwAt(8, 0); await tools.throwAt(2, 0);
+    dartsAssert(frames.every(f => dartsApi(f).snapshot().feedback.resultPending && dartsApi(f).snapshot().feedback.finalHit.corkOutcome.kind === 'starter' &&
+        !dartsDoc(f).getElementById('cork-panel').hidden && dartsDoc(f).getElementById('turn-notice').hidden), 'Remote opening Cork keeps the decisive last dart visible before announcing the starting player');
+    frames.forEach(dartsFinishPresentation);
+    dartsAssert(frames.every(f => dartsApi(f).snapshot().feedback.notice.kind === 'cork-starter' && dartsDoc(f).getElementById('cork-panel').hidden), 'All devices announce the same accepted starter after the final impact');
     dartsAssert(tools.read().game.phase === 'play' && frames.every(f => !dartsApi(f).snapshot().feedback.notice || !['cork', 'cork-rethrow'].includes(dartsApi(f).snapshot().feedback.notice.kind)), 'Remote resolution clears stale special notices and begins normal scoring');
     for (const f of frames) { await dartsApi(f).controller().leave(); f.remove(); }
+}
+async function checkDartsCorkFinalPresentationV2() {
+    for (const purpose of ['opening', 'tie', 'limit']) for (const tied of [false, true]) {
+        const f = await dartsBoot('cork-final-' + purpose + '-' + tied, 320, 568), doc = dartsDoc(f), w = f.contentWindow, api = dartsApi(f);
+        await dartsPrepareCork(f, purpose);
+        const before = api.snapshot().match, seats = before.players.slice(), scores = JSON.stringify(before.scores);
+        for (let i = 0; i < seats.length; i++) {
+            dartsCorkImpact(f, i === 0 || tied && i === 1 ? 5 : 10 + i * 5);
+        }
+        const accepted = api.snapshot().match, seq = accepted.seq, completedRound = accepted.lastDart.corkRound;
+        const outcome = tied ? 'rethrow' : purpose === 'opening' ? 'starter' : 'win';
+        dartsAssert(accepted.phase === 'cork' && accepted.corkRound === 2 || !tied && (accepted.phase === 'play' || accepted.status === 'over'), 'Cork resolution is authoritative before its final impact display ends');
+        dartsAssert(api.snapshot().feedback.resultPending && api.snapshot().feedback.finalHit.corkOutcome.kind === outcome, 'Every completed Cork round uses the existing final-hit display interval');
+        dartsAssert(!doc.getElementById('hit-toast').hidden && doc.getElementById('hit-toast').textContent.includes('25.0 mm'), 'The final throw distance, including a losing final dart, remains visible');
+        dartsAssert(doc.getElementById('leg-result').hidden && doc.getElementById('handoff-overlay').hidden && doc.getElementById('turn-notice').hidden, 'Starter, victory, handoff and rethrow announcements cannot cover the last Cork hit');
+        dartsAssert(doc.getElementById('cork-round-note').textContent.includes(String(completedRound)) && dartsCorkRows(f).every(row => row.dataset.state === 'thrown'), 'Completed distances stay visible instead of clearing into the next Cork round');
+        dartsAssert(dartsCorkRows(f).filter(row => row.classList.contains('eligible')).length === 4 && doc.querySelector('.cork-result.current').dataset.playerUid === accepted.lastDart.uid, 'The held comparison retains the previous field and actual last thrower');
+        dartsAssert(!api.gesture(), 'No next-phase dart can be launched during final Cork presentation');
+        await dartsFlick(f, doc.getElementById('mode-panel'));
+        dartsAssert(api.snapshot().match.seq === seq && JSON.stringify(api.snapshot().match.scores) === scores, 'A blocked final-hit gesture cannot score or modify Cork totals');
+        api.refresh(); api.refresh();
+        w.__dartsNow += w.DartsFeedback.TIMING.finalHit - 1; api.refresh();
+        dartsAssert(api.snapshot().feedback.resultPending && doc.getElementById('handoff-overlay').hidden, 'Repeated snapshots cannot shorten the Cork hit interval');
+        w.__dartsNow += 2; api.refresh();
+        dartsAssert(!api.snapshot().feedback.resultPending, 'The Cork display expires without changing authoritative state');
+        if (outcome === 'win') {
+            dartsAssert(!doc.getElementById('leg-result').hidden && accepted.winner === before.active, 'A settled Cork winner appears after the impact, even when the winner threw earlier: ' + purpose);
+        } else {
+            dartsAssert(!doc.getElementById('handoff-overlay').hidden, 'The next local participant requires handoff only after the final impact');
+            if (outcome === 'starter') dartsAssert(doc.getElementById('handoff-title').textContent.includes(w.ArcadeCommon.i18n.t('dartsCorkStarter', dartsData(f).roster[seats[0]])), 'Opening Cork identifies who obtained the starting turn');
+            else dartsAssert(doc.getElementById('handoff-message').textContent.includes(w.ArcadeCommon.i18n.t('dartsCorkRethrow', 2)), 'A tie explains the eligible-only rethrow before device exchange');
+            dartsClick(f, 'handoff-ready-btn');
+            if (tied) {
+                dartsAssert(dartsCorkRows(f).filter(row => row.classList.contains('eligible')).length === 2 && api.snapshot().feedback.notice.kind === 'cork-rethrow', 'The next Cork round and tied subset appear after the held comparison');
+            } else dartsAssert(doc.getElementById('cork-panel').hidden && doc.getElementById('match-meta').textContent.startsWith('501'), 'Opening resolution returns to the scoring phase after its last hit');
+            dartsAssert(api.gesture(), 'A new gesture is available to the confirmed next participant');
+        }
+        dartsAssert(api.snapshot().match.seq === seq && JSON.stringify(api.snapshot().match.scores) === scores, 'Outcome presentation does not advance or rescore the accepted game');
+        f.remove();
+    }
+    // When the last thrower wins opening Cork, no device exchange is needed.
+    const f = await dartsBoot('cork-final-same-player'), doc = dartsDoc(f), api = dartsApi(f), w = f.contentWindow;
+    await dartsAdd(f, 1); await dartsChange(f, 'mode-select', 'x01'); await dartsChange(f, 'starting-player-select', 'cork'); await dartsChange(f, 'timer-select', 30000);
+    await dartsStartLocal(f); dartsCorkImpact(f, 10); dartsCorkImpact(f, 5);
+    const winner = api.snapshot().match.active, deadline = api.snapshot().match.turnStartedAt + api.snapshot().match.turnMs;
+    dartsAssert(api.snapshot().feedback.blocking && doc.getElementById('handoff-overlay').hidden, 'A same-player opening result still gates input until the final impact is shown');
+    dartsFinishPresentation(f);
+    dartsAssert(doc.getElementById('handoff-overlay').hidden && api.snapshot().feedback.notice.kind === 'cork-starter' && api.snapshot().feedback.notice.player === winner, 'The final thrower receives a nonblocking starting-player announcement');
+    dartsAssert(api.snapshot().match.turnStartedAt + api.snapshot().match.turnMs === deadline, 'Finishing the Cork display never resets the accepted turn timer');
+    dartsAssert(api.gesture(), 'The starting player can begin a fresh scoring gesture after the Cork display'); api.land();
+    dartsAssert(!api.snapshot().feedback.notice && !doc.getElementById('hit-toast').hidden, 'The first ordinary impact replaces the starter notice so its hit is not obscured');
+    dartsClick(f, 'restart-btn'); await until(() => doc.getElementById('lobby').open, 'restart before a second held Cork result');
+    await dartsStartLocal(f); dartsCorkImpact(f, 10); dartsCorkImpact(f, 5);
+    dartsClick(f, 'restart-btn'); await until(() => doc.getElementById('lobby').open, 'cancel held opening result');
+    w.__dartsNow += 5000; api.refresh();
+    dartsAssert(!api.snapshot().feedback.resultPending && !api.snapshot().feedback.notice && doc.getElementById('handoff-overlay').hidden, 'Leaving during the held Cork impact cancels its later outcome announcement');
+    f.remove();
 }
 async function checkDartsCorkPreviewV2() {
     if (!corkPreview) return;

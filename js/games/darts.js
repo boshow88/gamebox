@@ -219,6 +219,7 @@
         dartsCorkLimitReached: function (rounds) { return rounds + '-round limit reached'; },
         dartsCorkLimitDecider: 'Cork decider · Closest to Bull wins.',
         dartsCorkTieNotice: 'Tied result · Cork', dartsCorkRethrowTitle: 'Tie · Cork again',
+        dartsCorkStarter: function (name) { return name + ' starts the first leg'; },
         dartsResultLimitCork: function (rounds, distance) { return rounds + '-round limit reached · Won by closest to Bull' + (distance ? ' · Distance: ' + distance : '') + '.'; },
         dartsTurnOf: function (name) { return name + "'s turn"; },
         dartsDartProgress: function (n, total) { return 'Dart ' + n + '/' + total; },
@@ -251,6 +252,7 @@
         dartsCorkLimitReached: function (rounds) { return '已達' + rounds + '回合上限'; },
         dartsCorkLimitDecider: '進入比靶心決勝',
         dartsCorkTieNotice: '平手加賽 · 比靶心', dartsCorkRethrowTitle: '平手，重投比靶心',
+        dartsCorkStarter: function (name) { return name + '取得先手'; },
         dartsResultLimitCork: function (rounds, distance) { return '已達' + rounds + '回合上限，以比靶心決勝' + (distance ? '，勝者距離' + distance : '') + '。'; },
         dartsTurnOf: function (name) { return name + '的回合'; },
         dartsDartProgress: function (n, total) { return '第' + n + '/' + total + '鏢'; },
@@ -813,7 +815,7 @@
         var finalDart = feedbackState.finalHit && feedbackState.finalHit.dart;
         var result = finalDart ? finalDart.result : G.dartState === 'landed' && G.resultT > 0 && G.result;
         var s = viewMatch || match;
-        toast.hidden = !!(feedbackState.blocking || feedbackState.notice || s && s.status !== 'playing' && !feedbackState.resultPending ||
+        toast.hidden = !!(!finalDart && (feedbackState.blocking || feedbackState.notice) || s && s.status !== 'playing' && !feedbackState.resultPending ||
             roomData().phase === 'lobby') || G.hintT <= 0 && !result;
         toast.textContent = finalDart && finalDart.phase === 'cork' ? t('dartsCork') + ' · ' +
             t('dartsLabelValue', t('dartsDistance'), Number.isFinite(finalDart.distance) ? finalDart.distance.toFixed(1) + ' mm' : '—') :
@@ -1286,24 +1288,24 @@
         var handoff = document.getElementById('handoff-overlay'), pending = feedbackState.handoff;
         handoff.hidden = !pending || !pending.visible;
         if (pending) {
-            document.getElementById('handoff-title').textContent = t('dartsHandoffTitle', playerName(pending.player));
-            document.getElementById('handoff-message').textContent = t('dartsHandoffMessage');
+            document.getElementById('handoff-title').textContent = t(pending.outcome && pending.outcome.kind === 'starter' ? 'dartsCorkStarter' : 'dartsHandoffTitle', playerName(pending.player));
+            document.getElementById('handoff-message').textContent = (pending.outcome && pending.outcome.kind === 'rethrow' ? t('dartsCorkRethrow', pending.outcome.round) + ' · ' : '') + t('dartsHandoffMessage');
             var ready = document.getElementById('handoff-ready-btn');
             ready.textContent = t('dartsHandoffReady'); ready.dataset.handoffKey = pending.key;
         }
         var notice = document.getElementById('turn-notice'), event = feedbackState.notice;
-        var corkNotice = event && (event.kind === 'cork' || event.kind === 'cork-rethrow');
+        var corkNotice = event && (event.kind === 'cork' || event.kind === 'cork-rethrow' || event.kind === 'cork-starter');
         notice.hidden = !event;
         notice.classList.toggle('bust', !!event && event.kind === 'bust');
         notice.classList.toggle('cork', !!corkNotice);
         document.getElementById('turn-notice-title').textContent = !event ? '' :
             event.kind === 'bust' ? t('dartsBustTitle') : corkNotice ?
-                event.kind === 'cork-rethrow' ? t('dartsCorkRethrowTitle') : event.purpose === 'opening' ? t('dartsOpeningCorkStatus') :
+                event.kind === 'cork-starter' ? t('dartsCorkStarter', playerName(event.player)) : event.kind === 'cork-rethrow' ? t('dartsCorkRethrowTitle') : event.purpose === 'opening' ? t('dartsOpeningCorkStatus') :
                     event.purpose === 'limit' ? t('dartsCorkLimitReached', event.roundLimit) : t('dartsCorkTieNotice') :
                 t('dartsTurnOf', playerName(event.player));
         document.getElementById('turn-notice-message').textContent = event && event.kind === 'bust' ?
             t('dartsBustRestored', event.restoredScore) : corkNotice ?
-                event.kind === 'cork-rethrow' ? t('dartsCorkRethrow', event.round) :
+                event.kind === 'cork-starter' ? '' : event.kind === 'cork-rethrow' ? t('dartsCorkRethrow', event.round) :
                     t(event.purpose === 'opening' ? 'dartsCorkStarts' : event.purpose === 'limit' ? 'dartsCorkLimitDecider' : 'dartsCorkWins') : '';
         // Expiring effects also update card badges while the accepted state is unchanged.
         renderHud(); syncThrowFeedback();

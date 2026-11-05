@@ -194,7 +194,7 @@ ${dartsOnly ? fs.readFileSync(path.join(__dirname, 'helpers/darts-browser-v2.js'
                 checkDartsBustV2, checkDartsResultsV2, checkDartsExpandedSettingsV2, checkDartsOpeningCorkV2,
                 checkDartsFinalHitV2, checkDartsReservedLocalV2, checkDartsReservedLossV2, checkDartsLeaveRestoreV2,
                 checkDartsMixedV2, checkDartsSupersededFlightV2, checkDartsFourV2, checkDartsLayoutsV2, checkDartsLobbyV2,
-                checkDartsStatusOverflowV2, checkDartsCorkRethrowsV2, checkDartsRemoteCorkRethrowsV2, checkDartsCorkPreviewV2]) {
+                checkDartsStatusOverflowV2, checkDartsCorkRethrowsV2, checkDartsRemoteCorkRethrowsV2, checkDartsCorkFinalPresentationV2, checkDartsCorkPreviewV2]) {
                 document.getElementById('result').textContent = 'RUNNING: ' + check.name;
                 await check();
             }

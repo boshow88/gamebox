@@ -667,10 +667,17 @@ HUD result explanations use `legEndReason`/`endReason`, mode and accepted winner
 score/distance, distinguishing Leg wins from final Match wins and Cork distance
 from the original mode's points. This layer does not alter scoring or deadlines.
 
-A landed accepted winning event sets `resultPending` for `TIMING.finalHit`
-(1000 ms), retaining its actual last-dart result for the ordinary hit toast.
-The authoritative match is already between Legs or over; this delays only the
-result overlay. Repeated snapshots do not extend the interval. HUD result
+A landed accepted winning event, or the last dart completing a Cork round, sets
+`resultPending` for `TIMING.finalHit` (1000 ms), retaining its actual last-dart
+result for the hit toast. Cork captures a compact completed comparison (at most
+two history rows per player), so choosing the opening starter or clearing tied
+distances cannot hide that last throw. The authoritative result/next phase is
+already accepted; only presentation waits. Still-playing opening/rethrow outcomes
+block the next local gesture during the hold, without resetting turn timers.
+Afterward, opening Cork identifies the starter in the handoff or a nonblocking
+notice; a tie reveals the eligible rethrow and handoff, while a Leg win uses the
+existing result overlay. A newer accepted sequence cancels an obsolete hold.
+Repeated snapshots do not extend the interval. HUD result
 visibility updates outside its content cache so expiry reveals the result even
 without a new accepted state. New match/Leg/lobby transitions clear pending
 presentation; timeout/forfeit endings have no artificial winning-hit delay.

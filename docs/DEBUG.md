@@ -103,6 +103,12 @@ mode's cap, tied-score Cricket closures and Cork distance, plus restored Bust
 scores/history and penalty effects that expire without discarding accepted data.
 Final-impact checks hold the accepted finished state while showing its last hit,
 expire without replay, reject scoring/timeout after completion and clear on reset.
+Completed Cork-round checks cover opening starter, Leg winner and tied rethrow
+outcomes. The last thrower's distance and the full completed field stay visible
+before the next phase/handoff, including when an earlier thrower wins. Tests also
+cover a last-thrower opening winner without handoff, unchanged timer deadlines,
+duplicate snapshots, newer timeouts and cancellation on reset. Browser checks
+verify actual gesture blocking and synchronized remote opening/rethrow displays.
 
 The room check uses the actual room core, Darts policy and RTDB adapter against
 the native-tree fixture. It exercises separate controllers and player slots,

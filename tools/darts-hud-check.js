@@ -3,6 +3,7 @@
 const assert = require('node:assert/strict');
 const R = require('../js/games/darts-rules.js');
 const H = require('../js/games/darts-hud.js');
+const F = require('../js/games/darts-feedback.js');
 const tr = (key, ...args) => [key, ...args];
 const miss = R.hit(0, 0);
 function model(state, effects) {
@@ -185,4 +186,29 @@ for (const purpose of ['opening', 'tie', 'limit']) {
     assert.equal(view.round, 0);
 }
 
-console.log('PASS: accepted results, scoring history, Cork context/eligibility and repeated-tie distance comparisons.');
+for (const purpose of ['opening', 'tie', 'limit']) for (const tied of [false, true]) {
+    let state = R.create({ mode: 'x01', startingScore: 701, legsToWin: 2 }, ['A', 'B', 'C', 'D'], 1000);
+    state = { ...state, matchId: 'cork-display', phase: 'cork', corkPurpose: purpose,
+        corkPlayers: state.players.slice(), corkRound: 1, corkDistances: {} };
+    const f = F.create(); f.update(state, { now: 1000 });
+    for (const distance of [5, tied ? 5 : 10, 20, 30]) {
+        state = dart(state, R.hit(25, 1), { x: distance, y: 0 });
+        f.update(state, { now: 1000, throwEvent: { id: state.seq, dart: state.lastDart } });
+    }
+    const accepted = JSON.stringify(state), held = model(state, f.snapshot(1000));
+    assert.equal(held.throwPhase, 'cork'); assert.equal(held.corkPurpose, purpose); assert.equal(held.corkRound, 1);
+    assert.equal(held.active, 'D'); assert.equal(held.players.find(p => p.active).id, 'D');
+    assert.deepEqual(held.cork.eligible, ['A', 'B', 'C', 'D']);
+    assert.deepEqual(held.cork.entries.map(entry => entry.distance), [5, tied ? 5 : 10, 20, 30]);
+    assert(held.cork.entries.every(entry => entry.status === 'thrown'));
+    const released = model(state, f.update(state, { now: 1000 + F.TIMING.finalHit }));
+    if (tied) {
+        assert.equal(released.corkRound, 2); assert.deepEqual(released.cork.eligible, ['A', 'B']);
+        assert.deepEqual(released.cork.entries.map(entry => entry.status), ['rethrow', 'rethrow', 'excluded', 'excluded']);
+    } else if (purpose === 'opening') {
+        assert.equal(released.throwPhase, 'play'); assert.equal(released.active, 'A'); assert.equal(released.cork, null);
+    } else assert.equal(released.phase, 'between');
+    assert.equal(JSON.stringify(state), accepted, 'Showing the prior Cork comparison cannot modify accepted state');
+}
+
+console.log('PASS: results, scoring history, Cork eligibility and complete final-round comparison presentation.');

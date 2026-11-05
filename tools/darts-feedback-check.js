@@ -274,4 +274,64 @@ for (const purpose of ['opening', 'tie', 'limit']) {
     f.reset(); assert.equal(f.snapshot(502).notice, null);
 }
 
-console.log('Darts feedback: handoff safety, scoring, final hits and deduplicated Cork phase announcements passed.');
+// Every completed Cork round retains its impact/comparison before presenting its outcome.
+for (const purpose of ['opening', 'tie', 'limit']) for (const ties of [false, true]) {
+    let s = create('x01', ['A', 'B'], { legsToWin: 2 });
+    s = { ...s, phase: 'cork', corkPurpose: purpose, corkPlayers: ['A', 'B'], corkRound: 1, corkDistances: {} };
+    const f = F.create({ controllerId: 'device1' }); update(f, s, 0);
+    s = R.throwDart(s, 'A', R.hit(25, 1), 10, { x: 5, y: 0 });
+    assert.equal(update(f, s, 10, true).resultPending, false, 'An ordinary Cork participant does not add a final-hit pause');
+    f.confirm(11);
+    s = R.throwDart(s, 'B', R.hit(25, 1), 20, { x: ties ? 5 : 10, y: 0 });
+    const accepted = JSON.stringify(s), v = update(f, s, 20, true);
+    const kind = ties ? 'rethrow' : purpose === 'opening' ? 'starter' : 'win';
+    assert.equal(v.resultPending, true); assert.equal(v.finalHit.corkOutcome.kind, kind);
+    assert.equal(v.finalHit.dart.uid, 'B'); assert.equal(v.finalHit.dart.distance, ties ? 5 : 10);
+    assert.equal(v.finalHit.corkState.corkRound, 1);
+    assert.deepEqual(v.finalHit.corkState.corkDistances, { A: 5, B: ties ? 5 : 10 });
+    assert.deepEqual(v.finalHit.corkState.corkPlayers, ['A', 'B']);
+    assert.equal(v.notice, null); assert(!v.handoff || !v.handoff.visible);
+    assert.equal(f.confirm(21), false, 'A handoff cannot skip the last Cork impact');
+    assert.equal(v.blocking, kind !== 'win', 'Still-playing Cork outcomes gate the next local gesture');
+    update(f, s, 300, true);
+    assert.equal(f.snapshot(20 + F.TIMING.finalHit - 1).resultPending, true);
+    const released = update(f, s, 20 + F.TIMING.finalHit);
+    assert.equal(released.resultPending, false, 'Heartbeat refreshes do not restart a playing-state Cork hold');
+    if (kind === 'win') assert.equal(s.status, 'between');
+    else {
+        assert.equal(s.status, 'playing'); assert.equal(released.handoff.visible, true);
+        assert.equal(released.handoff.outcome.kind, kind);
+        assert.equal(f.confirm(1021, released.handoff.key), true);
+        if (ties) assert.equal(f.snapshot(1021).notice.kind, 'cork-rethrow');
+    }
+    assert.equal(JSON.stringify(s), accepted, 'Outcome presentation cannot mutate authoritative Cork resolution');
+}
+{
+    let s = create('x01', ['A', 'B'], { startingPlayer: 'cork' });
+    const f = F.create({ controllerId: 'device1' }); update(f, s, 0);
+    s = R.throwDart(s, 'A', R.hit(25, 1), 10, { x: 10, y: 0 }); update(f, s, 10, true); f.confirm(11);
+    s = R.throwDart(s, 'B', R.hit(25, 1), 20, { x: 5, y: 0 }); update(f, s, 20, true);
+    assert.equal(s.active, 'B'); assert.equal(f.snapshot(20).handoff, null);
+    const released = update(f, s, 1020);
+    assert.equal(released.blocking, false); assert.equal(released.notice.kind, 'cork-starter');
+    assert.equal(released.notice.player, 'B', 'The last thrower can win opening Cork without an unnecessary device handoff');
+    assert.equal(update(f, s, 1030, true).resultPending, false);
+    s = R.throwDart(s, 'B', R.hit(20, 1), 1035);
+    assert.equal(update(f, s, 1035, true).notice, null, 'The first scoring impact replaces the starting-player notice');
+    assert.equal(f.snapshot(1020 + F.TIMING.cork).notice, null);
+}
+{
+    let s = create('x01', ['A', 'B'], { startingPlayer: 'cork' });
+    const f = F.create({ controllerId: 'device1' }); update(f, s, 0);
+    s = R.throwDart(s, 'A', R.hit(25, 1), 10, { x: 10, y: 0 }); update(f, s, 10, true); f.confirm(11);
+    s = R.throwDart(s, 'B', R.hit(25, 1), 20, { x: 5, y: 0 }); update(f, s, 20, true);
+    const completed = s;
+    s = R.timeout(s, 30021);
+    const advanced = update(f, s, 30);
+    assert.equal(advanced.finalHit, null); assert.equal(advanced.resultPending, false);
+    assert(!advanced.notice || advanced.notice.kind !== 'cork-starter', 'A newer timeout cancels the obsolete starting-player announcement');
+    assert.equal(update(f, completed, 40, true).resultPending, false, 'An older accepted event cannot revive the canceled hold');
+    f.reset(); assert.equal(f.snapshot(1050).notice, null);
+}
+
+console.log('Darts feedback: handoff safety, scoring, all Cork outcomes and deduplicated final-hit presentation passed.');
