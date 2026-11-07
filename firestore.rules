@@ -27,6 +27,58 @@ service cloud.firestore {
              && request.auth.token.email.lower() in get(/databases/$(database)/documents/config/admins).data.get('members', {});
     }
 
+    // ---- Public announcements; drafts and publishing remain admin-only ----
+    function validAnnouncement(data) {
+      return data.keys().hasOnly(['title', 'body', 'game', 'important', 'published', 'revision', 'createdBy', 'createdAt', 'updatedBy', 'updatedAt', 'publishedAt'])
+             && data.title is map && data.title.keys().hasOnly(['zh', 'en'])
+             && data.body is map && data.body.keys().hasOnly(['zh', 'en'])
+             && data.title.zh is string && data.title.en is string
+             && data.body.zh is string && data.body.en is string
+             && data.title.zh.size() <= 120 && data.title.en.size() <= 120
+             && data.body.zh.size() <= 6000 && data.body.en.size() <= 6000
+             && (data.title.zh.size() > 0 || data.title.en.size() > 0)
+             && ((data.title.zh.size() > 0) == (data.body.zh.size() > 0))
+             && ((data.title.en.size() > 0) == (data.body.en.size() > 0))
+             && (data.game == null || (data.game is string && data.game.size() <= 80))
+             && data.important is bool && data.published is bool
+             && data.revision is int && data.revision > 0
+             && data.updatedBy == request.auth.uid && data.updatedAt == request.time
+             && (data.publishedAt == null || (data.publishedAt is timestamp && data.publishedAt <= request.time));
+    }
+    function indexedAnnouncement(id, data) {
+      return getAfter(/databases/$(database)/documents/announcement_meta/index).data.versions.get(id, 0) == data.revision;
+    }
+    match /announcements/{id} {
+      allow get: if isOwner() || resource.data.published == true;
+      allow list: if request.query.limit != null && request.query.limit <= 50
+                     && (resource.data.published == true || isOwner());
+      allow create: if isOwner() && validAnnouncement(request.resource.data)
+                       && request.resource.data.revision == 1
+                       && request.resource.data.createdBy == request.auth.uid
+                       && request.resource.data.createdAt == request.time
+                       && ((request.resource.data.published == false && request.resource.data.publishedAt == null)
+                           || (request.resource.data.published == true && request.resource.data.publishedAt == request.time && indexedAnnouncement(id, request.resource.data)));
+      allow update: if isOwner() && validAnnouncement(request.resource.data)
+                       && request.resource.data.createdBy == resource.data.createdBy
+                       && request.resource.data.createdAt == resource.data.createdAt
+                       && request.resource.data.revision == resource.data.revision + 1
+                       && ((request.resource.data.published == true && resource.data.published == false
+                            && request.resource.data.publishedAt == request.time)
+                           || ((request.resource.data.published == false || resource.data.published == true)
+                               && request.resource.data.publishedAt == resource.data.publishedAt))
+                       && ((request.resource.data.published == true && indexedAnnouncement(id, request.resource.data))
+                           || (request.resource.data.published == false
+                               && (resource.data.published == false || !(id in getAfter(/databases/$(database)/documents/announcement_meta/index).data.versions))));
+      allow delete: if isOwner() && resource.data.published == false;
+    }
+    match /announcement_meta/{id} {
+      allow get: if id == 'index';
+      allow create, update: if id == 'index' && isOwner()
+                              && request.resource.data.keys().hasOnly(['versions', 'updatedAt'])
+                              && request.resource.data.versions is map && request.resource.data.versions.size() <= 1000
+                              && request.resource.data.updatedAt == request.time;
+    }
+
     // ---- Private feedback and latest admin reply ----
     function signedAccount() {
       return request.auth != null

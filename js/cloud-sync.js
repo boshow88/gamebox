@@ -273,6 +273,31 @@
         }).catch(function () { return null; });
     }
     function sync() { return pullMergePush().then(function (prof) { return !!prof; }); }
+    function rememberMetadata(acct, epoch, save) {
+        if (epoch !== profileEpoch || !account() || account().uid !== acct.uid) return false;
+        profileRevision++;
+        Object.keys(save).forEach(function (key) { profileEdits[key] = { revision: profileRevision, value: save[key] }; });
+        fireProfile(acct.uid, Object.assign({}, lastProfile && lastProfile.uid === acct.uid ? lastProfile.data : {}, save));
+        return true;
+    }
+    function saveAnnouncementAcknowledgement(expectedUid, operation) {
+        var acct = account(), N = net(), epoch = profileEpoch;
+        if (!acct || acct.uid !== expectedUid || !N.announcements) return Promise.reject(new Error('profile/account-changed'));
+        return Promise.resolve(operation(N.announcements)).then(function (result) {
+            if (!result.saved || epoch !== profileEpoch || !account() || account().uid !== acct.uid) return false;
+            var reads = Object.assign({}, lastProfile && lastProfile.uid === acct.uid ? lastProfile.data.announcementReads || {} : {});
+            Object.keys(result.reads).forEach(function (key) {
+                if (Number.isInteger(result.reads[key]) && (!Number.isInteger(reads[key]) || result.reads[key] > reads[key])) reads[key] = result.reads[key];
+            });
+            return rememberMetadata(acct, epoch, { announcementReads: reads });
+        });
+    }
+    function saveAnnouncementRead(id, revision, expectedUid) {
+        return saveAnnouncementAcknowledgement(expectedUid, function (announcements) { return announcements.markRead(id, revision); });
+    }
+    function saveAllAnnouncementReads(versions, expectedUid) {
+        return saveAnnouncementAcknowledgement(expectedUid, function (announcements) { return announcements.markAllRead(versions); });
+    }
     function saveProfileFields(patch, expectedUid) {
         var acct = account(), N = net(), epoch = profileEpoch;
         if (!acct || expectedUid && acct.uid !== expectedUid) return Promise.reject(new Error('profile/account-changed'));
@@ -282,12 +307,7 @@
         var save = Object.assign({}, patch);
         if (!N.profile.saveFields) return Promise.reject(new Error('profile/unavailable'));
         return Promise.resolve(N.profile.saveFields(acct.uid, save)).then(function () {
-            if (epoch !== profileEpoch || !account() || account().uid !== acct.uid) return false;
-            profileRevision++;
-            Object.keys(save).forEach(function (key) { profileEdits[key] = { revision: profileRevision, value: save[key] }; });
-            var metadata = Object.assign({}, lastProfile && lastProfile.uid === acct.uid ? lastProfile.data : {}, save);
-            fireProfile(acct.uid, metadata);
-            return true;
+            return rememberMetadata(acct, epoch, save);
         });
     }
 
@@ -382,6 +402,8 @@
         // games: call after writing a new local best so it reaches the cloud
         sync: sync,
         saveProfileFields: saveProfileFields,
+        saveAnnouncementRead: saveAnnouncementRead,
+        saveAllAnnouncementReads: saveAllAnnouncementReads,
         // launcher: receive the per-game claim offer, { games: [displayId], claim: fn }
         onClaimOffer: function (fn) { if (typeof fn !== 'function') return; claimCbs.push(fn); if (pendingOffer) { try { fn(pendingOffer); } catch (e) { /* ignore */ } } },
         hasGuestRecords: function () { return bucketHasRecords('guest'); },

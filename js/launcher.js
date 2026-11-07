@@ -453,6 +453,7 @@
     var personalization = null;
     var feedback = null;
     var notifications = null;
+    var announcements = null;
 
     function t(key) {
         var table = STRINGS[lang] || STRINGS.en;
@@ -516,6 +517,7 @@
         renderAccount(accountUser);   // re-localise the account control on language change
         if (personalization) personalization.refreshLocale();
         if (feedback) feedback.refreshLocale();
+        if (announcements) announcements.refreshLocale();
         if (notifications) notifications.refresh();
     }
 
@@ -994,8 +996,10 @@
         // config/admins doc; no identifiers live in this code.
         var adminInbox = document.getElementById('drawer-feedback-admin');
         var adminRoster = document.getElementById('drawer-admins');
+        var announcementAdmin = document.getElementById('drawer-announcements-admin');
         if (adminInbox) adminInbox.hidden = true;
         if (adminRoster) adminRoster.hidden = true;
+        if (announcementAdmin) announcementAdmin.hidden = true;
         // Admins also unlock WIP games (play directly — no ?backstage needed). Re-render
         // the grid when the status resolves so the gate is added/removed accordingly.
         function setAdminUnlock(v) { if (adminUnlock === v) return; adminUnlock = v; renderGrid(); }
@@ -1004,6 +1008,7 @@
                 if (!accountUser || accountUser.uid !== user.uid) return;
                 if (adminInbox) adminInbox.hidden = !ok;
                 if (adminRoster) adminRoster.hidden = !ok;
+                if (announcementAdmin) announcementAdmin.hidden = !ok;
                 setAdminUnlock(!!ok);
                 // Keep my own roster name in sync with my Google display name.
                 if (ok && user.email && user.name && N.getAdmins && N.adminAdd) {
@@ -1116,16 +1121,20 @@
         notifications = window.GameBoxNotifications.create({ getLocale: function () { return lang; } });
         notifications.bind(document.getElementById('menu-btn'), 'menu', function (state) { return t('menu') + (state.unread ? ' · ' + notifications.describe(state) : ''); });
         feedback = window.GameBoxFeedback && window.GameBoxFeedback.create({ getLocale: function () { return lang; }, translate: t, gameName: gameName, openModal: openModal, notifications: notifications });
+        announcements = window.GameBoxAnnouncements.create({ getLocale: function () { return lang; }, openModal: openModal, notifications: notifications,
+            getGames: function () { return GAMES.map(function (game) { return { id: game.id, name: gameName(game.id), href: game.href }; }); } });
         // Account: reflect sign-in state once the Firebase layer reports in.
         whenNet(function (N) {
             if (N && N.ok && N.onAuth) {
-                N.onAuth(function (u) { notifications.setScope(u ? u.uid : null); accountUser = u; renderAccount(u); if (birthday) birthday.setUser(u); if (personalization) personalization.setUser(u); if (feedback) feedback.setUser(u); });
+                N.onAuth(function (u) { notifications.setScope(u ? u.uid : null); accountUser = u; renderAccount(u); if (birthday) birthday.setUser(u); if (personalization) personalization.setUser(u); if (feedback) feedback.setUser(u); announcements.setUser(u); });
                 if (window.CloudSync && window.CloudSync.onProfile) {
                     window.CloudSync.onProfile(function (profile, uid) {
                         var u = N.currentUser();
                         if (u && u.uid === uid) {
+                            notifications.setScope(u.uid);
                             if (birthday) birthday.update(u, profile);
                             if (personalization) { personalization.setUser(u); personalization.update(profile, uid); }
+                            announcements.setUser(u); announcements.update(profile, uid);
                         }
                     });
                 }

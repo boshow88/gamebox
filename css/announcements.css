@@ -1,0 +1,24 @@
+/* Public board and admin publishing form inside the shared modal shell. */
+.announcement-toolbar { display: flex; flex-wrap: wrap; gap: 8px; }
+.announcement-action { min-height: 40px; padding: 8px 12px; border: 1px solid var(--border-color); border-radius: var(--radius-sm); background: var(--bg-elevated); color: var(--text-primary); font: inherit; font-size: 13px; cursor: pointer; }
+.announcement-action.primary { border-color: var(--accent); color: var(--accent); }
+.announcement-action:disabled { opacity: .55; cursor: wait; }
+.announcement-list { display: grid; gap: 14px; }
+.announcement-item { min-width: 0; padding: 14px; border: 1px solid var(--border-color); border-radius: var(--radius-md); background: var(--bg-card); }
+.announcement-meta { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 10px; color: var(--text-secondary); font-size: 12px; }
+.announcement-important { color: var(--accent); border: 1px solid var(--accent); border-radius: 4px; padding: 2px 6px; }
+.announcement-item h3 { margin: 0 0 12px; font-size: 15px; overflow-wrap: anywhere; }
+.announcement-item summary { cursor: pointer; color: var(--text-primary); font-size: 15px; line-height: 1.7; overflow-wrap: anywhere; }
+.announcement-item summary.notification-indicator { padding-right: 16px; }
+.announcement-item summary.notification-indicator.has-unread::after { top: 8px; right: 1px; transform: none; }
+.announcement-text { margin: 16px 0; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--text-primary); line-height: 1.8; font-size: 14px; }
+.announcement-game { display: inline-block; color: var(--accent); font-size: 13px; line-height: 1.7; overflow-wrap: anywhere; }
+.announcement-status, .announcement-note { margin: 0; color: var(--text-secondary); font-size: 13px; line-height: 1.7; }
+.announcement-editor { display: grid; gap: 16px; }
+.announcement-editor fieldset { display: grid; min-width: 0; border: 0; padding: 0; margin: 0; gap: 16px; }
+.announcement-editor label { display: grid; gap: 8px; color: var(--text-secondary); font-size: 13px; }
+.announcement-editor input[type="text"], .announcement-editor textarea, .announcement-editor select { box-sizing: border-box; width: 100%; min-width: 0; min-height: 44px; padding: 10px; border: 1px solid var(--border-color); border-radius: var(--radius-sm); background: var(--bg-elevated); color: var(--text-primary); color-scheme: dark; font: inherit; font-size: 16px; }
+.announcement-editor textarea { resize: vertical; line-height: 1.7; }
+.announcement-editor option { background: var(--bg-elevated); color: var(--text-primary); }
+.announcement-editor .announcement-check { display: flex; align-items: center; min-height: 40px; }
+.announcement-action:focus-visible, .announcement-item summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }

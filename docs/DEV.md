@@ -299,7 +299,7 @@ descendant is unread. Multiple controls may bind to one source without counting
 those items again. Each logical unread item should be published by one source.
 
 ```js
-// In a future announcements controller, using the hub passed by the launcher:
+// A feature controller uses the hub passed by the launcher:
 const announcements = notifications.source('announcements', 'menu');
 const unbind = notifications.bind(announcementButton, 'announcements', state =>
     'Announcements' + (state.unread ? ' · ' + notifications.describe(state) : ''));
@@ -318,8 +318,79 @@ elements are pruned on refresh. `refresh()` also updates localized labels.
 The launcher calls `setScope(uidOrNull)` before notifying feature controllers of
 an account change. This clears counts and invalidates old publishers. Controllers
 must acquire a new publisher for the new scope, so old asynchronous callbacks
-cannot relight or clear another account's notifications. Announcements are only
-an integration example here; no announcement board or storage is implemented.
+cannot relight or clear another account's notifications. Both the feedback and
+announcement controllers use this hub; their persistence policies remain separate.
+
+## Announcements
+
+`js/net/announcements.mjs` exposes the public board and admin publishing API through
+`ArcadeNet.announcements`. `js/announcements.js` owns the bilingual board/editor;
+`css/announcements.css` uses the shared modal shell. The drawer has a public
+Announcements entry and an admin-only Manage announcements entry.
+
+Admin editors provide Traditional Chinese and English title/body fields, an
+important badge and an optional game selector. At least one complete language
+pair is required; missing translations fall back to the other language. Titles
+are bounded to 120 characters and each body to 6000. Content uses plain text;
+game links resolve only against the local game manifest. Announcement text cannot
+supply HTML or arbitrary link targets. Important is a visible label, not a forced
+popup or a separate notification channel.
+
+Each `announcements/{id}` stores `title` and `body` language maps, optional `game`,
+`important`, `published`, a monotonically increasing `revision`, immutable
+`createdBy`/`createdAt`, `updatedBy`/`updatedAt`, and nullable `publishedAt`.
+Only verified-email admins may write. Everyone may read published posts, including
+signed-out visitors; draft reads and the unfiltered admin list are admin-only.
+Lists are bounded to 20 per page (server rules cap at 50).
+
+Save draft does not notify players. Publishing or editing a published post
+atomically updates both the post and `announcement_meta/index`, whose public
+`versions` map contains only active post IDs and revisions. Rules require the
+published document's revision to match that index in the same commit. Withdrawing
+to draft removes its index entry in that transaction; draft-only edits never
+write the public index. Published posts must be withdrawn before deletion.
+Editors compare their captured revision, rejecting stale saves. First publication
+and republication receive a server `publishedAt`; edits while published retain
+their order but notify readers again. The index caps active posts at 1000.
+
+The homepage watches only this one small index document. It reads full post
+documents on explicit board opening/pagination. Background tabs unsubscribe;
+foreground return reconnects. The index drives the `announcements` notification
+source under `menu` independently of feedback. Expanding a post acknowledges that
+specific revision; opening the list alone does not. Live index changes update dots,
+while the open list uses its Refresh button to fetch updated article content.
+
+The public toolbar also offers Mark all as read. It captures the currently known
+unread ID/revision pairs, including posts beyond the loaded page. For an account,
+`CloudSync.saveAllAnnouncementReads` reads the version index and own profile in one
+transaction and merges matching markers in at most one profile write. A new post
+or revision published after the click is excluded; stale markers cannot overwrite
+newer ones. It does not fetch each article or modify feedback notifications.
+Visitors persist the captured markers in their browser without a Firebase write.
+
+Signed-in read markers live in `profiles/{uid}.announcementReads` as ID/revision
+pairs, reusing the normal CloudSync profile read. `CloudSync.saveAnnouncementRead`
+uses a transaction to verify the latest public revision and merge a marker without
+overwriting scores, birthday or other markers. Older-view acknowledgements cannot
+clear a newly published revision. Metadata cache updates guard account changes
+and late reads. Read markers are loaded from the cloud at normal profile sync;
+another device's acknowledgement is reflected on its next profile sync/reload,
+rather than adding another permanent profile listener.
+
+Visitors keep read markers under `gamebox:announcements:guest-reads` in this
+browser's localStorage, with no profile reads/writes. Storage events update other
+guest tabs; unavailable storage falls back to memory for the current visit.
+Clearing browser storage resets those markers. Guest markers do not migrate into
+a Google account; the signed-in account uses its own cloud markers.
+
+Before deploying the feature, publish the full updated `firestore.rules`, and add
+the collection-scope `announcements` composite index: `published` Ascending,
+`publishedAt` Descending. It is included in `firestore.indexes.json`; preserve the
+existing feedback indexes. The CLI command in
+[feedback deployment](#publish-feedback-rules-and-indexes) publishes both sets.
+There is no data migration or RTDB change. The admin UI creates documents when
+used; implementation does not seed or publish real announcements automatically.
+Checks and the two-role acceptance flow are in [DEBUG.md](DEBUG.md#announcement-checks).
 
 ## Feedback ownership, replies and notifications
 

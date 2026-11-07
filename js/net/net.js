@@ -2,6 +2,7 @@ import { createRoomService, createRoomPresence, generateRoomCode } from './rooms
 import { createRoomLobby } from './room-lobby.mjs';
 import { createRealtimeRoomStore } from './rtdb-rooms.mjs';
 import { createFeedbackService } from './feedback.mjs';
+import { createAnnouncementService } from './announcements.mjs';
 
 /*
  * ArcadeNet — thin Firebase layer for online play (ES module, no build step).
@@ -116,6 +117,7 @@ function fail(err) {
                 },
             },
             feedbackBox: feedback,
+            announcements: createAnnouncementService({ sdk: fsMod, db, getUser: () => user }),
             feedback(data) { return feedback.send(data); },
             // Admin roster — a config doc readable/writable only by admins (see
             // firestore.rules). Shape: config/admins = { members: { "<email>": { name } } }.

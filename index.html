@@ -10,6 +10,7 @@
     <link rel="stylesheet" href="./css/birthday-settings.css">
     <link rel="stylesheet" href="./css/feedback.css">
     <link rel="stylesheet" href="./css/notifications.css">
+    <link rel="stylesheet" href="./css/announcements.css">
 </head>
 <body>
     <div class="app-shell">
@@ -68,11 +69,13 @@
             <button type="button" class="drawer-item" id="drawer-personalization">Personalization</button>
         </section>
         <section class="drawer-section">
+            <button type="button" class="drawer-item" id="drawer-announcements">Announcements</button>
             <button type="button" class="drawer-item" id="drawer-records">My records</button>
             <button type="button" class="drawer-item" id="drawer-feedback">Feedback</button>
             <button type="button" class="drawer-item" id="drawer-feedback-mine" hidden>My feedback</button>
             <p id="feedback-notification-error" class="feedback-notification-error" hidden role="status"></p>
             <button type="button" class="drawer-item" id="drawer-feedback-admin" hidden>Feedback inbox</button>
+            <button type="button" class="drawer-item" id="drawer-announcements-admin" hidden>Manage announcements</button>
             <button type="button" class="drawer-item" id="drawer-admins" hidden>Admins</button>
         </section>
     </aside>
@@ -84,6 +87,7 @@
     <script src="./js/birthday-settings.js"></script>
     <script src="./js/notifications.js"></script>
     <script src="./js/feedback.js"></script>
+    <script src="./js/announcements.js"></script>
     <script src="./js/launcher.js"></script>
 </body>
 </html>

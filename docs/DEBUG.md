@@ -251,6 +251,40 @@ node tools/rooms-browser-check.js --darts-desktop
 These checks never access production Firebase; published-rule
 authorization still needs the Firebase evaluator or a deployed two-tab check.
 
+## Announcement checks
+
+```text
+node tools/announcements-browser-check.js
+node tools/notifications-check.js
+```
+
+The browser fixture uses actual launcher/controller DOM with local fake accounts.
+It covers draft creation, publishing, editing, withdrawal, locale fallback,
+plain-text rendering, safe manifest-only game links, pagination, profile/guest
+read markers, account transitions, version notifications, shared feedback dots
+and 320/390/768px layouts. No real announcements are published.
+
+Using the test dependencies and Java/PATH setup from [Feedback checks](#feedback-checks):
+
+```text
+node .cache/feedback-tests/node_modules/firebase-tools/lib/bin/firebase.js emulators:exec --config firebase.json --only firestore --project demo-gamebox "node tools/announcements-rules-check.mjs"
+```
+
+The real-rule fixture verifies public/draft isolation, verified-admin publishing,
+atomic post/index updates, stale editors and readers, concurrent account read
+markers, preservation of existing profile fields, withdrawal and draft deletion.
+Bulk-read tests cover unloaded pages, guest persistence, new/updated posts arriving
+during acknowledgement, feedback-dot independence and late account results.
+
+For a local acceptance check after publishing the updated rules/index, use
+Manage announcements to save a draft: it must remain invisible to visitors.
+Publish it and confirm the Announcements/menu dots appear for a reader. Opening
+the board alone must not mark it read; expanding the post must do so. Updating
+published content should notify again; withdrawal must remove the public item.
+Verify a visitor's read marker survives a reload in that browser, and a Google
+account's marker survives a sign-out/sign-in. Another device loads those markers
+at normal profile sync, not through an additional permanent listener.
+
 ## Feedback checks
 
 ```text

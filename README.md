@@ -34,6 +34,7 @@ js/
   net/rtdb-values.mjs Lossless RTDB value encoding
   cloud-sync.js       Cross-device high-score sync (window.CloudSync)
   notifications.js   Shared unread-source aggregation and UI indicators
+  announcements.js   Public announcement board and admin publishing UI
   birthday.js         Birthday-only homepage entry (see docs/DEV.md#birthday-personalization)
   birthday-cake.js    Reusable directional candle interaction
   birthday-settings.js Optional manual birthday account settings
@@ -118,9 +119,10 @@ Settings → Pages → Source: `main` branch, `/` (root). All paths are relative
 Rune Stones' online PvP uses Firebase; its authorized domains are domain-level
 (`boshow88.github.io`), so sign-in keeps working.
 
-The account feedback inbox and admin replies use Firestore. Before deploying this
+The announcement board, account feedback inbox and admin replies use Firestore. Before deploying these
 feature, publish `firestore.rules` and create the indexes in `firestore.indexes.json`;
 a Pages deployment does not publish either. See
 [feedback deployment](docs/DEV.md#publish-feedback-rules-and-indexes) and
-[checks](docs/DEBUG.md#feedback-checks). Players read only their own submissions;
+[checks](docs/DEBUG.md#feedback-checks), plus the
+[announcement reference](docs/DEV.md#announcements). Players read only their own submissions;
 admins reply or mark handled while original submission text remains unchanged.
