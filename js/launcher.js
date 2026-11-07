@@ -146,6 +146,8 @@
             feedbackLink: 'Feedback',
             feedbackTitle: 'Feedback box',
             feedbackHint: 'Report an issue, suggestion, or idea.',
+            feedbackAccountHint: 'Your feedback and admin replies will appear in My feedback.',
+            feedbackGuestHint: 'Sign in with Google before sending to keep track of feedback and receive replies.',
             feedbackPlaceholder: 'Type your feedback…',
             feedbackSend: 'Send',
             feedbackCancel: 'Cancel',
@@ -170,10 +172,6 @@
             diffHard: 'Hard',
             diffInsane: 'Insane',
             feedbackInbox: 'Feedback inbox',
-            feedbackInboxEmpty: 'No feedback yet.',
-            feedbackInboxError: 'Couldn\u2019t load feedback.',
-            feedbackResolved: 'Handled',
-            feedbackUpdateError: 'Couldn\u2019t save status. Please try again.',
             anonLabel: 'Guest',
             del: 'Delete',
             confirmDelete: 'Confirm?',
@@ -273,6 +271,8 @@
             feedbackLink: '意見箱',
             feedbackTitle: '意見箱',
             feedbackHint: '回報問題、建議或想法。',
+            feedbackAccountHint: '送出後可在「我的意見」查看紀錄與管理員回覆。',
+            feedbackGuestHint: '若要追蹤意見與接收回覆，請先以 Google 帳號登入再送出。',
             feedbackPlaceholder: '寫下你的意見…',
             feedbackSend: '送出',
             feedbackCancel: '取消',
@@ -297,10 +297,6 @@
             diffHard: '困難',
             diffInsane: '瘋狂',
             feedbackInbox: '意見箱（管理）',
-            feedbackInboxEmpty: '目前沒有留言。',
-            feedbackInboxError: '讀取失敗。',
-            feedbackResolved: '已處理',
-            feedbackUpdateError: '狀態儲存失敗，請再試一次。',
             anonLabel: '訪客',
             del: '刪除',
             confirmDelete: '確定刪除？',
@@ -455,6 +451,8 @@
     var adminUnlock = false;      // signed-in owner (config/admins) → WIP games open directly, no gate
     var accountUser = null;       // signed-in user (from ArcadeNet), or null
     var personalization = null;
+    var feedback = null;
+    var notifications = null;
 
     function t(key) {
         var table = STRINGS[lang] || STRINGS.en;
@@ -517,6 +515,8 @@
         }
         renderAccount(accountUser);   // re-localise the account control on language change
         if (personalization) personalization.refreshLocale();
+        if (feedback) feedback.refreshLocale();
+        if (notifications) notifications.refresh();
     }
 
     function renderFilter() {
@@ -653,14 +653,14 @@
         }, 2600);
     }
 
-    // Feedback box — a small form that writes to the Firestore 'feedback' collection
-    // (write-only; the owner reads submissions in the Firebase console). Reuses the
-    // dialog styling; works for any signed-in player (Google or anonymous).
+    // Feedback submission; account history and replies live in js/feedback.js.
     function showFeedback() {
         var ov = document.createElement('div'); ov.className = 'wip-gate';
+        ov.dataset.feedbackComposer = 'true';
         var card = document.createElement('div'); card.className = 'wip-gate-card'; card.setAttribute('role', 'dialog'); card.setAttribute('aria-modal', 'true');
         var msg = document.createElement('p'); msg.className = 'wip-gate-msg'; msg.textContent = t('feedbackTitle');
-        var hint = document.createElement('p'); hint.className = 'feedback-hint'; hint.textContent = t('feedbackHint');
+        var hint = document.createElement('p'); hint.className = 'feedback-hint';
+        hint.textContent = t('feedbackHint') + ' ' + t(accountUser && !accountUser.anon ? 'feedbackAccountHint' : 'feedbackGuestHint');
         // Category + target-game selectors (both optional context for triage).
         var row = document.createElement('div'); row.className = 'feedback-row';
         var kindSel = document.createElement('select'); kindSel.className = 'feedback-select';
@@ -694,9 +694,9 @@
                 // Feedback needs a signed-in user; fall back to a silent guest sign-in
                 // so visitors who never logged in can still send.
                 var ready = (N.currentUser && N.currentUser()) ? Promise.resolve() : Promise.resolve(N.signInGuest && N.signInGuest());
-                ready.then(function () { return N.feedback({ text: text, lang: lang, kind: kindSel.value || null, game: gameSel.value || null }); })
-                    .then(function () { showToast(t('feedbackThanks')); close(); })
-                    .catch(function () { showToast(t('feedbackError')); send.disabled = false; });
+                ready.then(function () { if (ov.isConnected) return N.feedback({ text: text, lang: lang, kind: kindSel.value || null, game: gameSel.value || null }); })
+                    .then(function () { if (ov.isConnected) { showToast(t('feedbackThanks')); close(); } })
+                    .catch(function () { if (ov.isConnected) { showToast(t('feedbackError')); send.disabled = false; } });
             });
         });
         document.body.appendChild(ov);
@@ -842,61 +842,7 @@
         });
     }
 
-    // Owner-only feedback inbox. Reads the Firestore `feedback` collection (allowed
-    // only for the owner emails in firestore.rules) and lists the notes newest-first.
-    function fmtTime(at) {
-        try { var d = at && at.toDate ? at.toDate() : (at ? new Date(at) : null); return d ? d.toLocaleString() : ''; } catch (e) { return ''; }
-    }
-    function showFeedbackAdmin() {
-        var m = openModal(t('feedbackInbox'));
-        var loading = document.createElement('p'); loading.className = 'records-empty'; loading.textContent = '…'; m.body.appendChild(loading);
-        whenNet(function (N) {
-            if (!N || !N.ok || !N.feedbackList) { loading.textContent = t('feedbackInboxError'); return; }
-            Promise.resolve(N.feedbackList(100)).then(function (list) {
-                m.body.innerHTML = '';
-                if (!list || !list.length) { var e = document.createElement('p'); e.className = 'records-empty'; e.textContent = t('feedbackInboxEmpty'); m.body.appendChild(e); return; }
-                list.forEach(function (fb) {
-                    var it = document.createElement('div'); it.className = 'fb-item';
-                    var tx = document.createElement('div'); tx.className = 'fb-text'; tx.textContent = fb.text || '';
-                    var meta = document.createElement('div'); meta.className = 'fb-meta';
-                    var who = fb.anon ? t('anonLabel') : (fb.name || fb.email || t('anonLabel'));
-                    var kindTxt = fb.kind ? t('feedbackKind' + fb.kind.charAt(0).toUpperCase() + fb.kind.slice(1)) : '';
-                    var gameTxt = fb.game ? gameName(fb.game) : '';
-                    meta.textContent = [who, kindTxt, gameTxt, (fb.lang || '').toUpperCase(), fmtTime(fb.at)].filter(Boolean).join(' · ');
-                    var actions = document.createElement('div'); actions.className = 'fb-actions';
-                    var resolvedLabel = document.createElement('label'); resolvedLabel.className = 'fb-resolved';
-                    var resolved = document.createElement('input'); resolved.type = 'checkbox'; resolved.checked = fb.resolved === true;
-                    var resolvedText = document.createElement('span'); resolvedText.textContent = t('feedbackResolved');
-                    resolvedLabel.appendChild(resolved); resolvedLabel.appendChild(resolvedText);
-                    it.classList.toggle('is-resolved', resolved.checked);
-                    resolved.addEventListener('change', function () {
-                        var next = resolved.checked;
-                        resolved.disabled = true; del.disabled = true;
-                        Promise.resolve().then(function () { return N.feedbackSetResolved(fb.id, next); }).then(function () {
-                            fb.resolved = next;
-                            it.classList.toggle('is-resolved', next);
-                        }).catch(function () {
-                            resolved.checked = fb.resolved === true;
-                            showToast(t('feedbackUpdateError'));
-                        }).then(function () { resolved.disabled = false; del.disabled = false; });
-                    });
-                    // Delete — two clicks (arms, then confirms) to avoid accidents.
-                    var del = document.createElement('button'); del.type = 'button'; del.className = 'fb-del'; del.textContent = t('del');
-                    var armed = false, armT = null;
-                    del.addEventListener('click', function () {
-                        if (!armed) { armed = true; del.textContent = t('confirmDelete'); del.classList.add('armed'); armT = setTimeout(function () { armed = false; del.textContent = t('del'); del.classList.remove('armed'); }, 3000); return; }
-                        clearTimeout(armT); del.disabled = true; resolved.disabled = true;
-                        Promise.resolve(N.feedbackDelete(fb.id)).then(function () {
-                            it.remove();
-                            if (!m.body.querySelector('.fb-item')) { var e = document.createElement('p'); e.className = 'records-empty'; e.textContent = t('feedbackInboxEmpty'); m.body.appendChild(e); }
-                        }).catch(function () { del.disabled = false; resolved.disabled = false; armed = false; del.textContent = t('del'); del.classList.remove('armed'); });
-                    });
-                    actions.appendChild(resolvedLabel); actions.appendChild(del);
-                    it.appendChild(tx); it.appendChild(meta); it.appendChild(actions); m.body.appendChild(it);
-                });
-            }).catch(function () { m.body.innerHTML = ''; var e = document.createElement('p'); e.className = 'records-empty'; e.textContent = t('feedbackInboxError'); m.body.appendChild(e); });
-        });
-    }
+    function showFeedbackAdmin() { if (feedback) feedback.showAdmin(); }
 
     // Owner-only admin roster — view / add / remove admins (email + name). Backed by
     // config/admins (admin-only read/write; see firestore.rules).
@@ -1055,6 +1001,7 @@
         function setAdminUnlock(v) { if (adminUnlock === v) return; adminUnlock = v; renderGrid(); }
         if (N && N.ok && N.isAdmin && user && !user.anon) {
             N.isAdmin().then(function (ok) {
+                if (!accountUser || accountUser.uid !== user.uid) return;
                 if (adminInbox) adminInbox.hidden = !ok;
                 if (adminRoster) adminRoster.hidden = !ok;
                 setAdminUnlock(!!ok);
@@ -1062,10 +1009,10 @@
                 if (ok && user.email && user.name && N.getAdmins && N.adminAdd) {
                     N.getAdmins().then(function (m) {
                         var e = m[user.email.toLowerCase()];
-                        if (e && e.name !== user.name) N.adminAdd(user.email, user.name);
+                        if (accountUser && accountUser.uid === user.uid && e && e.name !== user.name) N.adminAdd(user.email, user.name);
                     }).catch(function () { /* ignore */ });
                 }
-            }).catch(function () { setAdminUnlock(false); });
+            }).catch(function () { if (accountUser && accountUser.uid === user.uid) setAdminUnlock(false); });
         } else {
             setAdminUnlock(false);
         }
@@ -1166,10 +1113,13 @@
 
         var birthday = window.GameBoxBirthday && window.GameBoxBirthday.create({ getLocale: function () { return lang; } });
         personalization = window.GameBoxBirthdaySettings && window.GameBoxBirthdaySettings.create({ getLocale: function () { return lang; }, openModal: openModal });
+        notifications = window.GameBoxNotifications.create({ getLocale: function () { return lang; } });
+        notifications.bind(document.getElementById('menu-btn'), 'menu', function (state) { return t('menu') + (state.unread ? ' · ' + notifications.describe(state) : ''); });
+        feedback = window.GameBoxFeedback && window.GameBoxFeedback.create({ getLocale: function () { return lang; }, translate: t, gameName: gameName, openModal: openModal, notifications: notifications });
         // Account: reflect sign-in state once the Firebase layer reports in.
         whenNet(function (N) {
             if (N && N.ok && N.onAuth) {
-                N.onAuth(function (u) { accountUser = u; renderAccount(u); if (birthday) birthday.setUser(u); if (personalization) personalization.setUser(u); });
+                N.onAuth(function (u) { notifications.setScope(u ? u.uid : null); accountUser = u; renderAccount(u); if (birthday) birthday.setUser(u); if (personalization) personalization.setUser(u); if (feedback) feedback.setUser(u); });
                 if (window.CloudSync && window.CloudSync.onProfile) {
                     window.CloudSync.onProfile(function (profile, uid) {
                         var u = N.currentUser();

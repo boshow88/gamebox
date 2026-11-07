@@ -584,7 +584,7 @@ button { font-family: inherit; cursor: pointer; }
 .rec-line .k { color: var(--text-secondary); }
 .rec-line .v { color: var(--text-primary); white-space: nowrap; }
 
-/* Feedback inbox (owner only). */
+/* Shared list cards for feedback and the admin roster. */
 .fb-item {
     display: flex;
     flex-direction: column;

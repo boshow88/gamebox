@@ -1,0 +1,22 @@
+/* Account inbox and admin replies share the launcher's existing modal shell. */
+.feedback-notification { display: block; max-width: 100%; margin: 0 auto 20px; padding: 10px 16px; border: 1px solid var(--accent); border-radius: var(--radius-md); background: var(--bg-elevated); color: var(--accent); font: inherit; cursor: pointer; }
+.feedback-notification[hidden], .feedback-notification-error[hidden] { display: none; }
+.feedback-notification-error { margin: 0; color: var(--text-secondary); font-size: 12px; line-height: 1.6; }
+.feedback-toolbar { display: flex; flex-wrap: wrap; gap: 8px; }
+.feedback-action { min-height: 40px; padding: 8px 12px; border: 1px solid var(--border-color); border-radius: var(--radius-sm); background: var(--bg-elevated); color: var(--text-primary); font: inherit; font-size: 13px; cursor: pointer; }
+.feedback-action.primary, .feedback-action[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+.feedback-action:disabled { opacity: .55; cursor: wait; }
+.feedback-action:focus-visible, .feedback-reply summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.feedback-list { display: grid; gap: 14px; }
+.feedback-inbox .fb-item { gap: 10px; min-width: 0; background: var(--bg-card); }
+.feedback-inbox .fb-meta { margin: 0; overflow-wrap: anywhere; }
+.feedback-status { margin: 0; min-height: 20px; color: var(--text-secondary); font-size: 13px; line-height: 1.6; }
+.feedback-reply { padding: 10px; border: 1px solid var(--border-color); border-radius: var(--radius-sm); background: var(--bg-elevated); }
+.feedback-reply summary { color: var(--accent); cursor: pointer; font-size: 13px; overflow-wrap: anywhere; }
+.feedback-reply h3 { margin: 12px 0 8px; font-size: 13px; color: var(--text-primary); }
+.feedback-reply .fb-meta { margin-top: 8px; }
+.feedback-reply-form { display: grid; gap: 10px; padding-top: 10px; border-top: 1px solid var(--border-color); }
+.feedback-reply-form label { display: grid; gap: 8px; font-size: 13px; color: var(--text-secondary); }
+.feedback-reply-form button { justify-self: start; }
+.feedback-reply-form .feedback-input { background: var(--bg-elevated); }
+.feedback-inbox .fb-text { overflow-wrap: anywhere; }

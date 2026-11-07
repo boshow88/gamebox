@@ -8,6 +8,8 @@
     <link rel="stylesheet" href="./css/launcher.css">
     <link rel="stylesheet" href="./css/birthday.css">
     <link rel="stylesheet" href="./css/birthday-settings.css">
+    <link rel="stylesheet" href="./css/feedback.css">
+    <link rel="stylesheet" href="./css/notifications.css">
 </head>
 <body>
     <div class="app-shell">
@@ -33,6 +35,7 @@
         </header>
 
         <section id="birthday-entry" class="birthday-entry" hidden aria-label="GameBox birthday event"></section>
+        <button type="button" id="feedback-notification" class="feedback-notification" hidden></button>
 
         <div class="search-bar">
             <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
@@ -67,6 +70,8 @@
         <section class="drawer-section">
             <button type="button" class="drawer-item" id="drawer-records">My records</button>
             <button type="button" class="drawer-item" id="drawer-feedback">Feedback</button>
+            <button type="button" class="drawer-item" id="drawer-feedback-mine" hidden>My feedback</button>
+            <p id="feedback-notification-error" class="feedback-notification-error" hidden role="status"></p>
             <button type="button" class="drawer-item" id="drawer-feedback-admin" hidden>Feedback inbox</button>
             <button type="button" class="drawer-item" id="drawer-admins" hidden>Admins</button>
         </section>
@@ -77,6 +82,8 @@
     <script src="./js/cloud-sync.js"></script>
     <script src="./js/birthday.js"></script>
     <script src="./js/birthday-settings.js"></script>
+    <script src="./js/notifications.js"></script>
+    <script src="./js/feedback.js"></script>
     <script src="./js/launcher.js"></script>
 </body>
 </html>

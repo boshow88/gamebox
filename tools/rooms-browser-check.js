@@ -9,6 +9,7 @@ const { spawn } = require('node:child_process');
 const root = path.resolve(__dirname, '..');
 const args = process.argv.slice(2);
 const mode = args.includes('--invalid-rtdb') ? 'invalid' : 'rtdb';
+const accountOnly = args.includes('--account');
 const lobbyPreview = args.includes('--darts-lobby');
 const corkPreview = args.includes('--darts-cork');
 const cpuOnly = args.includes('--darts-cpu');
@@ -33,6 +34,9 @@ export const updateDoc = async (ref, data) => records.set(accountRef(ref), { ...
 export const deleteDoc = async ref => records.delete(accountRef(ref));
 export const collection = (_db, name) => accountRef(name), query = (...args) => args, orderBy = (...args) => args, limit = n => n;
 export const getDocs = async () => ({ docs: [], size: 0 });
+export const where = (...args) => args, startAfter = value => value;
+export const onSnapshot = (_query, next) => { queueMicrotask(() => next({ docs: [], size: 0 })); return () => {}; };
+export const runTransaction = async (_db, task) => task({ get: getDoc, update: updateDoc });
 `;
 const auth = `
 export const getAuth = () => ({});
@@ -47,6 +51,7 @@ export const signInAnonymously = async () => {}, signOut = async () => globalThi
 const runner = `<!doctype html><meta charset="utf-8"><pre id="result">RUNNING</pre><script>
 const errors = [];
 const mode = '${mode}';
+const accountOnly = ${accountOnly};
 const dartsOnly = ${dartsOnly};
 const preview = '${preview}';
 const lobbyPreview = ${lobbyPreview};
@@ -181,7 +186,24 @@ async function check(game, group, prefix) {
 ${dartsOnly ? fs.readFileSync(path.join(__dirname, 'helpers/darts-browser-v2.js'), 'utf8') : ''}
 
 (async () => {
-    if (mode === 'invalid' && dartsOnly) {
+    if (accountOnly) {
+        const f = document.createElement('iframe'); f.src = '/__account?testUser=google-feedback'; document.body.append(f);
+        await until(() => f.contentWindow.ArcadeNet && f.contentWindow.ArcadeNet.ok, 'account networking');
+        const net = f.contentWindow.ArcadeNet;
+        await net.profile.save('google-feedback', { birthday: { month: 1, day: 22 } });
+        if ((await net.profile.get('google-feedback')).birthday.day !== 22) throw Error('Profile read/write changed');
+        if (!net.feedbackBox || (await net.feedbackBox.listMine()).items.length) throw Error('Feedback service integration failed');
+        let delivered = false; const stop = net.feedbackBox.watchUnread(() => { delivered = true; }, error => { throw error; });
+        await until(() => delivered, 'unread service subscription'); stop();
+        if (net.rooms.ok !== (mode === 'rtdb')) throw Error('Room backend configuration changed');
+        f.contentWindow.__setTestAuth(null);
+        if (net.currentUser()) throw Error('Sign-out retained the account');
+        let rejected = false; try { net.feedbackBox.listMine(); } catch (_) { rejected = true; }
+        if (!rejected) throw Error('Signed-out account can request private feedback');
+        f.remove();
+        document.getElementById('result').textContent = 'PASS (' + mode + '): shared SDK initialization, feedback listener, profiles, sign-out and room backend configuration.';
+        return;
+    } else if (mode === 'invalid' && dartsOnly) {
         await checkDartsInvalidV2();
     } else if (mode === 'invalid') {
         for (const game of ['beam', 'rune-stones']) {

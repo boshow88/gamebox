@@ -283,6 +283,127 @@ everything; it loads on the launcher and every arcade game (right after `net/net
 - Work ships to the protected `main`. If the remote has moved, `git pull --rebase`
   before pushing.
 
+## Shared unread indicators
+
+`js/notifications.js` owns an in-memory unread tree and DOM bindings;
+`css/notifications.css` renders shared corner dots without changing button padding
+or dimensions. The launcher creates one hub and passes it to feature controllers.
+It binds the menu button once to the aggregate `menu` node. Features never toggle
+that button directly. The menu dot is 12px; other corner dots are 9px, with a dark
+outline. Labels include unread counts for assistive technology.
+
+The hub has no Firebase dependency and does not decide when content is read.
+Each feature owns its persistence, permissions and read policy, and publishes a
+count. A parent's count is the sum of its children; its dot stays lit while any
+descendant is unread. Multiple controls may bind to one source without counting
+those items again. Each logical unread item should be published by one source.
+
+```js
+// In a future announcements controller, using the hub passed by the launcher:
+const announcements = notifications.source('announcements', 'menu');
+const unbind = notifications.bind(announcementButton, 'announcements', state =>
+    'Announcements' + (state.unread ? ' · ' + notifications.describe(state) : ''));
+announcements.publish(3); // lights both this entry and the shared menu
+announcements.publish(0); // unread feedback can still keep the menu lit
+// On teardown: announcements.dispose(); unbind();
+```
+
+`source(id, parent)` returns a publisher with `publish(count, { atLeast }?)` and
+`dispose()`. Lower-bound counts propagate (20+ replies plus one announcement
+becomes 21+ notifications). Source replacement invalidates the older publisher;
+cycle/reparenting attempts are rejected. `bind(element, id, label)` should run
+after attaching the element; it returns an unsubscribe function. Disconnected
+elements are pruned on refresh. `refresh()` also updates localized labels.
+
+The launcher calls `setScope(uidOrNull)` before notifying feature controllers of
+an account change. This clears counts and invalidates old publishers. Controllers
+must acquire a new publisher for the new scope, so old asynchronous callbacks
+cannot relight or clear another account's notifications. Announcements are only
+an integration example here; no announcement board or storage is implemented.
+
+## Feedback ownership, replies and notifications
+
+`js/net/feedback.mjs` owns the Firestore operations, injected with the Firebase SDK
+and current user. `ArcadeNet.feedbackBox` exposes `send`, `listMine`, `listAdmin`,
+`listUnread`, `watchUnread`, `reply`, `markRead`, `setResolved` and `remove`.
+`ArcadeNet.feedback(data)` remains the submission entry point. `js/feedback.js`
+owns the account/admin inbox UI and notification lifetime; `css/feedback.css`
+extends the launcher's modal styling. Messages are rendered with `textContent`.
+
+Each `feedback/{id}` document keeps the immutable original submission (`uid`,
+`text`, `at`, account metadata and optional `kind`/`game`), plus:
+
+| Field | Meaning |
+| --- | --- |
+| `resolved` | Admin-only handled flag; missing is treated as false |
+| `reply` | Latest admin response: `{ text, by: adminUid, at: serverTimestamp }` |
+| `replyVersion` | Integer revision, starting at zero; each admin response increments it |
+| `unread` | Set true by a reply, cleared only by its submitting account after viewing |
+
+This is a submission with one replaceable admin response, not a chat archive.
+The admin editor says that only the latest response is retained. Updating it
+notifies the player again without changing handled status. Legacy submissions
+with a valid original UID remain visible; their first response initializes the
+new fields. Anonymous submissions remain accepted but have no account history,
+reply notifications or automatic transfer to a Google account.
+
+Security is enforced by `firestore.rules`, not visibility of admin buttons.
+Create rules pin UID/email/anonymous status to the authenticated identity, bound
+text to 2000 characters, require a server timestamp and reject unapproved fields,
+pre-filled replies and notification/status forgery. A signed-in account may read
+only its own submissions and change only `unread` from true to false. Admins may
+read all, mark handled, replace the reply or delete; they cannot rewrite original
+submissions. Admin membership requires a verified email in `config/admins`.
+Lists require a limit no greater than 100. Owner queries include the exact UID;
+Firestore rules are not result filters.
+
+An admin response uses a transaction with the editor's captured `replyVersion`.
+Another admin's newer response rejects a stale save. Read acknowledgement also
+uses a transaction and captured version; viewing an old response cannot mark a
+newer one read. Opening the inbox alone does not acknowledge anything: the player
+must expand the response. Signing out or changing account closes feedback views,
+clears notifications and discards delayed old-account results.
+
+Only the homepage watches unread items (`uid == currentUid`, `unread == true`,
+limit 20). The badge displays `20+` when that bounded page is full. Feedback
+publishes its count to the shared hub's `feedback` child of `menu`, driving dots
+on the menu button, My feedback entry, Unread replies
+tab and individual unread reply summaries. Opening a menu or list does not clear
+these indicators; successful read acknowledgement clears the corresponding reply,
+and the listener clears feedback's outer dots only when no unread replies remain.
+Other sources can still keep the menu lit. The indicators reuse the same
+subscription and add no queries or writes. Listener failures retain the last
+known indicators alongside the error message; account changes clear them immediately.
+Background pages unsubscribe; foreground return reconnects. There is no polling, email,
+browser push or OS permission request. Notifications persist in Firestore until
+read and appear on later homepage visits. History loads 20 items per explicit
+page; admin history loads 50. Unread refresh loads the next current unread batch.
+Other game pages initialize the service but do not subscribe to feedback.
+
+### Publish feedback rules and indexes
+
+A Pages deployment does not publish Firestore configuration. Before publishing
+the website, publish the complete `firestore.rules` and the indexes in
+`firestore.indexes.json`. Existing data does not need a migration. RTDB rules do
+not change. With an authenticated Firebase CLI:
+
+```powershell
+firebase deploy --only "firestore:rules,firestore:indexes" --project games-7e19b
+```
+
+Alternatively, publish `firestore.rules` in **Firestore Database > Rules**, then
+create these **collection-scope** composite indexes on collection `feedback` in
+**Firestore Database > Indexes**:
+
+- `uid` Ascending, `at` Descending (account history).
+- `uid` Ascending, `unread` Ascending (notification query).
+
+Wait until the indexes are enabled before the two-account acceptance check in
+[DEBUG.md](DEBUG.md#feedback-checks). The standard Firebase client API key is not
+a secret or an admin credential. These controls isolate access; they do not add
+server-side spam throttling or prevent a legitimate account from creating many
+submissions. That pre-existing abuse/billing concern would need a separate policy.
+
 ## Birthday personalization
 
 The launcher menu's **Personalization** dialog lets a signed-in account manually

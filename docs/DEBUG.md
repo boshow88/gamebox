@@ -251,6 +251,57 @@ node tools/rooms-browser-check.js --darts-desktop
 These checks never access production Firebase; published-rule
 authorization still needs the Firebase evaluator or a deployed two-tab check.
 
+## Feedback checks
+
+```text
+node tools/feedback-browser-check.js
+node tools/notifications-check.js
+node tools/rooms-browser-check.js --account
+node tools/rooms-browser-check.js --account --invalid-rtdb
+```
+
+The feedback browser check uses real launcher DOM with local fake data: owner
+history, pagination, latest admin response/update, handled status, deletion,
+unread notifications, explicit read acknowledgement, safe plain-text rendering,
+the nested menu/inbox/tab/reply dots (including multiple unread items and listener errors),
+independent announcement/feedback sources and unchanged button sizes,
+account changes, translation and 320/390/768px layout. The account checks load the
+actual networking modules with only the Firebase SDK replaced. They cover
+profile access, feedback listener integration, sign-out and RTDB configuration.
+
+`notifications-check.js` tests the pure unread tree: ancestor aggregation,
+independent sources, lower-bound counts, publisher replacement, cycle rejection,
+and late publishers after account changes. It uses no Firebase or browser.
+
+Actual authorization uses the **Firestore emulator**, not that UI fixture.
+Install test dependencies in the ignored cache (no runtime/build dependencies):
+
+```text
+npm install --prefix .cache/feedback-tests --no-save --no-package-lock firebase-tools @firebase/rules-unit-testing firebase
+node .cache/feedback-tests/node_modules/firebase-tools/lib/bin/firebase.js emulators:exec --config firebase.json --only firestore --project demo-gamebox "node tools/feedback-rules-check.mjs"
+```
+
+Node 22+ and Java 21+ must be on PATH. The test refuses to run without
+`FIRESTORE_EMULATOR_HOST`, uses only `demo-gamebox`, and tests the actual rules:
+cross-account queries/reads, forged identity, unauthorized status/reply/delete,
+oversized and pre-filled payloads, stale response/read guards, legacy records,
+profile isolation and retired Firestore room paths. Permission-denied probes are
+expected; only an unexpected success/failure fails the check.
+
+After publishing the rules and indexes as described in
+[DEV.md](DEV.md#publish-feedback-rules-and-indexes), submit as account A, reply as
+an admin in another browser, and confirm A receives a homepage notification.
+Open My feedback and expand the response: only then should it be marked read.
+Update the response to receive another notification. Account B must never see
+A's submission or response; signing out must remove private views immediately.
+Confirm anonymous submission still works without promising later account access.
+
+Known pre-existing check limitation: the default `rooms-browser-check.js` and its
+bare `--invalid-rtdb` UI path still expect Beam's retired `#lobby` structure.
+Both fail on the current Beam page even with the committed networking layer.
+`--account` avoids those stale UI selectors and verifies the shared network layer.
+The room-core and RTDB-model checks remain available separately.
+
 ## Birthday checks
 
 Run from the repository root:

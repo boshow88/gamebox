@@ -33,6 +33,7 @@ js/
   net/rtdb-rooms.mjs  Realtime Database room transport
   net/rtdb-values.mjs Lossless RTDB value encoding
   cloud-sync.js       Cross-device high-score sync (window.CloudSync)
+  notifications.js   Shared unread-source aggregation and UI indicators
   birthday.js         Birthday-only homepage entry (see docs/DEV.md#birthday-personalization)
   birthday-cake.js    Reusable directional candle interaction
   birthday-settings.js Optional manual birthday account settings
@@ -117,8 +118,9 @@ Settings → Pages → Source: `main` branch, `/` (root). All paths are relative
 Rune Stones' online PvP uses Firebase; its authorized domains are domain-level
 (`boshow88.github.io`), so sign-in keeps working.
 
-The admin feedback inbox saves its Handled checkbox to Firestore. Existing notes
-without a `resolved` field are treated as unhandled. When deploying changes to
-`firestore.rules`, publish that file in Firebase Console → Firestore Database →
-Rules as well; a GitHub Pages deployment does not update Firebase rules. Only
-admins may update the boolean `resolved` field, and feedback text stays unchanged.
+The account feedback inbox and admin replies use Firestore. Before deploying this
+feature, publish `firestore.rules` and create the indexes in `firestore.indexes.json`;
+a Pages deployment does not publish either. See
+[feedback deployment](docs/DEV.md#publish-feedback-rules-and-indexes) and
+[checks](docs/DEBUG.md#feedback-checks). Players read only their own submissions;
+admins reply or mark handled while original submission text remains unchanged.

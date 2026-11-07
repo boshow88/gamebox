@@ -1,6 +1,7 @@
 import { createRoomService, createRoomPresence, generateRoomCode } from './rooms.mjs';
 import { createRoomLobby } from './room-lobby.mjs';
 import { createRealtimeRoomStore } from './rtdb-rooms.mjs';
+import { createFeedbackService } from './feedback.mjs';
 
 /*
  * ArcadeNet — thin Firebase layer for online play (ES module, no build step).
@@ -37,7 +38,6 @@ function fail(err) {
         } = authMod;
         const {
             getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, serverTimestamp, deleteField,
-            collection, query, getDocs, orderBy, limit,
         } = fsMod;
 
         const app = initializeApp(window.FIREBASE_CONFIG);
@@ -52,6 +52,7 @@ function fail(err) {
         }
         const authCbs = [];
         onAuthStateChanged(auth, (u) => {
+            adminPromise = null;
             user = u ? { uid: u.uid, name: u.displayName || null, email: u.email || null, photo: u.photoURL || null, anon: u.isAnonymous } : null;
             // A display hint lets local-only games reuse an existing account name without
             // loading Firebase. It is never used for authentication or room ownership.
@@ -89,6 +90,7 @@ function fail(err) {
             }, Object.assign({}, options, { codeLength: 4 }));
         }
 
+        const feedback = createFeedbackService({ sdk: fsMod, db, getUser: () => user });
         window.ArcadeNet = {
             ok: true,
             sdk: SDK,
@@ -113,20 +115,8 @@ function fail(err) {
                     return setDoc(doc(db, 'profiles', uid), patch, { mergeFields: Object.keys(patch) });
                 },
             },
-            // write-only feedback drop box — anyone signed in may submit; only the owner
-            // manages it in the inbox (see firestore.rules). Auto-generated id.
-            feedback(data) {
-                if (!user) return Promise.reject(new Error('not signed in'));
-                return setDoc(doc(collection(db, 'feedback')), Object.assign({ at: serverTimestamp(), uid: user.uid, name: user.name || null, email: user.email || null, anon: !!user.anon }, data || {}));
-            },
-            // Read recent feedback — only works for allow-listed owner emails (see
-            // firestore.rules); everyone else gets a permission error. Newest first.
-            feedbackList(max) {
-                return getDocs(query(collection(db, 'feedback'), orderBy('at', 'desc'), limit(max || 100)))
-                    .then((snap) => snap.docs.map((d) => Object.assign({ id: d.id }, d.data())));
-            },
-            feedbackSetResolved(id, resolved) { return updateDoc(doc(db, 'feedback', id), { resolved: !!resolved }); },
-            feedbackDelete(id) { return deleteDoc(doc(db, 'feedback', id)); },
+            feedbackBox: feedback,
+            feedback(data) { return feedback.send(data); },
             // Admin roster — a config doc readable/writable only by admins (see
             // firestore.rules). Shape: config/admins = { members: { "<email>": { name } } }.
             // No identifiers live in source; membership is keyed by Google email.

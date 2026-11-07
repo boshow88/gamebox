@@ -1,0 +1,6 @@
+/* Corner badges use no padding or layout space, with or without unread items. */
+.notification-indicator { position: relative; }
+.notification-indicator.has-unread::after { content: ""; position: absolute; top: 0; right: 0; transform: translate(30%, -30%); box-sizing: content-box; width: 9px; height: 9px; border: 2px solid var(--bg-elevated); border-radius: 50%; background: #ff5b6e; pointer-events: none; }
+.menu-btn.notification-indicator.has-unread::after { top: 1px; right: 1px; width: 12px; height: 12px; }
+.feedback-reply summary.notification-indicator { padding-right: 14px; }
+.feedback-reply summary.notification-indicator.has-unread::after { top: 50%; right: 1px; transform: translateY(-50%); }
