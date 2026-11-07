@@ -46,6 +46,23 @@
 .board-region { grid-area: board; position: relative; min-width: 0; min-height: 0; overflow: hidden; background: radial-gradient(ellipse, #172531, #0a0f15 72%); }
 .stage-pad { position: absolute; inset: 0; container-type: size; touch-action: none; overflow: hidden; cursor: grab; }
 .stage-pad:active { cursor: grabbing; }
+.throw-area-hint { outline: 1px solid #7dd3fc70; outline-offset: -3px; }
+.throw-guide { position: absolute; z-index: 1; bottom: 6px; left: 8px; right: 8px; display: flex; align-items: center; gap: 8px; width: fit-content; max-width: calc(100% - 16px); margin-inline: auto; padding: 5px 8px; box-sizing: border-box; border: 1px solid #52677a; border-radius: 7px; background: #101923f2; color: #cbd5e1; pointer-events: none; }
+.throw-guide > div { min-width: 0; }
+.throw-guide strong { display: block; font-size: .75rem; line-height: 1.4; color: #e0f2fe; }
+.throw-guide p { margin: 2px 0 0; font-size: .65rem; line-height: 1.4; }
+.throw-guide-arrow { flex: none; width: 14px; height: 24px; fill: none; stroke: #7dd3fc; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.throw-guide button { align-self: stretch; flex: none; width: 30px; min-height: 30px; padding: 0; border: 0; border-radius: 4px; background: transparent; color: #cbd5e1; font: 20px system-ui, sans-serif; cursor: pointer; pointer-events: auto; }
+.throw-guide button:focus-visible { outline: 1px solid #7dd3fc; }
+.throw-guide.compact { bottom: 4px; padding: 2px 6px; gap: 6px; }
+.throw-guide.compact strong { display: none; }
+.throw-guide.compact p { margin: 0; font-size: .6rem; }
+.throw-guide.compact .throw-guide-arrow { width: 12px; height: 18px; }
+.throw-guide.compact button { width: 24px; min-height: 24px; font-size: 18px; }
+.gesture-contact { position: absolute; z-index: 3; inset: 0; width: 100%; height: 100%; overflow: hidden; pointer-events: none; }
+.gesture-contact polyline { fill: none; stroke: #bae6fd55; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.gesture-contact circle { fill: #bae6fd40; stroke: #bae6fdb0; stroke-width: 1; }
+@media (prefers-reduced-motion: reduce) { .gesture-contact polyline { display: none; } }
 /* Crop the original 480x600 renderer around its (240,250) board centre.
    Ballistics, projection and gesture coordinates retain their original units. */
 .stage-canvas { position: absolute; left: 50%; top: 50%; display: block; width: 133.333333cqmin; height: 166.666667cqmin; max-width: none; transform: translate(-50%, -41.666667%); touch-action: none; pointer-events: none; }
@@ -158,6 +175,7 @@
 .darts-gesture-help { margin: 0; }
 .darts-gesture-help ul { margin: 0; padding-left: 20px; font-size: .8rem; line-height: 1.6; color: var(--text-secondary); }
 .darts-gesture-help li + li { margin-top: 6px; }
+.darts-gesture-help .btn { margin-top: 10px; font-size: .75rem; }
 #lobby-slots input:disabled { opacity: 1; border-color: transparent; background: transparent; }
 .dialog-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .dialog-header h2 { font-size: 1.1rem; margin: 0; }

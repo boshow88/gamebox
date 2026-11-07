@@ -708,6 +708,24 @@ camera. `handYOffset` sets the release height relative to the Bull in millimetre
 Detailed Count-Up statistics are expandable
 after a Leg inside the lobby.
 
+`darts-throw-guide.js` is a presentation-only first-use guide. It outlines only
+the existing board surface and mode panel, with touch/mouse instructions and
+below/right wording matching the layout. It waits for `canThrow` on a local
+human turn, yields to notices, handoff, dialogs and active gestures, and uses a
+compact single-line hint when the board region is short. It changes no grid or
+board dimensions. An accepted pointer gesture or manual dismissal saves
+`arcadeGames:darts:throw-guide:v1` through the shared storage helpers. Invalid or
+cancelled gestures, CPU submissions and rejected online throws do not complete
+it. Existing Throwing controls in the Room dialog can request the hint again;
+that request waits for the next eligible human turn if necessary.
+
+The contact dot and short trail read at most ten existing `gesture.samples`,
+converting them back to CSS coordinates without adding or changing samples.
+They are pointer-transparent, disappear on release/cancellation/input loss, and
+never show aim or predicted flight. Reduced motion retains only the contact dot.
+Only the real pointer path supplies the completion callback to `submitGesture`;
+CPU scheduling, synthetic input, scoring and networking are unchanged.
+
 Timed local matches, including host-only invitation rooms, use the same wall-clock
 deadline policy and cannot pause; Timer-Off local matches can pause. Local expiry
 waits while an accepted dart is

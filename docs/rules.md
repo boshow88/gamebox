@@ -443,6 +443,11 @@ network connection. Darts remains marked WIP in the game menu.
   touch, where your hand never has to cover the board.
 - There is **no power meter, no angle meter, no crosshair, and no random spread.**
   The throw is built entirely from your gesture.
+- On the first eligible human turn, a brief hint outlines the board and mode
+  panel. Throw normally or dismiss it; completion is remembered on this device.
+  Room > Throwing controls can show it again. A faint contact dot and short trail
+  confirm the gesture is being tracked; they do not predict the landing point.
+  Reduced motion keeps the dot without the trail.
 
 ### What the gesture does
 

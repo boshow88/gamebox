@@ -1530,3 +1530,186 @@ async function checkDartsInvalidV2() {
     dartsAssert(dartsApi(f).snapshot().darts === 1, 'Local practice still works after online failure');
     f.remove();
 }
+
+const dartsGuideKey = 'arcadeGames:darts:throw-guide:v1';
+function dartsGuidePointer(f, target, type, x, y, id = 73) {
+    const event = new f.contentWindow.PointerEvent(type, { bubbles: true, cancelable: true, clientX: x, clientY: y,
+        pointerId: id, isPrimary: true, pointerType: f.contentWindow.matchMedia('(pointer: coarse)').matches ? 'touch' : 'mouse' });
+    target.dispatchEvent(event); dartsApi(f).refresh(); return event;
+}
+async function dartsGuideFlick(f, target) {
+    const api = dartsApi(f), w = f.contentWindow, rect = target.getBoundingClientRect();
+    const x = rect.left + rect.width / 2, y = rect.bottom - 7;
+    const down = dartsGuidePointer(f, target, 'pointerdown', x, y);
+    dartsAssert(down.defaultPrevented && api.snapshot().gestureActive && !dartsDoc(f).getElementById('gesture-contact').hasAttribute('hidden'),
+        'A valid throw region tracks the actual pointer and prevents scrolling');
+    await sleep(60); dartsGuidePointer(f, w, 'pointermove', x + 3, y - 60);
+    await sleep(60); dartsGuidePointer(f, w, 'pointermove', x + 6, y - 140);
+    const samples = structuredClone(api.input().gesture.samples), expected = api.physics(samples);
+    dartsAssert(expected.analysis.valid && samples.length === 3, 'Visual feedback adds no extra gesture samples');
+    dartsGuidePointer(f, w, 'pointerup', x + 6, y - 140);
+    const actual = api.input();
+    if (!api.snapshot().room) {
+        dartsAssert(JSON.stringify(actual.analysis.samples) === JSON.stringify(expected.analysis.samples) &&
+            Math.hypot(actual.impact.x - expected.impact.x, actual.impact.y - expected.impact.y) < 1e-8,
+            'Feedback leaves the real human release analysis and physical impact unchanged');
+    }
+}
+async function checkDartsThrowGuideV2() {
+    localStorage.removeItem(dartsGuideKey);
+    const practice = await dartsBoot('touch-guide-practice'), practiceDoc = dartsDoc(practice), practiceApi = dartsApi(practice);
+    await dartsStartLocal(practice); practiceApi.step(5000, 0);
+    dartsAssert(!practiceDoc.getElementById('throw-guide').hidden, 'First-use Practice shares the same nonblocking guide');
+    dartsClick(practice, 'throw-guide-dismiss');
+    dartsAssert(localStorage.getItem(dartsGuideKey) === 'true' && practiceApi.snapshot().match.seq === 0, 'Manual first-use dismissal persists without a throw');
+    practice.remove();
+    for (const [width, height, mode] of [[320, 568, 'cricket'], [390, 844, 'countup'], [1200, 800, 'x01']]) {
+        localStorage.removeItem(dartsGuideKey);
+        const f = await dartsBoot((width < 761 ? 'touch-' : '') + 'guide-' + width, width, height);
+        const doc = dartsDoc(f), w = f.contentWindow, api = dartsApi(f), hint = doc.getElementById('throw-guide');
+        dartsAssert(hint.hidden, 'Lobby does not show throwing onboarding');
+        await dartsChange(f, 'mode-select', mode); await dartsChange(f, 'timer-select', 0);
+        if (mode === 'cricket') await dartsAdd(f, 3);
+        else if (mode === 'x01') await dartsAdd(f, 1);
+        const bounds = () => ['stage', 'player-scores', 'mode-panel'].map(id => {
+            const r = doc.getElementById(id).getBoundingClientRect(); return [r.x, r.y, r.width, r.height];
+        });
+        const before = bounds(); await dartsCpuStart(f); api.step(5000, 0);
+        dartsAssert(!hint.hidden && JSON.stringify(bounds()) === JSON.stringify(before), 'First human hint preserves all HUD and dartboard dimensions');
+        dartsAssert(doc.getElementById('throw-guide-title').textContent === (width < 761 ? 'Swipe up to throw' : 'Drag upward and release'), 'Guidance adapts to touch versus mouse input');
+        dartsAssert(hint.textContent.includes(width < 761 ? 'below' : 'on the right'), 'Guidance identifies the actual responsive mode panel');
+        dartsAssert(hint.getBoundingClientRect().top >= api.boardBottom() - 1, 'English hint does not obscure the board number ring at ' + width + ': ' + JSON.stringify({ top: hint.getBoundingClientRect().top, board: api.boardBottom() }));
+        const highlighted = [...doc.querySelectorAll('.throw-area-hint')].map(el => el.id).sort().join(',');
+        dartsAssert(highlighted === 'mode-panel,throw-surface', 'Only the actual non-interactive throw regions are highlighted');
+        const messageBounds = doc.getElementById('throw-guide-message').getBoundingClientRect();
+        dartsAssert(doc.elementFromPoint(messageBounds.left + 2, messageBounds.top + 2).closest('#throw-surface'), 'The visible hint text lets real pointer input through to the existing throw surface');
+        dartsAssert(w.getComputedStyle(doc.getElementById('mode-panel')).touchAction === 'none' && w.getComputedStyle(doc.getElementById('gesture-contact')).pointerEvents === 'none', 'Mode-panel swipes prevent page scrolling and gesture feedback cannot intercept input');
+        dartsAssert(doc.documentElement.scrollWidth <= width && doc.documentElement.scrollHeight <= height,
+            'Guidance creates no horizontal or vertical page overflow');
+        w.ArcadeCommon.i18n.setLocale('zh');
+        dartsAssert(hint.textContent.includes(width < 761 ? '下方計分區' : '右側計分區') && !/\p{Script=Han} +\p{Script=Han}/u.test(hint.textContent), 'Chinese guidance is concise and uses natural spacing');
+        dartsAssert(hint.getBoundingClientRect().top >= api.boardBottom() - 1, 'Chinese hint does not obscure the board number ring at ' + width);
+        w.ArcadeCommon.i18n.setLocale('en');
+        const surface = doc.getElementById('throw-surface'), rect = surface.getBoundingClientRect(), x = rect.left + rect.width / 2, y = rect.bottom - 12;
+        for (const id of ['history-btn', 'settings-btn', 'pause-btn', 'restart-btn', 'match-meta', 'sound-btn']) {
+            dartsGuidePointer(f, doc.getElementById(id), 'pointerdown', x, y);
+            dartsAssert(!api.snapshot().gestureActive && doc.getElementById('gesture-contact').hasAttribute('hidden'), 'Interactive control cannot start feedback or throw: ' + id);
+        }
+        dartsGuidePointer(f, doc.querySelector('.darts-player-name'), 'pointerdown', x, y);
+        dartsAssert(!api.snapshot().gestureActive, 'Player cards retain history behavior instead of throwing');
+        dartsClick(f, 'history-btn'); api.refresh();
+        dartsAssert(doc.getElementById('history-dialog').open && hint.hidden, 'History remains usable and suspends onboarding');
+        dartsClick(f, 'history-close-btn'); api.refresh();
+        dartsGuidePointer(f, surface, 'pointerdown', x, y);
+        dartsAssert(hint.hidden && !doc.getElementById('gesture-contact').hasAttribute('hidden'), 'Contact cue replaces the tutorial during an actual drag');
+        dartsGuidePointer(f, w, 'pointercancel', x, y);
+        dartsAssert(!api.snapshot().gestureActive && doc.getElementById('gesture-contact').hasAttribute('hidden') && !hint.hidden && !localStorage.getItem(dartsGuideKey), 'Cancel clears feedback without completing or throwing');
+        dartsGuidePointer(f, surface, 'pointerdown', x, y);
+        dartsGuidePointer(f, w, 'pointerup', x, y);
+        dartsAssert(api.snapshot().match.seq === 0 && !localStorage.getItem(dartsGuideKey), 'An invalid tap does not complete the human tutorial');
+        api.step(2000, 2); dartsAssert(!hint.hidden, 'Hint remains available after invalid-gesture feedback expires');
+        dartsGuidePointer(f, surface, 'pointerdown', x, y);
+        dartsClick(f, 'pause-btn');
+        dartsAssert(!api.snapshot().gestureActive && doc.getElementById('gesture-contact').hasAttribute('hidden') && hint.hidden, 'Pause immediately cancels contact feedback and onboarding');
+        dartsClick(f, 'pause-btn'); api.refresh();
+        w.__dartsReducedMotion(true);
+        dartsGuidePointer(f, surface, 'pointerdown', x, y);
+        dartsGuidePointer(f, w, 'pointermove', x + 2, y - 10);
+        dartsAssert(w.getComputedStyle(doc.getElementById('gesture-trail')).display === 'none' && !doc.getElementById('gesture-contact').hasAttribute('hidden'), 'Reduced motion keeps the contact dot without the moving trail');
+        dartsGuidePointer(f, w, 'pointercancel', x, y); w.__dartsReducedMotion(false);
+        await dartsGuideFlick(f, surface);
+        dartsAssert(hint.hidden && localStorage.getItem(dartsGuideKey) === 'true' && doc.getElementById('gesture-contact').hasAttribute('hidden'), 'An accepted human throw completes and persists the tutorial');
+        api.land(); api.step(5000, 1);
+        await dartsGuideFlick(f, doc.querySelector(mode === 'cricket' ? '.cricket-table tbody td' : '#turn-panel .turn-dart-hit'));
+        api.land();
+        dartsAssert(api.snapshot().match.seq === 2 && hint.hidden, 'Nested lower-panel content starts a normal second throw without repeating the tutorial');
+        dartsClick(f, 'settings-btn'); doc.querySelector('.darts-gesture-help').open = true;
+        dartsClick(f, 'throw-guide-review'); api.step(5000, 1);
+        dartsAssert(!doc.getElementById('lobby').open && !hint.hidden, 'Existing throwing help can replay the nonblocking region hint');
+        const seq = api.snapshot().match.seq;
+        const dismiss = doc.getElementById('throw-guide-dismiss');
+        dismiss.dispatchEvent(new w.KeyboardEvent('keydown', { key: 'R', bubbles: true, cancelable: true }));
+        dartsGuidePointer(f, dismiss, 'pointerdown', 20, 20);
+        dartsAssert(!api.snapshot().gestureActive && !doc.getElementById('lobby').open, 'Guide controls cannot trigger a throw or the shell restart shortcut');
+        dartsClick(f, 'throw-guide-dismiss');
+        dartsAssert(hint.hidden && !doc.querySelector('.throw-area-hint') && api.snapshot().match.seq === seq, 'Manual dismissal removes the hint without creating a throw');
+        dartsClick(f, 'restart-btn'); await until(() => doc.getElementById('lobby').open, 'guide restart');
+        await dartsCpuStart(f); api.step(5000, 0);
+        dartsAssert(hint.hidden, 'A new Match does not repeat completed onboarding');
+        // A later Leg also keeps the device preference.
+        const leg = structuredClone(api.snapshot().match); leg.leg++; api.replace(leg); api.step(5000, 0); dartsConfirmHandoff(f);
+        dartsAssert(hint.hidden, 'A new Leg does not repeat completed onboarding');
+        f.remove();
+        const persisted = await dartsBoot('guide-persisted-' + width, width, height);
+        await dartsStartLocal(persisted); dartsApi(persisted).step(5000, 0);
+        dartsAssert(dartsDoc(persisted).getElementById('throw-guide').hidden, 'Tutorial completion survives a fresh page on the device'); persisted.remove();
+    }
+}
+async function checkDartsThrowGuideOwnershipV2() {
+    localStorage.removeItem(dartsGuideKey);
+    const f = await dartsBoot('touch-guide-cpu'), api = dartsApi(f), doc = dartsDoc(f);
+    await dartsChange(f, 'mode-select', 'countup'); await dartsChange(f, 'timer-select', 0);
+    await dartsAddCpu(f); await dartsAdd(f, 1); await dartsCpuStart(f, 1);
+    const hint = doc.getElementById('throw-guide');
+    dartsAssert(hint.hidden, 'A CPU starting the Match does not show human onboarding');
+    for (let i = 0; i < 3; i++) {
+        dartsCpuDart(f);
+        dartsAssert(doc.getElementById('gesture-contact').hasAttribute('hidden') && !localStorage.getItem(dartsGuideKey), 'CPU gestures never create human feedback or complete onboarding');
+    }
+    api.step(5000, 1);
+    dartsAssert(!hint.hidden, 'First eligible human turn after CPU receives onboarding');
+    for (let i = 0; i < 3; i++) dartsHumanDart(f);
+    api.step(5000, 1);
+    dartsAssert(!doc.getElementById('handoff-overlay').hidden && hint.hidden, 'Same-device handoff confirmation precedes throwing guidance');
+    dartsClick(f, 'handoff-ready-btn'); api.step(5000, 0);
+    dartsAssert(!hint.hidden && !localStorage.getItem(dartsGuideKey), 'Confirming another human does not count as a throw or complete guidance');
+    await dartsGuideFlick(f, doc.getElementById('mode-panel')); api.land();
+    dartsAssert(localStorage.getItem(dartsGuideKey) === 'true', 'Only an actual accepted human pointer gesture completes onboarding');
+    api.step(5000, 1);
+    const timed = structuredClone(api.snapshot().match); timed.turnMs = 30000; timed.turnStartedAt = f.contentWindow.__dartsNow;
+    api.replace(timed);
+    dartsGuidePointer(f, doc.getElementById('mode-panel'), 'pointerdown', 30, 500);
+    dartsAssert(!doc.getElementById('gesture-contact').hasAttribute('hidden'), 'A timed human gesture still shows contact feedback');
+    api.step(30001, 0); api.expire(); api.refresh();
+    dartsAssert(!api.snapshot().gestureActive && doc.getElementById('gesture-contact').hasAttribute('hidden'), 'An accepted timeout cancels stale human contact feedback');
+    f.remove();
+}
+async function checkDartsThrowGuideRemoteV2() {
+    localStorage.removeItem(dartsGuideKey);
+    const a = await dartsBoot('guide-host'), b = await dartsBoot('guide-guest');
+    await dartsChange(a, 'mode-select', 'countup'); await dartsChange(a, 'timer-select', 0);
+    const code = await dartsPromote(a); await dartsJoin(b, code); await dartsStartOnline(a, [b]);
+    const tools = dartsRoomTools(code, [a, b]); tools.syncClock();
+    [a, b].forEach(f => dartsApi(f).step(5000, 0));
+    const active = tools.active(), waiting = active === a ? b : a;
+    dartsAssert(!dartsDoc(active).getElementById('throw-guide').hidden && dartsDoc(waiting).getElementById('throw-guide').hidden, 'Remote observers do not show the throwing tutorial');
+    const panel = dartsDoc(waiting).getElementById('mode-panel');
+    dartsGuidePointer(waiting, panel, 'pointerdown', 20, 20);
+    dartsAssert(!dartsApi(waiting).snapshot().gestureActive && dartsDoc(waiting).getElementById('gesture-contact').hasAttribute('hidden'), 'Remote ownership blocks contact feedback');
+    const controller = dartsApi(active).controller(), submit = controller.submit;
+    controller.submit = async () => false;
+    try { await dartsGuideFlick(active, dartsDoc(active).getElementById('mode-panel')); await sleep(20); }
+    finally { controller.submit = submit; }
+    dartsAssert(!localStorage.getItem(dartsGuideKey) && tools.read().game.seq === 0, 'A rejected online human throw does not complete onboarding');
+    dartsApi(active).step(2000, 2);
+    await dartsGuideFlick(active, dartsDoc(active).getElementById('mode-panel'));
+    await until(() => tools.read().game.seq === 1 && localStorage.getItem(dartsGuideKey) === 'true', 'remote human throw accepted before tutorial completion');
+    [a, b].forEach(f => dartsApi(f).land());
+    dartsAssert(dartsDoc(active).getElementById('throw-guide').hidden && dartsDoc(waiting).getElementById('throw-guide').hidden, 'An accepted online throw completes only its controlling human guide');
+    // Simulated devices share this profile; both guide instances captured their
+    // first-use state before the first device saved its completion preference.
+    for (let i = 0; i < 2; i++) await tools.throwAt(500, 0);
+    [a, b].forEach(f => dartsApi(f).step(5000, 1));
+    dartsAssert(!dartsDoc(waiting).getElementById('throw-guide').hidden && dartsDoc(active).getElementById('throw-guide').hidden, 'The other device receives its own first human turn guidance');
+    a.remove(); b.remove();
+}
+async function checkDartsThrowGuidePreviewV2() {
+    if (!guideOnly || !preview) return;
+    localStorage.removeItem(dartsGuideKey);
+    const width = preview === 'desktop' ? 1200 : 390, height = preview === 'desktop' ? 800 : 844;
+    const f = await dartsBoot((width < 761 ? 'touch-' : '') + 'guide-preview', width, height);
+    f.style.cssText = 'position:fixed;inset:0;width:' + width + 'px;height:' + height + 'px;border:0;z-index:20';
+    await dartsChange(f, 'mode-select', 'cricket'); await dartsChange(f, 'timer-select', 0); await dartsAdd(f, 3);
+    f.contentWindow.ArcadeCommon.i18n.setLocale('zh'); await dartsCpuStart(f); dartsApi(f).step(5000, 0);
+    await dartsDoc(f).fonts.ready; await sleep(60);
+}

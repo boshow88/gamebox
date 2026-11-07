@@ -69,6 +69,11 @@
                         <canvas class="stage-canvas drag-stage" id="stage" width="480" height="600" role="img" aria-label="Dartboard"></canvas>
                     </div>
                     <div class="hit-toast" id="hit-toast" aria-hidden="true" hidden></div>
+                    <div class="throw-guide" id="throw-guide" role="note" hidden>
+                        <svg class="throw-guide-arrow" viewBox="0 0 16 24" aria-hidden="true"><path d="M8 21V3M3 8l5-5 5 5"/></svg>
+                        <div><strong id="throw-guide-title"></strong><p id="throw-guide-message"></p></div>
+                        <button id="throw-guide-dismiss" type="button" data-i18n-aria-label="dartsGuideDismiss" aria-label="Dismiss hint">×</button>
+                    </div>
                     <div class="turn-notice" id="turn-notice" role="status" aria-live="polite" hidden>
                         <strong id="turn-notice-title"></strong><span id="turn-notice-message"></span>
                     </div>
@@ -114,6 +119,9 @@
                     <p id="dart-feedback" role="status" aria-live="polite"></p>
                     <p id="network-status" role="status"></p>
                 </aside>
+                <svg class="gesture-contact" id="gesture-contact" aria-hidden="true" hidden>
+                    <polyline id="gesture-trail"/><circle id="gesture-dot" r="5"/>
+                </svg>
             </section>
         </div>
 
@@ -169,6 +177,7 @@
                     <li data-i18n="dartsThrowAim">Direction and speed just before release determine the landing point. Flick sideways to steer; a faster upward flick usually lands higher.</li>
                     <li data-i18n="dartsThrowStart">The press point does not affect your aim. Start wherever feels comfortable.</li>
                 </ul>
+                <button class="btn" id="throw-guide-review" type="button" data-i18n="dartsGuideReview">Show throw-area hint in game</button>
             </details>
             </div>
             <footer class="lobby-footer">
@@ -199,6 +208,7 @@
     <script src="../js/games/darts-lobby.js"></script>
     <script src="../js/games/darts-cpu-gesture.js"></script>
     <script src="../js/games/darts-cpu-strategy.js"></script>
+    <script src="../js/games/darts-throw-guide.js"></script>
     <script src="../js/games/darts.js"></script>
 </body>
 

@@ -31,7 +31,7 @@
     var room = null, lobby = null, sending = false, seenThrow = null, onlineMatchId = null;
     var localRoom = null, onlineLoading = null, observedOnlinePhase = null, lastRoomSnapshot = null;
     var localController = 'local-controller', localSeatSerial = 0;
-    var hud = null, historyView = null;
+    var hud = null, historyView = null, throwGuide = null;
     var feedback = window.DartsFeedback.create(), feedbackState = feedback.snapshot(Date.now());
     var pendingFeedbackEvent = null, feedbackKey = '', presentationTurnKey = '', handoffPressKey = null;
     var cpuGesture = null, cpuRandom = null, cpuPending = null, lastCpuThrow = null;
@@ -51,6 +51,16 @@
         dartsThrowHelp: 'Press in the board or mode panel, flick upward, and release to throw.',
         dartsThrowAim: 'Direction and speed just before release determine the landing point. Flick sideways to steer; a faster upward flick usually lands higher.',
         dartsThrowStart: 'The press point does not affect your aim. Start wherever feels comfortable.',
+        dartsGuideSwipe: 'Swipe up to throw',
+        dartsGuideDrag: 'Drag upward and release',
+        dartsGuideBelow: 'Start in the board area or the score panel below.',
+        dartsGuideBeside: 'Start in the board area or the score panel on the right.',
+        dartsGuideSwipeBelow: 'Swipe up here or in the panel below.',
+        dartsGuideSwipeBeside: 'Swipe up here or in the right panel.',
+        dartsGuideDragBelow: 'Drag up here or in the panel below.',
+        dartsGuideDragBeside: 'Drag up here or in the right panel.',
+        dartsGuideDismiss: 'Dismiss throwing hint',
+        dartsGuideReview: 'Show throw-area hint in game',
         dartsMiss: 'Miss',
         dartsBull: 'Bull',
         dartsOuterBull: 'Outer Bull',
@@ -69,6 +79,16 @@
         dartsThrowHelp: '在鏢靶或模式欄按住，往上甩動，放開投鏢。',
         dartsThrowAim: '放手前的滑動方向與速度決定落點：左右帶動會偏向該側，向上甩得越快，通常落得越高。',
         dartsThrowStart: '起手位置不影響瞄準，從順手的位置開始即可。',
+        dartsGuideSwipe: '向上滑動投鏢',
+        dartsGuideDrag: '向上拖曳，放開投鏢',
+        dartsGuideBelow: '鏢靶區或下方計分區都能起手。',
+        dartsGuideBeside: '鏢靶區或右側計分區都能起手。',
+        dartsGuideSwipeBelow: '鏢靶或下方計分區皆可向上滑動投鏢。',
+        dartsGuideSwipeBeside: '鏢靶或右側計分區皆可向上滑動投鏢。',
+        dartsGuideDragBelow: '鏢靶或下方計分區皆可向上拖曳投鏢。',
+        dartsGuideDragBeside: '鏢靶或右側計分區皆可向上拖曳投鏢。',
+        dartsGuideDismiss: '關閉投鏢提示',
+        dartsGuideReview: '在遊戲中顯示投鏢區域提示',
         dartsMiss: '脫靶',
         dartsBull: '紅心',
         dartsOuterBull: '外紅心',
@@ -628,9 +648,9 @@
         var samples = gesture.samples;
         gesture = null;
         if (!canThrow()) return;
-        submitGesture(samples);
+        submitGesture(samples, function () { throwGuide.complete(); });
     }
-    function submitGesture(samples) {
+    function submitGesture(samples, onAccepted) {
         var an = analyseGesture(samples);
         G.analysis = an;
         if (!an.valid) {
@@ -639,7 +659,7 @@
             return false;
         }
         if (match && match.turnMs > 0 && Date.now() >= match.turnStartedAt + match.turnMs) return false;
-        launchThrow(an);
+        launchThrow(an, onAccepted);
         return true;
     }
 
@@ -651,7 +671,7 @@
         AC.audio.tone(220, 0.06, { type: 'sine', volume: 0.05, slideTo: 180 });
     }
 
-    function launchThrow(an) {
+    function launchThrow(an, onAccepted) {
         var th = computeThrow(an);
         var impact = computeImpact(th);
         G.analysis = an;
@@ -659,10 +679,12 @@
             sending = true;
             online.submit(th).then(function (accepted) {
                 if (!accepted) flashHint(t('dartsThrowRejected'));
+                else if (onAccepted) onAccepted();
             }).catch(showNetError).finally(function () { sending = false; syncGameUi(); });
             return;
         }
         presentThrow(th, impact);
+        if (onAccepted) onAccepted();
     }
 
     function presentThrow(th, impact) {
@@ -842,6 +864,11 @@
         }
         syncThrowFeedback();
         if (TUNING.debug && (!match || match.mode === 'practice')) drawDebug();
+        syncThrowGuide();
+    }
+
+    function syncThrowGuide() {
+        if (throwGuide) throwGuide.sync(canThrow(), gesture, !G.hintT && !feedbackState.notice);
     }
 
     function syncThrowFeedback() {
@@ -1376,6 +1403,7 @@
         }
         if (historyView) historyView.refresh();
         renderLobby();
+        syncThrowGuide();
     }
     function clearBoard() {
         cpuPending = null;
@@ -1625,6 +1653,7 @@
         }, true);
         document.querySelectorAll('.darts-dialog').forEach(function (dialog) { dialog.addEventListener('keydown', function (event) { event.stopPropagation(); }); });
         window.addEventListener('keydown', function (event) {
+            if (event.target.closest && event.target.closest('#throw-guide')) return;
             if ((event.key === 'r' || event.key === 'R') && !usesSharedMatch() && !document.querySelector('.darts-dialog[open]')) {
                 event.preventDefault(); event.stopImmediatePropagation(); restartLocal().catch(showNetError);
             }
@@ -1642,6 +1671,10 @@
     function init() {
         cpuGesture = window.DartsCpuGesture.create({ analyseGesture: analyseGesture, computeThrow: computeThrow, computeImpact: computeImpact });
         localRoom = newLocalRoom();
+        throwGuide = window.createDartsThrowGuide({ document: document, t: t, storage: AC.storage, review: function () {
+            if (match && match.status === 'playing' && roomData().phase === 'playing') lobby.close();
+            syncThrowGuide();
+        } });
         hud = window.DartsHud.create({ document: document, t: t, resultLabel: resultLabel, modeName: modeName,
             locale: function () { return AC.i18n.locale; }, isOnline: usesSharedMatch,
             myUid: controllerId, controlsPlayer: controlsPlayer, isFlying: function () { return G.dartState === 'flying'; } });
@@ -1669,7 +1702,7 @@
             overlayContent: overlayContent,
             canPause: function () { return !usesSharedMatch() && !!match && !match.turnMs && match.status === 'playing' && roomData().phase === 'playing'; },
             canRestart: function () { return !usesSharedMatch(); },
-            onPause: function () { gesture = null; cpuPending = null; },
+            onPause: function () { gesture = null; cpuPending = null; syncThrowGuide(); },
             onStart: function () {
                 syncGameUi(); fitCanvas();
                 if (roomData().phase !== 'playing') queueMicrotask(function () { shell.goIdle(); openLobby(); });

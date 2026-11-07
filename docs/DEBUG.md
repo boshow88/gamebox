@@ -190,6 +190,17 @@ purpose including ties and final-impact holds. No test hook ships in the game.
 Optional `--darts-cpu --darts-mobile`, `--darts-cpu --darts-desktop` and
 `--darts-cpu --darts-lobby --darts-mobile` write ignored CPU screenshots in `.cache`.
 
+`node tools/rooms-browser-check.js --darts-guide` checks first-use guidance and
+the existing pointer path at 320x568, 390x844 and 1200x800 in EN/ZH. It verifies
+touch/mouse wording, real region highlights, unchanged board/HUD bounds, an
+unobscured board number ring, no page overflow, board/nested-panel starts,
+interactive controls, invalid/cancelled gestures, pause, reduced motion,
+accepted-human-only completion, replay from help and persistence across pages,
+Legs and Matches. CPU-first and mixed-device turns check ownership and handoff.
+The same actual samples are replayed through physics to compare human impacts.
+These cases also run in `--darts`. Add `--darts-mobile` or `--darts-desktop` to
+write ignored `.cache/darts-guide-mobile.png` or `darts-guide-desktop.png` previews.
+
 Lobby checks keep the header/footer visible at every content scroll position
 with four players and expanded rules at 320x568, 390x844 and 1200x420. They verify
 mode-aware Start/Starting/Ready/waiting labels, minimum-player reasons, per-device
