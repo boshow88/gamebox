@@ -183,10 +183,10 @@
     // most rounds a genuine contest (no "A always right, B always wrong" split).
     var BOT_K = 0.7;
     var DIFF = [
-        { mean: 2.2, std: 0.5 }, { mean: 2.6, std: 0.6 }, { mean: 3.1, std: 0.7 }, { mean: 3.7, std: 0.8 },    // easy
-        { mean: 4.6, std: 0.9 }, { mean: 5.3, std: 1.0 }, { mean: 6.0, std: 1.1 }, { mean: 6.8, std: 1.2 },    // normal
-        { mean: 8.0, std: 1.3 }, { mean: 9.0, std: 1.4 }, { mean: 10.0, std: 1.5 }, { mean: 11.0, std: 1.6 }, // hard
-        { mean: 12.4, std: 1.7 }, { mean: 13.6, std: 1.8 }, { mean: 14.8, std: 1.9 }, { mean: 16.0, std: 2.0 } // insane
+        { mean:  2.4, std: 0.5 }, { mean:  3.0, std: 0.6 }, { mean:  3.6, std: 0.7 }, { mean:  4.2, std: 0.8 }, // easy
+        { mean:  5.1, std: 0.9 }, { mean:  5.7, std: 1.0 }, { mean:  6.4, std: 1.1 }, { mean:  7.1, std: 1.2 }, // normal
+        { mean:  8.3, std: 1.3 }, { mean:  9.3, std: 1.4 }, { mean: 10.3, std: 1.5 }, { mean: 11.3, std: 1.6 }, // hard
+        { mean: 12.6, std: 1.7 }, { mean: 13.7, std: 1.8 }, { mean: 14.8, std: 1.9 }, { mean: 16.0, std: 2.0 }  // insane
     ];
     var NOTCH_MAX = DIFF.length - 1;
     var TIER_NAMES = ['easy', 'normal', 'hard', 'insane'];
@@ -420,33 +420,46 @@
         });
     }
 
-    // Solo = a LOCAL match: you vs 3 CPU rivals set by ONE difficulty notch (records a best place
-    // per notch). This is the classic "pick this round's difficulty" mode.
-    function beginSolo() {
-        var notch = stagedNotch, lives = AC.math.clamp(stagedHp | 0, HP_MIN, HP_MAX) || HP_START;
-        lastSolo = null;                                                                  // clear the previous match's standings
+    // Launch a LOCAL match (no network room): you vs the given CPU line-up (each with its own
+    // strength). notchForBest records a best place per difficulty (Solo tab only); null = untracked.
+    function startLocalMatch(botList, notchForBest) {
+        if (!botList || !botList.length) return;                                            // need at least one CPU rival
+        var lives = AC.math.clamp(stagedHp | 0, HP_MIN, HP_MAX) || HP_START;
+        lastSolo = null;                                                                   // clear the previous match's standings
         var players = { you: { uid: 'you', name: myName(), order: 0 } };
         var bots = {}, hp = { you: lives }, alive = { you: true }, strengths = [];
-        for (var i = 1; i <= 3; i++) {
-            var s = strengthForNotch(notch); strengths.push(s);
-            var id = 'bot' + i; bots[id] = { name: t('beamCpuName', i), order: i, notch: notch, strength: s };
-            hp[id] = lives; alive[id] = true;
-        }
+        botList.forEach(function (b, i) {
+            var s = strengthForNotch(b.notch); strengths.push(s);
+            bots[b.id] = { name: b.name, order: i + 1, notch: b.notch, strength: s };
+            hp[b.id] = lives; alive[b.id] = true;
+        });
         var start = openingLevel(strengths);                                               // opening level trails the field
         var seed = (Math.random() * 1e9) >>> 0;
         room = { code: 'SOLO', unsub: null, data: { code: 'SOLO', status: 'playing', hostUid: 'you', players: players, order: ['you'], bots: bots, round: 0, game: { status: 'playing', round: 1, seed: seed, level: start, center: start, hp: hp, alive: alive, answers: {}, results: {}, rankByUid: {} } } };
-        om = { myUid: 'you', local: true, notch: notch, seed: seed, round: 0, localStart: 0, puzzle: null, choice: null, submitted: false, alive: true, over: false, lastPhase: '', hpStart: {}, aliveStart: {}, host: {} };
+        om = { myUid: 'you', local: true, notch: (notchForBest != null ? notchForBest : null), seed: seed, round: 0, localStart: 0, puzzle: null, choice: null, submitted: false, alive: true, over: false, lastPhase: '', hpStart: {}, aliveStart: {}, host: {} };
         closeLobby(); hideShellOverlay(); applyHudMode();
         if (!shell.isPlaying()) shell.start();                                            // enter the loop (onStart no-ops: om is set)
         setControlsForMatch();
         startLocalRound(1, room.data); renderPlayersBar(room.data);
     }
+    // Solo tab: one difficulty → 3 CPU rivals (records a best place per notch).
+    function beginSolo() {
+        var notch = stagedNotch, list = [];
+        for (var i = 1; i <= 3; i++) list.push({ id: 'bot' + i, name: t('beamCpuName', i), notch: notch });
+        startLocalMatch(list, notch);
+    }
+    // Online tab, before a room: start a local match with the staged CPUs — no room needed.
+    function beginLocalFromStaging() {
+        startLocalMatch(local.seatOrder.map(function (id) { return { id: id, name: local.bots[id].name, notch: local.bots[id].notch }; }), null);
+    }
     function soloMatchOver(data) {
         var g = data.game || {}, players = rosterPlayers(data), order = rosterIds(data);
         var ranks = g.rankByUid || {}, fallback = order.length || 4;
-        var rank = ranks[om.myUid] || fallback, notch = om.notch;
-        var best = loadSoloStats(notch).best; best = best ? Math.min(best, rank) : rank; saveSoloStats(notch, { best: best });
-        if (window.CloudSync) window.CloudSync.sync();   // mirror the improved best place to the cloud profile
+        var rank = ranks[om.myUid] || fallback, notch = om.notch, best = 0;
+        if (notch != null) {   // Solo tab only: record the best place per difficulty and sync it
+            best = loadSoloStats(notch).best; best = best ? Math.min(best, rank) : rank; saveSoloStats(notch, { best: best });
+            if (window.CloudSync) window.CloudSync.sync();   // mirror the improved best place to the cloud profile
+        }
 
         var standings = order.filter(function (u) { return players[u]; }).map(function (u) {
             var rk = ranks[u] || fallback;
@@ -1186,7 +1199,7 @@
     // The single primary button: Solo → start the match; Online (in a room) → host-start / ready / rematch.
     function primaryAction() {
         if (currentMode() === 'solo') { beginSolo(); return; }
-        if (!onlineRoom()) return;                      // Online pre-room: Create / Join handle it
+        if (!onlineRoom()) { if (localRosterCount() >= 2) beginLocalFromStaging(); return; }   // Online pre-room: start a local match with the staged CPUs (no room needed)
         var a = matchmaking.primaryAction(room.data) || { kind: 'none' };
         if (a.kind === 'start') return hostStart();
         if (a.kind === 'ready') return doReady();
@@ -1254,7 +1267,9 @@
             hpEditable: online ? (isHost() && !playing) : true,
             uid: myUid(), host: online ? effectiveHost(d) : 'you',
             roster: roster(),
-            action: online ? (matchmaking.primaryAction(d) || { kind: 'none' }) : { kind: 'none' },
+            // In a room: host-start / ready / rematch. Before a room: start locally with the staged CPUs.
+            action: online ? (matchmaking.primaryAction(d) || { kind: 'none' }) : { kind: 'start-solo', disabled: localRosterCount() < 2 },
+            results: online ? null : lastSolo,   // local match standings (shown while not in a room)
             status: lobbyStatus(d, finished),
         };
     }

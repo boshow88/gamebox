@@ -81,19 +81,19 @@
             setText('diff-readout', model.notchLabel || '');
             setText('solo-best', model.best ? (t('best') + '：' + model.best) : '');
             var hp = get('solo-hp-select'); if (hp && doc.activeElement !== hp) hp.value = String(model.hp);
-            var res = get('solo-results'), standings = model.results && model.results.standings;
-            if (res) {
-                res.hidden = !(standings && standings.length);
-                if (!res.hidden) {
-                    var listEl = get('solo-results-list'); listEl.replaceChildren();
-                    standings.forEach(function (s) {
-                        var li = node('div', 'li' + (s.you ? ' me' : ''));
-                        var nm = node('span', 'nm'); var dot = node('span', 'dot', '\u25cf'); dot.style.color = s.color;
-                        nm.append(dot, doc.createTextNode(' ' + s.name)); li.append(nm, node('span', 'rk', s.place));
-                        listEl.append(li);
-                    });
-                }
-            }
+        }
+        function renderResults(model) {   // local-match standings, shown above both tabs (not while in a room)
+            var res = get('lobby-results'), standings = model.results && model.results.standings;
+            if (!res) return;
+            res.hidden = !(standings && standings.length);
+            if (res.hidden) return;
+            var listEl = get('lobby-results-list'); listEl.replaceChildren();
+            standings.forEach(function (s) {
+                var li = node('div', 'li' + (s.you ? ' me' : ''));
+                var nm = node('span', 'nm'); var dot = node('span', 'dot', '\u25cf'); dot.style.color = s.color;
+                nm.append(dot, doc.createTextNode(' ' + s.name)); li.append(nm, node('span', 'rk', s.place));
+                listEl.append(li);
+            });
         }
 
         function renderOnline(model) {
@@ -152,11 +152,12 @@
             get('solo-pane').hidden = mode !== 'solo';
             get('online-pane').hidden = mode !== 'online';
 
+            renderResults(model);
             if (mode === 'solo') renderSolo(model); else renderOnline(model);
 
             var btn = get('lobby-start-btn'), unready = get('lobby-unready-btn'), a = model.action || {};
             btn.hidden = false; unready.hidden = true; btn.disabled = busy;
-            if (a.kind === 'start-solo') { btn.textContent = t('beamStartSolo'); }
+            if (a.kind === 'start-solo') { btn.textContent = t('beamStartSolo'); btn.disabled = busy || !!a.disabled; }
             else if (a.kind === 'start') { btn.textContent = t('beamStartMatch'); btn.disabled = busy || !!a.disabled; }
             else if (a.kind === 'wait-ready') { btn.textContent = t('beamReadyWait'); btn.disabled = true; unready.hidden = false; unready.disabled = busy; }
             else if (a.kind === 'ready') { btn.textContent = t('beamReadyUp'); }
