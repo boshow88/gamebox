@@ -9,9 +9,10 @@ covers Console setup and Firestore room retirement.
 `js/net/net.js` handles authentication and exposes `ArcadeNet.rooms.create(options)`,
 `rooms.presence(options)` and `rooms.lobby(options)`.
 
-Beam and Rune Stones supply translated text, player badges, results and actions
-to the shared lobby view. Darts uses its own unified lobby view on the same room
-service so one device can control several participants. Match simulation,
+Rune Stones supplies translated text, player badges, results and actions
+to the shared lobby view. Beam and Darts each use their own unified lobby view on
+the same room service — Darts so one device can control several participants, Beam
+(`js/games/beam-lobby.js`) for its Solo/Online tabs and custom CPUs. Match simulation,
 heartbeat cadence and timeouts remain game-specific. Configuration and
 synchronous lifecycle hooks replace separate copies of room CRUD and readiness
 checks.
@@ -283,8 +284,9 @@ Gameplay `update` remains available for the game's own synchronization protocol.
 These client checks use the RTDB access rules; they are not server
 authority or cheat prevention.
 
-Beam and Rune Stones render their primary action from `primaryAction`, then supply their
-own translated text and handlers to the shared lobby. A host sees a disabled Start
+Rune Stones renders its primary action from `primaryAction`, then supplies its
+own translated text and handlers to the shared lobby. (Beam uses its own lobby
+view like Darts.) A host sees a disabled Start
 until the guest is ready, a ready guest waits for the host, and results offer
 Rematch only to the host while guests see a waiting message. Rematch clears all
 readiness inside the same room; it does not create a room or start automatically.
@@ -349,8 +351,8 @@ policy in the lobby and during play, whether the host or guest closes a page.
 
 ## Shared lobby layout
 
-Both game pages load `css/room-lobby.css`. Create one view after the network layer
-is ready and keep its element/reference handles for showing, hiding and errors:
+The Rune Stones page loads `css/room-lobby.css`. Create one view after the network
+layer is ready and keep its element/reference handles for showing, hiding and errors:
 
 ```js
 const view = net.rooms.lobby({ onClose: closeLobby, onError: showLobbyError });
@@ -388,9 +390,10 @@ width, spacing and responsive styling in both games, independent of board size:
 4. Copy and the primary action together (Start, Ready, Rematch or waiting text).
 5. Leave on a separate full-width row, followed by status and Close.
 
-The game decides which actions to expose. Beam supplies spectator notes and rank
-badges; Rune Stones supplies online/ready badges. Both share the exact element
-structure and CSS. The view never joins/leaves a room or decides when a game starts.
+The game decides which actions to expose. Rune Stones supplies online/ready badges
+through this shared structure and CSS. (Beam renders its own spectator notes and
+rank badges in `js/games/beam-lobby.js`.) The view never joins/leaves a room or
+decides when a game starts.
 
 ## Traffic and storage
 

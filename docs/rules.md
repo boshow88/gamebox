@@ -395,7 +395,7 @@ Each round runs in four short beats:
 
 ### Lives & winning
 
-- Everyone starts with **three lives**. In a round where **some hit and some
+- Everyone starts with **3 lives** by default (the **Room** lets you set **3–8**). In a round where **some hit and some
   miss**, only those who **missed lose a life** (a round everyone gets right — or
   everyone gets wrong — costs nothing).
 - Reach **0 lives** and you're out, watching the rest play on. **Last one standing
@@ -406,15 +406,18 @@ Each round runs in four short beats:
 
 ### Modes & difficulty
 
-- **Solo** — you versus **3 CPU rivals**. The difficulty bar (16 steps across
-  **Easy / Normal / Hard / Insane**) sets how strong those rivals are; dragging it
-  previews the new setting and commits on the next Start. Best = your best finishing
-  place, kept per difficulty.
-- **Online** — **2–4 real players** by room code; the host starts once everyone is
-  ready. Difficulty is shared and adapts to the group's results, so the picker is
-  locked for the duration of an online match.
-- Difficulty is **adaptive**: do well and the next grid grows / gains mirrors; do
-  badly and it eases off.
+Settings live in a **Room** panel that opens on load, with two tabs:
+
+- **Solo** — you versus **3 CPU rivals**. A difficulty slider (**16 steps** across
+  **Easy / Normal / Hard / Insane**) sets how strong they are. Best = your best
+  finishing place, kept per difficulty.
+- **Online** — **2–8 players** by room code; mix real players with **CPUs** (each
+  CPU keeps its own strength, set by whoever added it). You can also **Start** a
+  local match with your CPUs **without creating a room** — a room is only for
+  inviting others. The host picks everyone's starting **lives (3–8)**, starts once
+  all are ready, and can remove a player.
+- Puzzle difficulty is **adaptive**, scaled to the live field: too many players
+  missing a round eases the next grid, too few toughens it.
 
 ### Tuning
 

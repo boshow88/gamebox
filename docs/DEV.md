@@ -187,12 +187,12 @@ hasn't taken effect yet:
 - When they differ, render `current → pending` — e.g. `9×9 → 11×11` or
   `Normal II → Hard I` — with a `pending` class; style the current value muted,
   the arrow fainter, and the pending value in the game colour.
-- Make the readout granular enough that **every** step previews a change (e.g.
-  Beam shows a Roman-numeral sub-step within a tier, so same-tier moves still read
-  as a change).
+- Make the readout granular enough that **every** step previews a change (a
+  Roman-numeral sub-step within a tier, say, so same-tier moves still read as a change).
 
-Reference: `js/puzzle.js` → `syncSizeButtons` (`.size-readout`), and
-`js/games/beam.js` → `syncDiffControl` (`.diff-readout`).
+Reference: `js/puzzle.js` → `syncSizeButtons` (`.size-readout`). (Beam's old
+difficulty bar used this pattern; its difficulty now lives in the Room's Solo tab
+as a plain slider that applies on Start, so it is no longer a deferred-apply control.)
 
 ### Icons
 
