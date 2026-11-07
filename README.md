@@ -1,5 +1,7 @@
 # GameBox
 
+**Play now: [boshow88.github.io/gamebox](https://boshow88.github.io/gamebox/)**
+
 A single static site that hosts every game from the old **Arcade Games** and
 **Puzzle Games** collections, browsable by **tags**. Pure static HTML/CSS/JS —
 no build step, works offline, deployable on GitHub Pages.
@@ -108,6 +110,8 @@ python -m http.server 8000   # then open http://localhost:8000
 ```
 
 ## Deploy on GitHub Pages
+
+Live at **<https://boshow88.github.io/gamebox/>**.
 
 Settings → Pages → Source: `main` branch, `/` (root). All paths are relative.
 Rune Stones' online PvP uses Firebase; its authorized domains are domain-level
