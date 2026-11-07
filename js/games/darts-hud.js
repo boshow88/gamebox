@@ -247,8 +247,9 @@
                 m.players.forEach(function (p) {
                 var card = el('button', 'darts-player' + (p.active ? ' active' : '') + (p.left ? ' withdrawn' : ''));
                 card.type = 'button'; card.setAttribute('aria-haspopup', 'dialog');
-                var owned = controls(p.id), cpu = p.type === 'cpu', ownership = cpu ? t('dartsCpu') + ' · ' +
-                    t('dartsCpu' + p.difficulty.charAt(0).toUpperCase() + p.difficulty.slice(1)) : t(owned ? 'dartsThisDevice' : 'dartsOtherDevice');
+                var owned = options.ownsPlayer ? options.ownsPlayer(p.id) : controls(p.id), cpu = p.type === 'cpu';
+                var ownership = (cpu ? t('dartsCpu') + ' · ' + t('dartsCpu' + p.difficulty.charAt(0).toUpperCase() + p.difficulty.slice(1)) + ' · ' : '') +
+                    t(owned ? 'dartsThisDevice' : 'dartsOtherDevice');
                 card.setAttribute('aria-label', p.name + ' · ' + ownership + ' · ' + t('dartsHistory'));
                 card.title = p.name + ' · ' + ownership;
                 card.style.setProperty('--player-color', p.color); card.dataset.playerUid = p.id;

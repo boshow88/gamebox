@@ -190,6 +190,24 @@ purpose including ties and final-impact holds. No test hook ships in the game.
 Optional `--darts-cpu --darts-mobile`, `--darts-cpu --darts-desktop` and
 `--darts-cpu --darts-lobby --darts-mobile` write ignored CPU screenshots in `.cache`.
 
+`node tools/darts-online-cpu-check.js` exercises device-owned CPU lobby edits,
+revision/Ready invalidation, locked participants, the real gesture/physics
+pipeline, all X01 starting scores and In/Out combinations, both Cricket variants,
+all Cork contexts with physical ties, competing controller attempts, queued
+deadline expiry, stale requests and host departure on the existing RTDB fixture.
+
+`node tools/darts-online-cpu-browser-check.js` uses separate Chrome browser
+contexts (isolated storage) at mobile/desktop sizes. A local HTTP CAS fixture
+replaces only the Firebase SDK and shares room state between contexts, with
+delayed/repeated snapshots, delayed acknowledgements and connection controls.
+It checks owner-only CPU scheduling and accepted physical-impact agreement,
+cross-device Ready reset, coded local execution, complete mixed Count-Up,
+Cricket/opening Cork, H1/CPU/H2 handoff, delayed/lost acknowledgements, queued CPU
+deadline expiry, same-page recovery before reaping, pending disconnect and host
+migration. Game hooks/clocks and the
+HTTP backend are test-only. Neither suite evaluates deployed security rules,
+contacts live RTDB or automates a physical phone.
+
 `node tools/rooms-browser-check.js --darts-guide` checks first-use guidance and
 the existing pointer path at 320x568, 390x844 and 1200x800 in EN/ZH. It verifies
 touch/mouse wording, real region highlights, unchanged board/HUD bounds, an

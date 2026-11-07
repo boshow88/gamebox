@@ -56,10 +56,30 @@ participants and configuration into a shared room. Solo Practice and Count-Up
 require one participant; X01 and Cricket require two. Every mode allows at most
 four participants.
 
-Local Darts can include CPU slots, but room-code matches remain human-only.
-Creating/joining is unavailable while CPUs are present, and the room policy
-rejects CPU imports rather than coercing their type. No CPU controller, online
-bot service or new synchronization transport is introduced.
+Local and coded Darts rooms can include CPU slots in competitive modes. A CPU
+uses its owning device's ordinary `controllerId`, never a new connection or
+Ready identity. Each device must retain a human slot. Creating a code imports
+the current human/CPU roster; joining uses the existing one-human join, after
+which the guest can add its CPUs. CPU additions/removals, renames and difficulty
+changes are owner-only lobby transactions that clear all Ready states and
+increment the revision. Practice cannot start with CPUs. No bot host, ownership
+transfer or new production synchronization transport is introduced.
+
+Match start captures CPU type/name/difficulty/owner in `game.participants` and
+`game.owners`. Only the active CPU's owner runs the existing gesture generator
+and submits a physical flight through the normal accepted-throw transaction.
+Expected Match/Leg/phase/active/turn/sequence guards reject duplicates and stale
+requests, including delayed acknowledgements; deadlines are checked again when
+the transaction executes. CPU diagnostics remain local. The adapter exposes its
+existing connection observation so disconnected owners stop scheduling. Native
+presence and the normal grace/reaping policy remove all departed human/CPU slots
+without transferring CPUs. A same-page reconnect can recover before reaping;
+refresh creates a new random page identity and does not reclaim old slots.
+
+This remains a browser-trust architecture: published RTDB rules permit the
+existing authenticated room writes; they do not enforce game physics, difficulty
+or anti-cheat validation on a server. Client transaction guards protect ordinary
+application races, not malicious clients that bypass the room API.
 
 The shared service's `players`, connection `slots`, `hostUid`, readiness and
 presence still identify page connections. Darts stores participant slots
@@ -235,6 +255,7 @@ that interval; silent players still send their regular heartbeats.
 | Method | Behavior |
 | --- | --- |
 | `currentPlayer()` | Account information with the room UID, or `null` when signed out |
+| `isConnected()` | The store's observed connection status; true for stores without a connection observer |
 | `create(input)`, `join(code)` | Return the normalized room code; same-player reconnect is idempotent |
 | `leave(code)` | Remove this player, migrate the host, delete an empty room; observers do not mutate membership |
 | `kick(code, targetUid)` | Host-only removal of another member (frees a seat held by a departed/disconnected player); migrates the host and deletes an empty room via the same departure path |

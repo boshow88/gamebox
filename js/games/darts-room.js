@@ -31,6 +31,10 @@
         return Array.from(new Set(order.concat(Object.keys(slots)))).filter(function (id) { return !!slots[id]; });
     }
     function validId(id) { return typeof id === 'string' && /^[A-Za-z0-9_-]{1,180}$/.test(id) && !['__proto__', 'constructor', 'prototype'].includes(id); }
+    function validDifficulty(value) { return ['easy', 'normal', 'hard', 'insane'].includes(value); }
+    function sameParticipant(a, b) {
+        return !!(a && b) && ['id', 'name', 'controllerId', 'type', 'difficulty'].every(function (key) { return a[key] === b[key]; });
+    }
     function roomError(code, message) { return Object.assign(new Error(message), { code: 'room/' + code }); }
     return function createDartsRoom(config) {
         var net = config.net, now = config.now || Date.now, room = null, reaping = false, gcAt = -Infinity, seatSerial = 0;
@@ -46,9 +50,9 @@
         function startAllowed(data, devices) {
             if (phase(data) !== 'lobby') return false;
             var ids = participantIds(data), slots = participants(data);
-            return Rules.eligibility(data.options, ids.length).allowed && ids.every(function (id) {
-                return slots[id].type === 'human' && devices.includes(slots[id].controllerId);
-            }) && devices.every(function (uid) { return ids.some(function (id) { return slots[id].controllerId === uid; }); });
+            return Rules.eligibility(data.options, ids.length, ids.map(function (id) { return slots[id]; })).allowed && ids.every(function (id) {
+                return (!slots[id].type || slots[id].type === 'human' || slots[id].type === 'cpu' && validDifficulty(slots[id].difficulty)) && devices.includes(slots[id].controllerId);
+            }) && devices.every(function (uid) { return ids.some(function (id) { return slots[id].controllerId === uid && slots[id].type !== 'cpu'; }); });
         }
         var service = net.rooms.create({
             collection: 'darts_rooms', identity: 'tab', layout: 'slots', presenceField: 'presence',
@@ -60,16 +64,21 @@
                 var player = service.currentPlayer(), imported = input.participants;
                 if (!Array.isArray(imported)) imported = imported && typeof imported === 'object' ? Object.values(imported) : [];
                 if (!imported.length) imported = [{ name: player.name }];
-                if (imported.some(function (slot) { return slot && slot.type === 'cpu'; }))
-                    throw roomError('cpu-local-only', 'CPU participants are available only in local matches.');
                 if (imported.length > 4) throw roomError('full', 'A Darts room has four player slots.');
                 var slots = {}, ids = [];
                 imported.forEach(function (slot, index) {
                     slot = typeof slot === 'string' ? { name: slot } : slot || {};
                     var id = validId(slot.id) && !Object.hasOwn(slots, slot.id) ? slot.id : newId(player.uid);
-                    slots[id] = { id: id, name: name(slot.name, index ? playerName(slots, index + 1) : name(player.name, playerName(slots))), controllerId: player.uid, type: 'human' };
+                    if (slot.type && !['human', 'cpu'].includes(slot.type)) throw roomError('participant', 'Invalid participant type.');
+                    var cpu = slot.type === 'cpu', difficulty = slot.difficulty || 'normal';
+                    if (cpu && !validDifficulty(difficulty)) throw roomError('difficulty', 'Invalid CPU difficulty.');
+                    slots[id] = { id: id, name: name(slot.name, index ? playerName(slots, index + 1) : name(player.name, playerName(slots))), controllerId: player.uid, type: cpu ? 'cpu' : 'human' };
+                    if (cpu) slots[id].difficulty = difficulty;
                     ids.push(id);
                 });
+                if (!ids.some(function (id) { return slots[id].type === 'human'; })) throw roomError('needs-human', 'Keep an owned human participant.');
+                if (Rules.options(input).mode === 'practice' && ids.some(function (id) { return slots[id].type === 'cpu'; }))
+                    throw roomError('cpu-practice', 'Practice does not support CPU players.');
                 return { options: Rules.options(input), participants: slots, seatOrder: ids, phase: 'lobby', revision: 0, seed: input.seed };
             },
             onJoin: function (data, player) {
@@ -93,6 +102,8 @@
             startPatch: function (data) {
                 var ids = participantIds(data), slots = participants(data);
                 var g = Rules.create(data.options, ids, now(), Math.abs(data.seed || 0) % ids.length);
+                g.participants = clone(slots);
+                g.cpuSeed = Math.floor(Math.random() * 0x100000000);
                 g.owners = Object.fromEntries(ids.map(function (id) { return [id, slots[id].controllerId]; }));
                 g.execution = Object.keys(data.players || {}).length === 1 && ids.every(function (id) {
                     return g.owners[id] === data.hostUid;
@@ -112,8 +123,13 @@
         function attach(code) { presence.reset(); room = session.attach(code); return room; }
         function guarded(expected, build) {
             if (!room || !room.data) return Promise.resolve(false);
-            var g = expected || room.data.game || {};
-            return service.updateMatch(room.code, { matchId: g.matchId, round: g.round, status: g.status, seq: g.seq }, build);
+            var activeRoom = room, g = expected || room.data.game || {};
+            var guard = { matchId: g.matchId, round: g.round, status: g.status, seq: g.seq };
+            ['leg', 'phase', 'active', 'corkRound', 'turnStartedAt'].forEach(function (key) { if (Object.hasOwn(g, key)) guard[key] = g[key]; });
+            return service.updateMatch(activeRoom.code, guard, function (data, uid) {
+                if (room !== activeRoom || (service.currentPlayer() || {}).uid !== uid) return null;
+                return build(data, uid);
+            });
         }
         function lobbyUpdate(build) {
             if (!room || !room.data || phase(room.data) !== 'lobby') return Promise.resolve(false);
@@ -152,10 +168,35 @@
                 return { participants: slots, ready: {}, revision: revision(data) + 1 };
             });
         }
+        function addCpuPlayer(displayName, difficulty) {
+            difficulty = difficulty || 'normal';
+            if (!validDifficulty(difficulty)) return Promise.resolve(false);
+            var player = service.currentPlayer();
+            if (!player) return Promise.resolve(false);
+            var id = newId(player.uid);
+            return lobbyUpdate(function (data, uid) {
+                var slots = Object.assign({}, participants(data)), ids = participantIds(data);
+                if (ids.length >= 4 || Rules.options(data.options).mode === 'practice' ||
+                    !ownedPlayerIds(data, uid).some(function (owned) { return slots[owned].type !== 'cpu'; })) return null;
+                slots[id] = { id: id, name: name(displayName, 'CPU'), controllerId: uid, type: 'cpu', difficulty: difficulty };
+                return { participants: slots, seatOrder: ids.concat(id), ready: {}, revision: revision(data) + 1 };
+            });
+        }
+        function setCpuDifficulty(id, difficulty) {
+            if (!validDifficulty(difficulty)) return Promise.resolve(false);
+            return lobbyUpdate(function (data, uid) {
+                var slots = Object.assign({}, participants(data)), slot = slots[id];
+                if (!slot || slot.controllerId !== uid || slot.type !== 'cpu' || slot.difficulty === difficulty) return null;
+                slots[id] = Object.assign({}, slot, { difficulty: difficulty });
+                return { participants: slots, ready: {}, revision: revision(data) + 1 };
+            });
+        }
         function removeLocalPlayer(id) {
             return lobbyUpdate(function (data, uid) {
                 var slots = Object.assign({}, participants(data));
-                if (!slots[id] || slots[id].controllerId !== uid || ownedPlayerIds(data, uid).length < 2) return null;
+                var owned = ownedPlayerIds(data, uid);
+                if (!slots[id] || slots[id].controllerId !== uid || slots[id].type !== 'cpu' &&
+                    owned.filter(function (slot) { return slots[slot].type !== 'cpu'; }).length < 2) return null;
                 delete slots[id];
                 return { participants: slots, seatOrder: participantIds(data).filter(function (slot) { return slot !== id; }),
                     ready: {}, revision: revision(data) + 1 };
@@ -190,6 +231,8 @@
                 if (g.roundLimit == null && (Rules.isX01(g.mode) || g.mode === 'cricket')) settings.roundLimit = 0;
                 var submittedSettings = Rules.options(state, g.players.length);
                 if (Object.keys(settings).some(function (key) { return submittedSettings[key] !== settings[key]; })) return null;
+                if (g.participants && (!state.participants || Object.keys(state.participants).length !== Object.keys(g.participants).length ||
+                    g.players.some(function (id) { return !sameParticipant(state.participants[id], g.participants[id]); }))) return null;
                 if (!toLobby && (phase(data) !== 'playing' || state.seq === g.seq)) return null;
                 var next = clone(state), nextPhase = toLobby ? 'lobby' : state.status === 'over' ? 'results' : 'playing';
                 return { game: next, phase: nextPhase, status: toLobby ? 'waiting' : nextPhase,
@@ -203,11 +246,14 @@
             var presentation = config.resolveThrow(th);
             if (!presentation || !presentation.impact || ![presentation.impact.x, presentation.impact.y, presentation.impact.t].every(Number.isFinite)
                 || presentation.impact.t < 0) return Promise.resolve(false);
-            var stamp = now();
             return guarded(expected, function (data, uid) {
+                // Evaluate at transaction execution/retry, not before waiting in a network queue.
+                var stamp = now();
                 var g = data.game || {}, owner = g.owners ? g.owners[g.active] : g.active;
                 if (phase(data) !== 'playing' || g.execution === 'local' || g.status !== 'playing' || owner !== uid || stamp < g.readyAt
-                    || g.turnMs > 0 && stamp >= g.turnStartedAt + g.turnMs) return null;
+                    || !canControl(data, uid) || g.turnMs > 0 && stamp >= g.turnStartedAt + g.turnMs) return null;
+                var slot = participants(data)[g.active], locked = g.participants && g.participants[g.active];
+                if (!slot || slot.controllerId !== uid || locked && !sameParticipant(slot, locked)) return null;
                 var next = Rules.throwDart(g, g.active, presentation.result, stamp, presentation.impact);
                 if (!next) return null;
                 next.readyAt = stamp + Math.ceil(presentation.impact.t * 1000) + 1000;
@@ -217,6 +263,11 @@
                 if (next.lastDart.penalties) next.lastThrow.penalties = next.lastDart.penalties;
                 return { game: next, phase: next.status === 'over' ? 'results' : 'playing', status: next.status === 'over' ? 'results' : 'playing' };
             });
+        }
+        function canControl(data, uid) {
+            data = data || room && room.data; uid = uid || (service.currentPlayer() || {}).uid;
+            return !!(data && uid && (data.players || {})[uid] && (data.presence || {})[uid] !== -1 &&
+                (!service.isConnected || service.isConnected()));
         }
         function expire(expected) {
             var stamp = now();
@@ -256,7 +307,8 @@
         }
         return { service: service, presence: presence, attach: attach, submit: submit, expire: expire, nextLeg: nextLeg, tick: tick,
             participantIds: participantIds, participants: participants, ownedPlayerIds: ownedPlayerIds, phase: phase,
-            configure: configure, addLocalPlayer: addLocalPlayer, renamePlayer: renamePlayer, removeLocalPlayer: removeLocalPlayer,
+            configure: configure, addLocalPlayer: addLocalPlayer, addCpuPlayer: addCpuPlayer, setCpuDifficulty: setCpuDifficulty,
+            renamePlayer: renamePlayer, removeLocalPlayer: removeLocalPlayer, canControl: canControl,
             backToLobby: backToLobby, rematch: backToLobby, ready: ready, syncLocal: syncLocal,
             current: function () { return room; },
             canStart: function (data) { return service.canStart(data || room && room.data); },

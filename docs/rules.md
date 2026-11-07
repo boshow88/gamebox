@@ -566,15 +566,17 @@ opening winner when Cork was used. First-player selection and X01 limit settleme
 are independent settings. Any participating controller can
 continue from the persistent between-Leg result screen.
 
-### Local CPU opponents
+### CPU opponents
 
-In a local competitive lobby, choose **Add CPU** to fill a normal player slot.
+In a competitive lobby, choose **Add CPU** to fill a normal player slot.
 Each CPU has a name and Easy/Normal/Hard/Insane difficulty. At least one human
 must remain, and the total stays at four. CPU supports X01, both Cricket variants,
 Count-Up and all Cork contexts. Practice requires human players only; switching
 to Practice retains CPU slots but blocks Start until they are removed or the
-mode changes. CPU is unavailable while a room code is active. Remove CPU slots
-before inviting or joining other devices.
+mode changes. In a coded room, each device can add and manage its own CPU slots
+while retaining an owned human. Other devices can see their names and difficulty
+but cannot edit them. Changes clear device Ready states; CPUs do not ready up
+separately. Names, difficulty and ownership lock at Match start.
 
 CPU plans a target, generates an imperfect throwing gesture and uses the same
 physics as human throws. It receives no preset score or corrected landing point.
@@ -582,6 +584,8 @@ It takes ordinary paced turns, obeys Bust/checkout/timers and records normal
 history. Difficulty changes both aim consistency and tactics, not timer speed.
 Human gestures are ignored during CPU turns. CPU never requires device handoff;
 different local humans still confirm their exchange when CPU turns intervene.
+Each device executes only its own CPUs. If it leaves or loses its room seats,
+its CPUs leave with its humans; another device does not take them over.
 
 ### Rooms and history
 

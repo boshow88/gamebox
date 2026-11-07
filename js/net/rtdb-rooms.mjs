@@ -90,6 +90,7 @@ export function createRealtimeRoomStore(sdk, db, group, {
     }
     const store = {
         backend: 'rtdb',
+        isConnected: () => !connectionWatch || connected,
         transact(code, decide) {
             code = normalizeCode(code);
             if (!validCode(code)) return Promise.reject(invalidCode());

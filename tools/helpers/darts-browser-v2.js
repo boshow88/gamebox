@@ -1336,8 +1336,7 @@ async function checkDartsCpuLobbyV2() {
             dartsData(f).ready = { test: true }; await dartsCpuDifficulty(f, id, difficulty);
             dartsAssert(!Object.keys(dartsData(f).ready).length && doc.activeElement.dataset.cpuSlot === id, 'CPU difficulty clears Ready and preserves keyboard focus');
         }
-        dartsAssert(doc.getElementById('create-room-btn').disabled && doc.getElementById('join-room-btn').disabled && doc.getElementById('room-code-input').disabled, 'CPU slots block invitation and join controls');
-        dartsAssert(!await api.invite() && !await api.join('ABCD') && !w.ArcadeNet, 'Main invitation/join guards reject CPUs before loading Firebase');
+        dartsAssert(!doc.getElementById('create-room-btn').disabled && !doc.getElementById('join-room-btn').disabled && !doc.getElementById('room-code-input').disabled, 'CPU slots retain invitation and join controls');
         await dartsChange(f, 'mode-select', 'practice');
         dartsAssert(dartsData(f).participants[id].type === 'cpu' && doc.getElementById('lobby-start-btn').disabled && doc.getElementById('lobby-start-reason').textContent.includes('CPU'), 'Switching to Practice preserves CPU slots and explains its blocked start');
         await dartsChange(f, 'mode-select', 'countup');
@@ -1349,7 +1348,7 @@ async function checkDartsCpuLobbyV2() {
         }
         dartsAssert(await api.removePlayer(id), 'CPU removal remains available');
         const code = await dartsPromote(f);
-        dartsAssert(doc.getElementById('add-cpu-btn').disabled && doc.getElementById('lobby-cpu-note').textContent.includes('local') && !api.addCpu(), 'Any active room code disables CPU additions with an explanation');
+        dartsAssert(!doc.getElementById('add-cpu-btn').disabled && await api.addCpu(), 'A coded room supports device-owned CPU slots');
         await api.controller().leave(); f.remove();
     }
 }

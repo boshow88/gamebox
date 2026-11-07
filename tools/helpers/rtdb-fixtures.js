@@ -140,6 +140,7 @@ function realtimeGameBackend(modules) {
             return modules.createRealtimeRoomStore(sdk, native.db, config.collection, { presenceField: config.presenceField, now, getPlayerId });
         },
         disconnectPlayer: uid => native.disconnect(playerSDKs.get(uid)),
+        reconnectPlayer: uid => native.reconnect(playerSDKs.get(uid)),
     };
 }
 module.exports = { memoryRealtimeDatabase, realtimeGameBackend };

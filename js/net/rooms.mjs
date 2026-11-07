@@ -287,6 +287,7 @@ export function createRoomService({ store, getUser, sessionId, generateCode = ra
     }
     const service = {
         config, currentPlayer, playerIds, host, canStart, primaryAction, create, join, leave, kick, releaseDisconnected,
+        isConnected: () => !store.isConnected || store.isConnected(),
         setReady, start, reset, updateMatch, settleRound,
         async heartbeat(value, intervalMs = 3000) {
             const player = requirePlayer(), code = normalizeCode(value), state = activityFor(code);

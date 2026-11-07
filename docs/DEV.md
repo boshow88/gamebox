@@ -603,14 +603,23 @@ history, last-dart and last-turn data carry the context. `legCorkPurpose` preser
 the completed context for result presentation. Timeout and controller withdrawal
 continue through the same shared Cork resolution code.
 
-### Local CPU players
+### Local and online CPU players
 
 CPU V1 uses normal participant slots (`type:'cpu'`, `difficulty`) and requires at
 least one human. X01, Standard/Cut-Throat Cricket and Count-Up support 1–3 CPUs;
 Practice cannot start with CPU slots and does not silently remove them. The
 current local roster is cloned into `game.participants` at Start, alongside a
 local `cpuSeed`, so difficulty stays fixed across Legs and ordinary history keeps
-the same participant IDs. CPU owns no human input; its owner tag is `local-cpu`.
+the same participant IDs. CPU owns no human input; its offline owner tag remains
+`local-cpu` for compatibility. In a coded room, every CPU has the same real
+connection `controllerId` and captured `game.owners` entry as that device's human
+slots. Creating a code imports existing CPUs without changing their type;
+joining follows the existing single-human join policy, then that device can add
+CPUs. Every connected device retains an owned human. Only the owner can rename,
+remove or change its CPU's four-tier difficulty in the lobby. These transactions
+increment the room revision and clear all device Ready states; CPUs add no Ready
+identity. Match start clones every participant's type/name/difficulty/owner into
+`game.participants`, and local result uploads also validate that locked snapshot.
 The existing rules engine remains independent of participant skill/type.
 
 `darts-cpu-strategy.js` chooses physical target centres. X01 uses bounded legal
@@ -640,9 +649,27 @@ CPU turns. Handoff never asks a CPU to confirm; remembered confirmed human
 ownership preserves H1 → CPU → H2 handoff and skips H1 → CPU → H1. Existing
 direct human-to-human and remote-human behavior stays intact.
 
-Room codes remain human-only. UI invitation/join guards run before loading
-networking; the room policy also rejects CPU imports instead of silently
-converting them into human slots. `lastCpuThrow` holds local diagnostic samples,
+The online scheduler checks that the current connection owns the active CPU,
+remains a room member and is connected, and respects `readyAt` as well as the
+unchanged turn deadline. It submits the same physical flight through
+`online.submit`, using captured Match/Leg/phase/active/turn/sequence/deadline
+fields, as well as the current room attachment and authenticated connection.
+A pending position is retained until acknowledgement or a newer committed
+snapshot resolves it. An old promise cannot clear a subsequent submission or
+display a stale error. Only one concurrent transaction can advance an expected
+sequence. Transaction retries recheck the wall clock, membership, ownership and
+locked participant; no queued pre-deadline dart can score after the deadline.
+
+Host-only coded CPU matches retain the existing local execution/reservation path;
+shared matches run each CPU only on its owner. Presence loss stops new CPU work.
+After the ordinary grace/reaping policy, every departed device's human/CPU slot
+is withdrawn without transferring its CPUs; another host can continue with its
+own slots. A same-page connection may recover before eviction, but a page refresh
+creates a new random connection identity and cannot reclaim the old slots. RTDB
+rules still provide the existing authenticated room boundary, not server-side
+physics or anti-cheat validation; all game-policy validation runs in clients.
+
+`lastCpuThrow` holds local diagnostic samples,
 analysis, launch, impact, physical result and target error for test injection;
 these diagnostics are not written into ordinary throw history or a new overlay.
 

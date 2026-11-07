@@ -35,6 +35,7 @@
     var feedback = window.DartsFeedback.create(), feedbackState = feedback.snapshot(Date.now());
     var pendingFeedbackEvent = null, feedbackKey = '', presentationTurnKey = '', handoffPressKey = null;
     var cpuGesture = null, cpuRandom = null, cpuPending = null, lastCpuThrow = null;
+    var throwSubmission = null, cpuAttemptKey = '';
     var CPU_THINK_MS = 900;
 
     // =================================================================
@@ -676,11 +677,18 @@
         var impact = computeImpact(th);
         G.analysis = an;
         if (usesSharedMatch()) {
+            var expected = match, submission = { room: room, key: throwPosition(expected) };
+            throwSubmission = submission;
             sending = true;
-            online.submit(th).then(function (accepted) {
-                if (!accepted) flashHint(t('dartsThrowRejected'));
-                else if (onAccepted) onAccepted();
-            }).catch(showNetError).finally(function () { sending = false; syncGameUi(); });
+            online.submit(th, expected).then(function (accepted) {
+                if (!accepted && throwSubmission === submission) { cpuAttemptKey = ''; flashHint(t('dartsThrowRejected')); }
+                if (accepted && onAccepted) onAccepted();
+            }).catch(function (error) {
+                if (throwSubmission === submission) { cpuAttemptKey = ''; showNetError(error); }
+            }).finally(function () {
+                if (throwSubmission === submission) { throwSubmission = null; sending = false; }
+                syncGameUi();
+            });
             return;
         }
         presentThrow(th, impact);
@@ -810,12 +818,14 @@
     }
     function tickCpu() {
         var now = Date.now(), effects = feedback.snapshot(now);
-        if (!shell || !shell.isPlaying() || room || roomData().phase !== 'playing' || !match || match.status !== 'playing' ||
-            !isCpuPlayer(match.active) || G.dartState !== 'ready' || effects.blocking || effects.resultPending ||
+        if (!shell || !shell.isPlaying() || roomData().phase !== 'playing' || !match || match.status !== 'playing' ||
+            !controlsCpu(match.active) || sending || G.dartState !== 'ready' || effects.blocking || effects.resultPending ||
+            usesSharedMatch() && now < match.readyAt ||
             document.querySelector('.darts-dialog[open]') || match.turnMs && now >= match.turnStartedAt + match.turnMs) {
             cpuPending = null; return;
         }
-        var key = [match.matchId, match.leg, match.phase, match.round, match.seq, match.active].join(':');
+        var key = throwPosition(match);
+        if (usesSharedMatch() && cpuAttemptKey === key) { cpuPending = null; return; }
         if (!cpuPending || cpuPending.key !== key) { cpuPending = { key: key, at: now + CPU_THINK_MS }; return; }
         if (now < cpuPending.at) return;
         cpuPending = null;
@@ -823,11 +833,17 @@
         var target = window.DartsCpuStrategy.choose(match, match.active, participant.difficulty, cpuRandom);
         if (!target) return;
         var generated = cpuGesture.generate(target, participant.difficulty, cpuRandom);
+        cpuAttemptKey = key;
         // The same entry point analyses human and CPU samples; only physics decides the hit.
         var launched = submitGesture(generated.samples);
         lastCpuThrow = { player: match.active, difficulty: participant.difficulty, target: target, samples: generated.samples,
+            matchId: match.matchId, seq: match.seq + 1,
             diagnostics: generated.diagnostics, accepted: launched, analysis: G.analysis,
             launch: launched ? G.throw : null, impact: launched ? G.impact : null };
+        if (!launched) cpuAttemptKey = '';
+    }
+    function throwPosition(state) {
+        return state ? [state.matchId, state.leg, state.phase, state.round, state.seq, state.active, state.corkRound || 0, state.turnStartedAt].join(':') : '';
     }
 
     // =================================================================
@@ -1283,9 +1299,18 @@
             game: match, phase: match.status === 'over' ? 'results' : 'playing' }) : data;
     }
     function controlsPlayer(id) {
-        return !!match && !isCpuPlayer(id) && (match.owners ? match.owners[id] : id) === controllerId();
+        return !isCpuPlayer(id) && ownsPlayer(id);
     }
     function isCpuPlayer(id) { return !!(match && match.participants && match.participants[id] && match.participants[id].type === 'cpu'); }
+    function ownsPlayer(id) {
+        var owner = match && (match.owners ? match.owners[id] : id);
+        return !!match && (owner === controllerId() || !room && isCpuPlayer(id) && owner === 'local-cpu');
+    }
+    function controlsCpu(id) {
+        if (!isCpuPlayer(id)) return false;
+        if (!room) return !match.owners || ['local-cpu', localController].includes(match.owners[id]);
+        return ownsPlayer(id) && online && online.canControl();
+    }
     function playerName(uid) {
         var data = roomData(), roster = data.roster || {}, participant = (data.participants || {})[uid];
         return roster[uid] || participant && participant.name || t('dartsGuest');
@@ -1382,6 +1407,11 @@
     }
     function syncGameUi() {
         if (!hud || !localRoom) return;
+        // A committed snapshot settles the old position even if its acknowledgement is late.
+        // The old promise cannot clear or report an error for a subsequent submission.
+        if (throwSubmission && (throwSubmission.room !== room || throwSubmission.key !== throwPosition(match))) {
+            throwSubmission = null; sending = false;
+        }
         var s = viewMatch || match, data = roomData();
         document.getElementById('mode-description').textContent = ruleText(data.options.mode, data.options);
         document.getElementById('debug-btn').hidden = !!s && s.mode !== 'practice';
@@ -1406,7 +1436,7 @@
         syncThrowGuide();
     }
     function clearBoard() {
-        cpuPending = null;
+        cpuPending = null; cpuAttemptKey = ''; throwSubmission = null; sending = false;
         gesture = null; freshDart(); G.stuck = []; G.last = null; G.traj = null; G.analysis = null; camDolly = 0;
     }
     function hideShellOverlay() { document.getElementById('overlay').hidden = true; }
@@ -1443,15 +1473,18 @@
         localRoom.seatOrder.push(id); localRoom.ready = {}; syncGameUi(); return true;
     }
     function addCpuPlayer() {
-        if (room || localRoom.phase !== 'lobby' || localRoom.options.mode === 'practice' || localRoom.seatOrder.length >= 4) return false;
-        var id = 'cpu-' + ++localSeatSerial, n = 1, names = new Set(Object.values(localRoom.participants).map(function (p) { return p.name; }));
+        var data = roomData(), n = 1, names = new Set(Object.values(data.participants).map(function (p) { return p.name; }));
         while (names.has(t('dartsCpuNumber', n))) n++;
+        if (room) return online.addCpuPlayer(t('dartsCpuNumber', n));
+        if (localRoom.phase !== 'lobby' || localRoom.options.mode === 'practice' || localRoom.seatOrder.length >= 4) return false;
+        var id = 'cpu-' + ++localSeatSerial;
         localRoom.participants[id] = { id: id, name: t('dartsCpuNumber', n), controllerId: localController, type: 'cpu', difficulty: 'normal' };
         localRoom.seatOrder.push(id); localRoom.ready = {}; syncGameUi(); return true;
     }
     function setCpuDifficulty(id, difficulty) {
+        if (room) return online.setCpuDifficulty(id, difficulty);
         var p = localRoom.participants[id];
-        if (room || localRoom.phase !== 'lobby' || !p || p.type !== 'cpu' || !['easy', 'normal', 'hard', 'insane'].includes(difficulty)) return false;
+        if (localRoom.phase !== 'lobby' || !p || p.type !== 'cpu' || !['easy', 'normal', 'hard', 'insane'].includes(difficulty)) return false;
         p.difficulty = difficulty; localRoom.ready = {}; syncGameUi(); return true;
     }
     function renamePlayer(id, name) {
@@ -1549,13 +1582,11 @@
     }
     async function inviteFriends() {
         if (room || localRoom.phase !== 'lobby') return false;
-        if (Object.values(localRoom.participants).some(function (p) { return p.type === 'cpu'; })) { lobby.refs.status.textContent = t('dartsCpuRemoveForOnline'); return false; }
         await ensureOnline();
         return online.create(localRoom.options, localRoom.seatOrder.map(function (id) { return localRoom.participants[id]; }));
     }
     async function joinRoom(code) {
         if (room || localRoom.phase !== 'lobby') return false;
-        if (Object.values(localRoom.participants).some(function (p) { return p.type === 'cpu'; })) { lobby.refs.status.textContent = t('dartsCpuRemoveForOnline'); return false; }
         await ensureOnline(); return online.join(code);
     }
     async function leaveRoom() {
@@ -1595,6 +1626,9 @@
         // Normalize legacy view data; the shared transaction policy still checks the stored snapshot.
         data = Object.assign({}, data, { phase: online.phase(data), participants: online.participants(data),
             seatOrder: online.participantIds(data), options: Rules.options(data.options) });
+        if (match && data.game && data.game.execution !== 'local' && data.game.matchId === match.matchId && data.game.seq < match.seq) {
+            activeRoom.data = lastRoomSnapshot; return;
+        }
         activeRoom.data = data;
         lastRoomSnapshot = data;
         var enteredLobby = observedOnlinePhase !== 'lobby'; observedOnlinePhase = data.phase;
@@ -1615,10 +1649,16 @@
         match = g;
         if (changedMatch || changedLeg) {
             onlineMatchId = g.matchId; seenThrow = null; clearBoard(); G.total = 0; G.darts = 0; viewMatch = g;
+            if (changedMatch) { cpuRandom = window.DartsCpuGesture.seeded(String(g.cpuSeed || g.matchId) + ':' + controllerId()); lastCpuThrow = null; }
         }
         if (!shell.isPlaying()) shell.start();
         var event = g.lastThrow;
-        if (event && event.seq !== seenThrow) { seenThrow = event.seq; presentThrow(event.flight, event.impact); }
+        if (event && event.seq !== seenThrow) {
+            seenThrow = event.seq; presentThrow(event.flight, event.impact);
+            if (lastCpuThrow && lastCpuThrow.matchId === g.matchId && lastCpuThrow.seq === event.seq && lastCpuThrow.player === event.uid) {
+                lastCpuThrow.launch = G.throw; lastCpuThrow.impact = event.impact;
+            }
+        }
         else if (G.dartState !== 'flying') viewMatch = g;
         if (changedMatch || changedLeg) lobby.close();
         if (g.endReason === 'left') { viewMatch = g; clearBoard(); }
@@ -1677,7 +1717,7 @@
         } });
         hud = window.DartsHud.create({ document: document, t: t, resultLabel: resultLabel, modeName: modeName,
             locale: function () { return AC.i18n.locale; }, isOnline: usesSharedMatch,
-            myUid: controllerId, controlsPlayer: controlsPlayer, isFlying: function () { return G.dartState === 'flying'; } });
+            myUid: controllerId, controlsPlayer: controlsPlayer, ownsPlayer: ownsPlayer, isFlying: function () { return G.dartState === 'flying'; } });
         historyView = window.createDartsHistory({ document: document, t: t, resultLabel: resultLabel,
             locale: function () { return AC.i18n.locale; }, modeName: modeName, cancelGesture: function () { gesture = null; },
             data: function () {

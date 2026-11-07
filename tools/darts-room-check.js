@@ -29,16 +29,17 @@ const createRoom = require('../js/games/darts-room.js');
     const ids = () => get().seatOrder;
     const wait = () => { clock = Math.max(clock + 1, game().readyAt || 0); };
     async function flush(result) { const value = await result; await db.flush(); return value; }
-    async function shoot(base, mult) { wait(); assert.equal(await flush(active().submit(flight(base, mult))), true); }
+    async function shoot(base, mult) { wait(); assert.equal(await flush(active().submit(flight(base, mult))), true,
+        JSON.stringify({ active: game().active, slot: get().participants[game().active], locked: game().participants[game().active], connected: active().canControl(), time: clock, ready: game().readyAt })); }
     async function readyGuests(host) {
         for (const uid of Object.keys(get().players)) if (uid !== host) assert.equal(await flush(clients[uid].ready()), true);
     }
     async function fixture(fields) { await flush(a.service.update('ABCD', fields)); }
 
     // A code-only room reserves its seats while every throw stays local to the host device.
-    await assert.rejects(a.create({ mode: 'countup' }, [{ id: 'human', name: 'Human', type: 'human' },
-        { id: 'cpu', name: 'CPU 1', type: 'cpu', difficulty: 'normal' }]), error => error.code === 'room/cpu-local-only');
-    assert.equal(get(), null, 'An online invitation cannot silently convert a local CPU into a human slot');
+    await assert.rejects(a.create({ mode: 'countup' }, [{ id: 'cpu', name: 'CPU 1', type: 'cpu', difficulty: 'normal' }]), error => error.code === 'room/needs-human');
+    await assert.rejects(a.create({ mode: 'practice' }, [{ name: 'Human' }, { type: 'cpu' }]), error => error.code === 'room/cpu-practice');
+    assert.equal(get(), null, 'CPU-only and Practice CPU room imports are rejected');
     await flush(a.create({ mode: 'practice' }, [{ id: 'local-you', name: 'Alex' }]));
     assert.equal(get().phase, 'lobby'); assert.deepEqual(ids(), ['local-you']);
     assert.equal(get().participants['local-you'].controllerId, A);
@@ -94,6 +95,7 @@ const createRoom = require('../js/games/darts-room.js');
     db.disconnectPlayer(B); await db.flush();
     clock += 10000; await flush(a.tick());
     assert(bPracticeSlots.every(id => get().participants[id]), 'Grace period retains every slot of a disconnected controller');
+    db.reconnectPlayer(B); await db.flush();
     await flush(b.service.update('ABCD', { ['presence.' + B]: 999 }));
     clock += 6000; await flush(a.tick());
     assert(bPracticeSlots.every(id => get().participants[id]), 'Recovered controller keeps every local slot');
@@ -206,6 +208,7 @@ const createRoom = require('../js/games/darts-room.js');
     await a.leave(); await c.leave(); await d.leave();
 
     // Four host-owned slots use the same local path, including timers and multiple Legs.
+    db.reconnectPlayer(A); await db.flush();
     await flush(a.create({ mode: 'countup', roundLimit: 5, legsToWin: 2, turnMs: 30000 },
         [1, 2, 3, 4].map(index => ({ id: 'host-seat-' + index, name: 'Host player ' + index }))));
     const reservedCode = a.current().code, hostSeats = ids().slice();
