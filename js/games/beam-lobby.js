@@ -80,6 +80,20 @@
             if (doc.activeElement !== sl) sl.value = String(model.notch);
             setText('diff-readout', model.notchLabel || '');
             setText('solo-best', model.best ? (t('best') + '：' + model.best) : '');
+            var hp = get('solo-hp-select'); if (hp && doc.activeElement !== hp) hp.value = String(model.hp);
+            var res = get('solo-results'), standings = model.results && model.results.standings;
+            if (res) {
+                res.hidden = !(standings && standings.length);
+                if (!res.hidden) {
+                    var listEl = get('solo-results-list'); listEl.replaceChildren();
+                    standings.forEach(function (s) {
+                        var li = node('div', 'li' + (s.you ? ' me' : ''));
+                        var nm = node('span', 'nm'); var dot = node('span', 'dot', '\u25cf'); dot.style.color = s.color;
+                        nm.append(dot, doc.createTextNode(' ' + s.name)); li.append(nm, node('span', 'rk', s.place));
+                        listEl.append(li);
+                    });
+                }
+            }
         }
 
         function renderOnline(model) {
@@ -106,6 +120,7 @@
             }
             setText('lobby-capacity', roster.length + ' / ' + maxPlayers);
             get('add-cpu-btn').disabled = locked || !model.canAddCpu;
+            var ohp = get('online-hp-select'); if (ohp) { if (doc.activeElement !== ohp) ohp.value = String(model.hp); ohp.disabled = !model.hpEditable; }
 
             var auth = get('lobby-auth'); auth.replaceChildren();
             if (model.signedIn) {
@@ -156,6 +171,8 @@
         get('mode-solo-btn').addEventListener('click', function () { options.setMode('solo'); });
         get('mode-online-btn').addEventListener('click', function () { options.setMode('online'); });
         get('diff-slider').addEventListener('input', function () { options.setNotch(parseInt(get('diff-slider').value, 10)); });
+        get('solo-hp-select').addEventListener('change', function () { options.setHp(parseInt(get('solo-hp-select').value, 10)); });
+        get('online-hp-select').addEventListener('change', function () { run(function () { return options.setHp(parseInt(get('online-hp-select').value, 10)); }); });
         get('lobby-close-btn').addEventListener('click', function () { close(); options.onClose && options.onClose(); });
         dialog.addEventListener('cancel', function (e) { e.preventDefault(); close(); options.onClose && options.onClose(); });
         dialog.addEventListener('keydown', function (e) { e.stopPropagation(); });

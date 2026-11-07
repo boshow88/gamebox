@@ -27,6 +27,11 @@
         .beam-diff > label { font-size: 0.85rem; color: var(--text-muted); white-space: nowrap; }
         .beam-diff input[type="range"] { flex: 1; min-width: 150px; accent-color: var(--game-color); }
         .beam-diff-readout { font-weight: 800; color: var(--game-color); font-variant-numeric: tabular-nums; min-width: 5.5em; text-align: right; }
+        #solo-results { margin-bottom: 4px; }
+        .beam-results-title { display: block; text-align: center; color: var(--game-color); font-size: 0.95rem; margin-bottom: 6px; }
+        .beam-hp { display: inline-flex; align-items: center; gap: 8px; font-size: 0.85rem; color: var(--text-muted); }
+        .beam-hp select { padding: 5px 8px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-primary); color: var(--text-primary); font: inherit; }
+        .beam-hp select:disabled { opacity: 0.5; }
         .beam-lobby .lobby-section-line { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 0.85rem; margin-bottom: 8px; }
         .beam-lobby .lobby-section-line strong { font-size: 0.9rem; }
         .beam-slots { display: grid; gap: 6px; }
@@ -75,7 +80,6 @@
         .beam-players .pchip.dead { opacity: 0.5; }
         .beam-players .pchip .dot { flex: none; }
         .beam-players .pchip .nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .beam-players .pchip .cputag { flex: none; font-size: 10px; font-weight: 700; color: #93c5fd; }
         .beam-players .pchip .meta { flex: none; display: inline-flex; align-items: center; justify-content: flex-end; gap: 4px; }
         .beam-players .pchip .hp { color: #f87171; letter-spacing: 1px; white-space: nowrap; min-width: 3.4em; text-align: right; }
         .beam-players .pchip .rank { color: var(--game-color); font-weight: 800; min-width: 3.4em; text-align: right; }
@@ -87,7 +91,6 @@
         /* Larger fields (5–8) use tighter chips so the strip stays compact, especially on phones. */
         .beam-players.compact .pchip { width: 116px; font-size: 12px; padding: 4px 8px; gap: 4px; }
         .beam-players.compact .pchip .hp, .beam-players.compact .pchip .rank { min-width: 2.8em; }
-        .beam-players.compact .pchip .cputag { font-size: 9px; }
         @media (max-width: 440px) {
             .beam-players .pchip { width: calc(50% - 6px); }
             .beam-players.compact .pchip { width: calc(33.333% - 6px); }
@@ -192,11 +195,18 @@
                 </div>
 
                 <section id="solo-pane" aria-label="Solo">
+                    <div id="solo-results" hidden>
+                        <strong class="beam-results-title" data-i18n="beamResultsTitle">Final standings</strong>
+                        <div class="beam-finrank" id="solo-results-list"></div>
+                    </div>
                     <div class="beam-diff">
                         <label for="diff-slider" data-i18n="beamTierLabel">Difficulty</label>
                         <input type="range" id="diff-slider" min="0" max="15" step="1" value="5" data-i18n-aria-label="beamTierLabel" aria-label="Difficulty">
                         <span class="beam-diff-readout" id="diff-readout"></span>
                     </div>
+                    <label class="beam-hp"><span data-i18n="beamLives">Lives</span>
+                        <select id="solo-hp-select"><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option></select>
+                    </label>
                     <p class="beam-note" id="solo-best"></p>
                     <p class="beam-note" data-i18n="beamSoloHint">Pick a difficulty and race 3 CPU rivals.</p>
                 </section>
@@ -206,6 +216,9 @@
                     <div id="lobby-slots" class="beam-slots"></div>
                     <div class="beam-lobby-actions">
                         <button class="btn" id="add-cpu-btn" type="button" data-i18n="beamAddCpu">Add CPU</button>
+                        <label class="beam-hp"><span data-i18n="beamLives">Lives</span>
+                            <select id="online-hp-select"><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option></select>
+                        </label>
                     </div>
                     <p class="beam-note" id="lobby-roster-note"></p>
                     <div class="beam-auth" id="lobby-auth"></div>

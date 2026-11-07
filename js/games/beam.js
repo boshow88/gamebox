@@ -68,6 +68,7 @@
         beamRoomBtn: 'Room', beamRoomTitle: 'Room', beamPlayers: 'Players',
         beamAddCpu: 'Add CPU', beamCpuTag: 'CPU', beamCpuDifficulty: 'CPU strength', beamRemove: 'Remove',
         beamKick: 'Remove', beamKicked: 'You were removed from the room.', beamRenameLabel: 'Name', beamStrengthLabel: 'Strength',
+        beamLives: 'Lives', beamConnecting: 'Connecting…', beamOnlineUnavailable: 'Online is unavailable right now.',
         beamCpuName: function (n) { return 'CPU ' + n; },
         beamModeSolo: 'Solo', beamModeOnline: 'Online',
         beamSoloHint: 'Pick a difficulty and race 3 CPU rivals — your best finishing place is saved per difficulty.',
@@ -123,6 +124,7 @@
         beamRoomBtn: '房間', beamRoomTitle: '房間', beamPlayers: '玩家',
         beamAddCpu: '加入 CPU', beamCpuTag: 'CPU', beamCpuDifficulty: 'CPU 強度', beamRemove: '移除',
         beamKick: '踢出', beamKicked: '你已被移出房間。', beamRenameLabel: '名稱', beamStrengthLabel: '強度',
+        beamLives: '血量', beamConnecting: '連線中…', beamOnlineUnavailable: '目前無法連線。',
         beamCpuName: function (n) { return 'CPU ' + n; },
         beamModeSolo: '單人', beamModeOnline: '線上',
         beamSoloHint: '選個難度和 3 個 CPU 對手較量——每種難度的最佳名次都會記錄。',
@@ -162,7 +164,7 @@
     function memoSec(m) { return AC.math.clamp(1.2 + 0.12 * m, 1.2, 3.2); }
     function replaySec(b) { return 0.5 + 0.09 * b; }
     // online
-    var GROUP = 'beam_rooms', MAX_PLAYERS = 8, HP_START = 3;
+    var GROUP = 'beam_rooms', MAX_PLAYERS = 8, HP_START = 3, HP_MIN = 3, HP_MAX = 8;
     var SETTLE_MS = 500;        // after the answer window, brief wait for in-flight taps before tallying
     var HOST_BUFFER_MS = 800;   // after a round fully plays locally, extra wait before advancing (covers lag)
     var BEAT_MS = 3000;         // presence heartbeat interval
@@ -421,12 +423,14 @@
     // Solo = a LOCAL match: you vs 3 CPU rivals set by ONE difficulty notch (records a best place
     // per notch). This is the classic "pick this round's difficulty" mode.
     function beginSolo() {
-        var notch = stagedNotch, players = { you: { uid: 'you', name: myName(), order: 0 } };
-        var bots = {}, hp = { you: HP_START }, alive = { you: true }, strengths = [];
+        var notch = stagedNotch, lives = AC.math.clamp(stagedHp | 0, HP_MIN, HP_MAX) || HP_START;
+        lastSolo = null;                                                                  // clear the previous match's standings
+        var players = { you: { uid: 'you', name: myName(), order: 0 } };
+        var bots = {}, hp = { you: lives }, alive = { you: true }, strengths = [];
         for (var i = 1; i <= 3; i++) {
             var s = strengthForNotch(notch); strengths.push(s);
             var id = 'bot' + i; bots[id] = { name: t('beamCpuName', i), order: i, notch: notch, strength: s };
-            hp[id] = HP_START; alive[id] = true;
+            hp[id] = lives; alive[id] = true;
         }
         var start = openingLevel(strengths);                                               // opening level trails the field
         var seed = (Math.random() * 1e9) >>> 0;
@@ -445,12 +449,14 @@
         if (window.CloudSync) window.CloudSync.sync();   // mirror the improved best place to the cloud profile
 
         var standings = order.filter(function (u) { return players[u]; }).map(function (u) {
-            return { rank: ranks[u] || fallback, name: pname(u, players), color: playerColor(players[u]), you: u === om.myUid };
+            var rk = ranks[u] || fallback;
+            return { rank: rk, place: placeLabel(rk), name: pname(u, players), color: playerColor(players[u]), you: u === om.myUid };
         });
         standings.sort(function (a, b) { return a.rank - b.rank; });
-        setControlsForMatch();
-        shell.gameOver({ score: 0, win: rank === 1, meta: { rank: rank, notch: notch, best: best, standings: standings } });
-        om = null; botTimers.forEach(clearTimeout); botTimers = [];                        // match ended: drop it so the over-overlay reopens the Room
+        lastSolo = { standings: standings, rank: rank, notch: notch, best: best, win: rank === 1 };
+        om = null; botTimers.forEach(clearTimeout); botTimers = [];
+        // Finish like an online match: leave the loop and show the standings in the Room (so they persist).
+        shell.goIdle(); openLobby();
     }
     // Bots "answer" DURING the window (just like real players) so their picks are already
     // there at the reveal. Correct-rate = logistic of their strength vs this round's level.
@@ -976,15 +982,16 @@
             var dead = aliveSrc[uid] === false, stale = !dead && isStale(uid);
             var chip = document.createElement('div');
             chip.className = 'pchip' + (uid === om.myUid ? ' me' : '') + ((dead || stale) ? ' dead' : '');
-            var dot = document.createElement('span'); dot.className = 'dot'; dot.textContent = '\u25cf'; dot.style.color = playerColor(players[uid]); chip.appendChild(dot);
-            var name = document.createElement('span'); name.className = 'nm'; name.textContent = pname(uid, players) + (uid === om.myUid ? ' (' + t('beamYou') + ')' : ''); chip.appendChild(name);
-            if (players[uid] && players[uid].bot && players[uid].notch != null) { var ct = document.createElement('span'); ct.className = 'cputag'; ct.textContent = notchLabel(players[uid].notch); chip.appendChild(ct); }
+            var pr = players[uid], isCpu = !!(pr && pr.bot), pn = pname(uid, players);
+            chip.title = pn + (isCpu && pr.notch != null ? ' \u00b7 ' + t('beamCpuTag') + ' ' + notchLabel(pr.notch) : '');   // strength on hover; the name stays visible
+            var dot = document.createElement('span'); dot.className = 'dot'; dot.textContent = '\u25cf'; dot.style.color = playerColor(pr); chip.appendChild(dot);
+            var name = document.createElement('span'); name.className = 'nm'; name.textContent = pn + (uid === om.myUid ? ' (' + t('beamYou') + ')' : ''); chip.appendChild(name);
             var meta = document.createElement('span'); meta.className = 'meta';
             if (dead) {
                 var rk = document.createElement('span'); rk.className = 'rank'; rk.textContent = (g.rankByUid && g.rankByUid[uid]) ? placeLabel(g.rankByUid[uid]) : '\u2715'; meta.appendChild(rk);
             } else {
                 var hp = (hpSrc[uid] != null) ? hpSrc[uid] : HP_START;
-                var hearts = document.createElement('span'); hearts.className = 'hp'; hearts.textContent = '\u2665'.repeat(Math.max(0, hp)); meta.appendChild(hearts);
+                var hearts = document.createElement('span'); hearts.className = 'hp'; hearts.textContent = hp > 3 ? (hp + '\u2665') : '\u2665'.repeat(Math.max(0, hp)); meta.appendChild(hearts);
                 if (stale) { var off = document.createElement('span'); off.className = 'off'; off.textContent = '\u26a0'; off.title = t('beamOffline'); meta.appendChild(off); }
             }
             // Reserved result slot (always present) so a ✓/✗ appearing at the reveal never resizes the chip.
@@ -1005,7 +1012,8 @@
     var net = null, netUser = undefined, room = null, lobby = null, lobbyEl = null;
     var matchmaking = null, roomSession = null;
     var local = { bots: {}, seatOrder: [] }, botSerial = 0;   // staged Online line-up (CPUs you own) before a room
-    var stagedNotch = DEFAULT_NOTCH, lobbyMode = 'solo';      // Solo difficulty notch; which settings tab is shown
+    var stagedNotch = DEFAULT_NOTCH, lobbyMode = 'solo', stagedHp = HP_START;   // Solo difficulty notch; settings tab; starting lives
+    var lastSolo = null;   // the finished solo match's standings, shown in the Room until the next match
     var pres = {}, gcT = 0, specBeatT = 0, kickT = 0, memberSeen = false;   // presence; memberSeen = we've been seated in the current room
     // track each player's beat; `at` is OUR local time it last changed (no cross-client clock needed)
     function updatePres(g) {
@@ -1026,7 +1034,7 @@
             document: document, t: t, locale: function () { return AC.i18n.locale; },
             notchLabel: notchLabel, notchMax: NOTCH_MAX, maxPlayers: MAX_PLAYERS,
             onClose: onLobbyClose, onError: showLobbyError,
-            model: lobbyModel, setMode: setMode, setNotch: setNotch,
+            model: lobbyModel, setMode: setMode, setNotch: setNotch, setHp: setHp,
             addCpu: addCpu, setCpuStrength: setCpuStrength, removeCpu: removeCpu, rename: renamePlayer, kick: doKick,
             createRoom: createRoom, join: joinRoom, spectate: doSpectate, leave: doLeave, copy: copyCode,
             primary: primaryAction, unready: doUnready, signOut: doSignOut,
@@ -1053,6 +1061,7 @@
         if (m.indexOf('not found') !== -1) msg = t('beamRoomNotFound');
         else if (m.indexOf('full') !== -1) msg = t('beamRoomFull');
         else if (m.indexOf('already') !== -1) msg = t('beamAlreadyStarted');
+        else if (m.indexOf('online unavailable') !== -1) msg = t('beamOnlineUnavailable');
         if (lobby) lobby.refs.status.textContent = msg;
         console.warn('[beam lobby]', e);
     }
@@ -1068,7 +1077,13 @@
         n = AC.math.clamp(n | 0, 0, NOTCH_MAX); if (n === stagedNotch) return;
         stagedNotch = n; savePrefs(); renderLobby(); syncHud();
     }
-    function savePrefs() { try { AC.prefs.set('beam', { notch: stagedNotch, mode: lobbyMode }); } catch (e) { } }
+    function setHp(n) {   // starting lives for everyone this match
+        n = AC.math.clamp(n | 0, HP_MIN, HP_MAX);
+        if (onlineRoom()) { if (!isHost()) return; return matchmaking.update(room.code, { startHp: n, ready: {} }).catch(showLobbyError); }
+        if (n === stagedHp) return;
+        stagedHp = n; savePrefs(); renderLobby();
+    }
+    function savePrefs() { try { AC.prefs.set('beam', { notch: stagedNotch, mode: lobbyMode, hp: stagedHp }); } catch (e) { } }
 
     // ---- roster / room helpers ----
     function onlineRoom() { return !!(room && room.data && room.code !== 'SOLO'); }
@@ -1125,31 +1140,33 @@
     // Host removes a member (frees a slot held by someone who disconnected or left it idle).
     function doKick(uid) { if (onlineRoom() && isHost() && uid !== myUid()) return matchmaking.kick(room.code, uid).catch(showLobbyError); }
     function ensureSignedIn() {
-        if (netUser) return Promise.resolve();
-        if (!net) return Promise.reject(new Error('online unavailable'));
-        return net.signInGuest().then(function () {
-            return new Promise(function (resolve) { net.onAuth(function (u) { if (u) { netUser = matchmaking.currentPlayer(); resolve(); } }); });
+        return ensureOnline().then(function () {   // wait for Firebase, then sign in a guest if needed
+            if (netUser) return;
+            return net.signInGuest().then(function () {
+                return new Promise(function (resolve) { net.onAuth(function (u) { if (u) { netUser = matchmaking.currentPlayer(); resolve(); } }); });
+            });
         });
     }
     // Synchronous room primitives (also the room-test surface): queue the transaction immediately.
-    function doCreate() { return matchmaking.create({ bots: onlineBotsFromLocal() }).then(attachRoom).catch(showLobbyError); }
+    function doCreate() { return matchmaking.create({ bots: onlineBotsFromLocal(), startHp: stagedHp }).then(attachRoom).catch(showLobbyError); }
     function doJoin(code) { code = String(code || '').trim().toUpperCase(); if (!code) return; return matchmaking.join(code).then(attachRoom).catch(showLobbyError); }
     function doReady() { if (room) return matchmaking.setReady(room.code).catch(showLobbyError); }
     function hostStart() { if (room) return matchmaking.start(room.code).catch(showLobbyError); }
     function doRematch() { if (room) return matchmaking.reset(room.code).catch(showLobbyError); }
-    // Lobby wrappers: ensure a (guest) sign-in first, then create/join.
+    // Lobby wrappers: wait for the service + a (guest) sign-in, then create/join/spectate.
+    function connecting() { if (lobby) lobby.refs.status.textContent = t('beamConnecting'); }
     function createRoom() {
-        if (!net || !matchmaking) { showLobbyError(new Error('online unavailable')); return; }
+        connecting();
         return ensureSignedIn().then(doCreate).catch(showLobbyError);
     }
     function joinRoom(code) {
         code = String(code || '').trim().toUpperCase(); if (!code) return;
-        if (!net || !matchmaking) { showLobbyError(new Error('online unavailable')); return; }
+        connecting();
         return ensureSignedIn().then(function () { return doJoin(code); }).catch(showLobbyError);
     }
     function doSpectate(code) {   // watch without taking a seat, even during a match
         code = String(code || '').trim().toUpperCase(); if (!code) return;
-        if (!net || !matchmaking) { showLobbyError(new Error('online unavailable')); return; }
+        connecting();
         return ensureSignedIn().then(function () { attachRoom(code, true); }).catch(showLobbyError);
     }
     function doLeave() {
@@ -1222,8 +1239,8 @@
         if (mode === 'solo') {
             var st = loadSoloStats(stagedNotch);
             return { mode: 'solo', notch: stagedNotch, notchLabel: notchLabel(stagedNotch),
-                best: st.best ? placeLabel(st.best) : null,
-                signedIn: !!netUser, account: netUser ? (netUser.name || t('beamGuest')) : '',
+                best: st.best ? placeLabel(st.best) : null, hp: stagedHp, hpEditable: true,
+                results: lastSolo, signedIn: !!netUser, account: netUser ? (netUser.name || t('beamGuest')) : '',
                 action: { kind: 'start-solo' }, status: '' };
         }
         var online = onlineRoom(), d = online ? room.data : null, g = (d && d.game) || {};
@@ -1233,6 +1250,8 @@
             signedIn: !!netUser, account: netUser ? (netUser.name || t('beamGuest')) : '',
             phase: playing ? 'playing' : 'lobby',
             canAddCpu: !playing && rosterCount() < MAX_PLAYERS,
+            hp: online ? (AC.math.clamp((d.startHp | 0) || HP_START, HP_MIN, HP_MAX)) : stagedHp,
+            hpEditable: online ? (isHost() && !playing) : true,
             uid: myUid(), host: online ? effectiveHost(d) : 'you',
             roster: roster(),
             action: online ? (matchmaking.primaryAction(d) || { kind: 'none' }) : { kind: 'none' },
@@ -1244,46 +1263,70 @@
     // net boot
     // ===============================================================
     function setControlsForMatch() { var rb = $('room-btn'); if (rb) rb.disabled = !!(om && !om.over && !om.spectator); }   // no opening the Room while actively playing (spectators may still leave)
+    // Wire the room service once ArcadeNet has finished its async Firebase init. Idempotent, so it is
+    // safe to call from boot, from the arcade-net-ready event, and from ensureOnline().
+    function initNet() {
+        if (matchmaking) return true;
+        var N = window.ArcadeNet;
+        if (!N || !N.ok || (N.rooms && N.rooms.ok === false)) return false;
+        net = N;
+        matchmaking = net.rooms.create({
+            collection: GROUP, identity: 'tab', minPlayers: 1, maxPlayers: MAX_PLAYERS,
+            presenceField: 'game.beat',
+            allowSpectators: true, isAvailable: function (uid) { return !isStale(uid); },
+            onCreate: function (input) {   // promote the staged CPUs; each is owned by the creator
+                var uid = (matchmaking.currentPlayer() || {}).uid, src = (input && input.bots) || {}, bots = {};
+                Object.keys(src).forEach(function (id) { if (src[id]) bots[id] = { name: src[id].name, order: src[id].order, notch: src[id].notch, owner: uid }; });
+                return { bots: bots, startHp: AC.math.clamp((input && input.startHp | 0) || HP_START, HP_MIN, HP_MAX) };
+            },
+            onLeave: function (data, player) {   // a departing connection takes its own CPUs with it
+                var bots = botMap(data), out = {}, changed = false;
+                Object.keys(bots).forEach(function (id) { if (bots[id].owner === player.uid) changed = true; else out[id] = bots[id]; });
+                return changed ? { bots: out } : {};
+            },
+            canStart: function (data, ids) { var n = ids.length + Object.keys(botMap(data)).length; return n >= 2 && n <= MAX_PLAYERS; },
+            startPatch: function (data, order) {
+                var bots = botMap(data), hp = {}, alive = {}, resolved = {}, strengths = [], used = {};
+                var lives = AC.math.clamp((data && data.startHp | 0) || HP_START, HP_MIN, HP_MAX);
+                order.forEach(function (uid) { hp[uid] = lives; alive[uid] = true; var o = (data.players[uid] || {}).order; if (o != null) used[o] = true; });
+                var free = []; for (var c = 0; c < MAX_PLAYERS; c++) if (!used[c]) free.push(c);
+                var bi = 0;
+                Object.keys(bots).forEach(function (id) { var s = strengthForNotch(bots[id].notch); strengths.push(s);
+                    hp[id] = lives; alive[id] = true; resolved[id] = { name: bots[id].name, order: bots[id].order, notch: bots[id].notch, owner: bots[id].owner, strength: s, color: free[bi++ % free.length] }; });
+                var start = openingLevel(strengths);                                    // trail the CPU field (humans-only → START_LEVEL)
+                return { status: 'playing', bots: resolved, game: { status: 'playing', round: 1,
+                    seed: (Math.random() * 1e9) >>> 0, level: start, center: start,
+                    hp: hp, alive: alive, answers: {}, results: {}, rankByUid: {} } };
+            },
+        });
+        roomSession = matchmaking.session({
+            onChange: function (data, activeRoom) { room = activeRoom; onRoom(data); },
+            onError: showLobbyError,
+        });
+        net.onAuth(function (uu) { netUser = uu ? matchmaking.currentPlayer() : uu; renderLobby(); });
+        return true;
+    }
+    // Mirrors Darts: every online action awaits this, so it WAITS for ArcadeNet's async Firebase init
+    // (cached in onlineLoading, reset on failure for retry) instead of reading `net` synchronously —
+    // which is why a quick Create/Join right after load no longer fails with "online unavailable".
+    var onlineLoading = null;
+    function onNetReady() {   // resolve once ArcadeNet has finished loading (or is already present)
+        if (window.ArcadeNet) return Promise.resolve();
+        return new Promise(function (resolve, reject) {
+            var timer = setTimeout(function () { window.removeEventListener('arcade-net-ready', ok); reject(new Error('online unavailable')); }, 15000);
+            function ok() { clearTimeout(timer); window.removeEventListener('arcade-net-ready', ok); resolve(); }
+            window.addEventListener('arcade-net-ready', ok, { once: true });
+        });
+    }
+    function ensureOnline() {
+        if (initNet()) return Promise.resolve();
+        if (!onlineLoading) onlineLoading = onNetReady().then(function () {
+            if (!initNet()) throw new Error('online unavailable');   // loaded but Firebase/rooms are unavailable
+        }).catch(function (e) { onlineLoading = null; throw e; });    // reset so a later attempt can retry
+        return onlineLoading;
+    }
     function setupOnline() {
-        function ready() {
-            var N = window.ArcadeNet;
-            if (!N || !N.ok || (N.rooms && N.rooms.ok === false)) return;   // online unavailable: local play still works
-            net = N;
-            matchmaking = net.rooms.create({
-                collection: GROUP, identity: 'tab', minPlayers: 1, maxPlayers: MAX_PLAYERS,
-                presenceField: 'game.beat',
-                allowSpectators: true, isAvailable: function (uid) { return !isStale(uid); },
-                onCreate: function (input) {   // promote the staged CPUs; each is owned by the creator
-                    var uid = (matchmaking.currentPlayer() || {}).uid, src = (input && input.bots) || {}, bots = {};
-                    Object.keys(src).forEach(function (id) { if (src[id]) bots[id] = { name: src[id].name, order: src[id].order, notch: src[id].notch, owner: uid }; });
-                    return { bots: bots };
-                },
-                onLeave: function (data, player) {   // a departing connection takes its own CPUs with it
-                    var bots = botMap(data), out = {}, changed = false;
-                    Object.keys(bots).forEach(function (id) { if (bots[id].owner === player.uid) changed = true; else out[id] = bots[id]; });
-                    return changed ? { bots: out } : {};
-                },
-                canStart: function (data, ids) { var n = ids.length + Object.keys(botMap(data)).length; return n >= 2 && n <= MAX_PLAYERS; },
-                startPatch: function (data, order) {
-                    var bots = botMap(data), hp = {}, alive = {}, resolved = {}, strengths = [], used = {};
-                    order.forEach(function (uid) { hp[uid] = HP_START; alive[uid] = true; var o = (data.players[uid] || {}).order; if (o != null) used[o] = true; });
-                    var free = []; for (var c = 0; c < MAX_PLAYERS; c++) if (!used[c]) free.push(c);
-                    var bi = 0;
-                    Object.keys(bots).forEach(function (id) { var s = strengthForNotch(bots[id].notch); strengths.push(s);
-                        hp[id] = HP_START; alive[id] = true; resolved[id] = { name: bots[id].name, order: bots[id].order, notch: bots[id].notch, owner: bots[id].owner, strength: s, color: free[bi++ % free.length] }; });
-                    var start = openingLevel(strengths);                                    // trail the CPU field (humans-only → START_LEVEL)
-                    return { status: 'playing', bots: resolved, game: { status: 'playing', round: 1,
-                        seed: (Math.random() * 1e9) >>> 0, level: start, center: start,
-                        hp: hp, alive: alive, answers: {}, results: {}, rankByUid: {} } };
-                },
-            });
-            roomSession = matchmaking.session({
-                onChange: function (data, activeRoom) { room = activeRoom; onRoom(data); },
-                onError: showLobbyError,
-            });
-            net.onAuth(function (uu) { netUser = uu ? matchmaking.currentPlayer() : uu; renderLobby(); });
-        }
-        if (window.ArcadeNet) ready(); else window.addEventListener('arcade-net-ready', ready, { once: true });
+        if (!initNet()) window.addEventListener('arcade-net-ready', function () { if (initNet()) renderLobby(); }, { once: true });
         setInterval(watchdog, 250);
         window.addEventListener('beforeunload', function () { if (room && room.code && net && !(om && om.local) && room.data && netUser && room.data.players && room.data.players[netUser.uid]) { roomSession.leave().catch(function () { }); } });
     }
@@ -1301,6 +1344,7 @@
         var saved = {}; try { saved = AC.prefs.get('beam') || {}; } catch (e) { }
         if (saved.notch != null && saved.notch >= 0 && saved.notch <= NOTCH_MAX) stagedNotch = saved.notch | 0;
         if (saved.mode === 'solo' || saved.mode === 'online') lobbyMode = saved.mode;
+        if (saved.hp >= HP_MIN && saved.hp <= HP_MAX) stagedHp = saved.hp | 0;
         shell = AC.shell.create({
             gameId: 'beam', step: 1 / 60,
             update: function () { if (om) updateOnline(); },
