@@ -67,12 +67,14 @@ Firebase rule evaluator or a live-project check after publishing rules.
 node tools/darts-rules-check.js
 node tools/darts-room-check.js
 node tools/darts-feedback-check.js
+node tools/darts-opening-check.js
 node tools/darts-hud-check.js
 node tools/darts-cpu-physics-check.js
 node tools/darts-cpu-strategy-check.js
 node tools/darts-cpu-calibrate.js
 node tools/rooms-browser-check.js --darts
 node tools/rooms-browser-check.js --darts-cpu
+node tools/rooms-browser-check.js --darts-opening
 node tools/rooms-browser-check.js --darts --invalid-rtdb
 ```
 
@@ -218,6 +220,15 @@ Legs and Matches. CPU-first and mixed-device turns check ownership and handoff.
 The same actual samples are replayed through physics to compare human impacts.
 These cases also run in `--darts`. Add `--darts-mobile` or `--darts-desktop` to
 write ignored `.cache/darts-guide-mobile.png` or `darts-guide-desktop.png` previews.
+
+`node tools/darts-opening-check.js` covers the random starter's accepted selection,
+timestamp-derived draw/reveal, full first-turn deadline, reduced motion, lifecycle
+cleanup and Practice/solo/Cork exclusions. `--darts-opening` exercises the real
+browser UI at 320/390/1200px, early-input rejection, two-device agreement,
+owner-only CPU start, cancellation and later-Leg behavior. It also advances local
+and shared CPU turns through hidden-page maintenance without animation updates,
+including Timer Off and paused local play. These checks also run in `--darts`.
+Add `--darts-mobile` or `--darts-desktop` for ignored opening screenshots in `.cache`.
 
 Lobby checks keep the header/footer visible at every content scroll position
 with four players and expanded rules at 320x568, 390x844 and 1200x420. They verify

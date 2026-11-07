@@ -644,6 +644,10 @@ CPU scheduling is polled in the game update with a 900 ms recognition interval
 after the previous result presentation ends. A pending key contains match, Leg,
 phase, turn, accepted sequence and player. Pauses/dialogs, deadlines, new states,
 results and resets cancel pending work; there is no detached asynchronous throw.
+When the document is hidden and animation frames stop, the existing one-second
+maintenance interval also advances accepted flights and owned CPU turns. It uses
+the same update path and guards, without throwing for humans or bypassing pause.
+This depends on the browser continuing timers; an OS-suspended page cannot run.
 Timers are neither paused nor reset for CPU. Human pointer input is blocked on
 CPU turns. Handoff never asks a CPU to confirm; remembered confirmed human
 ownership preserves H1 → CPU → H2 handoff and skips H1 → CPU → H1. Existing
@@ -759,6 +763,16 @@ waits while an accepted dart is
 flying so its score cannot be applied to a newly advanced slot. Online clients
 present the accepted throw before showing its updated score/history; presentation
 does not apply a second physical pitch transformation.
+
+`darts-opening.js` presents the already selected random starter once, at the start
+of a competitive Match with two or more players. Local Start and the shared room's
+atomic start patch record the chosen slot and timestamp, then delay `readyAt` and
+`turnStartedAt` by 1900 ms. Player cards cycle for 1000 ms and the accepted starter
+is named for 900 ms; reduced motion shows that starter immediately. Feedback blocks
+human and CPU input during the presentation, and the ordinary turn receives its
+full timer afterward. Shared clients derive the display from the accepted timestamp,
+so repeated/delayed snapshots do not restart it. Practice, solo Count-Up, opening
+Cork and later-Leg rotation retain their existing behavior.
 
 `darts-feedback.js` coordinates local presentation only. A transition between two
 different slots owned by this device requires Ready to Throw; no handoff appears

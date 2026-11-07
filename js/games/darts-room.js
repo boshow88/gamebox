@@ -1,9 +1,9 @@
 /* Persistent Darts rooms: connections use the shared service; participants own seats. */
 (function (root, factory) {
     'use strict';
-    if (typeof module === 'object' && module.exports) module.exports = factory(require('./darts-rules.js'));
-    else root.createDartsRoom = factory(root.DartsRules);
-})(typeof window === 'object' ? window : globalThis, function (Rules) {
+    if (typeof module === 'object' && module.exports) module.exports = factory(require('./darts-rules.js'), require('./darts-opening.js'));
+    else root.createDartsRoom = factory(root.DartsRules, root.DartsOpening);
+})(typeof window === 'object' ? window : globalThis, function (Rules, Opening) {
     'use strict';
     function clone(value) { return JSON.parse(JSON.stringify(value)); }
     function name(value, fallback) { return String(value || '').trim().slice(0, 32) || fallback || 'Player'; }
@@ -102,6 +102,7 @@
             startPatch: function (data) {
                 var ids = participantIds(data), slots = participants(data);
                 var g = Rules.create(data.options, ids, now(), Math.abs(data.seed || 0) % ids.length);
+                Opening.prepare(g);
                 g.participants = clone(slots);
                 g.cpuSeed = Math.floor(Math.random() * 0x100000000);
                 g.owners = Object.fromEntries(ids.map(function (id) { return [id, slots[id].controllerId]; }));

@@ -13,8 +13,9 @@ const lobbyPreview = args.includes('--darts-lobby');
 const corkPreview = args.includes('--darts-cork');
 const cpuOnly = args.includes('--darts-cpu');
 const guideOnly = args.includes('--darts-guide');
+const openingOnly = args.includes('--darts-opening');
 const preview = args.includes('--darts-mobile') ? 'mobile' : args.includes('--darts-desktop') ? 'desktop' : lobbyPreview || corkPreview ? 'mobile' : '';
-const dartsOnly = args.includes('--darts') || cpuOnly || guideOnly || !!preview;
+const dartsOnly = args.includes('--darts') || cpuOnly || guideOnly || openingOnly || !!preview;
 const chrome = args.find(arg => !arg.startsWith('--')) || 'C:/Program Files/Google/Chrome/Application/chrome.exe';
 const database = require('./helpers/browser-rtdb.js');
 
@@ -52,6 +53,7 @@ const lobbyPreview = ${lobbyPreview};
 const corkPreview = ${corkPreview};
 const cpuOnly = ${cpuOnly};
 const guideOnly = ${guideOnly};
+const openingOnly = ${openingOnly};
 let encode = value => value, decode = value => value;
 addEventListener('message', event => { if (event.data && event.data.roomError) errors.push(event.data.roomError); });
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -194,20 +196,21 @@ ${dartsOnly ? fs.readFileSync(path.join(__dirname, 'helpers/darts-browser-v2.js'
     } else {
         const codec = await import('/js/net/rtdb-values.mjs'); encode = codec.encodeRoomValue; decode = codec.decodeRoomValue;
         if(dartsOnly) {
-            for (const check of guideOnly ? [checkDartsThrowGuideV2, checkDartsThrowGuideOwnershipV2, checkDartsThrowGuideRemoteV2, checkDartsThrowGuidePreviewV2] : cpuOnly ? [checkDartsCpuLobbyV2, checkDartsCpuMatchesV2, checkDartsCpuHandoffV2, checkDartsCpuCancellationV2, checkDartsCpuRulesAndCorkV2, checkDartsCpuPreviewV2] : [checkDartsAccountNames, checkDartsContextV2, checkDartsLocalV2, checkDartsHandoffV2,
+            for (const check of openingOnly ? [checkDartsRandomOpeningV2, checkDartsRandomOpeningRemoteV2, checkDartsBackgroundCpuV2, checkDartsOpeningPreviewV2] : guideOnly ? [checkDartsThrowGuideV2, checkDartsThrowGuideOwnershipV2, checkDartsThrowGuideRemoteV2, checkDartsThrowGuidePreviewV2] : cpuOnly ? [checkDartsCpuLobbyV2, checkDartsCpuMatchesV2, checkDartsCpuHandoffV2, checkDartsCpuCancellationV2, checkDartsCpuRulesAndCorkV2, checkDartsCpuPreviewV2] : [checkDartsAccountNames, checkDartsContextV2, checkDartsLocalV2, checkDartsHandoffV2,
                 checkDartsBustV2, checkDartsResultsV2, checkDartsExpandedSettingsV2, checkDartsOpeningCorkV2,
                 checkDartsFinalHitV2, checkDartsReservedLocalV2, checkDartsReservedLossV2, checkDartsLeaveRestoreV2,
                 checkDartsMixedV2, checkDartsSupersededFlightV2, checkDartsFourV2, checkDartsLayoutsV2, checkDartsLobbyV2,
                 checkDartsStatusOverflowV2, checkDartsCorkRethrowsV2, checkDartsRemoteCorkRethrowsV2, checkDartsCorkFinalPresentationV2,
                 checkDartsCpuLobbyV2, checkDartsCpuMatchesV2, checkDartsCpuHandoffV2, checkDartsCpuCancellationV2, checkDartsCpuRulesAndCorkV2,
-                checkDartsThrowGuideV2, checkDartsThrowGuideOwnershipV2, checkDartsThrowGuideRemoteV2, checkDartsCorkPreviewV2]) {
+                checkDartsThrowGuideV2, checkDartsThrowGuideOwnershipV2, checkDartsThrowGuideRemoteV2,
+                checkDartsRandomOpeningV2, checkDartsRandomOpeningRemoteV2, checkDartsBackgroundCpuV2, checkDartsCorkPreviewV2]) {
                 document.getElementById('result').textContent = 'RUNNING: ' + check.name;
                 await check();
             }
         }
         else { await check('beam', 'beam_rooms', 'beam'); await check('rune-stones', 'duel_rooms', 'rd'); }
     }
-    document.getElementById('result').textContent = 'PASS (' + mode + '): ' + (mode === 'invalid' ? 'disabled online rooms and working account profiles.' : guideOnly ? 'Darts throw-area guidance, shared gesture feedback, persistence, controls, CPU/remote ownership, handoff, reduced motion and responsive geometry.' : cpuOnly ? 'Darts local CPU slots, physical gestures, all compositions, pacing, cancellation, handoff, timers, Cricket and Cork.' : dartsOnly ? 'Darts throwing guidance, CPU opponents, Cork contexts/rethrows/ownership, overflow and reduced-motion detail, X01 settings, final-hit timing, local/mixed rooms, history and responsive geometry.' : 'real browser room flows, backend selection and account isolation.');
+    document.getElementById('result').textContent = 'PASS (' + mode + '): ' + (mode === 'invalid' ? 'disabled online rooms and working account profiles.' : openingOnly ? 'Darts synchronized random starter, full first-turn timer, reduced motion, input/CPU gating, hidden-page CPU progress and responsive geometry.' : guideOnly ? 'Darts throw-area guidance, shared gesture feedback, persistence, controls, CPU/remote ownership, handoff, reduced motion and responsive geometry.' : cpuOnly ? 'Darts local CPU slots, physical gestures, all compositions, pacing, cancellation, handoff, timers, Cricket and Cork.' : dartsOnly ? 'Darts random starter, hidden-page CPU progress, throwing guidance, CPU opponents, Cork contexts/rethrows/ownership, overflow and reduced-motion detail, X01 settings, final-hit timing, local/mixed rooms, history and responsive geometry.' : 'real browser room flows, backend selection and account isolation.');
 })().catch(error => { document.getElementById('result').textContent = 'FAIL: ' + error.stack; });
 </script>`;
 
@@ -237,6 +240,7 @@ async function main() {
                     land: function () { update(1); }, controller: function () { return online; },
                     refresh: function () { syncGameUi(); render(); },
                     step: function (ms, dt) { window.__dartsNow += ms || 0; if (shell.isPlaying()) update(dt || 0); else tickCpu(); syncGameUi(); render(); },
+                    background: function (ms) { window.__dartsNow += ms; var before = match.seq; Object.defineProperty(document,'hidden',{configurable:true,value:true}); tickBackground(); syncGameUi(); render(); return {scored:match.seq-before,updatedAt:lastUpdateAt}; },
                     cpu: function () { return { pending: cpuPending, last: lastCpuThrow }; },
                     input: function () { return { gesture: gesture, analysis: G.analysis, launch: G.throw, impact: G.impact }; },
                     boardBottom: function () { var r = canvas.getBoundingClientRect(); return r.top + (TUNING.boardCenterY + TUNING.rDoubleOuter * boardScaleNow() * 1.18) * r.height / H; },
@@ -276,7 +280,7 @@ async function main() {
         const extra = [];
         if (preview) {
             const target = path.join(root, '.cache'); fs.mkdirSync(target, { recursive: true });
-            extra.push('--screenshot=' + path.join(target, 'darts-' + (guideOnly ? 'guide-' : cpuOnly ? 'cpu-' : '') + (lobbyPreview ? 'lobby-' : corkPreview ? 'cork-' : '') + preview + '.png'), '--window-size=' + (preview === 'mobile' ? '390,844' : '1200,800'), '--hide-scrollbars');
+            extra.push('--screenshot=' + path.join(target, 'darts-' + (openingOnly ? 'opening-' : guideOnly ? 'guide-' : cpuOnly ? 'cpu-' : '') + (lobbyPreview ? 'lobby-' : corkPreview ? 'cork-' : '') + preview + '.png'), '--window-size=' + (preview === 'mobile' ? '390,844' : '1200,800'), '--hide-scrollbars');
         }
         browser = spawn(chrome, ['--headless=new', '--disable-gpu', '--no-first-run', '--no-default-browser-check', ...extra,
             '--disable-background-networking', '--user-data-dir=' + profile, '--dump-dom', '--virtual-time-budget=' + (dartsOnly ? 180000 : 45000),

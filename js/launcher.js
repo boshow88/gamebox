@@ -62,7 +62,7 @@
         {
             id: 'darts', theme: 'arcade', icon: 'darts', color: '#22c55e',
             href: './games/darts.html',
-            tags: ['action', 'single', 'multi'], wip: true,
+            tags: ['action', 'single', 'multi'],
         },
         {
             id: 'patches', theme: 'puzzle', icon: 'layout-template-ccw', color: '#e5484d',

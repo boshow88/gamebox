@@ -74,6 +74,9 @@
 .turn-notice span:empty { display: none; }
 .turn-notice.bust strong, .turn-notice.bust span { color: #fca5a5; }
 .turn-notice.cork strong { color: #fcd34d; }
+.turn-notice.starter strong { color: #7dd3fc; }
+.turn-notice.starter span { font-size: 1rem; }
+.darts-player.starter-draw { box-shadow: inset 0 0 0 1px var(--player-color); }
 .handoff-overlay { position: absolute; z-index: 2; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 12px; overflow: auto; text-align: center; background: #070d14eb; }
 .handoff-overlay h2 { margin: 0; max-width: 100%; overflow-wrap: anywhere; font-size: clamp(17px, 2.2vw, 26px); }
 .handoff-overlay p { margin: 0; font-size: .8rem; }

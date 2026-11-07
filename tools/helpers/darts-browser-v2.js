@@ -54,10 +54,14 @@ async function dartsAdd(f, count) {
         await sleep(1);
     }
 }
-async function dartsStartLocal(f) {
+async function dartsStartLocal(f, keepOpening = false) {
     dartsClick(f, 'lobby-start-btn');
     dartsAssert(dartsDoc(f).getElementById('lobby-start-btn').disabled && dartsDoc(f).getElementById('lobby-start-btn').textContent === f.contentWindow.ArcadeCommon.i18n.t('dartsLobbyStarting'), 'Pending start has a disabled Starting label');
     await until(() => dartsApi(f).snapshot().match && dartsApi(f).snapshot().match.status === 'playing' && !dartsDoc(f).getElementById('lobby').open, 'local match start');
+    if (!keepOpening && dartsApi(f).snapshot().match.openingDraw) {
+        const w = f.contentWindow;
+        w.__dartsNow = Math.max(w.__dartsNow, dartsApi(f).snapshot().match.readyAt); dartsApi(f).refresh();
+    }
 }
 async function dartsReturn(f) {
     if (!dartsDoc(f).getElementById('lobby').open) dartsClick(f, 'settings-btn');
@@ -112,7 +116,7 @@ async function dartsJoin(f, code) {
     dartsClick(f, 'join-room-btn');
     await until(() => dartsApi(f).snapshot().room && dartsApi(f).snapshot().room.code === code, 'join Darts room');
 }
-async function dartsStartOnline(host, guests) {
+async function dartsStartOnline(host, guests, keepOpening = false) {
     for (const f of guests) {
         await until(() => !dartsDoc(f).getElementById('lobby-start-btn').disabled, 'guest Ready control');
         dartsClick(f, 'lobby-start-btn');
@@ -120,6 +124,10 @@ async function dartsStartOnline(host, guests) {
     await until(() => !dartsDoc(host).getElementById('lobby-start-btn').disabled, 'host start after every device ready');
     dartsClick(host, 'lobby-start-btn');
     await until(() => [host, ...guests].every(f => dartsApi(f).snapshot().match && dartsApi(f).snapshot().match.status === 'playing' && !dartsDoc(f).getElementById('lobby').open), 'online Darts match start');
+    for (const f of keepOpening ? [] : [host, ...guests]) {
+        f.contentWindow.__dartsNow = Math.max(f.contentWindow.__dartsNow, dartsApi(f).snapshot().match.readyAt);
+        dartsApi(f).refresh();
+    }
 }
 async function checkDartsContextV2() {
     const f = await dartsBoot('context-player'), doc = dartsDoc(f), w = f.contentWindow;
@@ -158,8 +166,7 @@ async function checkDartsContextV2() {
     const nameField = [...doc.querySelectorAll('#lobby-slots .slot-name')].find(input => input.dataset.slotId === namedSlot);
     nameField.value = customName; nameField.dispatchEvent(new w.Event('change', { bubbles: true }));
     await until(() => dartsData(f).participants[namedSlot].name === customName && !doc.getElementById('lobby-start-btn').disabled, 'manual name including meaningful spaces');
-    dartsClick(f, 'lobby-start-btn');
-    await until(() => dartsApi(f).snapshot().match && !doc.getElementById('lobby').open, 'Chinese Count-Up start');
+    await dartsStartLocal(f);
     dartsAssert(doc.getElementById('match-meta').textContent.includes('第1局') && doc.querySelector('.status-round').textContent === '第1/5回合', 'Chinese dynamic HUD labels follow the spacing convention');
     dartsThrow(f); dartsClick(f, 'history-btn');
     dartsAssert(doc.querySelector('.history-turn h3').textContent.startsWith('局1 · 回合1 · '), 'Chinese history headings format dynamic numbers correctly');
@@ -1710,5 +1717,109 @@ async function checkDartsThrowGuidePreviewV2() {
     f.style.cssText = 'position:fixed;inset:0;width:' + width + 'px;height:' + height + 'px;border:0;z-index:20';
     await dartsChange(f, 'mode-select', 'cricket'); await dartsChange(f, 'timer-select', 0); await dartsAdd(f, 3);
     f.contentWindow.ArcadeCommon.i18n.setLocale('zh'); await dartsCpuStart(f); dartsApi(f).step(5000, 0);
+    await dartsDoc(f).fonts.ready; await sleep(60);
+}
+
+async function checkDartsRandomOpeningV2() {
+    for (const [width, height, count] of [[320, 568, 2], [390, 844, 4], [1200, 800, 4]]) {
+        const f = await dartsBoot('random-opening-' + width, width, height), api = dartsApi(f), doc = dartsDoc(f), w = f.contentWindow;
+        await dartsChange(f, 'mode-select', 'countup'); await dartsChange(f, 'timer-select', 30000); await dartsAdd(f, count - 1);
+        const before = doc.getElementById('stage').getBoundingClientRect().toJSON();
+        const random = w.Math.random; w.Math.random = () => (count - .5) / count;
+        try { await dartsStartLocal(f, true); } finally { w.Math.random = random; }
+        const state = api.snapshot().match, at = state.openingDraw.at, end = state.readyAt;
+        dartsAssert(state.active === state.players.at(-1) && state.turnStartedAt === end && api.snapshot().feedback.blocking, 'Random selection remains authoritative and first turn starts after presentation');
+        dartsAssert(!api.gesture() && doc.getElementById('turn-timer').hidden && doc.getElementById('turn-status').textContent.includes('Choosing'), 'Human input and countdown wait while choosing the starter');
+        const seen = new Set();
+        for (let elapsed = 0; elapsed <= 900; elapsed += 100) {
+            w.__dartsNow = at + elapsed; api.refresh();
+            seen.add(doc.querySelector('.darts-player.active').dataset.playerUid);
+            dartsAssert(api.snapshot().feedback.blocking && !api.cpu().pending && api.snapshot().match.seq === 0, 'Draw animation cannot launch a dart or advance a turn');
+        }
+        dartsAssert(seen.size === count && doc.querySelector('.starter-draw'), 'Player cards visibly cycle through every seat');
+        dartsAssert(doc.getElementById('turn-notice-message').getAttribute('aria-hidden') === 'true', 'Cycling names do not become repeated live announcements');
+        w.__dartsNow = at + w.DartsOpening.TIMING.draw; api.refresh();
+        dartsAssert(doc.getElementById('turn-notice-title').textContent.includes(dartsData(f).roster[state.active]) && !doc.querySelector('.starter-draw'), 'Result stops on the accepted starter and names them');
+        dartsAssert(JSON.stringify(doc.getElementById('stage').getBoundingClientRect().toJSON()) === JSON.stringify(before), 'Opening presentation never moves or resizes the board');
+        dartsAssert(doc.documentElement.scrollWidth <= width && doc.documentElement.scrollHeight <= height, 'Opening creates no page overflow');
+        w.__dartsNow = end - 1; api.refresh(); dartsAssert(!api.gesture(), 'Reveal still blocks the final millisecond');
+        w.__dartsNow = end; api.refresh();
+        dartsAssert(!api.snapshot().feedback.opening && !api.snapshot().feedback.blocking && doc.getElementById('turn-timer').textContent === '30s', 'Winner receives the full configured turn time');
+        dartsAssert(api.gesture(), 'The accepted starter can throw after reveal'); api.land();
+        dartsAssert(api.snapshot().match.seq === 1 && !api.snapshot().feedback.opening, 'First throw cannot replay the opening');
+        const reduced = structuredClone(state); reduced.matchId += '-reduced'; reduced.openingDraw.at = w.__dartsNow;
+        reduced.readyAt = reduced.turnStartedAt = reduced.openingDraw.at + 1900;
+        w.__dartsReducedMotion(true); api.replace(reduced);
+        dartsAssert(!api.snapshot().feedback.opening.drawing && api.snapshot().feedback.opening.player === reduced.active && !doc.querySelector('.starter-draw'), 'Reduced motion shows the final starter immediately');
+        api.step(400, 0); dartsClick(f, 'history-btn'); api.refresh();
+        dartsClick(f, 'history-close-btn'); api.refresh();
+        dartsAssert(api.snapshot().feedback.opening.until === reduced.readyAt, 'Opening history cannot restart the draw');
+        dartsClick(f, 'restart-btn'); await until(() => dartsData(f).phase === 'lobby', 'cancel opening through Restart');
+        dartsAssert(!api.snapshot().feedback.opening && !api.snapshot().feedback.blocking, 'Cancelled Match clears opening input gates');
+        w.__dartsReducedMotion(false); await dartsStartLocal(f, true);
+        dartsAssert(api.snapshot().feedback.opening && api.snapshot().match.matchId !== reduced.matchId, 'A new Match has a new opening');
+        const later = structuredClone(api.snapshot().match); later.leg = 2; api.replace(later);
+        dartsAssert(!api.snapshot().feedback.opening, 'Later Legs retain seat rotation without another random draw');
+        f.remove();
+    }
+}
+async function checkDartsRandomOpeningRemoteV2() {
+    const a = await dartsBoot('opening-host'), b = await dartsBoot('opening-guest');
+    await dartsChange(a, 'mode-select', 'countup'); await dartsChange(a, 'timer-select', 30000); await dartsAddCpu(a);
+    const code = await dartsPromote(a); await dartsJoin(b, code);
+    dartsAssert(await dartsApi(b).controller().addCpuPlayer('Guest CPU', 'hard'), 'Guest CPU joins the opening roster');
+    await until(() => dartsData(a).seatOrder.length === 4 && dartsData(b).seatOrder.length === 4, 'four-slot opening roster');
+    const tools = dartsRoomTools(code, [a, b]), guestCpu = dartsData(b).seatOrder.at(-1);
+    tools.mutate(data => { data.seed = data.seatOrder.indexOf(guestCpu); });
+    await until(() => dartsData(a).seed === tools.read().seed, 'chosen fixture seed observed');
+    await dartsStartOnline(a, [b], true);
+    const initial = tools.read().game, at = initial.openingDraw.at;
+    for (const elapsed of [0, 300, 700, 1000, 1800]) {
+        for (const f of [a, b]) { f.contentWindow.__dartsNow = at + elapsed; dartsApi(f).step(0, 0); }
+        const first = dartsApi(a).snapshot().feedback.opening, second = dartsApi(b).snapshot().feedback.opening;
+        dartsAssert(JSON.stringify(first) === JSON.stringify(second) && first.winner === guestCpu, 'Both devices show the same accepted random starter');
+        dartsAssert(!dartsApi(a).cpu().pending && !dartsApi(b).cpu().pending && tools.read().game.seq === 0, 'Neither device executes a CPU during the opening');
+    }
+    dartsAssert(!await dartsApi(b).controller().submit(dartsFlight(0, 0)), 'The room transaction rejects a flight before opening completion');
+    await dartsApi(a).controller().service.heartbeat(code, 0);
+    dartsAssert(tools.read().game.openingDraw.at === at && tools.read().game.turnStartedAt === initial.readyAt, 'Heartbeats cannot reroll or restart the opening');
+    for (const f of [a, b]) { f.contentWindow.__dartsNow = initial.readyAt; dartsApi(f).step(0, 0); }
+    dartsAssert(!dartsApi(a).cpu().pending && dartsApi(b).cpu().pending.at === initial.readyAt + 900, 'Only the owning device schedules the selected CPU after reveal');
+    dartsApi(b).step(900, 0);
+    await until(() => tools.read().game.seq === 1 && [a, b].every(f => dartsApi(f).snapshot().match.seq === 1), 'first CPU flight accepted after opening');
+    [a, b].forEach(f => dartsApi(f).land());
+    dartsAssert(tools.read().game.lastDart.uid === guestCpu && !dartsApi(a).cpu().last, 'The selected owner submits the ordinary first dart exactly once');
+    for (let i = 0; i < 20 && tools.read().game.seq < 3; i++) {
+        dartsApi(b).background(1000); await sleep(30);
+    }
+    await until(() => [a, b].every(f => dartsApi(f).snapshot().match.seq === 3), 'hidden owner finishes its shared CPU turn');
+    dartsAssert(tools.read().game.lastTurn.uid === guestCpu && !dartsApi(a).cpu().last, 'Hidden-page maintenance executes only the owning device CPU');
+    await dartsApi(a).controller().leave(); await dartsApi(b).controller().leave(); a.remove(); b.remove();
+}
+async function checkDartsBackgroundCpuV2() {
+    const f = await dartsBoot('background-cpu'), api = dartsApi(f), w = f.contentWindow;
+    await dartsChange(f, 'mode-select', 'countup'); await dartsChange(f, 'timer-select', 0); await dartsAddCpu(f);
+    await dartsCpuStart(f, 1);
+    let backgroundScores = 0;
+    for (let i = 0; i < 20 && api.snapshot().match.seq < 3; i++) {
+        const result = api.background(1000); backgroundScores += result.scored;
+        dartsAssert(result.updatedAt === w.__dartsNow, 'Maintenance advances accepted flight time while the page is hidden');
+    }
+    dartsAssert(backgroundScores === 3 && api.snapshot().match.seq === 3 && api.snapshot().match.participants[api.snapshot().match.active].type === 'human', 'A hidden local CPU finishes three actual physical darts without a foreground update');
+    for (let i = 0; i < 5; i++) api.background(1000);
+    dartsAssert(api.snapshot().match.seq === 3 && !api.cpu().pending, 'Background maintenance never throws for a human');
+    dartsClick(f, 'restart-btn'); await until(() => dartsData(f).phase === 'lobby', 'background test reset');
+    await dartsCpuStart(f, 1); dartsClick(f, 'pause-btn'); api.background(5000);
+    dartsAssert(api.snapshot().match.seq === 0 && !api.cpu().pending, 'A paused local game stays paused in background');
+    f.remove();
+}
+async function checkDartsOpeningPreviewV2() {
+    if (!openingOnly || !preview) return;
+    const width = preview === 'desktop' ? 1200 : 390, height = preview === 'desktop' ? 800 : 844;
+    const f = await dartsBoot('opening-preview', width, height), w = f.contentWindow;
+    f.style.cssText = 'position:fixed;inset:0;width:' + width + 'px;height:' + height + 'px;border:0;z-index:20';
+    await dartsChange(f, 'mode-select', 'countup'); await dartsChange(f, 'timer-select', 30000); await dartsAdd(f, 3);
+    w.ArcadeCommon.i18n.setLocale('zh'); await dartsStartLocal(f, true);
+    w.__dartsNow = dartsApi(f).snapshot().match.openingDraw.at + (preview === 'desktop' ? 1100 : 400); dartsApi(f).refresh();
     await dartsDoc(f).fonts.ready; await sleep(60);
 }

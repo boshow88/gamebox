@@ -1,10 +1,10 @@
 /* Accepted-state feedback and local handoff gating. No DOM, game rules or timers. */
 (function (root, factory) {
     'use strict';
-    var feedback = factory();
+    var feedback = factory(typeof module === 'object' && module.exports ? require('./darts-opening.js') : root.DartsOpening);
     if (typeof module === 'object' && module.exports) module.exports = feedback;
     else root.DartsFeedback = feedback;
-})(typeof window === 'object' ? window : globalThis, function () {
+})(typeof window === 'object' ? window : globalThis, function (Opening) {
     'use strict';
     var TIMING = Object.freeze({ turn: 1200, bust: 1200, penalty: 1300, finalHit: 1000, cork: 1600 });
     function timestamp(value) { return Number.isFinite(value) ? value : Date.now(); }
@@ -51,11 +51,13 @@
     function create(options) {
         var controllerId = options && options.controllerId;
         var previous, handoff, notice, penalties, penaltyUntil, eventKey, seen, finalHit, finalUntil, queuedCork, queuedOutcome, lastHuman;
+        var openingState = null, reducedMotion = false;
         function reset() {
             previous = null; handoff = null; notice = null;
             penalties = {}; penaltyUntil = 0; eventKey = ''; seen = new Set();
             finalHit = null; finalUntil = 0;
             queuedCork = null; queuedOutcome = null; lastHuman = null;
+            openingState = null;
         }
         reset();
         function showQueuedCork(now) {
@@ -68,10 +70,12 @@
         function snapshot(at) {
             var now = timestamp(at), currentNotice = notice && now < notice.until ? notice : null;
             var resultPending = !!finalHit && now < finalUntil;
+            var opening = Opening.model(openingState, now, reducedMotion);
             return {
                 handoff: handoff ? { key: handoff.key, player: handoff.player,
                     visible: now >= handoff.visibleAt, outcome: handoff.outcome || null } : null,
-                blocking: !!handoff || !!(resultPending && finalHit.corkOutcome && finalHit.corkOutcome.kind !== 'win'),
+                blocking: !!opening || !!handoff || !!(resultPending && finalHit.corkOutcome && finalHit.corkOutcome.kind !== 'win'),
+                opening: opening,
                 notice: currentNotice && !resultPending ? Object.assign({}, currentNotice.value) : null,
                 penalties: now < penaltyUntil ? Object.assign({}, penalties) : {},
                 eventKey: eventKey,
@@ -95,6 +99,7 @@
             if (previous && Number.isFinite(previous.seq) && Number.isFinite(state.seq) && state.seq < previous.seq) {
                 return snapshot(now);
             }
+            openingState = state; reducedMotion = !!context.reducedMotion;
             var key = identity(state), changed = previous && key !== previous.key;
             var corkKey = corkIdentity(state), corkChanged = corkKey && (!previous || previous.corkKey !== corkKey);
             if (!corkKey) {

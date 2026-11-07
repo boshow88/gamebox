@@ -38,8 +38,10 @@
         var cork = !!(s && (finalCork || s.phase === 'cork'));
         var previous = s && !current && s.lastTurn && (!cork || s.lastTurn.phase === 'cork') ? s.lastTurn : null;
         var mode = s ? s.mode : 'practice', limit = s ? s.roundLimit || 0 : 0;
+        var opening = input.effects && input.effects.opening;
         return {
             mode: mode, startingScore: s ? s.startingScore || 501 : 501,
+            opening: opening || null,
             phase: s ? s.status : 'playing', throwPhase: cork ? 'cork' : 'play',
             corkPurpose: corkState ? corkState.corkPurpose || 'tie' : null,
             cork: cork ? corkModel(corkState) : null,
@@ -58,7 +60,8 @@
                 name: s ? input.name(id) : input.you, score: s ? mode === 'practice' ? s.stats[id].darts : s.scores[id] : practice.darts,
                 legs: s ? s.wins[id] : 0, entered: !s || !s.entered || s.entered[id] !== false,
                 left: s ? (s.withdrawn || []).includes(id) : false,
-                active: finalCork ? id === finalCork.active : s ? id === s.active && s.status === 'playing' : true,
+                active: opening ? id === opening.player : finalCork ? id === finalCork.active : s ? id === s.active && s.status === 'playing' : true,
+                drawingStarter: !!(opening && opening.drawing && id === opening.player),
                 marks: s ? s.marks[id] : null }; }),
             turn: s ? { owner: previous ? previous.uid : s.active, previous: !!previous,
                 darts: previous ? previous.darts || [] : s.turnDarts || [],
@@ -207,7 +210,7 @@
         var lastKey = '', lastPlayersKey = '';
         function render(m) {
             // Clock updates should not rebuild the table, reset focus, or repeat live announcements.
-            get('turn-timer').hidden = m.timer === null;
+            get('turn-timer').hidden = m.timer === null || !!m.opening;
             get('turn-timer').textContent = m.timer === null ? '' : m.timer + 's';
             get('leg-result').hidden = options.isFlying() || !!(m.effects && m.effects.resultPending) || !['between', 'over'].includes(m.phase);
             var finalDart = m.effects && m.effects.finalHit && m.effects.finalHit.dart;
@@ -224,14 +227,14 @@
             setMeta(playingCork ? corkStatusLabel(m.corkPurpose) : ordinaryMeta,
                 playingCork ? corkLabel(m.corkPurpose) + ' · ' + corkInstruction(m.corkPurpose) + ' · ' + t('dartsCorkAttempt', m.corkRound) : ordinaryMeta);
             if (get('mode-rule-summary')) get('mode-rule-summary').textContent = ruleSummary(m);
-            var status = finalDart ? finalDart.phase === 'cork' ? t('dartsCork') + ' · ' + shownDistance(finalDart.distance) :
+            var status = m.opening ? m.opening.drawing ? t('dartsDrawingStarter') : t('dartsCorkStarter', names[m.opening.winner]) : finalDart ? finalDart.phase === 'cork' ? t('dartsCork') + ' · ' + shownDistance(finalDart.distance) :
                 t('dartsLast') + ' · ' + label(finalDart.result) :
                 cancelled ? t('dartsMatchEnded') : endedPractice ? t('dartsPracticeEnded') : m.phase === 'between' || m.phase === 'over' ? (m.draw ? t('dartsDraw') :
                 t(m.phase === 'over' ? 'dartsMatchWon' : 'dartsLegWon') + ' · ' + names[m.winner]) :
                 m.mode === 'practice' && m.players.length === 1 ? t('dartsFlickPrompt') :
                     t('dartsTurnOf', names[m.active]) + ' · ' + t('dartsDartProgress', m.dart, m.throwPhase === 'cork' ? 1 : 3);
             get('turn-status').textContent = status;
-            if (!finalDart && (m.mode !== 'practice' || m.players.length > 1) && m.phase === 'playing') {
+            if (!m.opening && !finalDart && (m.mode !== 'practice' || m.players.length > 1) && m.phase === 'playing') {
                 var indicator = get('turn-status'); indicator.replaceChildren();
                 var turnName = el('span', 'status-name', t(playingCork ? 'dartsCorkTurnOf' : 'dartsTurnOf', names[m.active])); turnName.title = turnName.textContent;
                 indicator.append(turnName, el('span', 'status-dart', playingCork ? t('dartsCorkDart') : t('dartsDartProgress', m.dart, 3)));
@@ -245,7 +248,7 @@
                 var focusedUid = focused && focused.dataset.playerUid;
                 var players = get('player-scores'); players.replaceChildren();
                 m.players.forEach(function (p) {
-                var card = el('button', 'darts-player' + (p.active ? ' active' : '') + (p.left ? ' withdrawn' : ''));
+                var card = el('button', 'darts-player' + (p.active ? ' active' : '') + (p.drawingStarter ? ' starter-draw' : '') + (p.left ? ' withdrawn' : ''));
                 card.type = 'button'; card.setAttribute('aria-haspopup', 'dialog');
                 var owned = options.ownsPlayer ? options.ownsPlayer(p.id) : controls(p.id), cpu = p.type === 'cpu';
                 var ownership = (cpu ? t('dartsCpu') + ' · ' + t('dartsCpu' + p.difficulty.charAt(0).toUpperCase() + p.difficulty.slice(1)) + ' · ' : '') +

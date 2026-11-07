@@ -36,6 +36,7 @@
     var pendingFeedbackEvent = null, feedbackKey = '', presentationTurnKey = '', handoffPressKey = null;
     var cpuGesture = null, cpuRandom = null, cpuPending = null, lastCpuThrow = null;
     var throwSubmission = null, cpuAttemptKey = '';
+    var reducedMotion = null, lastUpdateAt = 0;
     var CPU_THINK_MS = 900;
 
     // =================================================================
@@ -62,6 +63,7 @@
         dartsGuideDragBeside: 'Drag up here or in the right panel.',
         dartsGuideDismiss: 'Dismiss throwing hint',
         dartsGuideReview: 'Show throw-area hint in game',
+        dartsDrawingStarter: 'Choosing who starts…',
         dartsMiss: 'Miss',
         dartsBull: 'Bull',
         dartsOuterBull: 'Outer Bull',
@@ -90,6 +92,7 @@
         dartsGuideDragBeside: '鏢靶或右側計分區皆可向上拖曳投鏢。',
         dartsGuideDismiss: '關閉投鏢提示',
         dartsGuideReview: '在遊戲中顯示投鏢區域提示',
+        dartsDrawingStarter: '隨機決定先手…',
         dartsMiss: '脫靶',
         dartsBull: '紅心',
         dartsOuterBull: '外紅心',
@@ -800,6 +803,7 @@
     // =================================================================
 
     function update(dt) {
+        lastUpdateAt = Date.now();
         if (G.trajT > 0) G.trajT = Math.max(0, G.trajT - dt);
         if (G.hintT > 0) G.hintT = Math.max(0, G.hintT - dt);
         if (G.dartState === 'flying') {
@@ -815,6 +819,15 @@
             if (G.resultT <= 0) freshDart();
         }
         tickCpu();
+    }
+    function tickBackground() {
+        // A hidden page may keep its room heartbeat while rAF is suspended. Advance
+        // accepted flights and owned CPU turns on that same maintenance interval.
+        var now = Date.now();
+        if (!document.hidden || !shell || !shell.isPlaying() || !match || roomData().phase !== 'playing' || now - lastUpdateAt < 500) return;
+        var dt = Math.min(2, Math.max(0, now - lastUpdateAt) / 1000);
+        if (G.dartState === 'flying' || G.dartState === 'landed' || controlsCpu(match.active)) update(dt);
+        else lastUpdateAt = now;
     }
     function tickCpu() {
         var now = Date.now(), effects = feedback.snapshot(now);
@@ -1365,7 +1378,8 @@
         if (data.phase === 'lobby' || !s) {
             feedback.reset(); pendingFeedbackEvent = null;
         } else {
-            feedback.update(s, { controllerId: controllerId(), now: now, throwEvent: pendingFeedbackEvent });
+            feedback.update(s, { controllerId: controllerId(), now: now, throwEvent: pendingFeedbackEvent,
+                reducedMotion: !!(reducedMotion && reducedMotion.matches) });
             pendingFeedbackEvent = null;
         }
         feedbackState = feedback.snapshot(now);
@@ -1381,17 +1395,19 @@
             var ready = document.getElementById('handoff-ready-btn');
             ready.textContent = t('dartsHandoffReady'); ready.dataset.handoffKey = pending.key;
         }
-        var notice = document.getElementById('turn-notice'), event = feedbackState.notice;
+        var notice = document.getElementById('turn-notice'), event = feedbackState.notice, opening = feedbackState.opening;
         var corkNotice = event && (event.kind === 'cork' || event.kind === 'cork-rethrow' || event.kind === 'cork-starter');
-        notice.hidden = !event;
+        notice.hidden = !event && !opening;
+        notice.classList.toggle('starter', !!opening);
         notice.classList.toggle('bust', !!event && event.kind === 'bust');
         notice.classList.toggle('cork', !!corkNotice);
-        document.getElementById('turn-notice-title').textContent = !event ? '' :
+        document.getElementById('turn-notice-title').textContent = opening ? opening.drawing ? t('dartsDrawingStarter') : t('dartsCorkStarter', playerName(opening.winner)) : !event ? '' :
             event.kind === 'bust' ? t('dartsBustTitle') : corkNotice ?
                 event.kind === 'cork-starter' ? t('dartsCorkStarter', playerName(event.player)) : event.kind === 'cork-rethrow' ? t('dartsCorkRethrowTitle') : event.purpose === 'opening' ? t('dartsOpeningCorkStatus') :
                     event.purpose === 'limit' ? t('dartsCorkLimitReached', event.roundLimit) : t('dartsCorkTieNotice') :
                 t('dartsTurnOf', playerName(event.player));
-        document.getElementById('turn-notice-message').textContent = event && event.kind === 'bust' ?
+        document.getElementById('turn-notice-message').setAttribute('aria-hidden', opening && opening.drawing ? 'true' : 'false');
+        document.getElementById('turn-notice-message').textContent = opening ? opening.drawing ? playerName(opening.player) : '' : event && event.kind === 'bust' ?
             t('dartsBustRestored', event.restoredScore) : corkNotice ?
                 event.kind === 'cork-starter' ? '' : event.kind === 'cork-rethrow' ? t('dartsCorkRethrow', event.round) :
                     t(event.purpose === 'opening' ? 'dartsCorkStarts' : event.purpose === 'limit' ? 'dartsCorkLimitDecider' : 'dartsCorkWins') : '';
@@ -1436,6 +1452,7 @@
         syncThrowGuide();
     }
     function clearBoard() {
+        lastUpdateAt = Date.now();
         cpuPending = null; cpuAttemptKey = ''; throwSubmission = null; sending = false;
         gesture = null; freshDart(); G.stuck = []; G.last = null; G.traj = null; G.analysis = null; camDolly = 0;
     }
@@ -1509,6 +1526,7 @@
         if (!localCanStart()) return false;
         var ids = localRoom.seatOrder.slice();
         var g = Rules.create(localRoom.options, ids, Date.now(), Math.floor(Math.random() * ids.length));
+        window.DartsOpening.prepare(g);
         g.matchId = crypto.getRandomValues(new Uint32Array(4)).join('-');
         g.participants = JSON.parse(JSON.stringify(localRoom.participants));
         g.owners = Object.fromEntries(ids.map(function (id) { return [id, g.participants[id].type === 'cpu' ? 'local-cpu' : localController]; }));
@@ -1709,6 +1727,7 @@
     }
 
     function init() {
+        reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
         cpuGesture = window.DartsCpuGesture.create({ analyseGesture: analyseGesture, computeThrow: computeThrow, computeImpact: computeImpact });
         localRoom = newLocalRoom();
         throwGuide = window.createDartsThrowGuide({ document: document, t: t, storage: AC.storage, review: function () {
@@ -1730,6 +1749,7 @@
             } });
         fitCanvas();
         window.addEventListener('resize', function () { gesture = null; fitCanvas(); render(); });
+        document.addEventListener('visibilitychange', function () { gesture = null; tickBackground(); syncGameUi(); });
 
         shell = AC.shell.create({
             gameId: 'darts',
@@ -1771,6 +1791,7 @@
 
         setupControls();
         setInterval(function () {
+            tickBackground();
             if (online && room) online.tick().catch(showNetError);
             if (!usesSharedMatch() && roomData().phase === 'playing' && match && match.status === 'playing' && match.turnMs > 0 &&
                 G.dartState !== 'flying' && Date.now() >= match.turnStartedAt + match.turnMs) acceptLocal(Rules.timeout(match, Date.now()));

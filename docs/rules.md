@@ -434,7 +434,7 @@ Gesture-based darts with one persistent lobby for Practice, Count-Up, 501 and
 Cricket. Each room holds 1–4 player slots. One device can control several local
 players; invited friends can control the other slots on their own devices.
 Solo play starts in a local room and does not require an account, room code or
-network connection. Darts remains marked WIP in the game menu.
+network connection. Darts is available as Playable in the game menu.
 
 ### Throwing
 
@@ -560,6 +560,9 @@ Competitive matches use **first to 1/2/3 Leg wins**, including solo Count-Up.
 The wording does not assume a fixed maximum number of Legs: four players can
 need five decisive Legs before anyone reaches two wins. The opening starter is
 **Random** by default, or **Cork** for competitive matches with two or more players.
+Random briefly cycles through the player cards, then announces who starts.
+Throwing and the first-turn countdown begin after that presentation. Reduced
+motion shows the selected starter directly. This runs once per Match.
 Opening Cork runs once per Match, selects only the first starter and keeps seat
 order unchanged. Only the closest tied players repeat. Cork does not consume normal
 rounds, scores, marks or scoring-dart statistics; its history records its purpose
