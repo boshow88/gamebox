@@ -15,7 +15,7 @@
     // ---------------- i18n ----------------
     var STRINGS = {
         en: {
-            pzName: 'Prime Zuma', pzScore: 'Score',
+            pzName: 'Prime Zuma', pzScore: 'Score', pzMode: 'Mode',
             pzLevelMode: 'Levels', pzEndless: 'Endless', pzEasy: 'Easy', pzNormal: 'Normal', pzHard: 'Hard',
             pzBalanced: 'Balanced', pzGnarly: 'Heavy', pzBlitz: 'Blitz', pzHardPrimes: 'Tricky',
             pzPickLevel: 'Pick a level', pzClear: 'Cleared!', pzFailed: 'Failed', pzOk: 'OK', pzGameOver: 'Game Over', pzSpeed: 'Speed',
@@ -24,9 +24,9 @@
             pzHelp3Html: '<strong>Levels</strong>: clear the chain to win. <strong>Endless</strong>: last as long as you can as it speeds up. <kbd>P</kbd> pause · <kbd>R</kbd> restart.',
         },
         zh: {
-            pzName: '質數祖瑪', pzScore: '分數',
+            pzName: '質數祖瑪', pzScore: '分數', pzMode: '模式',
             pzLevelMode: '一般', pzEndless: '無盡', pzEasy: '簡單', pzNormal: '普通', pzHard: '困難',
-            pzBalanced: '均衡', pzGnarly: '稠密', pzBlitz: '高速', pzHardPrimes: '刁鑽',
+            pzBalanced: '均衡', pzGnarly: '繁瑣', pzBlitz: '高速', pzHardPrimes: '刁鑽',
             pzPickLevel: '選擇關卡', pzClear: '過關！', pzFailed: '失敗', pzOk: '確定', pzGameOver: '遊戲結束', pzSpeed: '速度',
             pzHelp1Html: '砲台發射<strong>質數</strong>球；球鏈向內盤旋，一旦抵達<strong>核心</strong>就算輸。',
             pzHelp2Html: '朝一段<strong>三顆以上</strong>、且都能被你發射的質數整除的連續球鏈開火——每顆各除以該質數一次，被除到 <strong>1</strong> 的球就消失。',
@@ -353,8 +353,11 @@
         fx.push({ x: x, y: y, r0: CFG.rBall * 0.5, r1: CFG.rBall * 2.6, life: 0, max: 0.34, h: h, ring: true });
         for (var i = 0; i < 7; i++) { var a = (i / 7) * Math.PI * 2 + rng() * 0.7, sp = 70 + rng() * 110; fx.push({ x: x, y: y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 0, max: 0.4 + rng() * 0.25, h: h }); }
     }
+    // A brief "+N" that floats up from where a run cleared, then fades — small & short so it barely blocks the view.
+    // Coloured like the cleared prime's ball: fill = ball body colour, outline = that ball's digit colour.
+    function floatText(txt, x, y, cmb, fill, outline) { fx.push({ text: txt, x: x, y: y, vy: -54, life: 0, max: 0.6, combo: cmb || 1, fill: fill || '#fde68a', outline: outline || 'rgba(0,0,0,0.65)' }); }
     function updateFx(dt) {
-        for (var i = fx.length - 1; i >= 0; i--) { var f = fx[i]; f.life += dt; if (!f.ring) { f.x += f.vx * dt; f.y += f.vy * dt; f.vx *= 0.88; f.vy *= 0.88; } if (f.life >= f.max) fx.splice(i, 1); }
+        for (var i = fx.length - 1; i >= 0; i--) { var f = fx[i]; f.life += dt; if (f.text) { f.y += (f.vy || 0) * dt; } else if (!f.ring) { f.x += f.vx * dt; f.y += f.vy * dt; f.vx *= 0.88; f.vy *= 0.88; } if (f.life >= f.max) fx.splice(i, 1); }
     }
 
     // ---------------- elimination (scoped to a lane's queues `qs`) ----------------
@@ -377,13 +380,16 @@
         while (hi + 1 < q.vals.length && q.vals[hi + 1].v % p === 0) hi++;
         if ((hi - lo + 1) + (extra ? 1 : 0) < CFG.k) return false;              // +1 counts the virtual shot ball toward the run length
         var items = [], gain = extra ? (p + CFG.primeFloor) * (extra.mult != null ? extra.mult : 1) : 0;   // the virtual shot banks its own (p + floor) × mult too
+        var cx = 0, cy = 0, cn = 0;   // centroid of the peeled run → where the "+N" floats up from
         for (var j = 0; j < q.vals.length; j++) {
             var b = q.vals[j], sPos = q.head + j * CFG.D;
-            if (j >= lo && j <= hi) { gain += (p + CFG.primeFloor) * (b.mult != null ? b.mult : 1); b.v = b.v / p; if (b.v === 1) { burst(b.rx, b.ry, hue(p)); continue; } b.pop = 1; }   // each peeled ball banks (p + floor) × its spawn-time multiplier; longer runs & high-Ω balls (peeled repeatedly) earn more
+            if (j >= lo && j <= hi) { cx += b.rx; cy += b.ry; cn++; gain += (p + CFG.primeFloor) * (b.mult != null ? b.mult : 1); b.v = b.v / p; if (b.v === 1) { burst(b.rx, b.ry, hue(p)); continue; } b.pop = 1; }   // each peeled ball banks (p + floor) × its spawn-time multiplier; longer runs & high-Ω balls (peeled repeatedly) earn more
             items.push({ s: sPos, b: b });
         }
         combo = (frame - lastElimFrame <= 42) ? combo + 1 : 1; lastElimFrame = frame;
-        score += Math.round(gain * (1 + (combo - 1) * CFG.comboScore));
+        var shown = Math.round(gain * (1 + (combo - 1) * CFG.comboScore));
+        score += shown;
+        if (cn > 0) floatText('+' + AC.format.score(shown), cx / cn, cy / cn - CFG.rBall, combo, 'hsl(' + hue(p) + ',95%,70%)', '#000');   // "+N": the cleared prime's HUE but brighter than the ball body, with a fixed black outline
         sfxPop(combo);
         var at = qs.indexOf(q);
         if (at >= 0) { var groups = regroup(items); if (knockback && groups.length) groups[groups.length - 1].imp = CFG.impulse * (1 + (combo - 1) * CFG.comboImpulse); qs.splice.apply(qs, [at, 1].concat(groups)); }   // on a back-crash elimination, kick the rearmost remnant backward (harder as combo grows) so the trailing chain still recoils
@@ -581,7 +587,13 @@
         }
         for (var fi = 0; fi < fx.length; fi++) {
             var f = fx[fi], tt = f.life / f.max, al = 1 - tt; ctx.globalAlpha = al < 0 ? 0 : al;
-            if (f.ring) { ctx.lineWidth = 2 + 3 * al; ctx.strokeStyle = 'hsl(' + f.h + ',90%,66%)'; ctx.beginPath(); ctx.arc(f.x, f.y, f.r0 + (f.r1 - f.r0) * tt, 0, 7); ctx.stroke(); }
+            if (f.text) {
+                ctx.save(); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                ctx.font = 'bold ' + (13 + Math.min((f.combo || 1) - 1, 6)) + 'px system-ui,sans-serif';
+                ctx.lineWidth = 3; ctx.strokeStyle = f.outline; ctx.strokeText(f.text, f.x, f.y);
+                ctx.fillStyle = f.fill; ctx.fillText(f.text, f.x, f.y); ctx.restore();
+            }
+            else if (f.ring) { ctx.lineWidth = 2 + 3 * al; ctx.strokeStyle = 'hsl(' + f.h + ',90%,66%)'; ctx.beginPath(); ctx.arc(f.x, f.y, f.r0 + (f.r1 - f.r0) * tt, 0, 7); ctx.stroke(); }
             else { ctx.fillStyle = 'hsl(' + f.h + ',90%,66%)'; ctx.beginPath(); ctx.arc(f.x, f.y, 1 + 3 * al, 0, 7); ctx.fill(); }
         }
         ctx.globalAlpha = 1;
@@ -599,7 +611,17 @@
         }
     }
     function drawChip(x, y, v, r) { drawBall(x, y, v, r); }   // cannon's loaded / next ball — identical to a queued ball
-    function syncHud() { var sc = $('score'); if (sc) sc.textContent = AC.format.score(score); }
+    function modeLabel() {   // "一般・2-5" (Levels) or "無盡・高速" (Endless), reflecting the running game
+        if (!R) return '';
+        if (R.isLevel) return t('pzLevelMode') + '・' + sel.world + '-' + DATA.level(sel.world, sel.fieldIdx).label;
+        var diff = (pending && pending.diff) || endlessSel.diff, key = 'pz' + diff.charAt(0).toUpperCase() + diff.slice(1), sl = t(key);
+        return t('pzEndless') + '・' + ((sl && sl !== key) ? sl : ((DATA.ENDLESS[diff] || {}).name || diff));
+    }
+    function syncModeHud() { var el = $('pz-mode'); if (el) el.textContent = modeLabel(); }
+    // The Best readout is per mode-key (level, or endless style+field). Refresh it whenever the
+    // selection changes so switching sub-mode/field shows that key's own best (0 if none), not a stale value.
+    function refreshBest() { if (shell && shell.refreshBest) shell.refreshBest(); }
+    function syncHud() { var sc = $('score'); if (sc) sc.textContent = AC.format.score(score); syncModeHud(); }
 
     // ---------------- input ----------------
     function aimTo(clientX, clientY) {
@@ -660,16 +682,16 @@
             }
         } else {
             var dr = document.createElement('div'); dr.className = 'pz-row';
-            Object.keys(DATA.ENDLESS).forEach(function (d) { var k = 'pz' + d.charAt(0).toUpperCase() + d.slice(1), lbl = t(k); dr.appendChild(optBtn(lbl && lbl !== k ? lbl : (DATA.ENDLESS[d].name || d), endlessSel.diff === d, function () { endlessSel.diff = d; persist(); renderPanel(); })); });
+            Object.keys(DATA.ENDLESS).forEach(function (d) { var k = 'pz' + d.charAt(0).toUpperCase() + d.slice(1), lbl = t(k); dr.appendChild(optBtn(lbl && lbl !== k ? lbl : (DATA.ENDLESS[d].name || d), endlessSel.diff === d, function () { endlessSel.diff = d; persist(); refreshBest(); renderPanel(); })); });
             card.appendChild(dr);
             var fr = document.createElement('div'); fr.className = 'pz-row pz-thumbs';
-            for (var fi = 0; fi < DATA.X; fi++) (function (fi) { fr.appendChild(thumbBtn(fi, endlessSel.fieldIdx === fi, function () { endlessSel.fieldIdx = fi; persist(); renderPanel(); })); })(fi);
+            for (var fi = 0; fi < DATA.X; fi++) (function (fi) { fr.appendChild(thumbBtn(fi, endlessSel.fieldIdx === fi, function () { endlessSel.fieldIdx = fi; persist(); refreshBest(); renderPanel(); })); })(fi);
             card.appendChild(fr);
             var go = document.createElement('button'); go.type = 'button'; go.className = 'btn btn-primary'; go.textContent = t('play'); go.addEventListener('click', function () { AC.audio.unlock(); startEndless(); }); card.appendChild(go);
         }
     }
-    function startLevel(w, f) { sel = { world: w, fieldIdx: f }; pending = { kind: 'level', world: w, fieldIdx: f }; lastResult = null; resultView = false; paused = false; newGame(); hidePanel(); shell.start(); syncFF(); }
-    function startEndless() { pending = { kind: 'endless', diff: endlessSel.diff, fieldIdx: endlessSel.fieldIdx }; lastResult = null; resultView = false; paused = false; newGame(); hidePanel(); shell.start(); syncFF(); }
+    function startLevel(w, f) { sel = { world: w, fieldIdx: f }; pending = { kind: 'level', world: w, fieldIdx: f }; lastResult = null; resultView = false; paused = false; newGame(); hidePanel(); shell.start(); refreshBest(); syncFF(); }
+    function startEndless() { pending = { kind: 'endless', diff: endlessSel.diff, fieldIdx: endlessSel.fieldIdx }; lastResult = null; resultView = false; paused = false; newGame(); hidePanel(); shell.start(); refreshBest(); syncFF(); }
     function syncModeSeg() {
         var seg = $('mode-seg'); if (!seg) return;
         var bs = seg.querySelectorAll('button[data-mode]');
@@ -714,13 +736,13 @@
         });
 
         var seg = $('mode-seg');
-        if (seg) seg.addEventListener('click', function (e) { var b = e.target.closest ? e.target.closest('button[data-mode]') : null; if (b) { AC.audio.unlock(); mode = b.getAttribute('data-mode'); persist(); syncModeSeg(); if (!shell.isPlaying()) showPanel(); } });
+        if (seg) seg.addEventListener('click', function (e) { var b = e.target.closest ? e.target.closest('button[data-mode]') : null; if (b) { AC.audio.unlock(); mode = b.getAttribute('data-mode'); persist(); syncModeSeg(); refreshBest(); syncModeHud(); if (!shell.isPlaying()) showPanel(); } });
         syncModeSeg();
         var rb = $('restart-btn'); if (rb) rb.addEventListener('click', function () { paused = false; setTimeout(function () { if (!shell.isPlaying()) showPanel(); syncFF(); }, 0); });
         var ff = $('ff-btn'); if (ff) ff.addEventListener('click', function () { if (shell.isPlaying()) { AC.audio.unlock(); cycleSpeed(); } });
         syncFF();
 
-        AC.i18n.subscribe(function () { if (!shell.isPlaying()) { renderPanel(); shell.refreshOverlay && shell.refreshOverlay(); } });
+        AC.i18n.subscribe(function () { syncModeHud(); if (!shell.isPlaying()) { renderPanel(); shell.refreshOverlay && shell.refreshOverlay(); } });
         pending = mode === 'level' ? { kind: 'level', world: 1, fieldIdx: 0 } : { kind: 'endless', diff: endlessSel.diff, fieldIdx: endlessSel.fieldIdx };
         newGame(); shell.refreshBest && shell.refreshBest(); render(); showPanel();
     }

@@ -154,7 +154,7 @@ window.PrimeZumaData = (function () {
             ],
         },
         gnarly: {
-            name: '稠密', stages: [   // high Ω + bias >1 → dense composites that take many shots to clear
+            name: '繁瑣', stages: [   // high Ω + bias >1 → dense composites that take many shots to clear
                 { t:      0, primes: pn(3), cap:    40, omega:  3.0, feed:  8.0, bias: 1.200, mult:    1.000 },
                 { t:     60, primes: pn(3), cap:    80, omega:  3.3, feed:  8.1, bias: 1.250, mult:    1.414 },
                 { t:    120, primes: pn(3), cap:   120, omega:  3.6, feed:  8.2, bias: 1.300, mult:    2.000 },

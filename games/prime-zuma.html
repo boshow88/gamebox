@@ -17,6 +17,8 @@
         /* selection panel (level grid / endless pickers / paused), layered over the board */
         #pz-panel .overlay-card { gap: 8px; max-width: 420px; }
         .pz-title { font-size: 18px; font-weight: 800; margin: 2px 0; }
+        /* Mode readout in the HUD is text (not a number), so keep it compact. */
+        #stat-mode .hud-value { font-size: 15px; font-weight: 700; letter-spacing: 0.02em; }
         .pz-result { font-size: 15px; font-weight: 700; color: #fca5a5; }
         .pz-result.win { color: #86efac; }
         .pz-row { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin: 2px 0; }
@@ -45,6 +47,10 @@
         </header>
 
         <div class="hud">
+            <div class="hud-stat" id="stat-mode">
+                <span class="hud-label"><span data-icon="gamepad-2" aria-hidden="true"></span><span data-i18n="pzMode">Mode</span></span>
+                <span class="hud-value" id="pz-mode">—</span>
+            </div>
             <div class="hud-stat accent">
                 <span class="hud-label"><span data-icon="coins" aria-hidden="true"></span><span data-i18n="pzScore">Score</span></span>
                 <span class="hud-value" id="score">0</span>

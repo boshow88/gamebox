@@ -339,7 +339,7 @@
             'prime-zuma_tagline': '在球鏈抵達核心前把它分解掉。',
             'prime-zuma_body': '朝向內盤旋的球鏈發射質數球。質數會把一段可整除的球鏈各剝掉一個因數——趕在球鏈抵達核心前清除它們。',
             pzrec_levels: '一般', pzrec_endless: '無盡',
-            pzrec_balanced: '均衡', pzrec_gnarly: '稠密', pzrec_blitz: '高速', pzrec_hardPrimes: '刁鑽',
+            pzrec_balanced: '均衡', pzrec_gnarly: '繁瑣', pzrec_blitz: '高速', pzrec_hardPrimes: '刁鑽',
             pzrec_vortex: '漩渦', pzrec_box: '方陣', pzrec_serpent: '蛇行', pzrec_star: '星形', pzrec_twin: '雙生', pzrec_tri: '三角', pzrec_maze: '迷宮', pzrec_duo: '雙環', pzrec_trine: '三環',
             'darts_name': '飛鏢',
             'darts_tagline': '滑動投鏢，掌握方向與力道。',
