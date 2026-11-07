@@ -218,6 +218,16 @@ export function createRoomService({ store, getUser, sessionId, generateCode = ra
             return departure(data, player.uid);
         });
     }
+    async function kick(value, targetUid) {
+        // Host-only removal of another member. Migrates the host and deletes an empty room via departure().
+        const player = requirePlayer(), code = normalizeCode(value);
+        return transact(code, player, data => {
+            if (!data || !(data.players || {})[player.uid]) return { result: false };
+            if (host(data) !== player.uid) throw error('auth', 'only the host can remove players');
+            if (!targetUid || targetUid === player.uid || !(data.players || {})[targetUid]) return { result: false };
+            return Object.assign(departure(data, targetUid), { result: true });
+        });
+    }
     async function releaseDisconnected(value, candidates) {
         const player = requirePlayer(), code = normalizeCode(value);
         return transact(code, player, data => {
@@ -276,7 +286,7 @@ export function createRoomService({ store, getUser, sessionId, generateCode = ra
         });
     }
     const service = {
-        config, currentPlayer, playerIds, host, canStart, primaryAction, create, join, leave, releaseDisconnected,
+        config, currentPlayer, playerIds, host, canStart, primaryAction, create, join, leave, kick, releaseDisconnected,
         setReady, start, reset, updateMatch, settleRound,
         async heartbeat(value, intervalMs = 3000) {
             const player = requirePlayer(), code = normalizeCode(value), state = activityFor(code);

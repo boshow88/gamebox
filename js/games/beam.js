@@ -32,13 +32,13 @@
         beamRecall: 'Where does it exit?',
         beamReplay: 'Tracing…',
         beamHit: 'Hit!', beamMiss: 'Missed!', beamTimeUp: 'Too slow!',
-        beamReadyMsg: 'Memorise the mirrors, then tap where the laser <strong>exits</strong>. Race <strong>3 CPU rivals</strong> — last one standing wins.',
+        beamReadyMsg: 'Memorise the mirrors, then tap where the laser <strong>exits</strong>. Open the <strong>Room</strong> to pick a difficulty or play online — last one standing wins.',
         beamTierLabel: 'Difficulty', beamTierEasy: 'Easy', beamTierNormal: 'Normal', beamTierHard: 'Hard', beamTierInsane: 'Insane',
         beamSoloWin: 'You win — 1st! 🏆', beamYourPlace: function (n) { return 'You finished ' + placeLabel(n); }, beamWins: function (n) { return n + ' wins'; },
         beamArcHelp1Html: 'Mirrors (<span data-icon="mirror-slash" aria-hidden="true"></span> and <span data-icon="mirror-back" aria-hidden="true"></span>) <strong>appear briefly</strong> — memorise where they are.',
         beamArcHelp2Html: 'They vanish, a laser fires in; <strong>tap the edge where it exits</strong> before time runs out.',
         beamArcHelp3Html: 'A replay reveals who hit — when some hit and some miss, those who missed <strong>lose a life</strong>. Last one standing wins.',
-        beamArcHelp4Html: '<strong>Solo</strong> faces 3 CPU rivals; <strong>Online</strong> is 2–4 real players. A long match keeps speeding up. <kbd>R</kbd> restart · <kbd>M</kbd> mute.',
+        beamArcHelp4Html: 'Open the <strong>Room</strong>: <strong>Solo</strong> sets one difficulty vs 3 CPUs; <strong>Online</strong> is 2–4 players and can add CPUs too. A long match keeps speeding up. <kbd>R</kbd> restart · <kbd>M</kbd> mute.',
         beamOverTitle: 'Game Over',
         beamGetReady: 'Get ready!',
         beamSuddenDeath: 'SUDDEN DEATH!', beamSuddenDeathHint: 'A tie now costs a life',
@@ -64,6 +64,21 @@
         beamResultsTitle: 'Final standings', beamWinner: function (n) { return n + ' wins!'; },
         beamRematch: 'Rematch', beamRematchWait: 'Waiting for the host to start a rematch…', beamRoomGone: 'The room closed.', beamOffline: 'Disconnected',
         beamEndLeft: 'Everyone else left — you win!',
+        // unified Room dialog
+        beamRoomBtn: 'Room', beamRoomTitle: 'Room', beamPlayers: 'Players',
+        beamAddCpu: 'Add CPU', beamCpuTag: 'CPU', beamCpuDifficulty: 'CPU strength', beamRemove: 'Remove',
+        beamKick: 'Remove', beamKicked: 'You were removed from the room.', beamRenameLabel: 'Name', beamStrengthLabel: 'Strength',
+        beamCpuName: function (n) { return 'CPU ' + n; },
+        beamModeSolo: 'Solo', beamModeOnline: 'Online',
+        beamSoloHint: 'Pick a difficulty and race 3 CPU rivals — your best finishing place is saved per difficulty.',
+        beamOnlineSection: 'Online', beamSignInHint: 'Creating or joining a room signs you in automatically.',
+        beamOfflineInviteNote: 'Enter a code to join, or create one to invite other players. CPUs can play online too.',
+        beamOnlineInviteNote: 'Share this code to invite other players. Anyone can add CPUs they own to fill the room.',
+        beamOnlinePlayingNote: 'This match is running — new players can join after the host returns to the lobby.',
+        beamNeedOpponent: 'Add at least one rival (a CPU or another player).',
+        beamTooMany: 'A match holds up to 4 players — remove some to start.',
+        beamStartSolo: 'Start game', beamUnready: 'Cancel ready',
+        beamLobbyDiffNote: 'Online difficulty adapts to how everyone plays; CPU rivals keep the strength you pick.',
     });
     Object.assign(AC.i18n.STRINGS.zh, {
         beamArcName: '追光',
@@ -73,13 +88,13 @@
         beamRecall: '它從哪裡射出？',
         beamReplay: '回放中…',
         beamHit: '命中！', beamMiss: '沒中！', beamTimeUp: '太慢了！',
-        beamReadyMsg: '記住鏡子位置，再點出雷射<strong>射出</strong>的邊界。和 <strong>3 個電腦對手</strong>比賽，撐到最後獲勝。',
+        beamReadyMsg: '記住鏡子位置，再點出雷射<strong>射出</strong>的邊界。開啟<strong>房間</strong>選難度單挑 CPU，或連線對戰，撐到最後獲勝。',
         beamTierLabel: '難度', beamTierEasy: '簡單', beamTierNormal: '普通', beamTierHard: '困難', beamTierInsane: '瘋狂',
         beamSoloWin: '你贏了——第 1 名！🏆', beamYourPlace: function (n) { return '你的名次：' + placeLabel(n); }, beamWins: function (n) { return '勝 ' + n + ' 場'; },
         beamArcHelp1Html: '鏡子（<span data-icon="mirror-slash" aria-hidden="true"></span> 與 <span data-icon="mirror-back" aria-hidden="true"></span>）會<strong>短暫出現</strong>——記住它們的位置。',
         beamArcHelp2Html: '鏡子消失後雷射射入，在時間內<strong>點出它射出的邊界格</strong>。',
         beamArcHelp3Html: '回放揭曉誰命中——有人對有人錯時，錯的人<strong>扣一命</strong>，撐到最後者獲勝。',
-        beamArcHelp4Html: '<strong>單人</strong>對 3 個電腦對手、<strong>連線</strong>可 2–4 位真人；對戰拖越久會越來越快。<kbd>R</kbd> 重來 · <kbd>M</kbd> 靜音。',
+        beamArcHelp4Html: '開啟<strong>房間</strong>：<strong>單人</strong>設定一個難度對 3 個 CPU；<strong>線上</strong>為 2～4 人，也能加入 CPU 混戰。對戰拖越久會越來越快。<kbd>R</kbd> 重來 · <kbd>M</kbd> 靜音。',
         beamOverTitle: '遊戲結束',
         beamGetReady: '準備好！',
         beamSuddenDeath: '驟死！', beamSuddenDeathHint: '平手也會扣血',
@@ -104,6 +119,21 @@
         beamResultsTitle: '最終名次', beamWinner: function (n) { return n + ' 獲勝！'; },
         beamRematch: '再來一場', beamRematchWait: '等待房主再開一場…', beamRoomGone: '房間已關閉。', beamOffline: '已離線',
         beamEndLeft: '其他玩家都離開了，你獲勝！',
+        // 統一房間對話框
+        beamRoomBtn: '房間', beamRoomTitle: '房間', beamPlayers: '玩家',
+        beamAddCpu: '加入 CPU', beamCpuTag: 'CPU', beamCpuDifficulty: 'CPU 強度', beamRemove: '移除',
+        beamKick: '踢出', beamKicked: '你已被移出房間。', beamRenameLabel: '名稱', beamStrengthLabel: '強度',
+        beamCpuName: function (n) { return 'CPU ' + n; },
+        beamModeSolo: '單人', beamModeOnline: '線上',
+        beamSoloHint: '選個難度和 3 個 CPU 對手較量——每種難度的最佳名次都會記錄。',
+        beamOnlineSection: '線上', beamSignInHint: '建立或加入房間時會自動為你登入。',
+        beamOfflineInviteNote: '輸入房號加入，或建立房號邀請其他玩家。CPU 也能一起連線對戰。',
+        beamOnlineInviteNote: '分享此房號邀請其他玩家；任何人都能加入自己的 CPU 補滿房間。',
+        beamOnlinePlayingNote: '本場進行中——房主返回大廳後，新玩家才能加入。',
+        beamNeedOpponent: '至少加入一名對手（CPU 或其他玩家）。',
+        beamTooMany: '一場最多 4 名玩家——請移除部分後再開始。',
+        beamStartSolo: '開始遊戲', beamUnready: '取消準備',
+        beamLobbyDiffNote: '線上難度會依大家的表現自動調整；CPU 對手則維持你選的強度。',
     });
     var t = AC.i18n.t;
     function placeLabel(n) {
@@ -159,6 +189,26 @@
     var NOTCH_MAX = DIFF.length - 1;
     var TIER_NAMES = ['easy', 'normal', 'hard', 'insane'];
     function tierForNotch(n) { return TIER_NAMES[AC.math.clamp(Math.floor(n / 4), 0, 3)]; }
+    // Difficulty is a 16-notch scale (4 tiers × 4 steps). Solo sets ONE notch for all 3 CPU rivals
+    // (and records a best placement per notch); online sets a notch PER CPU. A notch samples a bot
+    // STRENGTH from its tuned mean/spread. Puzzle difficulty itself stays adaptive for everyone.
+    var DEFAULT_NOTCH = 5;
+    var ROMAN = ['I', 'II', 'III', 'IV'];
+    function notchLabel(n) { n = AC.math.clamp(n | 0, 0, NOTCH_MAX); return t('beamTier' + capitalize(tierForNotch(n))) + ' ' + ROMAN[n % 4]; }
+    function strengthForNotch(n) { var d = DIFF[AC.math.clamp(n | 0, 0, NOTCH_MAX)]; return AC.math.clamp(gauss(d.mean, d.std), Math.max(1, d.mean - 2.5 * d.std), d.mean + 2.5 * d.std); }
+    // Standard median: the middle value, or the AVERAGE of the two middle values for an even count
+    // (e.g. two CPUs → the mean of both strengths, not just one of them).
+    function median(values) {
+        var a = values.slice().sort(function (x, y) { return x - y; }), n = a.length, m = n >> 1;
+        if (!n) return 0;
+        return n % 2 ? a[m] : (a[m - 1] + a[m]) / 2;
+    }
+    // Opening difficulty trails the field: the CPU strengths' median, nudged down a little, so the
+    // first rounds aren't brutal (then the shared adaptive level drifts from there). No CPUs → START_LEVEL.
+    function openingLevel(strengths) {
+        if (!strengths || !strengths.length) return START_LEVEL;
+        return AC.math.clamp(Math.floor(median(strengths) * 0.85), LEVEL_MIN, LEVEL_MAX);
+    }
     function gauss(mean, std) { var u = 1 - Math.random(), v = 1 - Math.random(); return mean + std * Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); }
     function pCorrect(strength, level) { return 1 / (1 + Math.exp(-BOT_K * (strength - level))); }
     // per-player colours (distinct from the cyan laser / green "correct" ring)
@@ -176,6 +226,22 @@
     // ---- state ----
     var om = null;                         // the running match (solo-vs-bots when om.local, else online)
     var canvas, ctx, DPR = Math.min(window.devicePixelRatio || 1, 2), shell = null;
+
+    // ---- roster: humans (service `players`) + CPUs (top-level `bots`) share one match loop ----
+    // Humans are real connections; CPUs live in `data.bots` (id → { name, order, level, strength })
+    // and are driven by the host. These helpers present a unified roster so tally, rendering and
+    // forfeit logic treat both the same, while the room service only ever manages human seats.
+    function botMap(data) { var raw = (data && data.bots) || {}, out = {}; for (var id in raw) if (raw[id]) out[id] = raw[id]; return out; }   // skip explicit-null tombstones
+    function isBot(data, uid) { return !!botMap(data)[uid]; }
+    function rosterIds(data) {
+        var ids = (data && data.order) || Object.keys((data && data.players) || {});
+        return ids.concat(Object.keys(botMap(data)));
+    }
+    function rosterPlayers(data) {
+        var out = Object.assign({}, (data && data.players) || {}), b = botMap(data);
+        for (var id in b) out[id] = { uid: id, bot: true, name: b[id].name, order: b[id].order, strength: b[id].strength, notch: b[id].notch };
+        return out;
+    }
 
     // ===============================================================
     // puzzle (deterministic when given a seeded rng)
@@ -326,10 +392,10 @@
     // Solo = a LOCAL match vs 3 CPU bots (reuses the whole online match loop,
     // but writes apply instantly to a local room — no server).
     // ===============================================================
-    // Solo only tracks the best finishing place per notch (we deliberately don't keep
+    // Solo tracks the best finishing place per difficulty notch (we deliberately don't keep
     // games-played / wins; add them back if we ever do proper per-game stats).
-    function loadSoloStats(notch) { try { return AC.storage.readJSON(AC.storage.storageKey('beam', 'solo', 'n' + notch), { best: 0 }); } catch (e) { return { best: 0 }; } }
-    function saveSoloStats(notch, st) { try { AC.storage.writeJSON(AC.storage.storageKey('beam', 'solo', 'n' + notch), st); } catch (e) { } }
+    function loadSoloStats(notch) { try { return AC.storage.readJSON(AC.storage.storageKey('beam', 'solo', 'n' + (notch | 0)), { best: 0 }); } catch (e) { return { best: 0 }; } }
+    function saveSoloStats(notch, st) { try { AC.storage.writeJSON(AC.storage.storageKey('beam', 'solo', 'n' + (notch | 0)), st); } catch (e) { } }
     // (Cloud sync of best finishing places is handled by the shared CloudSync engine —
     // see js/cloud-sync.js. This file just repaints on change and nudges a sync.)
     function botWrongPort(p) { var opts = portList(p.N).filter(function (q) { return !samePort(q, p.entry) && !samePort(q, p.exit); }); return opts.length ? opts[(Math.random() * opts.length) | 0] : p.exit; }
@@ -349,29 +415,27 @@
         });
     }
 
-    function startSoloMatch(notch) {
-        notch = AC.math.clamp(notch | 0, 0, NOTCH_MAX);
-        appliedNotch = notch;   // this is now the committed difficulty (readout stops showing "pending")
-        var diff = DIFF[notch];
-        var uids = ['you'], players = {}, hp = {}, alive = {}, strengths = [];
-        players['you'] = { uid: 'you', name: t('beamYou'), order: 0 };
+    // Solo = a LOCAL match: you vs 3 CPU rivals set by ONE difficulty notch (records a best place
+    // per notch). This is the classic "pick this round's difficulty" mode.
+    function beginSolo() {
+        var notch = stagedNotch, players = { you: { uid: 'you', name: myName(), order: 0 } };
+        var bots = {}, hp = { you: HP_START }, alive = { you: true }, strengths = [];
         for (var i = 1; i <= 3; i++) {
-            // clamp each bot's strength to ±2.5σ (never below 1) so a freak Gaussian tail
-            // can't spawn an unbeatable / trivial rival.
-            var s = AC.math.clamp(gauss(diff.mean, diff.std), Math.max(1, diff.mean - 2.5 * diff.std), diff.mean + 2.5 * diff.std); strengths.push(s);
-            players['bot' + i] = { uid: 'bot' + i, name: 'CPU ' + i, order: i, bot: true, strength: s }; uids.push('bot' + i);
+            var s = strengthForNotch(notch); strengths.push(s);
+            var id = 'bot' + i; bots[id] = { name: t('beamCpuName', i), order: i, notch: notch, strength: s };
+            hp[id] = HP_START; alive[id] = true;
         }
-        uids.forEach(function (u) { hp[u] = HP_START; alive[u] = true; });
-        var med = strengths.slice().sort(function (a, b) { return a - b; })[1];          // median of the 3 bots
-        var start = AC.math.clamp(Math.floor(med * 0.85), LEVEL_MIN, LEVEL_MAX);          // opening level trails the field
+        var start = openingLevel(strengths);                                               // opening level trails the field
         var seed = (Math.random() * 1e9) >>> 0;
-        room = { code: 'SOLO', unsub: null, data: { code: 'SOLO', status: 'playing', hostUid: 'you', players: players, order: uids, round: 0, game: { status: 'playing', round: 1, seed: seed, level: start, center: start, hp: hp, alive: alive, answers: {}, results: {}, rankByUid: {} } } };
+        room = { code: 'SOLO', unsub: null, data: { code: 'SOLO', status: 'playing', hostUid: 'you', players: players, order: ['you'], bots: bots, round: 0, game: { status: 'playing', round: 1, seed: seed, level: start, center: start, hp: hp, alive: alive, answers: {}, results: {}, rankByUid: {} } } };
         om = { myUid: 'you', local: true, notch: notch, seed: seed, round: 0, localStart: 0, puzzle: null, choice: null, submitted: false, alive: true, over: false, lastPhase: '', hpStart: {}, aliveStart: {}, host: {} };
-        hideShellOverlay(); setControlsForMatch(); applyHudMode();
+        closeLobby(); hideShellOverlay(); applyHudMode();
+        if (!shell.isPlaying()) shell.start();                                            // enter the loop (onStart no-ops: om is set)
+        setControlsForMatch();
         startLocalRound(1, room.data); renderPlayersBar(room.data);
     }
     function soloMatchOver(data) {
-        var g = data.game || {}, players = data.players || {}, order = data.order || [];
+        var g = data.game || {}, players = rosterPlayers(data), order = rosterIds(data);
         var ranks = g.rankByUid || {}, fallback = order.length || 4;
         var rank = ranks[om.myUid] || fallback, notch = om.notch;
         var best = loadSoloStats(notch).best; best = best ? Math.min(best, rank) : rank; saveSoloStats(notch, { best: best });
@@ -381,26 +445,29 @@
             return { rank: ranks[u] || fallback, name: pname(u, players), color: colorForOrder(players[u] ? players[u].order : 0), you: u === om.myUid };
         });
         standings.sort(function (a, b) { return a.rank - b.rank; });
-        om.over = true;
         setControlsForMatch();
-        shell.gameOver({ score: 0, win: rank === 1, meta: { rank: rank, tier: tierForNotch(notch), best: best, standings: standings } });
+        shell.gameOver({ score: 0, win: rank === 1, meta: { rank: rank, notch: notch, best: best, standings: standings } });
+        om = null; botTimers.forEach(clearTimeout); botTimers = [];                        // match ended: drop it so the over-overlay reopens the Room
     }
     // Bots "answer" DURING the window (just like real players) so their picks are already
     // there at the reveal. Correct-rate = logistic of their strength vs this round's level.
+    // The host drives every CPU — locally for solo, and over the network when online — so a
+    // room can mix real players with CPUs. Other clients just read the committed answers.
     var botTimers = [];
+    function iDriveBots() { return !!om && (om.local || (!om.spectator && effectiveHost(room.data) === om.myUid)); }
     function scheduleBots() {
-        if (!om || !om.local || !om.puzzle || om._botRound === om.round) return;
+        if (!om || !om.puzzle || om._botRound === om.round || !iDriveBots()) return;
         om._botRound = om.round;
         botTimers.forEach(clearTimeout); botTimers = [];
-        var p = om.puzzle, g = room.data.game || {}, players = room.data.players || {}, order = room.data.order || [];
+        var p = om.puzzle, g = room.data.game || {}, bots = botMap(room.data);
         var base = (countSec(om.round) + om.memo) * 1000, myRound = om.round;
-        order.forEach(function (uid) {
-            var pl = players[uid];
-            if (!pl || !pl.bot || (g.alive && g.alive[uid] === false)) return;
-            var port = (Math.random() < pCorrect(pl.strength || 1, om.level)) ? p.exit : botWrongPort(p);
+        Object.keys(bots).forEach(function (uid) {
+            if (g.alive && g.alive[uid] === false) return;
+            if (g.answers && g.answers[uid]) return;                                   // already answered (e.g. after host migration)
+            var port = (Math.random() < pCorrect(bots[uid].strength || 1, om.level)) ? p.exit : botWrongPort(p);
             var delay = base + (0.25 + Math.random() * 0.55) * om.answerSec * 1000;   // "think" 25%–80% of the window (never instant, no back-and-forth)
             botTimers.push(setTimeout(function () {
-                if (!om || !om.local || om.round !== myRound) return;
+                if (!om || om.round !== myRound || !iDriveBots()) return;
                 roomWrite({ ['game.answers.' + uid]: { r: port.r, c: port.c, side: port.side, at: Date.now() } });
             }, delay));
         });
@@ -438,7 +505,7 @@
         om.aliveStart = Object.assign({}, g.alive || {});
         om.host = {};
         sndClick();
-        if (om.local) scheduleBots();
+        scheduleBots();                                   // self-gates: only the driving host actually schedules
     }
     function myCorrect() { return om && om.choice && om.puzzle && samePort(om.choice, om.puzzle.exit); }
 
@@ -456,7 +523,7 @@
         AC.audio.noise(0.1, { volume: 0.08, filter: { type: 'bandpass', freq: 1000 } });
     }
 
-    function enterMatch(data) {                       // ONLINE only (solo uses startSoloMatch)
+    function enterMatch(data) {                       // ONLINE only (solo uses beginSolo)
         if (om) return;
         var g = data.game || {};
         var spectator = !(data.players && data.players[netUser.uid]);   // not seated in the room → watching only
@@ -494,6 +561,15 @@
             if (room) room.data = null; renderLobby(); return;
         }
         if (room) room.data = data;
+        // Track our membership; if the host removes us after we were seated, bow out cleanly.
+        if (room && room.code !== 'SOLO' && netUser && !room.spectate) {
+            if (data.players && data.players[netUser.uid]) memberSeen = true;
+            else if (memberSeen) {
+                if (AC.toast) AC.toast.show(t('beamKicked'));
+                if (om && !om.local) exitMatch(); else detachRoom();
+                renderLobby(); return;
+            }
+        }
         var g = data.game || {};
         if (!(om && om.local)) updatePres(g);
         if (!om) {                                    // not in a match → sitting in the online lobby
@@ -506,7 +582,7 @@
             if (g.round && g.round !== om.round) startLocalRound(g.round, data);
             else om.alive = !om.spectator && !(g.alive && g.alive[om.myUid] === false);
             renderPlayersBar(data);
-            if (lobbyEl && !lobbyEl.hidden) renderLobby();
+            if (lobby && lobby.isOpen()) renderLobby();
         } else if (g.status === 'over') {
             if (g.round && g.round !== om.round) startLocalRound(g.round, data);
             renderPlayersBar(data);
@@ -543,22 +619,37 @@
         if (!watching) matchmaking.heartbeat(room.code, BEAT_MS).catch(function () { });
         if (watching && (!specBeatT || now - specBeatT > BEAT_MS)) { specBeatT = now; matchmaking.update(room.code, { ['spectators.' + netUser.uid]: now }).catch(function () { }); }   // watcher presence (top-level, so a game reset doesn't wipe it)
         if (effectiveHost(d) === netUser.uid && (!gcT || now - gcT > 15000)) { gcT = now; matchmaking.cleanup().catch(function () { }); }
+        // Host housekeeping in the lobby: keep the roster within four, and free slots held by
+        // players who have gone (so a disconnection doesn't occupy a seat forever).
+        if (!watching && effectiveHost(d) === netUser.uid && g.status !== 'playing') {
+            var bots = botMap(d), botIds = Object.keys(bots), humans = matchmaking.playerIds(d).length;
+            if (humans + botIds.length > MAX_PLAYERS) {
+                var keep = Math.max(0, MAX_PLAYERS - humans), next = {};
+                botIds.slice(0, keep).forEach(function (id) { next[id] = bots[id]; });
+                matchmaking.update(room.code, { bots: next, ready: {} }).catch(function () { });
+            }
+            if (!kickT || now - kickT > 2000) {
+                kickT = now;
+                matchmaking.playerIds(d).forEach(function (uid) { if (uid !== netUser.uid && isStale(uid)) matchmaking.kick(room.code, uid).catch(function () { }); });
+            }
+        }
         if (om && !om.local && g.status === 'playing' && effectiveHost(d) === om.myUid) { hostCheckForfeit(d, g); hostDrive(d, g); }
     }
     // If everyone but (at most) one has left/disconnected, end the match NOW by walkover
     // (don't make the survivor wait out a round) and flag it so they're told WHY they won.
     function hostCheckForfeit(d, g) {
         if (g.status !== 'playing' || om.host.forfeiting) return;
-        var order = d.order || Object.keys(d.players || {});
+        var players = rosterPlayers(d), order = rosterIds(d);
         var aliveNow = order.filter(function (uid) { return (g.alive || {})[uid] !== false; });
         if (aliveNow.length < 2) return; // no-op forfeit checks must not read Firestore every 250ms
-        var live = aliveNow.filter(function (uid) { return (d.players || {})[uid] && !isStale(uid); });
+        // CPUs never leave, so they count as present — a lone human still playing CPUs is not a walkover.
+        var live = aliveNow.filter(function (uid) { return players[uid] && !isStale(uid); });
         if (live.length > 1) return;
         var state = om.host; state.forfeiting = true;
         matchmaking.updateMatch(room.code, { matchId: g.matchId, round: g.round, status: 'playing' }, function (data) {
-            var current = data.game, ids = data.order || Object.keys(data.players || {});
+            var current = data.game, players2 = rosterPlayers(data), ids = rosterIds(data);
             var aliveNow = ids.filter(function (uid) { return (current.alive || {})[uid] !== false; });
-            var present = aliveNow.filter(function (uid) { return (data.players || {})[uid] && !isStale(uid); });
+            var present = aliveNow.filter(function (uid) { return players2[uid] && !isStale(uid); });
             if (present.length > 1 || aliveNow.length < 2) return null;
             var winner = present[0] || null, ranks = Object.assign({}, current.rankByUid), alive = Object.assign({}, current.alive);
             var count = aliveNow.length;
@@ -601,7 +692,7 @@
         });
     }
     function tallyPatch(d, g, exit) {
-        var r = g.round, players = d.players || {}, order = d.order || Object.keys(players);
+        var r = g.round, players = rosterPlayers(d), order = rosterIds(d);
         var answers = g.answers || {};
         var hp = Object.assign({}, g.hp || {}), alive = Object.assign({}, g.alive || {}), ranks = Object.assign({}, g.rankByUid || {});
         var results = {};
@@ -813,7 +904,7 @@
     // shown only from the reveal on — so you witness who hit and who missed.
     function drawPicks(p) {
         if (!room || !room.data) return;
-        var g = room.data.game || {}, answers = g.answers || {}, players = room.data.players || {}, order = room.data.order || Object.keys(players);
+        var g = room.data.game || {}, answers = g.answers || {}, players = rosterPlayers(room.data), order = rosterIds(room.data);
         var groups = {};
         order.forEach(function (uid) {
             var a = answers[uid]; if (!a || a.side == null) return;
@@ -847,7 +938,7 @@
     function bump(id) { var el = $(id); if (!el) return; el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash'); }
     function syncHud() {
         if ($('round')) $('round').textContent = om ? om.round : 1;
-        var b = $('best'); if (b) { var st = loadSoloStats(stagedNotch); b.textContent = st.best ? placeLabel(st.best) : '—'; }
+        var b = $('best'); if (b) { var st = loadSoloStats(om && om.notch != null ? om.notch : stagedNotch); b.textContent = st.best ? placeLabel(st.best) : '—'; }
     }
     function applyHudMode() {
         var e;
@@ -862,7 +953,7 @@
         var bar = $('players'); if (!bar) return;
         if (!om || !data) { bar.hidden = true; return; }
         bar.hidden = false; bar.innerHTML = '';
-        var g = data.game || {}, players = data.players || {}, order = data.order || Object.keys(players);
+        var g = data.game || {}, players = rosterPlayers(data), order = rosterIds(data);
         var ph = phaseAt(performance.now()).phase;
         var showOut = (ph === 'reveal' || ph === 'result' || ph === 'await');   // reveal HP/✓/✗ only from here (no spoiler)
         var hpSrc = showOut ? (g.hp || {}) : (om.hpStart || {});
@@ -874,17 +965,22 @@
             var dead = aliveSrc[uid] === false, stale = !dead && isStale(uid);
             var chip = document.createElement('div');
             chip.className = 'pchip' + (uid === om.myUid ? ' me' : '') + ((dead || stale) ? ' dead' : '');
-            var dot = document.createElement('span'); dot.textContent = '\u25cf'; dot.style.color = colorForOrder(players[uid] ? players[uid].order : 0); chip.appendChild(dot);
-            var name = document.createElement('span'); name.textContent = pname(uid, players) + (uid === om.myUid ? ' (' + t('beamYou') + ')' : '');
-            chip.appendChild(name);
+            var dot = document.createElement('span'); dot.className = 'dot'; dot.textContent = '\u25cf'; dot.style.color = colorForOrder(players[uid] ? players[uid].order : 0); chip.appendChild(dot);
+            var name = document.createElement('span'); name.className = 'nm'; name.textContent = pname(uid, players) + (uid === om.myUid ? ' (' + t('beamYou') + ')' : ''); chip.appendChild(name);
+            if (players[uid] && players[uid].bot && players[uid].notch != null) { var ct = document.createElement('span'); ct.className = 'cputag'; ct.textContent = notchLabel(players[uid].notch); chip.appendChild(ct); }
+            var meta = document.createElement('span'); meta.className = 'meta';
             if (dead) {
-                var rk = document.createElement('span'); rk.className = 'rank'; rk.textContent = (g.rankByUid && g.rankByUid[uid]) ? placeLabel(g.rankByUid[uid]) : '✕'; chip.appendChild(rk);
+                var rk = document.createElement('span'); rk.className = 'rank'; rk.textContent = (g.rankByUid && g.rankByUid[uid]) ? placeLabel(g.rankByUid[uid]) : '\u2715'; meta.appendChild(rk);
             } else {
                 var hp = (hpSrc[uid] != null) ? hpSrc[uid] : HP_START;
-                var hearts = document.createElement('span'); hearts.className = 'hp'; hearts.textContent = '\u2665'.repeat(Math.max(0, hp)); chip.appendChild(hearts);
-                if (revealed && g.results[uid] != null) { var res = document.createElement('span'); res.className = 'res ' + (g.results[uid] ? 'ok' : 'no'); res.textContent = g.results[uid] ? '✓' : '✗'; chip.appendChild(res); }
-                if (stale) { var off = document.createElement('span'); off.textContent = ' \u26a0'; off.title = t('beamOffline'); chip.appendChild(off); }
+                var hearts = document.createElement('span'); hearts.className = 'hp'; hearts.textContent = '\u2665'.repeat(Math.max(0, hp)); meta.appendChild(hearts);
+                if (stale) { var off = document.createElement('span'); off.className = 'off'; off.textContent = '\u26a0'; off.title = t('beamOffline'); meta.appendChild(off); }
             }
+            // Reserved result slot (always present) so a ✓/✗ appearing at the reveal never resizes the chip.
+            var res = document.createElement('span'); res.className = 'res' + (!dead && revealed && g.results[uid] != null ? (g.results[uid] ? ' ok' : ' no') : '');
+            res.textContent = (!dead && revealed && g.results[uid] != null) ? (g.results[uid] ? '\u2713' : '\u2717') : '';
+            meta.appendChild(res);
+            chip.appendChild(meta);
             bar.appendChild(chip);
         });
         var wc = watcherCount();
@@ -895,9 +991,11 @@
     // ===============================================================
     // lobby (sign-in + room code; modeled on Rune Stones, N players)
     // ===============================================================
-    var net = null, netUser = undefined, room = null, lobbyEl = null, lobbyRefs = null, lobbyView = null;
+    var net = null, netUser = undefined, room = null, lobby = null, lobbyEl = null;
     var matchmaking = null, roomSession = null;
-    var pres = {}, gcT = 0, specBeatT = 0;        // presence: who is still sending heartbeats
+    var local = { bots: {}, seatOrder: [] }, botSerial = 0;   // staged Online line-up (CPUs you own) before a room
+    var stagedNotch = DEFAULT_NOTCH, lobbyMode = 'solo';      // Solo difficulty notch; which settings tab is shown
+    var pres = {}, gcT = 0, specBeatT = 0, kickT = 0, memberSeen = false;   // presence; memberSeen = we've been seated in the current room
     // track each player's beat; `at` is OUR local time it last changed (no cross-client clock needed)
     function updatePres(g) {
         var beats = (g && g.beat) || {}, now = Date.now();
@@ -908,165 +1006,257 @@
         }
     }
     function isStale(uid) { if (om && om.local) return false; var p = pres[uid]; return !!p && (Date.now() - p.at) > STALL_MS; }
-    function buildLobby() {
-        lobbyView = net.rooms.lobby({ onClose: closeLobby, onError: showLobbyError });
-        lobbyEl = lobbyView.element; lobbyRefs = lobbyView.refs;
-    }
     function hideShellOverlay() { var o = $('overlay'); if (o) o.hidden = true; }
+    function myName() { return (netUser && netUser.name) || t('beamYou'); }
+
+    // ---- unified Room: local line-up (you + CPUs) and online membership share one dialog ----
+    function buildLobby() {
+        lobby = window.createBeamLobby({
+            document: document, t: t, locale: function () { return AC.i18n.locale; },
+            notchLabel: notchLabel, notchMax: NOTCH_MAX,
+            onClose: onLobbyClose, onError: showLobbyError,
+            model: lobbyModel, setMode: setMode, setNotch: setNotch,
+            addCpu: addCpu, setCpuStrength: setCpuStrength, removeCpu: removeCpu, rename: renamePlayer, kick: doKick,
+            createRoom: createRoom, join: joinRoom, spectate: doSpectate, leave: doLeave, copy: copyCode,
+            primary: primaryAction, unready: doUnready, signOut: doSignOut,
+        });
+        lobbyEl = lobby.element;
+    }
     function openLobby() {
-        if (!net || !net.ok) return;
-        if (om && om.local) { om = null; botTimers.forEach(clearTimeout); botTimers = []; var pb = $('players'); if (pb) pb.hidden = true; }   // drop a solo match
-        if (room && room.code === 'SOLO') room = null;                          // never show the fake local room (you + 3 CPUs) in the online lobby
-        if (!lobbyEl) buildLobby(); lobbyEl.hidden = false; hideShellOverlay(); renderLobby(); if (matchmaking) matchmaking.cleanup().catch(function () { });
+        if (om && om.local) { om = null; botTimers.forEach(clearTimeout); botTimers = []; var pb = $('players'); if (pb) pb.hidden = true; }   // leaving a solo match → back to the Room
+        if (room && room.code === 'SOLO') room = null;                          // never show the fake local room in the Room dialog
+        if (lobby) lobby.open();
+        hideShellOverlay(); renderLobby();
+        if (matchmaking) matchmaking.cleanup().catch(function () { });
     }
-    function closeLobby() {
-        if (lobbyEl) lobbyEl.hidden = true;
-        if (om && om.over && !om.local) { doLeave(); return; }     // finished online match → leave the room cleanly, back to ready
-        if (!om) shell.refreshOverlay();                           // (no match) → solo ready screen, never a frozen stage
+    function closeLobby() { if (lobby) lobby.close(); }
+    function onLobbyClose() {
+        if (om && om.over && !om.local) { doLeave(); return; }     // finished online match → leave the room cleanly
+        if (!om) shell.refreshOverlay();                           // no match → show the idle ready screen behind
     }
-    function detachRoom() { if (roomSession) roomSession.detach(); room = null; pres = {}; }
+    function detachRoom() { if (roomSession) roomSession.detach(); room = null; pres = {}; memberSeen = false; }
     function attachRoom(code, spectate) { detachRoom(); room = roomSession.attach(code, { spectate: !!spectate }); renderLobby(); }
+    function renderLobby() { if (lobby) lobby.render(); }
     function showLobbyError(e) {
         var m = String((e && e.message) || e), msg = t('beamNetErr');
         if (m.indexOf('not found') !== -1) msg = t('beamRoomNotFound');
         else if (m.indexOf('full') !== -1) msg = t('beamRoomFull');
         else if (m.indexOf('already') !== -1) msg = t('beamAlreadyStarted');
-        if (lobbyRefs) lobbyRefs.status.textContent = msg;
+        if (lobby) lobby.refs.status.textContent = msg;
         console.warn('[beam lobby]', e);
     }
-    function doSignIn(kind) { return (kind === 'google' ? net.signInGoogle() : net.signInGuest()).catch(showLobbyError); }
-    function doCreate() { return matchmaking.create().then(attachRoom).catch(showLobbyError); }
-    function doJoin(code) { code = String(code || '').trim().toUpperCase(); if (!code) return; return matchmaking.join(code).then(attachRoom).catch(showLobbyError); }
-    function doSpectate(code) { code = String(code || '').trim().toUpperCase(); if (!code) return; attachRoom(code, true); }   // watch without taking a seat, even during a match
-    function doLeave() {
-        var wasMatch = !!(om && !om.local);
-        if (roomSession) roomSession.leave().catch(showLobbyError);
-        room = null; pres = {};
-        if (wasMatch) exitMatch();
-        renderLobby();
+
+    // ---- mode (Solo vs Online), selected in the settings dialog ----
+    function currentMode() { return onlineRoom() ? 'online' : lobbyMode; }
+    function setMode(m) {
+        if (m !== 'solo' && m !== 'online') return;
+        if (m === 'solo' && onlineRoom()) doLeave();                // can't stay in a room while in Solo
+        lobbyMode = m; savePrefs(); renderLobby(); syncHud();
     }
+    function setNotch(n) {   // Solo: one difficulty for all 3 CPU rivals
+        n = AC.math.clamp(n | 0, 0, NOTCH_MAX); if (n === stagedNotch) return;
+        stagedNotch = n; savePrefs(); renderLobby(); syncHud();
+    }
+    function savePrefs() { try { AC.prefs.set('beam', { notch: stagedNotch, mode: lobbyMode }); } catch (e) { } }
+
+    // ---- roster / room helpers ----
+    function onlineRoom() { return !!(room && room.data && room.code !== 'SOLO'); }
+    function isHost() { return onlineRoom() && !!netUser && effectiveHost(room.data) === netUser.uid; }
+    function myUid() { return netUser ? netUser.uid : 'you'; }
+    function onlineRosterCount(d) { d = d || (room && room.data); return matchmaking.playerIds(d).length + Object.keys(botMap(d)).length; }
+    function localRosterCount() { return 1 + local.seatOrder.length; }
+    function rosterCount() { return onlineRoom() ? onlineRosterCount() : localRosterCount(); }
+    function nextBotNumber(bots) { var n = 1, names = Object.keys(bots).map(function (id) { return bots[id].name; }); while (names.indexOf(t('beamCpuName', n)) !== -1) n++; return n; }
+    function newBotId() { return 'cpu-' + (++botSerial) + '-' + Math.floor(Math.random() * 1e6).toString(36); }
+    function onlineBotsFromLocal() { var out = {}; local.seatOrder.forEach(function (id, i) { var b = local.bots[id]; if (b) out[id] = { name: b.name, order: i + 1, notch: b.notch }; }); return out; }
+
+    // ---- CPU staging (Online mode): anyone can add CPUs they own; only the owner configures them ----
+    // The RTDB adapter preserves explicit null, so we never write `bots.<id>: null` to delete —
+    // we replace the whole (cleaned) `bots` map, mirroring the Darts participant updates.
+    function addCpu() {
+        if (rosterCount() >= 4) return;
+        if (onlineRoom()) {
+            var bots = botMap(room.data), id = newBotId(), next = Object.assign({}, bots);
+            next[id] = { name: t('beamCpuName', nextBotNumber(bots)), order: Object.keys(bots).length + 1, notch: DEFAULT_NOTCH, owner: myUid() };
+            return matchmaking.update(room.code, { bots: next, ready: {} }).catch(showLobbyError);
+        }
+        var lid = newBotId();
+        local.bots[lid] = { name: t('beamCpuName', nextBotNumber(local.bots)), notch: DEFAULT_NOTCH };
+        local.seatOrder.push(lid); renderLobby();
+    }
+    function setCpuStrength(id, notch) {   // value is a 0–15 difficulty notch
+        notch = AC.math.clamp(notch | 0, 0, NOTCH_MAX);
+        if (onlineRoom()) {
+            var bots = botMap(room.data), b = bots[id]; if (!b || b.owner !== myUid()) return;   // only the CPU's owner may change it
+            var next = Object.assign({}, bots); next[id] = Object.assign({}, b, { notch: notch });
+            return matchmaking.update(room.code, { bots: next, ready: {} }).catch(showLobbyError);
+        }
+        if (local.bots[id]) { local.bots[id].notch = notch; renderLobby(); }
+    }
+    function removeCpu(id) {
+        if (onlineRoom()) {
+            var bots = botMap(room.data); if (!bots[id] || bots[id].owner !== myUid()) return;
+            var next = {}; Object.keys(bots).forEach(function (k) { if (k !== id) next[k] = bots[k]; });
+            return matchmaking.update(room.code, { bots: next, ready: {} }).catch(showLobbyError);
+        }
+        if (local.bots[id]) { delete local.bots[id]; local.seatOrder = local.seatOrder.filter(function (x) { return x !== id; }); renderLobby(); }
+    }
+    // Rename (darts-style: only your own slots). Online: your own name, or a CPU you own. Staging: your CPUs.
+    function renamePlayer(id, name) {
+        name = String(name || '').trim().slice(0, 24); if (!name) return;
+        if (onlineRoom()) {
+            if (id === myUid()) return matchmaking.update(room.code, { ['players.' + id + '.name']: name, ready: {} }).catch(showLobbyError);
+            var bots = botMap(room.data), b = bots[id]; if (b && b.owner === myUid()) { var next = Object.assign({}, bots); next[id] = Object.assign({}, b, { name: name }); return matchmaking.update(room.code, { bots: next, ready: {} }).catch(showLobbyError); }
+            return;
+        }
+        if (local.bots[id]) { local.bots[id].name = name; renderLobby(); }
+    }
+    // Host removes a member (frees a slot held by someone who disconnected or left it idle).
+    function doKick(uid) { if (onlineRoom() && isHost() && uid !== myUid()) return matchmaking.kick(room.code, uid).catch(showLobbyError); }
+    function ensureSignedIn() {
+        if (netUser) return Promise.resolve();
+        if (!net) return Promise.reject(new Error('online unavailable'));
+        return net.signInGuest().then(function () {
+            return new Promise(function (resolve) { net.onAuth(function (u) { if (u) { netUser = matchmaking.currentPlayer(); resolve(); } }); });
+        });
+    }
+    // Synchronous room primitives (also the room-test surface): queue the transaction immediately.
+    function doCreate() { return matchmaking.create({ bots: onlineBotsFromLocal() }).then(attachRoom).catch(showLobbyError); }
+    function doJoin(code) { code = String(code || '').trim().toUpperCase(); if (!code) return; return matchmaking.join(code).then(attachRoom).catch(showLobbyError); }
     function doReady() { if (room) return matchmaking.setReady(room.code).catch(showLobbyError); }
     function hostStart() { if (room) return matchmaking.start(room.code).catch(showLobbyError); }
     function doRematch() { if (room) return matchmaking.reset(room.code).catch(showLobbyError); }
-    function copyCode(code) { try { var p = navigator.clipboard && navigator.clipboard.writeText(code); if (p && p.catch) p.catch(function () { }); } catch (e) { } if (lobbyRefs) lobbyRefs.status.textContent = t('beamCopied'); }
-
-    function renderLobby() {
-        if (!lobbyView) return;
-        var d = room && room.data, g = (d && d.game) || {}, u = netUser, over = g.status === 'over';
-        var status = '';
-        if (!u) status = t('beamSignInFirst');
-        else if (over && g.endReason === 'left' && g.winner === u.uid) status = t('beamEndLeft');
-        else if (over && g.winner) status = t('beamWinner', pname(g.winner, d.players));
-        else if (d) status = matchmaking.playerIds(d).length < 2 ? t('beamNeedTwo') : t('beamHostStarts');
-        var model = {
-            title: t(over ? 'beamResultsTitle' : 'beamLobbyTitle'), closeLabel: t('beamClose'), status: status,
-            auth: {
-                text: u ? t('beamSignedIn', u.name || t('beamGuest')) : '',
-                actions: u ? [{ id: 'sign-out', label: t('beamSignOut'), onClick: function () { doLeave(); return net.signOut(); } }] : [
-                    { id: 'sign-in-google', label: t('beamSignInGoogle'), primary: true, onClick: function () { return doSignIn('google'); } },
-                    { id: 'sign-in-guest', label: t('beamSignInGuest'), onClick: function () { return doSignIn('guest'); } },
-                ],
-            },
+    // Lobby wrappers: ensure a (guest) sign-in first, then create/join.
+    function createRoom() {
+        if (!net || !matchmaking) { showLobbyError(new Error('online unavailable')); return; }
+        return ensureSignedIn().then(doCreate).catch(showLobbyError);
+    }
+    function joinRoom(code) {
+        code = String(code || '').trim().toUpperCase(); if (!code) return;
+        if (!net || !matchmaking) { showLobbyError(new Error('online unavailable')); return; }
+        return ensureSignedIn().then(function () { return doJoin(code); }).catch(showLobbyError);
+    }
+    function doSpectate(code) {   // watch without taking a seat, even during a match
+        code = String(code || '').trim().toUpperCase(); if (!code) return;
+        if (!net || !matchmaking) { showLobbyError(new Error('online unavailable')); return; }
+        return ensureSignedIn().then(function () { attachRoom(code, true); }).catch(showLobbyError);
+    }
+    function doLeave() {
+        var wasMatch = !!(om && !om.local);
+        if (roomSession) roomSession.leave().catch(showLobbyError);
+        room = null; pres = {}; memberSeen = false;
+        if (wasMatch) exitMatch();
+        renderLobby();
+    }
+    function doUnready() { if (onlineRoom()) return matchmaking.setReady(room.code, false).catch(showLobbyError); }
+    function doSignOut() { doLeave(); return net ? net.signOut() : Promise.resolve(); }
+    function copyCode() {
+        var code = room && room.data && room.data.code; if (!code) return;
+        try { var p = navigator.clipboard && navigator.clipboard.writeText(code); if (p && p.catch) p.catch(function () { }); } catch (e) { }
+        if (lobby) lobby.refs.status.textContent = t('beamCopied');
+    }
+    // The single primary button: Solo → start the match; Online (in a room) → host-start / ready / rematch.
+    function primaryAction() {
+        if (currentMode() === 'solo') { beginSolo(); return; }
+        if (!onlineRoom()) return;                      // Online pre-room: Create / Join handle it
+        var a = matchmaking.primaryAction(room.data) || { kind: 'none' };
+        if (a.kind === 'start') return hostStart();
+        if (a.kind === 'ready') return doReady();
+        if (a.kind === 'rematch') return doRematch();
+    }
+    function lobbyStatus(d, finished) {
+        if (!onlineRoom()) return '';
+        var g = d.game || {};
+        if (finished) {
+            if (g.endReason === 'left' && g.winner === (netUser && netUser.uid)) return t('beamEndLeft');
+            if (g.winner) return t('beamWinner', pname(g.winner, rosterPlayers(d)));
+        }
+        return '';
+    }
+    function roster() {
+        if (onlineRoom()) return onlineRoster(room.data, (room.data.game || {}).status === 'over');
+        // Online-mode staging (pre-room): you + the CPUs you've added (all owned by you).
+        var r = [{ id: 'you', name: myName(), type: 'human', you: true, host: true, color: colorForOrder(0) }];
+        local.seatOrder.forEach(function (id, i) { var b = local.bots[id]; if (!b) return;
+            r.push({ id: id, name: b.name, type: 'cpu', notch: b.notch, ownedByMe: true, canRemove: true, canRename: true, order: i + 1, color: colorForOrder(i + 1) });
+        });
+        return r;
+    }
+    function onlineRoster(d, finished) {
+        var g = d.game || {}, ready = d.ready || {}, host = effectiveHost(d), me = myUid(), editable = g.status !== 'playing', iHost = isHost();
+        var ids = matchmaking.playerIds(d);
+        if (finished) ids = ids.slice().sort(function (a, b) { return ((g.rankByUid || {})[a] || 99) - ((g.rankByUid || {})[b] || 99); });
+        var r = ids.map(function (uid, i) {
+            var p = d.players[uid] || {};
+            return { id: uid, name: pname(uid, d.players), type: 'human', you: uid === me, host: uid === host,
+                ready: !finished && !!ready[uid], offline: isStale(uid),
+                canRename: uid === me, canKick: iHost && uid !== me,
+                rank: finished && (g.rankByUid || {})[uid] ? placeLabel(g.rankByUid[uid]) : '',
+                color: colorForOrder(p.order != null ? p.order : i) };
+        });
+        var bots = botMap(d);
+        Object.keys(bots).forEach(function (id) { var b = bots[id], mine = b.owner === me;
+            r.push({ id: id, name: b.name, type: 'cpu', notch: b.notch, order: b.order, color: colorForOrder(b.order),
+                ownedByMe: mine, canRemove: mine && editable, canRename: mine && editable,
+                rank: finished && (g.rankByUid || {})[id] ? placeLabel(g.rankByUid[id]) : '' });
+        });
+        return r;
+    }
+    function lobbyModel() {
+        var mode = currentMode();
+        if (mode === 'solo') {
+            var st = loadSoloStats(stagedNotch);
+            return { mode: 'solo', notch: stagedNotch, notchLabel: notchLabel(stagedNotch),
+                best: st.best ? placeLabel(st.best) : null,
+                signedIn: !!netUser, account: netUser ? (netUser.name || t('beamGuest')) : '',
+                action: { kind: 'start-solo' }, status: '' };
+        }
+        var online = onlineRoom(), d = online ? room.data : null, g = (d && d.game) || {};
+        var finished = online && g.status === 'over', playing = online && g.status === 'playing';
+        return {
+            mode: 'online', online: online, code: online ? d.code : null,
+            signedIn: !!netUser, account: netUser ? (netUser.name || t('beamGuest')) : '',
+            phase: playing ? 'playing' : 'lobby',
+            canAddCpu: !playing && rosterCount() < 4,
+            uid: myUid(), host: online ? effectiveHost(d) : 'you',
+            roster: roster(),
+            action: online ? (matchmaking.primaryAction(d) || { kind: 'none' }) : { kind: 'none' },
+            status: lobbyStatus(d, finished),
         };
-        if (u && !d) {
-            model.entry = { codeLabel: t('beamRoomCode'), codeLength: matchmaking.config.codeLength,
-                create: { label: t('beamCreateRoom'), primary: true, onClick: doCreate },
-                join: { label: t('beamJoinRoom'), onClick: doJoin },
-                spectate: { label: t('beamSpectate'), onClick: doSpectate },
-            };
-        } else if (u && d) {
-            var order = matchmaking.playerIds(d), ready = d.ready || {}, host = effectiveHost(d);
-            if (over) order.sort(function (a, b) { return ((g.rankByUid || {})[a] || 99) - ((g.rankByUid || {})[b] || 99); });
-            var players = order.map(function (uid) {
-                var badges = [], stale = isStale(uid);
-                if (uid === host) badges.push({ label: t('beamHost'), tone: 'host' });
-                if (over && (g.rankByUid || {})[uid]) badges.push({ label: placeLabel(g.rankByUid[uid]), tone: 'rank' });
-                if (stale) badges.push({ label: t('beamOffline') });
-                else if (!over && ready[uid]) badges.push({ label: t('beamReadyTag'), tone: 'ready' });
-                return { uid: uid, name: pname(uid, d.players) + (uid === u.uid ? ' (' + t('beamYou') + ')' : ''),
-                    color: colorForOrder(d.players[uid].order), muted: stale, badges: badges };
-            });
-            var notes = [], watchers = watcherCount(), primary = null, watching = !d.players[u.uid];
-            if (watchers) notes.push(t('beamWatchers', watchers));
-            if (watching) notes.push(t('beamSpectatingRoom'));
-            var action = matchmaking.primaryAction(d);
-            if (action) {
-                if (action.kind === 'rematch') primary = { label: t('beamRematch'), primary: true, onClick: doRematch };
-                else if (action.kind === 'wait-rematch') primary = { text: t('beamRematchWait') };
-                else if (action.kind === 'start') primary = { label: t('beamStartMatch'), primary: true, disabled: action.disabled, onClick: hostStart };
-                else if (action.kind === 'wait-ready') primary = { text: t('beamReadyWait') };
-                else if (action.kind === 'ready') primary = { label: t('beamReadyUp'), primary: true, onClick: doReady };
-            }
-            model.room = { code: d.code, players: players, notes: notes, primary: primary,
-                copy: { label: t('beamCopyCode'), onClick: function () { copyCode(d.code); } },
-                leave: { label: t(watching ? 'beamStopSpectating' : 'beamLeaveRoom'), onClick: doLeave },
-            };
-        }
-        lobbyView.render(model);
     }
 
     // ===============================================================
-    // mode seg + online button + net boot
+    // net boot
     // ===============================================================
-    var stagedNotch = 5;
-    var appliedNotch = null;   // notch the last/active solo match committed; null until first Start
-    function onlineLock() { return !!(om && !om.local && !om.over); }   // only an ONLINE match locks the difficulty picker
-    function updateOnlineBtn() { var b = $('online-btn'); if (b) b.hidden = !(net && net.ok); }
-    // Difficulty slider — 16 equidistant notches (4 per tier). Dragging only *stages* a
-    // notch; it commits on the next Start (deferred, like the puzzle games' size slider).
-    // The readout mirrors that convention: while the staged notch differs from the one the
-    // last match used it shows a live "current → pending" preview, so the new difficulty is
-    // visible before you commit. The Roman numeral is the step WITHIN the tier, so even a
-    // same-tier move previews a change. An online match locks the picker.
-    var ROMAN = ['I', 'II', 'III', 'IV'];
-    function notchLabel(n) { return t('beamTier' + capitalize(tierForNotch(n))) + ' ' + ROMAN[n % 4]; }
-    function syncDiffControl() {
-        var sl = $('diff-slider'), rd = $('diff-readout'); if (!sl) return;
-        sl.value = String(stagedNotch);
-        sl.disabled = onlineLock();
-        if (!rd) return;
-        if (appliedNotch == null || appliedNotch === stagedNotch) {
-            rd.textContent = notchLabel(stagedNotch);
-            rd.classList.remove('pending');
-        } else {
-            rd.innerHTML = '';
-            var cur = document.createElement('span'); cur.className = 'readout-current'; cur.textContent = notchLabel(appliedNotch);
-            var arr = document.createElement('span'); arr.className = 'readout-arrow'; arr.textContent = '→';
-            var nxt = document.createElement('span'); nxt.className = 'readout-next'; nxt.textContent = notchLabel(stagedNotch);
-            rd.appendChild(cur); rd.appendChild(arr); rd.appendChild(nxt);
-            rd.classList.add('pending');
-        }
-    }
-    function setNotch(n) {
-        n = AC.math.clamp(n | 0, 0, NOTCH_MAX);
-        if (onlineLock() || n === stagedNotch) return;
-        stagedNotch = n; try { AC.prefs.set('beam', { notch: n }); } catch (e) { }
-        syncDiffControl(); syncHud();                                   // HUD best follows the staged notch
-    }
-    function setControlsForMatch() {
-        var ob = $('online-btn'); if (ob) ob.disabled = !!(om && !om.over);   // can't open the lobby during an active match
-        syncDiffControl();                                                    // the slider lock depends only on online state
-    }
-    function setupControls() {
-        var saved = {}; try { saved = AC.prefs.get('beam') || {}; } catch (e) { }
-        stagedNotch = (saved.notch != null && saved.notch >= 0 && saved.notch <= NOTCH_MAX) ? (saved.notch | 0) : 5;
-        var sl = $('diff-slider'); if (sl) sl.addEventListener('input', function () { AC.audio.unlock(); setNotch(parseInt(sl.value, 10)); });
-        syncDiffControl(); AC.i18n.subscribe(syncDiffControl);
-    }
+    function setControlsForMatch() { var rb = $('room-btn'); if (rb) rb.disabled = !!(om && !om.over && !om.spectator); }   // no opening the Room while actively playing (spectators may still leave)
     function setupOnline() {
         function ready() {
-            var N = window.ArcadeNet, btn = $('online-btn');
-            if (!N || !N.ok || (N.rooms && N.rooms.ok === false)) { if (btn) btn.hidden = true; return; }
+            var N = window.ArcadeNet;
+            if (!N || !N.ok || (N.rooms && N.rooms.ok === false)) return;   // online unavailable: local play still works
             net = N;
             matchmaking = net.rooms.create({
-                collection: GROUP, identity: 'tab', minPlayers: 2, maxPlayers: MAX_PLAYERS,
+                collection: GROUP, identity: 'tab', minPlayers: 1, maxPlayers: MAX_PLAYERS,
                 presenceField: 'game.beat',
                 allowSpectators: true, isAvailable: function (uid) { return !isStale(uid); },
+                onCreate: function (input) {   // promote the staged CPUs; each is owned by the creator
+                    var uid = (matchmaking.currentPlayer() || {}).uid, src = (input && input.bots) || {}, bots = {};
+                    Object.keys(src).forEach(function (id) { if (src[id]) bots[id] = { name: src[id].name, order: src[id].order, notch: src[id].notch, owner: uid }; });
+                    return { bots: bots };
+                },
+                onLeave: function (data, player) {   // a departing connection takes its own CPUs with it
+                    var bots = botMap(data), out = {}, changed = false;
+                    Object.keys(bots).forEach(function (id) { if (bots[id].owner === player.uid) changed = true; else out[id] = bots[id]; });
+                    return changed ? { bots: out } : {};
+                },
+                canStart: function (data, ids) { var n = ids.length + Object.keys(botMap(data)).length; return n >= 2 && n <= MAX_PLAYERS; },
                 startPatch: function (data, order) {
-                    var hp = {}, alive = {};
+                    var bots = botMap(data), hp = {}, alive = {}, resolved = {}, strengths = [];
                     order.forEach(function (uid) { hp[uid] = HP_START; alive[uid] = true; });
-                    return { status: 'playing', game: { status: 'playing', round: 1,
-                        seed: (Math.random() * 1e9) >>> 0, level: START_LEVEL, center: START_LEVEL,
+                    Object.keys(bots).forEach(function (id) { var s = strengthForNotch(bots[id].notch); strengths.push(s);
+                        hp[id] = HP_START; alive[id] = true; resolved[id] = { name: bots[id].name, order: bots[id].order, notch: bots[id].notch, owner: bots[id].owner, strength: s }; });
+                    var start = openingLevel(strengths);                                    // trail the CPU field (humans-only → START_LEVEL)
+                    return { status: 'playing', bots: resolved, game: { status: 'playing', round: 1,
+                        seed: (Math.random() * 1e9) >>> 0, level: start, center: start,
                         hp: hp, alive: alive, answers: {}, results: {}, rankByUid: {} } };
                 },
             });
@@ -1074,10 +1264,7 @@
                 onChange: function (data, activeRoom) { room = activeRoom; onRoom(data); },
                 onError: showLobbyError,
             });
-            buildLobby();
             net.onAuth(function (uu) { netUser = uu ? matchmaking.currentPlayer() : uu; renderLobby(); });
-            if (btn) btn.addEventListener('click', openLobby);
-            updateOnlineBtn();
         }
         if (window.ArcadeNet) ready(); else window.addEventListener('arcade-net-ready', ready, { once: true });
         setInterval(watchdog, 250);
@@ -1094,18 +1281,21 @@
     }
     function boot() {
         setupCanvas();
+        var saved = {}; try { saved = AC.prefs.get('beam') || {}; } catch (e) { }
+        if (saved.notch != null && saved.notch >= 0 && saved.notch <= NOTCH_MAX) stagedNotch = saved.notch | 0;
+        if (saved.mode === 'solo' || saved.mode === 'online') lobbyMode = saved.mode;
         shell = AC.shell.create({
             gameId: 'beam', step: 1 / 60,
             update: function () { if (om) updateOnline(); },
             render: render,
-            restartToReady: true,                                                                     // Restart returns to the ready screen (like Rune Stones)
+            restartToReady: true,                                                                     // Restart returns to the ready screen
             reset: toReady,                                                                           // goIdle/play-again → prepare the ready screen
-            onStart: function () { if (om && !om.local) return; startSoloMatch(stagedNotch); },       // Start → launch a solo-vs-bots match (online is set up by enterMatch)
+            onStart: function () { if (om) return; queueMicrotask(function () { shell.goIdle(); openLobby(); }); },   // the ready/over button opens the Room; matches start from there
             canPause: function () { return !om; },                                                    // no pausing a timed match
             canRestart: function () { return !(om && !om.local); },                                   // solo can restart; online can't
             onGameOver: function () { syncHud(); },                                                   // re-assert the best-placement HUD (shell just wrote a score-best)
             overlayContent: function (state, result) {
-                if (state === 'idle') return { badge: 'zap', title: t('beamArcName'), message: t('beamReadyMsg'), button: t('start') };
+                if (state === 'idle') return { badge: 'zap', title: t('beamArcName'), message: t('beamReadyMsg'), button: t('beamRoomBtn') };
                 if (state === 'over') {
                     var m = (result && result.meta) || {};
                     var list = (m.standings || []).map(function (s) {       // same layout as the online results list
@@ -1116,20 +1306,22 @@
                         badge: m.rank === 1 ? 'trophy' : 'zap',
                         title: t('beamResultsTitle'),
                         message: '<div class="beam-finrank">' + list + '</div>',
-                        button: t('restart'),
-                        hint: t('beamTierLabel') + '：' + t('beamTier' + capitalize(m.tier || 'normal')) + ' · ' + t('best') + ' ' + placeLabel(m.best || (m.rank || 4)),
+                        button: t('beamRoomBtn'),
+                        hint: t('beamTierLabel') + '：' + notchLabel(m.notch || 0) + ' · ' + t('best') + ' ' + placeLabel(m.best || (m.rank || 4)),
                     };
                 }
                 return {};
             },
         });
-        setupControls();
+        buildLobby();
+        var rb = $('room-btn'); if (rb) rb.addEventListener('click', function () { AC.audio.unlock(); openLobby(); });
         setupOnline();
         if (window.CloudSync) window.CloudSync.onApplied(syncHud);   // repaint best on account swap / cloud merge
         applyHudMode();
-        AC.i18n.subscribe(function () { syncHud(); if (!om) shell.refreshOverlay(); if (lobbyEl && !lobbyEl.hidden) renderLobby(); });
+        AC.i18n.subscribe(function () { syncHud(); if (!om) shell.refreshOverlay(); if (lobby && lobby.isOpen()) renderLobby(); });
         syncHud();
         render();                                                                                     // paint the backdrop behind the ready overlay
+        openLobby();                                                                                  // the Room is the start screen (open on load)
     }
     function capitalize(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();

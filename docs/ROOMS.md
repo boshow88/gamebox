@@ -237,6 +237,7 @@ that interval; silent players still send their regular heartbeats.
 | `currentPlayer()` | Account information with the room UID, or `null` when signed out |
 | `create(input)`, `join(code)` | Return the normalized room code; same-player reconnect is idempotent |
 | `leave(code)` | Remove this player, migrate the host, delete an empty room; observers do not mutate membership |
+| `kick(code, targetUid)` | Host-only removal of another member (frees a seat held by a departed/disconnected player); migrates the host and deletes an empty room via the same departure path |
 | `setReady(code, ready = true)` | Member-only, transactional readiness; ignored during play |
 | `playerIds(data, availableOnly = false)`, `host(data)` | Seat order and host selection |
 | `canStart(data)` | Local UI eligibility, including host, readiness, minimum player count and optional game policy |
