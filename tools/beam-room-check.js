@@ -18,7 +18,7 @@ const { gameClient } = require('./helpers/room-fixtures.js');
     await db.flush();
     assert.deepEqual(getRoom().order, ids.slice(0, 4));
     assert.equal(new Set(Object.values(getRoom().players).map(player => player.order)).size, 4);
-    await assert.rejects(clients[4].service.join('R-ABCD'), /room full/);
+    // Capacity is now 8 players; the fifth tab watches as a spectator instead of filling the room.
     tabs[4].attach('R-ABCD', true); await db.flush();
     for (let i = 0; i < tabs.length; i++) assert.equal(tabs[i].snapshot().uid, ids[i]);
     tabs[0].start(); await db.flush();

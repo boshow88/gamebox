@@ -38,7 +38,7 @@
         beamArcHelp1Html: 'Mirrors (<span data-icon="mirror-slash" aria-hidden="true"></span> and <span data-icon="mirror-back" aria-hidden="true"></span>) <strong>appear briefly</strong> — memorise where they are.',
         beamArcHelp2Html: 'They vanish, a laser fires in; <strong>tap the edge where it exits</strong> before time runs out.',
         beamArcHelp3Html: 'A replay reveals who hit — when some hit and some miss, those who missed <strong>lose a life</strong>. Last one standing wins.',
-        beamArcHelp4Html: 'Open the <strong>Room</strong>: <strong>Solo</strong> sets one difficulty vs 3 CPUs; <strong>Online</strong> is 2–4 players and can add CPUs too. A long match keeps speeding up. <kbd>R</kbd> restart · <kbd>M</kbd> mute.',
+        beamArcHelp4Html: 'Open the <strong>Room</strong>: <strong>Solo</strong> sets one difficulty vs 3 CPUs; <strong>Online</strong> is 2–8 players and can add CPUs too. A long match keeps speeding up. <kbd>R</kbd> restart · <kbd>M</kbd> mute.',
         beamOverTitle: 'Game Over',
         beamGetReady: 'Get ready!',
         beamSuddenDeath: 'SUDDEN DEATH!', beamSuddenDeathHint: 'A tie now costs a life',
@@ -76,7 +76,7 @@
         beamOnlineInviteNote: 'Share this code to invite other players. Anyone can add CPUs they own to fill the room.',
         beamOnlinePlayingNote: 'This match is running — new players can join after the host returns to the lobby.',
         beamNeedOpponent: 'Add at least one rival (a CPU or another player).',
-        beamTooMany: 'A match holds up to 4 players — remove some to start.',
+        beamTooMany: 'A match holds up to 8 players — remove some to start.',
         beamStartSolo: 'Start game', beamUnready: 'Cancel ready',
         beamLobbyDiffNote: 'Online difficulty adapts to how everyone plays; CPU rivals keep the strength you pick.',
     });
@@ -94,7 +94,7 @@
         beamArcHelp1Html: '鏡子（<span data-icon="mirror-slash" aria-hidden="true"></span> 與 <span data-icon="mirror-back" aria-hidden="true"></span>）會<strong>短暫出現</strong>——記住它們的位置。',
         beamArcHelp2Html: '鏡子消失後雷射射入，在時間內<strong>點出它射出的邊界格</strong>。',
         beamArcHelp3Html: '回放揭曉誰命中——有人對有人錯時，錯的人<strong>扣一命</strong>，撐到最後者獲勝。',
-        beamArcHelp4Html: '開啟<strong>房間</strong>：<strong>單人</strong>設定一個難度對 3 個 CPU；<strong>線上</strong>為 2～4 人，也能加入 CPU 混戰。對戰拖越久會越來越快。<kbd>R</kbd> 重來 · <kbd>M</kbd> 靜音。',
+        beamArcHelp4Html: '開啟<strong>房間</strong>：<strong>單人</strong>設定一個難度對 3 個 CPU；<strong>線上</strong>為 2～8 人，也能加入 CPU 混戰。對戰拖越久會越來越快。<kbd>R</kbd> 重來 · <kbd>M</kbd> 靜音。',
         beamOverTitle: '遊戲結束',
         beamGetReady: '準備好！',
         beamSuddenDeath: '驟死！', beamSuddenDeathHint: '平手也會扣血',
@@ -131,7 +131,7 @@
         beamOnlineInviteNote: '分享此房號邀請其他玩家；任何人都能加入自己的 CPU 補滿房間。',
         beamOnlinePlayingNote: '本場進行中——房主返回大廳後，新玩家才能加入。',
         beamNeedOpponent: '至少加入一名對手（CPU 或其他玩家）。',
-        beamTooMany: '一場最多 4 名玩家——請移除部分後再開始。',
+        beamTooMany: '一場最多 8 名玩家——請移除部分後再開始。',
         beamStartSolo: '開始遊戲', beamUnready: '取消準備',
         beamLobbyDiffNote: '線上難度會依大家的表現自動調整；CPU 對手則維持你選的強度。',
     });
@@ -162,7 +162,7 @@
     function memoSec(m) { return AC.math.clamp(1.2 + 0.12 * m, 1.2, 3.2); }
     function replaySec(b) { return 0.5 + 0.09 * b; }
     // online
-    var GROUP = 'beam_rooms', MAX_PLAYERS = 4, HP_START = 3;
+    var GROUP = 'beam_rooms', MAX_PLAYERS = 8, HP_START = 3;
     var SETTLE_MS = 500;        // after the answer window, brief wait for in-flight taps before tallying
     var HOST_BUFFER_MS = 800;   // after a round fully plays locally, extra wait before advancing (covers lag)
     var BEAT_MS = 3000;         // presence heartbeat interval
@@ -214,6 +214,9 @@
     // per-player colours (distinct from the cyan laser / green "correct" ring)
     var PCOLORS = ['#f59e0b', '#ec4899', '#a855f7', '#3b82f6', '#f97316', '#eab308', '#8b5cf6', '#ef4444'];
     function colorForOrder(i) { i = i || 0; return PCOLORS[((i % PCOLORS.length) + PCOLORS.length) % PCOLORS.length]; }
+    // A roster entry's colour index: CPUs get a frozen `color` slot (assigned at start to a hue no
+    // human seat uses), humans use their stable seat order. Keeps all 8 participants distinct.
+    function playerColor(p) { return colorForOrder(p && p.color != null ? p.color : (p ? p.order : 0)); }
     function countSec(round) { return round <= 1 ? 3 : 2; }
     // Long online matches gradually speed up so they always resolve: after ACCEL_START
     // rounds, memorize + answer times shrink each round (memorize faster than answer),
@@ -239,7 +242,7 @@
     }
     function rosterPlayers(data) {
         var out = Object.assign({}, (data && data.players) || {}), b = botMap(data);
-        for (var id in b) out[id] = { uid: id, bot: true, name: b[id].name, order: b[id].order, strength: b[id].strength, notch: b[id].notch };
+        for (var id in b) out[id] = { uid: id, bot: true, name: b[id].name, order: b[id].order, strength: b[id].strength, notch: b[id].notch, color: b[id].color };
         return out;
     }
 
@@ -442,7 +445,7 @@
         if (window.CloudSync) window.CloudSync.sync();   // mirror the improved best place to the cloud profile
 
         var standings = order.filter(function (u) { return players[u]; }).map(function (u) {
-            return { rank: ranks[u] || fallback, name: pname(u, players), color: colorForOrder(players[u] ? players[u].order : 0), you: u === om.myUid };
+            return { rank: ranks[u] || fallback, name: pname(u, players), color: playerColor(players[u]), you: u === om.myUid };
         });
         standings.sort(function (a, b) { return a.rank - b.rank; });
         setControlsForMatch();
@@ -722,10 +725,18 @@
         deaths.forEach(function (u) { alive[u] = false; ranks[u] = sharedRank; });
         var over = remaining.length <= 1, winner = null;
         if (over && remaining.length === 1) { ranks[remaining[0]] = 1; winner = remaining[0]; }
-        // adaptive difficulty: all-right together → harder; all-wrong together → easier; mixed → hold
+        // Adaptive difficulty, scaled to the live field: aim for a modest minority to miss.
+        // Signal = misses (m) among present players (N). Too many missed → easier; too few → harder.
+        //   easier if m >= ceil(N/2)   (e.g. N=8 → 4+)
+        //   harder if m <= floor(N/5)  (e.g. N=8 → 0–1)
+        //   else hold                  (e.g. N=8 → 2–3, the sweet spot)
+        // Using misses (not HP losses) makes an all-wrong round correctly read as "too hard".
         var center = g.center != null ? g.center : START_LEVEL;
-        if (correct.length > 0 && wrong.length === 0) center = levelUp(center);
-        else if (wrong.length > 0 && correct.length === 0) center = levelDown(center);
+        var fieldN = present.length, misses = wrong.length;
+        if (fieldN >= 2) {
+            if (misses >= Math.ceil(fieldN / 2)) center = levelDown(center);
+            else if (misses <= Math.floor(fieldN / 5)) center = levelUp(center);
+        }
         var patch = {
             'game.hp': hp, 'game.alive': alive, 'game.results': results, 'game.revealedRound': r, 'game.rankByUid': ranks, 'game.center': center, 'game.settledRound': r,
         };
@@ -913,17 +924,16 @@
         });
         for (var key in groups) {
             var list = groups[key], a0 = answers[list[0]], R = portRect(a0.r, a0.c, a0.side, p.N), n = list.length;
-            var grid2x2 = p.N >= 9;                             // big (near-square) tiles: 3-4 players → 2×2 grid
-            var vert = (a0.side === U || a0.side === D);        // orient by SIDE (top/bottom = vertical stripes) — no flip
+            // Tile the picks in a grid that follows the port's aspect, so up to 8 stay readable
+            // (a wide top/bottom tile gets more columns; a tall side tile gets more rows).
+            var cols, rows;
+            if (n <= 2) { var wide = (a0.side === U || a0.side === D); cols = wide ? n : 1; rows = wide ? 1 : n; }
+            else { cols = AC.math.clamp(Math.round(Math.sqrt(n * (R.w / R.h))), 1, n); rows = Math.ceil(n / cols); }
             ctx.save(); cellPath(R); ctx.clip(); ctx.globalAlpha = 0.92;
             for (var i = 0; i < n; i++) {
-                ctx.fillStyle = colorForOrder(players[list[i]] ? players[list[i]].order : 0);
-                var sx, sy, sw, sh;
-                if (n >= 3 && grid2x2) {                        // 3-4 players on a square-ish tile → 2 × ceil(n/2) grid (2×2 for four)
-                    var cols = 2, rows = Math.ceil(n / 2), cc = i % cols, cr = (i / cols) | 0;
-                    sx = R.x + R.w * cc / cols; sy = R.y + R.h * cr / rows; sw = R.w / cols; sh = R.h / rows;
-                } else if (vert) { sx = R.x + R.w * i / n; sy = R.y; sw = R.w / n; sh = R.h; }
-                else { sx = R.x; sy = R.y + R.h * i / n; sw = R.w; sh = R.h / n; }
+                ctx.fillStyle = playerColor(players[list[i]]);
+                var cc = i % cols, cr = (i / cols) | 0;
+                var sx = R.x + R.w * cc / cols, sy = R.y + R.h * cr / rows, sw = R.w / cols, sh = R.h / rows;
                 ctx.fillRect(sx + 0.4, sy + 0.4, sw - 0.8, sh - 0.8);
             }
             ctx.restore();
@@ -954,6 +964,7 @@
         if (!om || !data) { bar.hidden = true; return; }
         bar.hidden = false; bar.innerHTML = '';
         var g = data.game || {}, players = rosterPlayers(data), order = rosterIds(data);
+        bar.classList.toggle('compact', order.length > 4);   // tighter chips when the field is large (up to 8)
         var ph = phaseAt(performance.now()).phase;
         var showOut = (ph === 'reveal' || ph === 'result' || ph === 'await');   // reveal HP/✓/✗ only from here (no spoiler)
         var hpSrc = showOut ? (g.hp || {}) : (om.hpStart || {});
@@ -965,7 +976,7 @@
             var dead = aliveSrc[uid] === false, stale = !dead && isStale(uid);
             var chip = document.createElement('div');
             chip.className = 'pchip' + (uid === om.myUid ? ' me' : '') + ((dead || stale) ? ' dead' : '');
-            var dot = document.createElement('span'); dot.className = 'dot'; dot.textContent = '\u25cf'; dot.style.color = colorForOrder(players[uid] ? players[uid].order : 0); chip.appendChild(dot);
+            var dot = document.createElement('span'); dot.className = 'dot'; dot.textContent = '\u25cf'; dot.style.color = playerColor(players[uid]); chip.appendChild(dot);
             var name = document.createElement('span'); name.className = 'nm'; name.textContent = pname(uid, players) + (uid === om.myUid ? ' (' + t('beamYou') + ')' : ''); chip.appendChild(name);
             if (players[uid] && players[uid].bot && players[uid].notch != null) { var ct = document.createElement('span'); ct.className = 'cputag'; ct.textContent = notchLabel(players[uid].notch); chip.appendChild(ct); }
             var meta = document.createElement('span'); meta.className = 'meta';
@@ -1013,7 +1024,7 @@
     function buildLobby() {
         lobby = window.createBeamLobby({
             document: document, t: t, locale: function () { return AC.i18n.locale; },
-            notchLabel: notchLabel, notchMax: NOTCH_MAX,
+            notchLabel: notchLabel, notchMax: NOTCH_MAX, maxPlayers: MAX_PLAYERS,
             onClose: onLobbyClose, onError: showLobbyError,
             model: lobbyModel, setMode: setMode, setNotch: setNotch,
             addCpu: addCpu, setCpuStrength: setCpuStrength, removeCpu: removeCpu, rename: renamePlayer, kick: doKick,
@@ -1074,7 +1085,7 @@
     // The RTDB adapter preserves explicit null, so we never write `bots.<id>: null` to delete —
     // we replace the whole (cleaned) `bots` map, mirroring the Darts participant updates.
     function addCpu() {
-        if (rosterCount() >= 4) return;
+        if (rosterCount() >= MAX_PLAYERS) return;
         if (onlineRoom()) {
             var bots = botMap(room.data), id = newBotId(), next = Object.assign({}, bots);
             next[id] = { name: t('beamCpuName', nextBotNumber(bots)), order: Object.keys(bots).length + 1, notch: DEFAULT_NOTCH, owner: myUid() };
@@ -1186,6 +1197,9 @@
         var g = d.game || {}, ready = d.ready || {}, host = effectiveHost(d), me = myUid(), editable = g.status !== 'playing', iHost = isHost();
         var ids = matchmaking.playerIds(d);
         if (finished) ids = ids.slice().sort(function (a, b) { return ((g.rankByUid || {})[a] || 99) - ((g.rankByUid || {})[b] || 99); });
+        // Preview the same colour assignment the match will freeze: humans use their seat hue, CPUs fill the gaps.
+        var used = {}; ids.forEach(function (uid) { var o = (d.players[uid] || {}).order; if (o != null) used[o] = true; });
+        var free = []; for (var c = 0; c < MAX_PLAYERS; c++) if (!used[c]) free.push(c);
         var r = ids.map(function (uid, i) {
             var p = d.players[uid] || {};
             return { id: uid, name: pname(uid, d.players), type: 'human', you: uid === me, host: uid === host,
@@ -1195,8 +1209,9 @@
                 color: colorForOrder(p.order != null ? p.order : i) };
         });
         var bots = botMap(d);
-        Object.keys(bots).forEach(function (id) { var b = bots[id], mine = b.owner === me;
-            r.push({ id: id, name: b.name, type: 'cpu', notch: b.notch, order: b.order, color: colorForOrder(b.order),
+        Object.keys(bots).forEach(function (id, j) { var b = bots[id], mine = b.owner === me;
+            var ci = b.color != null ? b.color : (free.length ? free[j % free.length] : j);
+            r.push({ id: id, name: b.name, type: 'cpu', notch: b.notch, order: b.order, color: colorForOrder(ci),
                 ownedByMe: mine, canRemove: mine && editable, canRename: mine && editable,
                 rank: finished && (g.rankByUid || {})[id] ? placeLabel(g.rankByUid[id]) : '' });
         });
@@ -1217,7 +1232,7 @@
             mode: 'online', online: online, code: online ? d.code : null,
             signedIn: !!netUser, account: netUser ? (netUser.name || t('beamGuest')) : '',
             phase: playing ? 'playing' : 'lobby',
-            canAddCpu: !playing && rosterCount() < 4,
+            canAddCpu: !playing && rosterCount() < MAX_PLAYERS,
             uid: myUid(), host: online ? effectiveHost(d) : 'you',
             roster: roster(),
             action: online ? (matchmaking.primaryAction(d) || { kind: 'none' }) : { kind: 'none' },
@@ -1250,10 +1265,12 @@
                 },
                 canStart: function (data, ids) { var n = ids.length + Object.keys(botMap(data)).length; return n >= 2 && n <= MAX_PLAYERS; },
                 startPatch: function (data, order) {
-                    var bots = botMap(data), hp = {}, alive = {}, resolved = {}, strengths = [];
-                    order.forEach(function (uid) { hp[uid] = HP_START; alive[uid] = true; });
+                    var bots = botMap(data), hp = {}, alive = {}, resolved = {}, strengths = [], used = {};
+                    order.forEach(function (uid) { hp[uid] = HP_START; alive[uid] = true; var o = (data.players[uid] || {}).order; if (o != null) used[o] = true; });
+                    var free = []; for (var c = 0; c < MAX_PLAYERS; c++) if (!used[c]) free.push(c);
+                    var bi = 0;
                     Object.keys(bots).forEach(function (id) { var s = strengthForNotch(bots[id].notch); strengths.push(s);
-                        hp[id] = HP_START; alive[id] = true; resolved[id] = { name: bots[id].name, order: bots[id].order, notch: bots[id].notch, owner: bots[id].owner, strength: s }; });
+                        hp[id] = HP_START; alive[id] = true; resolved[id] = { name: bots[id].name, order: bots[id].order, notch: bots[id].notch, owner: bots[id].owner, strength: s, color: free[bi++ % free.length] }; });
                     var start = openingLevel(strengths);                                    // trail the CPU field (humans-only → START_LEVEL)
                     return { status: 'playing', bots: resolved, game: { status: 'playing', round: 1,
                         seed: (Math.random() * 1e9) >>> 0, level: start, center: start,

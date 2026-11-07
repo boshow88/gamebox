@@ -17,7 +17,7 @@
 (function () {
     'use strict';
     window.createBeamLobby = function (options) {
-        var doc = options.document, t = options.t, notchMax = options.notchMax || 15;
+        var doc = options.document, t = options.t, notchMax = options.notchMax || 15, maxPlayers = options.maxPlayers || 4;
         var dialog = doc.getElementById('beam-lobby');
         var busy = false, lastSlots = '';
         function get(id) { return doc.getElementById(id); }
@@ -104,7 +104,7 @@
                     if (sel && doc.activeElement !== sel && sel.value !== String(slot.notch)) sel.value = String(slot.notch);
                 });
             }
-            setText('lobby-capacity', roster.length + ' / 4');
+            setText('lobby-capacity', roster.length + ' / ' + maxPlayers);
             get('add-cpu-btn').disabled = locked || !model.canAddCpu;
 
             var auth = get('lobby-auth'); auth.replaceChildren();

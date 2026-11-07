@@ -22,7 +22,7 @@ checks.
 | --- | --- | --- | --- |
 | Collection | `beam_rooms` | `duel_rooms` | `darts_rooms` |
 | Identity | One player per page instance; same account can occupy multiple seats | One player per page instance; same account can occupy both seats | One connection per page instance; each connection controls one or more participant slots |
-| Capacity | 2–4 | Exactly 2 | 1–4 participants across 1–4 devices |
+| Capacity | 2–8 (humans and CPUs combined) | Exactly 2 | 1–4 participants across 1–4 devices |
 | Seat layout | Join `order`, stable player colour indices | `slots`, host and guest | Connection `slots` plus separate `participants` and `seatOrder`; four participant slots total |
 | Start | Host presses Start; guests must be ready | Host presses Start; guest must be ready | Host starts after all guest controllers confirm the current configuration; mode validates participant count |
 | Spectators | Watch without joining or consuming a seat | Disabled | Disabled |
