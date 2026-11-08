@@ -971,6 +971,12 @@ an explicit "Last turn" label until the next player throws. Cork replaces mode
 details with one dart and its distance. Practice player cards show per-slot darts,
 and its feedback preserves the established free-throw interaction.
 
+Cricket's 1/2/3 marks use the shared inline Lucide `slash`/`x`/`circle-x` SVGs
+through the injected `ArcadeCommon.icon` helper. Their diagonal strokes stay at
+45 degrees and inherit the cell's color, independent of system font glyphs.
+Empty marks keep the dot, withdrawn seats keep the dash, and existing accessible
+cell labels describe the mark count while the SVG is decorative/non-focusable.
+
 `cricketBoardFocus()` supplies presentation-only target emphasis in ordinary
 Cricket. The renderer keeps all active target fills in their standard colors,
 including dark 20/18 beds, with no extra outlines. Static soft halos accent active

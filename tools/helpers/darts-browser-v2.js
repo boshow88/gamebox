@@ -1947,6 +1947,23 @@ async function checkDartsCricketFocusV2() {
         dartsAssert(sum(open20) > sum(unrelated) * 1.3, 'Relevant Cricket rings retain their color while unrelated rings recede');
         dartsAssert(sum(api.boardPixel(15, 1)) > sum(api.boardPixel(1, 1)) * 1.3, 'Cricket single beds stand out without changing their geometry');
         let state = structuredClone(api.snapshot().match);
+        state.players.forEach((id, n) => { state.marks[id][18] = n; }); state.seq++; api.replace(state);
+        const markRow = [...doc.querySelectorAll('.cricket-table tbody tr')].find(row => row.querySelector('th').textContent === '18');
+        const cells = [...markRow.querySelectorAll('td')];
+        dartsAssert(cells[0].textContent === '·' && !cells[0].querySelector('svg'), 'An empty Cricket target retains its dot');
+        for (let n = 1; n <= 3; n++) {
+            const svg = cells[n].querySelector('svg.cricket-mark'), rect = svg.getBoundingClientRect(), cell = cells[n].getBoundingClientRect();
+            dartsAssert(svg.getAttribute('aria-hidden') === 'true' && svg.getAttribute('focusable') === 'false' && cells[n].getAttribute('aria-label').includes(w.ArcadeCommon.i18n.t('dartsMark' + n)), 'Cricket icons retain the accessible mark-count label');
+            dartsAssert(Math.abs(rect.width - rect.height) < .1 && rect.top >= cell.top && rect.bottom <= cell.bottom, 'Square SVG marks fit the responsive scoring row');
+            for (const path of svg.querySelectorAll('path')) {
+                const start = path.getPointAtLength(0), end = path.getPointAtLength(path.getTotalLength());
+                dartsAssert(Math.abs(Math.abs(end.x - start.x) - Math.abs(end.y - start.y)) < .001, 'Cricket diagonal strokes are exactly 45 degrees');
+            }
+            const before = [rect.width, rect.height]; cells[n].style.fontFamily = 'serif';
+            const after = svg.getBoundingClientRect();
+            dartsAssert(after.width === before[0] && after.height === before[1], 'Mark geometry does not depend on the system font');
+        }
+        dartsAssert(cells[3].querySelector('circle') && cells[3].classList.contains('closed'), 'The third mark retains its green circle-X closure');
         state.marks[state.active][20] = 3; state.seq++; api.replace(state);
         dartsAssert(JSON.stringify(pixel(20)) === JSON.stringify(open20), 'Own closure stays bright while any opponent can still receive points or penalties');
         const openOpponent = state.players.find(id => id !== state.active);

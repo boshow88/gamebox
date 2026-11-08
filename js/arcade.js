@@ -194,6 +194,15 @@
             '<circle cx="12" cy="12" r="10"/>'
             + '<circle cx="12" cy="12" r="6"/>'
             + '<circle cx="12" cy="12" r="2"/>',
+        // lucide: slash — Cricket marks use fixed 45-degree strokes.
+        slash:
+            '<path d="M22 2 2 22"/>',
+        // lucide: x
+        x:
+            '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
+        // lucide: circle-x
+        'circle-x':
+            '<circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/>',
         // custom: a dartboard (two rings + pip) with a dart arriving from the top-right
         darts:
             '<circle cx="11" cy="13" r="8"/>'

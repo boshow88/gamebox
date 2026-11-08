@@ -1774,7 +1774,7 @@
             if (match && match.status === 'playing' && roomData().phase === 'playing') lobby.close();
             syncThrowGuide();
         } });
-        hud = window.DartsHud.create({ document: document, t: t, resultLabel: resultLabel, modeName: modeName,
+        hud = window.DartsHud.create({ document: document, t: t, icon: AC.icon, resultLabel: resultLabel, modeName: modeName,
             locale: function () { return AC.i18n.locale; }, isOnline: usesSharedMatch,
             myUid: controllerId, controlsPlayer: controlsPlayer, ownsPlayer: ownsPlayer, isFlying: function () { return G.dartState === 'flying'; } });
         historyView = window.createDartsHistory({ document: document, t: t, resultLabel: resultLabel,

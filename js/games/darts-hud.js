@@ -315,7 +315,11 @@
                     var line = el('tr', closed ? 'fully-closed' : '');
                     var title = el('th', '', target === 25 ? t('dartsBullShort') : target); title.scope = 'row'; line.append(title);
                     m.players.forEach(function (p) {
-                        var n = p.marks[target], mark = el('td', p.left ? 'withdrawn' : n === 3 ? 'closed' : '', p.left ? '—' : ['·', '/', '×', '⊗'][n]);
+                        var n = p.marks[target], mark = el('td', p.left ? 'withdrawn' : n === 3 ? 'closed' : '', p.left ? '—' : n === 0 ? '·' : null);
+                        if (!p.left && n > 0) {
+                            var glyph = options.icon(['', 'slash', 'x', 'circle-x'][n], { className: 'cricket-mark' });
+                            glyph.setAttribute('focusable', 'false'); mark.append(glyph);
+                        }
                         mark.setAttribute('aria-label', p.name + ' · ' + (p.left ? t('dartsWithdrawn') : t('dartsMark' + n)));
                         line.append(mark);
                     }); body.append(line);
