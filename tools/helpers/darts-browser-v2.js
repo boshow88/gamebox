@@ -104,7 +104,11 @@ function dartsRoomTools(code, frames) {
 async function dartsPromote(f) {
     dartsDoc(f).getElementById('invite-details').open = true;
     dartsClick(f, 'create-room-btn');
-    await until(() => dartsApi(f).snapshot().room && /^[A-Z0-9]{4}$/.test(dartsDoc(f).getElementById('room-code').textContent), 'promote local Darts room');
+    try {
+        await until(() => dartsApi(f).snapshot().room && /^[A-Z0-9]{4}$/.test(dartsDoc(f).getElementById('room-code').textContent), 'promote local Darts room');
+    } catch (error) {
+        throw new Error(error.message + ' (' + (f.contentWindow.ArcadeNet?.error || dartsDoc(f).getElementById('lobby-status').textContent) + ')');
+    }
     return dartsDoc(f).getElementById('room-code').textContent;
 }
 async function dartsJoin(f, code) {
@@ -1280,6 +1284,7 @@ async function dartsAddCpu(f, difficulty = 'normal') {
     return id;
 }
 async function dartsCpuDifficulty(f, id, difficulty) {
+    difficulty = f.contentWindow.DartsCpuDifficulty.normalize(difficulty);
     const select = [...dartsDoc(f).querySelectorAll('.slot-difficulty')].find(el => el.dataset.cpuSlot === id);
     await until(() => select && !select.disabled, 'editable CPU difficulty');
     select.focus(); select.value = difficulty;
@@ -1337,12 +1342,23 @@ async function checkDartsCpuLobbyV2() {
         dartsAssert(!w.ArcadeNet && doc.getElementById('add-cpu-btn').disabled && doc.getElementById('lobby-cpu-note').textContent.includes('X01'), 'Practice explains how to enable local CPU opponents without networking');
         await dartsChange(f, 'mode-select', 'x01');
         const id = await dartsAddCpu(f), human = dartsData(f).seatOrder[0];
-        dartsAssert(dartsData(f).participants[id].type === 'cpu' && dartsData(f).participants[id].difficulty === 'normal', 'New CPUs occupy a normal slot at Normal difficulty');
+        dartsAssert(dartsData(f).participants[id].type === 'cpu' && dartsData(f).participants[id].difficulty === 6, 'New CPUs occupy a normal slot at Normal III difficulty');
+        const picker = doc.querySelector('.slot-difficulty');
+        dartsAssert(picker.options.length === 16 && picker.options[0].textContent === 'Easy I' && picker.options[15].textContent === 'Insane IV', 'The picker offers all sixteen ordered levels');
         dartsAssert(doc.querySelector('.darts-lobby-slot.cpu .slot-badge.cpu') && !doc.querySelector('[data-remove-slot="' + human + '"]') && !api.removePlayer(human), 'CPU is identified and the sole human cannot be removed');
-        for (const difficulty of ['easy', 'hard', 'insane', 'normal']) {
+        for (const difficulty of f.contentWindow.DartsCpuDifficulty.values) {
             dartsData(f).ready = { test: true }; await dartsCpuDifficulty(f, id, difficulty);
             dartsAssert(!Object.keys(dartsData(f).ready).length && doc.activeElement.dataset.cpuSlot === id, 'CPU difficulty clears Ready and preserves keyboard focus');
         }
+        w.ArcadeCommon.i18n.setLocale('zh'); api.refresh();
+        let options = doc.querySelector('.slot-difficulty').options;
+        dartsAssert(options[1].textContent === '簡單II' && options[6].textContent === '普通III' && options[11].textContent === '困難IV' && options[14].textContent === '瘋狂III', 'Chinese labels preserve the requested anchor positions without English spacing');
+        // Existing room snapshots still carry tier strings; rendering must show the
+        // corresponding notch without a write or accidental change to another level.
+        dartsData(f).participants[id].difficulty = 'normal'; api.refresh();
+        dartsAssert(doc.querySelector('.slot-difficulty').value === '6' && dartsData(f).participants[id].difficulty === 'normal', 'Legacy difficulty renders without rewriting the participant');
+        w.ArcadeCommon.i18n.setLocale('en'); api.refresh();
+        await dartsCpuDifficulty(f, id, 0);
         dartsAssert(!doc.getElementById('create-room-btn').disabled && !doc.getElementById('join-room-btn').disabled && !doc.getElementById('room-code-input').disabled, 'CPU slots retain invitation and join controls');
         await dartsChange(f, 'mode-select', 'practice');
         dartsAssert(dartsData(f).participants[id].type === 'cpu' && doc.getElementById('lobby-start-btn').disabled && doc.getElementById('lobby-start-reason').textContent.includes('CPU'), 'Switching to Practice preserves CPU slots and explains its blocked start');
@@ -1354,7 +1370,9 @@ async function checkDartsCpuLobbyV2() {
             if (select) { const rect = select.getBoundingClientRect(); dartsAssert(rect.left >= bounds.left && rect.right <= bounds.right, 'CPU difficulty stays inside lobby ' + width); }
         }
         dartsAssert(await api.removePlayer(id), 'CPU removal remains available');
+        const importedCpu = await dartsAddCpu(f, 0);
         const code = await dartsPromote(f);
+        dartsAssert(dartsData(f).participants[importedCpu].difficulty === 0, 'Room creation preserves the lowest numeric difficulty');
         dartsAssert(!doc.getElementById('add-cpu-btn').disabled && await api.addCpu(), 'A coded room supports device-owned CPU slots');
         await api.controller().leave(); f.remove();
     }

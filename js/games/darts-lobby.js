@@ -49,6 +49,7 @@
         dartsLobbyInvitePlaying: 'New players can join after the host returns to the lobby.',
         dartsAddCpu: 'Add CPU', dartsCpu: 'CPU', dartsCpuDifficulty: 'CPU difficulty',
         dartsCpuEasy: 'Easy', dartsCpuNormal: 'Normal', dartsCpuHard: 'Hard', dartsCpuInsane: 'Insane',
+        dartsCpuLevel: function (tier, step) { return tier + ' ' + step; },
         dartsCpuChooseMode: 'Choose X01, Cricket or Count-Up to add CPU opponents.',
         dartsCpuPracticeUnavailable: 'Practice does not support CPU players. Change mode or remove the CPUs.',
         dartsCpuHumanRequired: 'Keep at least one human player.',
@@ -101,6 +102,7 @@
         dartsLobbyInvitePlaying: '本場開始後，新玩家須等房主返回大廳才能加入。',
         dartsAddCpu: '加入CPU', dartsCpu: 'CPU', dartsCpuDifficulty: 'CPU難度',
         dartsCpuEasy: '簡單', dartsCpuNormal: '普通', dartsCpuHard: '困難', dartsCpuInsane: '瘋狂',
+        dartsCpuLevel: function (tier, step) { return tier + step; },
         dartsCpuChooseMode: '選擇X01、Cricket或Count-Up即可加入CPU對手。',
         dartsCpuPracticeUnavailable: '練習模式不支援CPU，請切換模式或移除CPU。',
         dartsCpuHumanRequired: '至少須保留一位真人玩家。',
@@ -252,10 +254,10 @@
                         var select = node('select', 'slot-difficulty'); select.dataset.cpuSlot = id;
                         select.disabled = locked || !owned;
                         select.setAttribute('aria-label', t('dartsLabelValue', p.name || t('dartsCpu'), t('dartsCpuDifficulty')));
-                        ['easy', 'normal', 'hard', 'insane'].forEach(function (level) {
-                            var option = node('option', '', t('dartsCpu' + level[0].toUpperCase() + level.slice(1))); option.value = level; select.append(option);
+                        window.DartsCpuDifficulty.values.forEach(function (level) {
+                            var option = node('option', '', window.DartsCpuDifficulty.label(level, t)); option.value = level; select.append(option);
                         });
-                        select.value = p.difficulty || 'normal'; difficulty.append(select); row.append(difficulty);
+                        select.value = window.DartsCpuDifficulty.normalize(p.difficulty); difficulty.append(select); row.append(difficulty);
                     }
                     get('lobby-slots').append(row);
                 });

@@ -1495,14 +1495,14 @@
         if (room) return online.addCpuPlayer(t('dartsCpuNumber', n));
         if (localRoom.phase !== 'lobby' || localRoom.options.mode === 'practice' || localRoom.seatOrder.length >= 4) return false;
         var id = 'cpu-' + ++localSeatSerial;
-        localRoom.participants[id] = { id: id, name: t('dartsCpuNumber', n), controllerId: localController, type: 'cpu', difficulty: 'normal' };
+        localRoom.participants[id] = { id: id, name: t('dartsCpuNumber', n), controllerId: localController, type: 'cpu', difficulty: window.DartsCpuDifficulty.defaultLevel };
         localRoom.seatOrder.push(id); localRoom.ready = {}; syncGameUi(); return true;
     }
     function setCpuDifficulty(id, difficulty) {
         if (room) return online.setCpuDifficulty(id, difficulty);
         var p = localRoom.participants[id];
-        if (localRoom.phase !== 'lobby' || !p || p.type !== 'cpu' || !['easy', 'normal', 'hard', 'insane'].includes(difficulty)) return false;
-        p.difficulty = difficulty; localRoom.ready = {}; syncGameUi(); return true;
+        if (localRoom.phase !== 'lobby' || !p || p.type !== 'cpu' || !window.DartsCpuDifficulty.valid(difficulty)) return false;
+        p.difficulty = window.DartsCpuDifficulty.normalize(difficulty); localRoom.ready = {}; syncGameUi(); return true;
     }
     function renamePlayer(id, name) {
         if (room) return online.renamePlayer(id, name);

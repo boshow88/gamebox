@@ -1,9 +1,9 @@
 /* Persistent Darts rooms: connections use the shared service; participants own seats. */
 (function (root, factory) {
     'use strict';
-    if (typeof module === 'object' && module.exports) module.exports = factory(require('./darts-rules.js'), require('./darts-opening.js'));
-    else root.createDartsRoom = factory(root.DartsRules, root.DartsOpening);
-})(typeof window === 'object' ? window : globalThis, function (Rules, Opening) {
+    if (typeof module === 'object' && module.exports) module.exports = factory(require('./darts-rules.js'), require('./darts-opening.js'), require('./darts-cpu-difficulty.js'));
+    else root.createDartsRoom = factory(root.DartsRules, root.DartsOpening, root.DartsCpuDifficulty);
+})(typeof window === 'object' ? window : globalThis, function (Rules, Opening, Difficulty) {
     'use strict';
     function clone(value) { return JSON.parse(JSON.stringify(value)); }
     function name(value, fallback) { return String(value || '').trim().slice(0, 32) || fallback || 'Player'; }
@@ -31,7 +31,7 @@
         return Array.from(new Set(order.concat(Object.keys(slots)))).filter(function (id) { return !!slots[id]; });
     }
     function validId(id) { return typeof id === 'string' && /^[A-Za-z0-9_-]{1,180}$/.test(id) && !['__proto__', 'constructor', 'prototype'].includes(id); }
-    function validDifficulty(value) { return ['easy', 'normal', 'hard', 'insane'].includes(value); }
+    function validDifficulty(value) { return Difficulty.valid(value); }
     function sameParticipant(a, b) {
         return !!(a && b) && ['id', 'name', 'controllerId', 'type', 'difficulty'].every(function (key) { return a[key] === b[key]; });
     }
@@ -70,10 +70,10 @@
                     slot = typeof slot === 'string' ? { name: slot } : slot || {};
                     var id = validId(slot.id) && !Object.hasOwn(slots, slot.id) ? slot.id : newId(player.uid);
                     if (slot.type && !['human', 'cpu'].includes(slot.type)) throw roomError('participant', 'Invalid participant type.');
-                    var cpu = slot.type === 'cpu', difficulty = slot.difficulty || 'normal';
+                    var cpu = slot.type === 'cpu', difficulty = slot.difficulty == null ? Difficulty.defaultLevel : slot.difficulty;
                     if (cpu && !validDifficulty(difficulty)) throw roomError('difficulty', 'Invalid CPU difficulty.');
                     slots[id] = { id: id, name: name(slot.name, index ? playerName(slots, index + 1) : name(player.name, playerName(slots))), controllerId: player.uid, type: cpu ? 'cpu' : 'human' };
-                    if (cpu) slots[id].difficulty = difficulty;
+                    if (cpu) slots[id].difficulty = Difficulty.normalize(difficulty);
                     ids.push(id);
                 });
                 if (!ids.some(function (id) { return slots[id].type === 'human'; })) throw roomError('needs-human', 'Keep an owned human participant.');
@@ -170,8 +170,9 @@
             });
         }
         function addCpuPlayer(displayName, difficulty) {
-            difficulty = difficulty || 'normal';
+            difficulty = difficulty == null ? Difficulty.defaultLevel : difficulty;
             if (!validDifficulty(difficulty)) return Promise.resolve(false);
+            difficulty = Difficulty.normalize(difficulty);
             var player = service.currentPlayer();
             if (!player) return Promise.resolve(false);
             var id = newId(player.uid);
@@ -185,9 +186,10 @@
         }
         function setCpuDifficulty(id, difficulty) {
             if (!validDifficulty(difficulty)) return Promise.resolve(false);
+            difficulty = Difficulty.normalize(difficulty);
             return lobbyUpdate(function (data, uid) {
                 var slots = Object.assign({}, participants(data)), slot = slots[id];
-                if (!slot || slot.controllerId !== uid || slot.type !== 'cpu' || slot.difficulty === difficulty) return null;
+                if (!slot || slot.controllerId !== uid || slot.type !== 'cpu' || Difficulty.normalize(slot.difficulty) === difficulty) return null;
                 slots[id] = Object.assign({}, slot, { difficulty: difficulty });
                 return { participants: slots, ready: {}, revision: revision(data) + 1 };
             });

@@ -1,21 +1,16 @@
 /* CPU intent -> synthetic logical pointer samples. Human analysis and physics stay authoritative. */
 (function (root, factory) {
     'use strict';
-    var api = factory();
+    var api = factory(typeof module === 'object' && module.exports ? require('./darts-cpu-difficulty.js') : root.DartsCpuDifficulty);
     if (typeof module === 'object' && module.exports) module.exports = api;
     else root.DartsCpuGesture = api;
-})(typeof window === 'object' ? window : globalThis, function () {
+})(typeof window === 'object' ? window : globalThis, function (Difficulty) {
     'use strict';
     // Velocity is raw logical px/s; timing is relative duration deviation and shape
     // changes the acceleration exponent. Rare lapses have broad execution error.
     // Ordinary 25/50 scoring calibration is reproducible in darts-cpu-physics-check.js.
-    var PROFILES = {
-        easy: { velocity: 300, timing: 0.045, shape: 0.10, lapse: 0.10, lapseVelocity: 650 },
-        normal: { velocity: 100, timing: 0.030, shape: 0.055, lapse: 0.04, lapseVelocity: 650 },
-        hard: { velocity: 55, timing: 0.015, shape: 0.025, lapse: 0.015, lapseVelocity: 650 },
-        insane: { velocity: 36, timing: 0.008, shape: 0.012, lapse: 0.006, lapseVelocity: 650 }
-    };
-    Object.keys(PROFILES).forEach(function (key) { Object.freeze(PROFILES[key]); });
+    var PROFILES = Object.assign({}, Difficulty.profiles);
+    Object.keys(Difficulty.legacy).forEach(function (key) { PROFILES[key] = PROFILES[Difficulty.legacy[key]]; });
     Object.freeze(PROFILES);
     function seeded(seed) {
         var value = typeof seed === 'string' ? Array.from(seed).reduce(function (h, c) {
@@ -80,7 +75,7 @@
                 diagnostics: Object.assign({}, cached) };
         }
         function generate(target, difficulty, rng) {
-            difficulty = Object.prototype.hasOwnProperty.call(PROFILES, difficulty) ? difficulty : 'normal';
+            difficulty = Difficulty.normalize(difficulty);
             rng = rng || Math.random;
             var calibration = ideal(target), p = PROFILES[difficulty], lapse = rng() < p.lapse;
             var spread = lapse ? p.lapseVelocity : p.velocity;

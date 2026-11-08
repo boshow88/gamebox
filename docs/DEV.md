@@ -808,17 +808,36 @@ connection `controllerId` and captured `game.owners` entry as that device's huma
 slots. Creating a code imports existing CPUs without changing their type;
 joining follows the existing single-human join policy, then that device can add
 CPUs. Every connected device retains an owned human. Only the owner can rename,
-remove or change its CPU's four-tier difficulty in the lobby. These transactions
+remove or change its CPU's sixteen-level difficulty in the lobby. These transactions
 increment the room revision and clear all device Ready states; CPUs add no Ready
 identity. Match start clones every participant's type/name/difficulty/owner into
 `game.participants`, and local result uploads also validate that locked snapshot.
 The existing rules engine remains independent of participant skill/type.
 
+`darts-cpu-difficulty.js` owns the shared 0–15 scale (Easy/Normal/Hard/Insane,
+I–IV within each tier), strict validation and translated labels. New CPU slots
+default to 6 (Normal III). Legacy `easy`/`normal`/`hard`/`insane` values resolve to
+1/6/11/14 (Easy II / Normal III / Hard IV / Insane III). Existing snapshots can
+retain their strings; imports and edits write numeric levels, and locked Match
+participants are never rewritten. Level zero is valid and must not use a truthy
+fallback. Lobby and HUD use the same labels, with no ASCII space before Roman
+numerals in Chinese.
+
+The four original execution profiles remain exact at those anchors, including
+their seeded gesture samples and target decisions. Positive error parameters
+interpolate geometrically between anchors; Easy I and Insane IV extend the
+range. Tactics probabilistically blend adjacent anchor policies between anchor
+levels, without consuming an extra random value at an anchor. This avoids a
+sudden policy change at a tier label. The thinking interval and physical pipeline
+remain common to every level. Seeded six-thousand-dart probes verify increasing
+ordinary scoring and Cork precision across all sixteen levels.
+
 `darts-cpu-strategy.js` chooses physical target centres. X01 uses bounded legal
 checkout lookahead, actual In/Out/Bull qualification and safe setup targets;
 Cricket weighs closure and attacks differently for Standard and Cut-Throat.
-Easy often chooses broad single beds, Normal generally aims at Bull, and
-Hard/Insane generally aim at T20. In 50/50 scoring the latter prefer Bull after
+At the legacy anchors, Easy II often chooses broad single beds, Normal III
+generally aims at Bull, and Hard IV/Insane III generally aim at T20. In 50/50
+scoring the latter prefer Bull after
 measured expected-score comparison. Cork always aims at physical centre and
 checks current eligibility.
 
@@ -877,10 +896,25 @@ complete-game net PPR with Bust and checkout effects.
 
 | Difficulty | Ordinary PPR | Physical miss | Cork mean distance | Standard Cricket target MPR |
 | --- | ---: | ---: | ---: | ---: |
-| Easy | 22.10 | 42.62% | 100.45 mm | 0.83 |
-| Normal | 41.29 | 2.55% | 37.23 mm | 1.94 |
-| Hard | 71.99 | 0.83% | 19.13 mm | 3.18 |
-| Insane | 98.38 | 0.30% | 11.89 mm | 4.77 |
+| Easy II | 22.10 | 42.62% | 100.45 mm | 0.83 |
+| Normal III | 41.29 | 2.55% | 37.23 mm | 1.94 |
+| Hard IV | 71.99 | 0.83% | 19.13 mm | 3.18 |
+| Insane III | 98.38 | 0.30% | 11.89 mm | 4.77 |
+
+The default calibration retains the original four string seeds for historical
+comparison. `node tools/darts-cpu-calibrate.js --all-levels` reports all sixteen
+numeric levels with their own seeds. Ordinary PPR is approximately:
+
+| Tier | I | II | III | IV |
+| --- | ---: | ---: | ---: | ---: |
+| Easy | 19.43 | 22.10 | 26.69 | 30.50 |
+| Normal | 34.40 | 37.36 | 41.78 | 45.41 |
+| Hard | 49.33 | 55.09 | 62.24 | 70.43 |
+| Insane | 79.64 | 87.33 | 97.06 | 109.99 |
+
+Numeric and legacy anchor probes use different random seeds, so their sample
+averages differ despite identical underlying behavior. The all-level four-player
+Cut-Throat matchup keeps one of each historical anchor, rather than sixteen seats.
 
 For 301 Open In/Double Out simulations, net game PPR is respectively
 13.01/34.49/62.08/82.57. A separate 1,000-dart D16 probe converts a 32-point

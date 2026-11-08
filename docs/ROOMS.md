@@ -66,6 +66,11 @@ changes are owner-only lobby transactions that clear all Ready states and
 increment the revision. Practice cannot start with CPUs. No bot host, ownership
 transfer or new production synchronization transport is introduced.
 
+CPU difficulty uses numeric levels 0–15, with Normal III (6) as default. The legacy
+strings `easy`/`normal`/`hard`/`insane` remain valid aliases for levels 1/6/11/14.
+Imports and edits normalize to numbers, including level zero; existing frozen
+participant snapshots retain their exact values and ownership guards.
+
 Match start captures CPU type/name/difficulty/owner in `game.participants` and
 `game.owners`. Only the active CPU's owner runs the existing gesture generator
 and submits a physical flight through the normal accepted-throw transaction.

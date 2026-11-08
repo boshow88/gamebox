@@ -53,7 +53,7 @@ const random = require('../js/games/darts-cpu-gesture.js').seeded(92381);
         clock = Math.max(clock + 1, game().readyAt || 0);
         const before = structuredClone(game()), player = before.active, client = owner();
         const participant = before.participants[player];
-        const generated = gestures.generate(target || strategy.choose(before, player, participant.difficulty || 'insane', random), participant.difficulty || 'insane', random);
+        const generated = gestures.generate(target || strategy.choose(before, player, participant.difficulty ?? 'insane', random), participant.difficulty ?? 'insane', random);
         const analysis = physics.analyseGesture(generated.samples);
         if (!analysis.valid) return shoot(target);
         const th = physics.computeThrow(analysis), impact = physics.computeImpact(th), result = Rules.scoreResult(before, physics.scoreAt(impact.x, impact.y));
@@ -70,11 +70,27 @@ const random = require('../js/games/darts-cpu-gesture.js').seeded(92381);
     ]));
     assert.equal(get().participants['cpu-A'].controllerId, A);
     assert.equal(get().participants['cpu-A'].type, 'cpu');
+    assert.equal(get().participants['cpu-A'].difficulty, 11, 'Legacy Hard imports as Hard IV');
     assert.equal(await flush(a.removeLocalPlayer('human-A')), false);
     await flush(b.join('CPUS')); const humanB = b.ownedPlayerIds()[0];
     assert.equal(await flush(b.addCpuPlayer('CPU B', 'insane')), true);
     const cpuB = b.ownedPlayerIds().find(id => id !== humanB);
     assert.equal(get().participants[cpuB].controllerId, B);
+    for (const difficulty of strategy.DIFFICULTIES) {
+        await flush(b.ready());
+        assert.equal(await flush(b.setCpuDifficulty(cpuB, difficulty)), true);
+        assert.equal(get().participants[cpuB].difficulty, difficulty);
+        assert.deepEqual(get().ready, {}, 'Every CPU level invalidates Ready');
+        assert.equal(await flush(a.setCpuDifficulty(cpuB, difficulty)), false, 'Other devices cannot edit any level');
+    }
+    for (const bad of [-1, 16, 1.5, false, '', 'invalid']) {
+        assert.equal(await flush(b.setCpuDifficulty(cpuB, bad)), false);
+        assert.equal(await flush(b.addCpuPlayer('Bad difficulty', bad)), false);
+    }
+    // An untouched pre-expansion room may still store the old name. Do not rewrite
+    // locked snapshots; validation and physical execution both understand the alias.
+    await flush(a.service.update('CPUS', { participants: { ...get().participants,
+        'cpu-A': { ...get().participants['cpu-A'], difficulty: 'hard' } } }));
     await assert.rejects(c.join('CPUS'), error => error.code === 'room/full');
     assert.equal(await flush(b.addCpuPlayer('Overflow')), false);
     assert.equal(await flush(a.setCpuDifficulty(cpuB, 'easy')), false);
@@ -193,5 +209,5 @@ const random = require('../js/games/darts-cpu-gesture.js').seeded(92381);
     assert.equal(await flush(b.syncLocal(finished, true)), true);
     await flush(b.leave());
     assert.equal(errors.length, 0);
-    console.log('PASS: device-owned CPU imports/edits/Ready/locking, actual physical scoring, all X01 In/Out starts, Cricket, Cork ties, concurrent/stale/queued submissions, disconnect and host migration.');
+    console.log('PASS: all sixteen CPU levels and legacy rooms, device-owned imports/edits/Ready/locking, actual physical scoring, all X01 In/Out starts, Cricket, Cork ties, concurrent/stale/queued submissions, disconnect and host migration.');
 })().catch(error => { console.error(error); process.exitCode = 1; });

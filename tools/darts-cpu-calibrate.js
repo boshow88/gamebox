@@ -5,7 +5,8 @@ const Rules = require('../js/games/darts-rules.js');
 const Gesture = require('../js/games/darts-cpu-gesture.js');
 const Strategy = require('../js/games/darts-cpu-strategy.js');
 const physics = require('./helpers/darts-physics.js')();
-const cpu = Gesture.create(physics), levels = Strategy.DIFFICULTIES;
+const Difficulty = require('../js/games/darts-cpu-difficulty.js');
+const cpu = Gesture.create(physics), levels = process.argv.includes('--all-levels') ? Difficulty.values : Object.keys(Difficulty.legacy);
 const samples = 6000, games = 20, started = Date.now();
 const pct = (n, total) => +(100 * n / Math.max(1, total)).toFixed(2);
 const round = n => +n.toFixed(2);
@@ -152,9 +153,10 @@ function outcomes() {
             rows.push({ variant, lower, higher, matches: 12, higherWins: strongerWins, lowerWins: 12 - strongerWins });
         }
     }
-    const wins = Object.fromEntries(levels.map(d => [d, 0]));
+    const field = levels.length === 16 ? Object.values(Difficulty.legacy) : levels;
+    const wins = Object.fromEntries(field.map(d => [d, 0]));
     for (let i = 0; i < 12; i++) {
-        const order = levels.slice(i % 4).concat(levels.slice(0, i % 4));
+        const order = field.slice(i % 4).concat(field.slice(0, i % 4));
         const final = simulate('cricket', order, 'four-way-' + i, null, { cricketVariant: 'cutthroat' });
         wins[order[final.players.indexOf(final.winner)]]++;
     }

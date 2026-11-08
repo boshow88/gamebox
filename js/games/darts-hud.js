@@ -1,9 +1,9 @@
 /* One presentation model; CSS composes it into a portrait or landscape viewport. */
 (function (root, factory) {
     'use strict';
-    if (typeof module === 'object' && module.exports) module.exports = factory(require('./darts-rules.js'));
-    else root.DartsHud = factory(root.DartsRules);
-})(typeof window === 'object' ? window : globalThis, function (Rules) {
+    if (typeof module === 'object' && module.exports) module.exports = factory(require('./darts-rules.js'), require('./darts-cpu-difficulty.js'));
+    else root.DartsHud = factory(root.DartsRules, root.DartsCpuDifficulty);
+})(typeof window === 'object' ? window : globalThis, function (Rules, Difficulty) {
     'use strict';
     var COLORS = ['#86efac', '#7dd3fc', '#f9a8d4', '#fcd34d'];
     function corkModel(s) {
@@ -251,7 +251,7 @@
                 var card = el('button', 'darts-player' + (p.active ? ' active' : '') + (p.drawingStarter ? ' starter-draw' : '') + (p.left ? ' withdrawn' : ''));
                 card.type = 'button'; card.setAttribute('aria-haspopup', 'dialog');
                 var owned = options.ownsPlayer ? options.ownsPlayer(p.id) : controls(p.id), cpu = p.type === 'cpu';
-                var ownership = (cpu ? t('dartsCpu') + ' · ' + t('dartsCpu' + p.difficulty.charAt(0).toUpperCase() + p.difficulty.slice(1)) + ' · ' : '') +
+                var ownership = (cpu ? t('dartsCpu') + ' · ' + Difficulty.label(p.difficulty, t) + ' · ' : '') +
                     t(owned ? 'dartsThisDevice' : 'dartsOtherDevice');
                 card.setAttribute('aria-label', p.name + ' · ' + ownership + ' · ' + t('dartsHistory'));
                 card.title = p.name + ' · ' + ownership;

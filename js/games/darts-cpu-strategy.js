@@ -1,14 +1,14 @@
 /* CPU tactics select physical targets only. Throwing errors and results belong to the shared physics/rules. */
 (function (root, factory) {
     'use strict';
-    var strategy = factory();
+    var strategy = factory(typeof module === 'object' && module.exports ? require('./darts-cpu-difficulty.js') : root.DartsCpuDifficulty);
     if (typeof module === 'object' && module.exports) module.exports = strategy;
     else root.DartsCpuStrategy = strategy;
-})(typeof window === 'object' ? window : globalThis, function () {
+})(typeof window === 'object' ? window : globalThis, function (Difficulty) {
     'use strict';
     var SECTORS = [20, 1, 18, 4, 13, 6, 10, 15, 2, 17, 3, 19, 7, 16, 8, 11, 14, 9, 12, 5];
     var CRICKET = [20, 19, 18, 17, 16, 15, 25];
-    var DIFFICULTIES = ['easy', 'normal', 'hard', 'insane'];
+    var DIFFICULTIES = Difficulty.values;
     // These are tactical limits, independent of the gesture execution profiles.
     var LOOKAHEAD = { easy: 1, normal: 2, hard: 3, insane: 3 };
     var DOUBLES = [16, 20, 8, 12, 18, 10, 4, 6, 14, 2];
@@ -170,9 +170,9 @@
     function choose(state, uid, difficulty, rng) {
         if (!state || state.status !== 'playing' || state.active !== uid || !Array.isArray(state.players) ||
             !state.players.includes(uid) || (state.withdrawn || []).includes(uid)) return null;
-        difficulty = DIFFICULTIES.includes(difficulty) ? difficulty : 'normal';
         rng = typeof rng === 'function' ? rng : Math.random;
         if (state.phase === 'cork') return (state.corkPlayers || []).includes(uid) ? target(25, 2) : null;
+        difficulty = Difficulty.strategy(difficulty, rng);
         if (state.mode === 'x01' || state.mode === '501') return x01(state, uid, difficulty, rng);
         if (state.mode === 'countup') return ordinary(state, difficulty, rng);
         if (state.mode === 'cricket') return cricket(state, uid, difficulty, rng);

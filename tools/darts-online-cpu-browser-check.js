@@ -154,8 +154,8 @@ class Protocol {
         await until(async () => (await state(a)).data.participants[cpuB]?.controllerId === uidB, 'guest CPU propagated');
         await click(b, 'lobby-start-btn');
         await until(() => read().ready[uidB], 'guest Ready');
-        await b.eval(`(()=>{const el=[...document.querySelectorAll('.slot-difficulty')].find(el=>el.dataset.cpuSlot===${JSON.stringify(cpuB)});el.value='insane';el.dispatchEvent(new Event('change',{bubbles:true}));})()`);
-        await until(() => read().participants[cpuB].difficulty === 'insane' && !Object.keys(read().ready).length, 'difficulty resets authoritative Ready');
+        await b.eval(`(()=>{const el=[...document.querySelectorAll('.slot-difficulty')].find(el=>el.dataset.cpuSlot===${JSON.stringify(cpuB)});el.value='14';el.dispatchEvent(new Event('change',{bubbles:true}));})()`);
+        await until(() => read().participants[cpuB].difficulty === 14 && !Object.keys(read().ready).length, 'difficulty resets authoritative Ready');
         assert.equal(await a.eval(`__cpuTest.controller().setCpuDifficulty(${JSON.stringify(cpuB)},'easy')`), false);
         assert.equal(await a.eval(`[...document.querySelectorAll('.slot-difficulty')].find(el=>el.dataset.cpuSlot===${JSON.stringify(cpuB)}).disabled`), true);
         // Three independent contexts: two mobile viewports and one desktop, one CPU.
