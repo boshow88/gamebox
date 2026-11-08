@@ -941,6 +941,7 @@
         bullOuter: '#2e8b57',
         bullInner: '#d33a2c',
         wireLine: 'rgba(190,190,190,0.28)',
+        cricketGlow: 'rgba(255,231,157,0.55)',
     };
 
     function wedge(cx, cy, rIn, rOut, a0, a1, fill) {
@@ -973,6 +974,7 @@
         var rInBull = TUNING.rInnerBull * s;
         var rNumber = rDoubleOut * 1.12;
         var focus = cricketBoardFocus();
+        var glowScale = canvas.width / W;
 
         // number-ring backing + board shadow
         ctx.save();
@@ -999,6 +1001,19 @@
             if (focus) ctx.restore();
         }
 
+        // A soft halo around active dark targets' scoring rings keeps their black
+        // beds intact. No hard outline or animation is added.
+        if (focus) {
+            ctx.save(); ctx.shadowColor = COL.cricketGlow; ctx.shadowBlur = 4 * glowScale;
+            for (var glowIndex = 0; glowIndex < 20; glowIndex += 2) {
+                if (!Object.hasOwn(focus, SECTORS[glowIndex]) || focus[SECTORS[glowIndex]]) continue;
+                var glowCentre = -Math.PI / 2 + glowIndex * Math.PI / 10;
+                wedge(cx, cy, rTripIn, rTripOut, glowCentre - half, glowCentre + half, COL.ringRed);
+                wedge(cx, cy, rDoubleIn, rDoubleOut, glowCentre - half, glowCentre + half, COL.ringRed);
+            }
+            ctx.restore();
+        }
+
         // sector wires
         ctx.strokeStyle = COL.wireLine; ctx.lineWidth = 1;
         for (var k = 0; k < 20; k++) {
@@ -1016,6 +1031,7 @@
         // bulls
         ctx.save();
         if (focus && focus[25]) ctx.globalAlpha *= 0.22;
+        else if (focus) { ctx.shadowColor = COL.cricketGlow; ctx.shadowBlur = 3 * glowScale; }
         ctx.beginPath(); ctx.arc(cx, cy, rOutBull, 0, PI2); ctx.fillStyle = COL.bullOuter; ctx.fill(); ctx.stroke();
         ctx.beginPath(); ctx.arc(cx, cy, rInBull, 0, PI2); ctx.fillStyle = COL.bullInner; ctx.fill(); ctx.stroke();
         ctx.restore();
@@ -1028,7 +1044,10 @@
             var target = focus && Object.hasOwn(focus, SECTORS[m]), open = target && !focus[SECTORS[m]];
             ctx.fillStyle = !focus ? '#efe7d0' : open ? '#fff2b0' : target ? '#555c58' : '#6f7470';
             ctx.font = (open ? '800 ' : '600 ') + (open ? Math.max(3, Math.round(numberSize * 1.08)) : numberSize) + 'px ' + getFont();
+            ctx.save();
+            if (open) { ctx.shadowColor = COL.cricketGlow; ctx.shadowBlur = (m % 2 === 0 ? 5 : 3) * glowScale; }
             ctx.fillText(String(SECTORS[m]), cx + Math.cos(na) * rNumber, cy + Math.sin(na) * rNumber);
+            ctx.restore();
         }
     }
 
