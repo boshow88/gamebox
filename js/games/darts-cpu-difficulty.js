@@ -1,4 +1,4 @@
-/* Shared 0-15 CPU scale, legacy anchors, execution profiles and translated labels. */
+/* Shared 0-15 CPU scale, legacy names, difficulty curve and translated labels. */
 (function (root, factory) {
     'use strict';
     var api = factory();
@@ -8,6 +8,7 @@
     'use strict';
     var TIERS = ['easy', 'normal', 'hard', 'insane'], ROMAN = ['I', 'II', 'III', 'IV'];
     var LEGACY = Object.freeze({ easy: 1, normal: 6, hard: 11, insane: 14 });
+    var CURVE_POWER = 1.5;
     var ANCHORS = [
         { level: 0, velocity: 380, timing: 0.055, shape: 0.12, lapse: 0.13 },
         { level: 1, velocity: 300, timing: 0.045, shape: 0.10, lapse: 0.10 },
@@ -29,7 +30,14 @@
         var n = normalize(value), tier = TIERS[Math.floor(n / 4)];
         return t('dartsCpuLevel', t('dartsCpu' + tier[0].toUpperCase() + tier.slice(1)), ROMAN[n % 4]);
     }
+    function strength(value) {
+        var n = normalize(value);
+        // Keep the exact endpoint profiles and RNG behavior. Compress intermediate
+        // levels toward the easier part of the original scale for both subsystems.
+        return n === 0 || n === 15 ? n : 15 * Math.pow(n / 15, CURVE_POWER);
+    }
     var profiles = VALUES.map(function (level) {
+        level = strength(level);
         var hi = ANCHORS.findIndex(function (a) { return a.level >= level; });
         var a = ANCHORS[Math.max(0, hi - 1)], b = ANCHORS[hi], p = { lapseVelocity: 650 };
         var fraction = a.level === b.level ? 0 : (level - a.level) / (b.level - a.level);
@@ -38,10 +46,10 @@
         });
         return Object.freeze(p);
     });
-    // Blend established tactics only between anchors. Anchors consume no extra RNG,
-    // preserving their previous seeded decisions and physical gestures exactly.
+    // Blend established tactics at the same curved strength as execution error.
+    // Endpoints consume no extra RNG and retain their previous target decisions.
     function strategy(value, rng) {
-        var n = normalize(value), tiers = Object.keys(LEGACY);
+        var n = strength(value), tiers = Object.keys(LEGACY);
         if (n <= LEGACY.easy) return 'easy';
         for (var i = 1; i < tiers.length; i++) {
             var lo = LEGACY[tiers[i - 1]], hi = LEGACY[tiers[i]];
@@ -52,5 +60,6 @@
     }
     return Object.freeze({ values: VALUES, legacy: LEGACY, defaultLevel: LEGACY.normal,
         valid: valid, normalize: normalize, label: label, strategy: strategy,
+        strength: strength, curvePower: CURVE_POWER,
         profiles: Object.freeze(profiles) });
 });

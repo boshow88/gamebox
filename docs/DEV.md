@@ -823,23 +823,25 @@ participants are never rewritten. Level zero is valid and must not use a truthy
 fallback. Lobby and HUD use the same labels, with no ASCII space before Roman
 numerals in Chinese.
 
-The four original execution profiles remain exact at those anchors, including
-their seeded gesture samples and target decisions. Positive error parameters
-interpolate geometrically between anchors; Easy I and Insane IV extend the
-range. Tactics probabilistically blend adjacent anchor policies between anchor
-levels, without consuming an extra random value at an anchor. This avoids a
-sudden policy change at a tier label. The thinking interval and physical pipeline
-remain common to every level. Seeded six-thousand-dart probes verify increasing
-ordinary scoring and Cork precision across all sixteen levels.
+The original profiles are interpolation references, rather than fixed interior
+difficulty levels. Public level `n` maps to reference strength
+`15 * (n / 15)^1.5`, controlled by `CURVE_POWER`. This concentrates more choices
+toward the easier end. Easy I and Insane IV keep their exact profiles, tactics and
+RNG consumption; every interior level, including the four legacy aliases, uses
+the easier curve. Positive error parameters interpolate geometrically at that
+reference strength. Tactics probabilistically blend the neighboring reference
+policies at the same strength, avoiding a sudden policy change at a tier label.
+The thinking interval and physical pipeline remain common to every level.
+Seeded six-thousand-dart probes verify increasing ordinary scoring and Cork
+precision across all sixteen levels, with golden results for both endpoints.
 
 `darts-cpu-strategy.js` chooses physical target centres. X01 uses bounded legal
 checkout lookahead, actual In/Out/Bull qualification and safe setup targets;
 Cricket weighs closure and attacks differently for Standard and Cut-Throat.
-At the legacy anchors, Easy II often chooses broad single beds, Normal III
-generally aims at Bull, and Hard IV/Insane III generally aim at T20. In 50/50
-scoring the latter prefer Bull after
-measured expected-score comparison. Cork always aims at physical centre and
-checks current eligibility.
+At low strengths the policy chooses broad single beds, then blends toward Bull
+and eventually T20 as strength increases. The stronger reference policies prefer
+Bull under 50/50 scoring after measured expected-score comparison. Cork always
+aims at physical centre and checks current eligibility.
 
 `darts-cpu-gesture.js` calibrates a 17-sample accelerating gesture through the
 actual `analyseGesture`, `computeThrow` and `computeImpact` callbacks. A small
@@ -896,10 +898,10 @@ complete-game net PPR with Bust and checkout effects.
 
 | Difficulty | Ordinary PPR | Physical miss | Cork mean distance | Standard Cricket target MPR |
 | --- | ---: | ---: | ---: | ---: |
-| Easy II | 22.10 | 42.62% | 100.45 mm | 0.83 |
-| Normal III | 41.29 | 2.55% | 37.23 mm | 1.94 |
-| Hard IV | 71.99 | 0.83% | 19.13 mm | 3.18 |
-| Insane III | 98.38 | 0.30% | 11.89 mm | 4.77 |
+| Easy II | 19.59 | 48.23% | 117.64 mm | 0.67 |
+| Normal III | 33.90 | 11.88% | 57.75 mm | 1.15 |
+| Hard IV | 58.15 | 1.13% | 23.51 mm | 2.59 |
+| Insane III | 93.75 | 0.43% | 12.74 mm | 3.95 |
 
 The default calibration retains the original four string seeds for historical
 comparison. `node tools/darts-cpu-calibrate.js --all-levels` reports all sixteen
@@ -907,21 +909,23 @@ numeric levels with their own seeds. Ordinary PPR is approximately:
 
 | Tier | I | II | III | IV |
 | --- | ---: | ---: | ---: | ---: |
-| Easy | 19.43 | 22.10 | 26.69 | 30.50 |
-| Normal | 34.40 | 37.36 | 41.78 | 45.41 |
-| Hard | 49.33 | 55.09 | 62.24 | 70.43 |
-| Insane | 79.64 | 87.33 | 97.06 | 109.99 |
+| Easy | 19.43 | 20.09 | 21.56 | 23.46 |
+| Normal | 27.12 | 29.98 | 33.82 | 37.09 |
+| Hard | 40.02 | 45.30 | 50.64 | 56.67 |
+| Insane | 67.89 | 78.70 | 92.22 | 109.99 |
 
-Numeric and legacy anchor probes use different random seeds, so their sample
-averages differ despite identical underlying behavior. The all-level four-player
-Cut-Throat matchup keeps one of each historical anchor, rather than sixteen seats.
+Numeric and legacy probes use different random seeds, so their sample averages
+differ at the same difficulty. A same-seed comparison with the previous curve
+preserves both endpoint results exactly across ordinary scoring, full X01 games,
+target accuracy, Cricket and Cork. The all-level four-player Cut-Throat matchup
+keeps one of each legacy position, rather than sixteen seats.
 
 For 301 Open In/Double Out simulations, net game PPR is respectively
-13.01/34.49/62.08/82.57. A separate 1,000-dart D16 probe converts a 32-point
-checkout on 1.3/11.7/24.7/33.9% of darts. The script also reports turn distributions,
+12.95/21.19/48.13/76.41. A separate 1,000-dart D16 probe converts a 32-point
+checkout on 1.2/5.7/19.7/32.3% of darts. The script also reports turn distributions,
 Busts, closing efficiency, penalties, Cork medians/near-Bull frequency and small
-matchup samples. Stronger tiers generally perform better; Hard still wins some
-seeded games against Insane. Easy did not close all Cricket targets in the
+matchup samples. Stronger tiers generally perform better; lower tiers can still
+win some seeded games. Easy did not close all Cricket targets in the
 sampled 30-round games, which therefore use normal cap settlement. These are
 Gamebox tuning measurements, not real-world player classifications or guaranteed
 scores. Physical phone pacing/performance still benefits from manual playtesting.

@@ -91,7 +91,8 @@ for (const difficulty of ['easy', 'normal', 'hard', 'insane']) {
 }
 assert.deepEqual(report.map(r => r.PPR).slice().sort((a, b) => a - b), report.map(r => r.PPR));
 report.forEach(r => assert.ok(r.missPct > 0, r.difficulty + ' can miss'));
-const ranges = [[20, 30], [40, 50], [65, 75], [95, 110]];
+// Fixed-target probes at the four legacy labels, now using the easier curve.
+const ranges = [[17, 24], [28, 40], [50, 65], [85, 100]];
 report.forEach((r, i) => assert.ok(r.PPR >= ranges[i][0] && r.PPR <= ranges[i][1], r.difficulty + ' calibrated PPR'));
 console.log('Ordinary scoring PPR = sum of physical 25/50 scores / darts * 3; no opening or checkout restrictions.');
 console.log(JSON.stringify(report, null, 2));

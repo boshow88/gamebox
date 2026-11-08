@@ -184,7 +184,7 @@ function cork() {
     return { physicalDistances: rows, adjacentSkillContests: pairs };
 }
 const report = {
-    definition: { seedVersion: 1, ordinaryPPR: 'Physical 25/50 points per accepted dart times three, 1000 remaining, Open In, no state updates or checkout pressure. Rejected gestures are reported separately; physical misses always count.',
+    definition: { seedVersion: 1, difficultyCurvePower: Difficulty.curvePower, ordinaryPPR: 'Physical 25/50 points per accepted dart times three, 1000 remaining, Open In, no state updates or checkout pressure. Rejected gestures are reported separately; physical misses always count.',
         gamePPR: 'Net score reduction per actual ordinary dart times three, including negative Bust rollbacks; 301 Open In / Double Out, 30 rounds.',
         cricket: 'Target MPR includes physical Cricket marks; closure MPR counts only newly closed marks. Closure average excludes players who did not close all targets.',
         matchmaking: 'Developer-only seeded CPU simulations; no player-facing CPU-only mode; small matchup samples are descriptive.' },

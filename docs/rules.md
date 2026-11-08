@@ -576,9 +576,11 @@ continue from the persistent between-Leg result screen.
 
 In a competitive lobby, choose **Add CPU** to fill a normal player slot.
 Each CPU has a name and one of **16 difficulty levels**: Easy, Normal, Hard and
-Insane each have I–IV. New CPUs default to **Normal III**. The previous four
-difficulties retain their behavior at **Easy II / Normal III / Hard IV / Insane III**;
-intermediate levels gradually improve execution and tactics. At least one human
+Insane each have I–IV. New CPUs default to **Normal III**. The scale places more
+levels toward the easier end, keeping **Easy I** and **Insane IV** fixed while
+gradually improving execution and tactics between them. Old four-tier room values
+still map to **Easy II / Normal III / Hard IV / Insane III**, using their current
+retuned strengths. At least one human
 must remain, and the total stays at four. CPU supports X01, both Cricket variants,
 Count-Up and all Cork contexts. Practice requires human players only; switching
 to Practice retains CPU slots but blocks Start until they are removed or the

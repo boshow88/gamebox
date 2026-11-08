@@ -184,9 +184,10 @@ calibration script reports ordinary versus full-game PPR, Cricket MPR/closing
 efficiency/penalties and matchup samples; see DEV's local CPU section for its
 definition and known Easy Cricket limitation.
 
-The difficulty check verifies all sixteen levels, invalid inputs, exact original
-profiles at Easy II / Normal III / Hard IV / Insane III, legacy/numeric seeded
-target and gesture agreement, and increasing real-physics scoring/Cork precision.
+The difficulty check verifies all sixteen levels, invalid inputs, fixed original
+Easy I / Insane IV profiles, tactics and golden scoring/Cork results, easier
+ordered intermediate strengths, legacy/numeric seeded target and gesture agreement,
+and increasing real-physics scoring/Cork precision.
 Calibration defaults to the original four seeds; `--all-levels` reports the full
 numeric scale. Browser lobby checks select every level at 320/390/1200px, verify
 EN/ZH labels and focus/Ready behavior, render legacy values without mutating them,
