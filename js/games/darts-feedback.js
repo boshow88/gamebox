@@ -68,13 +68,13 @@
             }
         }
         function snapshot(at) {
-            var now = timestamp(at), currentNotice = notice && now < notice.until ? notice : null;
+            var now = timestamp(at), currentNotice = notice && now < notice.until && (!notice.from || now >= notice.from) ? notice : null;
             var resultPending = !!finalHit && now < finalUntil;
             var opening = Opening.model(openingState, now, reducedMotion);
             return {
                 handoff: handoff ? { key: handoff.key, player: handoff.player,
                     visible: now >= handoff.visibleAt, outcome: handoff.outcome || null } : null,
-                blocking: !!opening || !!handoff || !!(resultPending && finalHit.corkOutcome && finalHit.corkOutcome.kind !== 'win'),
+                blocking: !!opening || !!handoff || !!(resultPending && (finalHit.turnEnd || finalHit.corkOutcome && finalHit.corkOutcome.kind !== 'win')),
                 opening: opening,
                 notice: currentNotice && !resultPending ? Object.assign({}, currentNotice.value) : null,
                 penalties: now < penaltyUntil ? Object.assign({}, penalties) : {},
@@ -139,12 +139,17 @@
                     lastHuman = { player: dart.uid, owner: controllerId };
                 }
                 var corkOutcome = corkFinish(state, dart);
-                if ((state.status !== 'playing' || corkOutcome) && dart.result &&
+                var turnEnd = state.status === 'playing' && dart.phase === 'play' && dart.dart === 3 && dart.reason !== 'bust' &&
+                    (state.active !== dart.uid || state.phase === 'cork');
+                if ((state.status !== 'playing' || corkOutcome || turnEnd) && dart.result &&
                     !['left', 'cancelled', 'practice-ended'].includes(state.endReason)) {
                     finalHit = { key: eventKey, seq: state.seq, dart: JSON.parse(JSON.stringify(dart)),
-                        corkOutcome: corkOutcome, corkState: corkOutcome ? completedCork(state, dart) : null };
+                        turnEnd: turnEnd, corkOutcome: corkOutcome, corkState: corkOutcome ? completedCork(state, dart) : null };
                     finalUntil = now + TIMING.finalHit;
                     if (handoff) { handoff.visibleAt = Math.max(handoff.visibleAt, finalUntil); handoff.outcome = corkOutcome; }
+                    if (turnEnd && notice && notice.value.kind === 'turn') {
+                        notice.from = finalUntil; notice.until = finalUntil + TIMING.turn;
+                    }
                     if (corkOutcome && corkOutcome.kind === 'starter' && !handoff) {
                         queuedOutcome = { kind: 'cork-starter', key: eventKey + ':starter', player: corkOutcome.player };
                     }
@@ -156,7 +161,7 @@
                     });
                 }
                 penaltyUntil = now + TIMING.penalty;
-                if (notice && ['bust', 'cork-starter'].includes(notice.value.kind)) notice = null;
+                if (notice && (['bust', 'cork-starter'].includes(notice.value.kind) || !turnEnd && notice.value.kind === 'turn')) notice = null;
                 if (dart.reason === 'bust' && state.status === 'playing') {
                     var restored = Number.isFinite(event.restoredScore) ? event.restoredScore :
                         state.scores && state.scores[dart.uid];

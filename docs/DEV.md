@@ -1054,6 +1054,16 @@ visibility updates outside its content cache so expiry reveals the result even
 without a new accepted state. New match/Leg/lobby transitions clear pending
 presentation; timeout/forfeit endings have no artificial winning-hit delay.
 
+A normal third dart that switches players or enters Cork also uses this 1000 ms
+hold (`finalHit.turnEnd`). The accepted scoring/turn transition happens normally,
+but the hit toast retains the actual result before any turn notice or same-device
+handoff can cover it. Human input and CPU scheduling wait; afterward, a queued
+turn notice receives its full normal duration. The next accepted hit clears that
+notice so it cannot obscure the first dart of the new turn. Bust explanations and
+existing winning/Cork holds retain their own behavior. Repeated snapshots do not
+restart the hold, and newer accepted sequences/reset cancel it. This adds no room
+writes or deadline changes; solo turns without a player change keep their pacing.
+
 During active Cork, the top meta prioritizes a short purpose label instead of
 ordinary X01 rules. The existing mode region shows a compact Cork comparison
 panel: current eligible players, physical hits and millimetre distances, with

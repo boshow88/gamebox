@@ -118,6 +118,15 @@ cover a last-thrower opening winner without handoff, unchanged timer deadlines,
 duplicate snapshots, newer timeouts and cancellation on reset. Browser checks
 verify actual gesture blocking and synchronized remote opening/rethrow displays.
 
+`node tools/rooms-browser-check.js --darts-turn-hit` checks third-dart hit text at
+320/390/1200px, delayed local handoff, human-to-CPU and physical CPU-to-human turns,
+two-device result agreement, ordinary-to-Cork transition, snapshot deduplication
+and unchanged accepted scoring/timer state. It verifies that the result outlives
+the dart sprite and that a new accepted hit clears the preceding turn notice.
+These cases also run in `--darts`. Add `--darts-mobile` or `--darts-desktop` for
+ignored `.cache/darts-turn-hit-mobile.png` or desktop previews. Pure feedback
+checks cover local/remote/CPU input gating, interval boundaries and stale states.
+
 The room check uses the actual room core, Darts policy and RTDB adapter against
 the native-tree fixture. It exercises separate controllers and player slots,
 one- and multiple-slot ownership, same-device and mixed-device matches, capacity,

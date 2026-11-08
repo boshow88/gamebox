@@ -10,10 +10,14 @@ function dartsConfirmHandoff(f) {
     }
     if (!overlay.hidden) dartsClick(f, 'handoff-ready-btn');
 }
+function dartsSettleTurnHit(f) {
+    if (dartsApi(f).snapshot().feedback?.finalHit?.turnEnd) dartsApi(f).step(f.contentWindow.DartsFeedback.TIMING.finalHit, 0);
+}
 function dartsThrow(f) {
     dartsConfirmHandoff(f);
     dartsAssert(dartsApi(f).gesture(), 'Intended fixture throw requires an enabled, confirmed turn');
     dartsApi(f).land();
+    dartsSettleTurnHit(f);
 }
 const dartsHit = (base, mult = 1) => ({ base, mult, score: base * mult, label: (mult === 3 ? 'T' : mult === 2 ? 'D' : 'S') + base, miss: false });
 async function dartsBoot(uid, width = 390, height = 844) {
@@ -92,12 +96,13 @@ function dartsRoomTools(code, frames) {
         frames.forEach(f => { f.contentWindow.__dartsNow = stamp; });
     };
     const active = () => frames.find(f => dartsApi(f).snapshot().uid === read().game.owners[read().game.active]);
-    async function throwAt(x, y, beforeLand) {
+    async function throwAt(x, y, beforeLand, keepTurnHit = false) {
         syncClock(); dartsConfirmHandoff(active()); const old = read().game.seq;
         dartsAssert(await dartsApi(active()).controller().submit(dartsFlight(x, y)), 'Controlling device throw rejected');
         await until(() => frames.every(f => dartsApi(f).snapshot().match && dartsApi(f).snapshot().match.seq > old), 'accepted Darts throw sync');
         if (beforeLand) await beforeLand();
         frames.forEach(f => dartsApi(f).land());
+        if (!keepTurnHit) frames.forEach(dartsSettleTurnHit);
     }
     return { read, mutate, syncClock, active, throwAt };
 }
@@ -996,7 +1001,7 @@ function dartsSameBox(actual, expected, label) {
     dartsAssert(actual.every((value, index) => Math.abs(value - expected[index]) <= .6), label + ': ' + JSON.stringify([actual, expected]));
 }
 function dartsCorkRows(f) { return [...dartsDoc(f).querySelectorAll('#cork-results .cork-result')]; }
-async function dartsPrepareCork(f, purpose) {
+async function dartsPrepareCork(f, purpose, keepTurnHit = false) {
     await dartsAdd(f, 3);
     await dartsChange(f, 'mode-select', purpose === 'tie' ? 'countup' : 'x01');
     await dartsChange(f, 'timer-select', 0);
@@ -1010,6 +1015,7 @@ async function dartsPrepareCork(f, purpose) {
         for (let i = 0; i < state.players.length * 3; i++) {
             dartsConfirmHandoff(f); dartsApi(f).accepted({ miss: true });
         }
+        if (!keepTurnHit) dartsSettleTurnHit(f);
     }
     dartsAssert(dartsApi(f).snapshot().match.phase === 'cork' && dartsApi(f).snapshot().match.corkPurpose === purpose, 'Fixture reaches the accepted ' + purpose + ' Cork context');
 }
@@ -1303,7 +1309,7 @@ function dartsCpuSettleDisplay(f) {
     if (api.snapshot().dartState === 'landed') api.step(0, 1);
     dartsConfirmHandoff(f);
 }
-function dartsCpuDart(f, pacing = false) {
+function dartsCpuDart(f, pacing = false, keepTurnHit = false) {
     const api = dartsApi(f), w = f.contentWindow;
     dartsCpuSettleDisplay(f);
     const before = api.snapshot().match, uid = before.active, seq = before.seq;
@@ -1330,6 +1336,7 @@ function dartsCpuDart(f, pacing = false) {
         'Physics and the active Bull rule determine the CPU scored region');
     api.step(0, 0);
     dartsAssert(api.snapshot().match.seq === seq + 1, 'Repeated scheduler polls cannot score the landed CPU dart again');
+    if (!keepTurnHit) dartsSettleTurnHit(f);
     return { shot, dart: accepted.lastDart, before, after: accepted };
 }
 function dartsHumanDart(f) {
@@ -1840,4 +1847,91 @@ async function checkDartsOpeningPreviewV2() {
     w.ArcadeCommon.i18n.setLocale('zh'); await dartsStartLocal(f, true);
     w.__dartsNow = dartsApi(f).snapshot().match.openingDraw.at + (preview === 'desktop' ? 1100 : 400); dartsApi(f).refresh();
     await dartsDoc(f).fonts.ready; await sleep(60);
+}
+
+async function checkDartsTurnHitV2() {
+    for (const [width, height] of [[320, 568], [390, 844], [1200, 800]]) {
+        const f = await dartsBoot('third-hit-' + width, width, height), api = dartsApi(f), doc = dartsDoc(f), w = f.contentWindow;
+        await dartsChange(f, 'mode-select', 'countup'); await dartsChange(f, 'timer-select', 30000); await dartsAdd(f, 1); await dartsStartLocal(f);
+        const board = doc.getElementById('stage').getBoundingClientRect().toJSON(), thrower = api.snapshot().match.active;
+        for (let i = 0; i < 2; i++) {
+            api.accepted(w.DartsRules.hit(20, 1));
+            dartsAssert(!api.snapshot().feedback.resultPending, 'First and second ordinary darts keep their existing pacing');
+        }
+        const state = api.accepted(w.DartsRules.hit(20, 3)), deadline = state.turnStartedAt + state.turnMs;
+        const toast = doc.getElementById('hit-toast'), overlay = doc.getElementById('handoff-overlay');
+        dartsAssert(state.active !== thrower && state.seq === 3 && api.snapshot().feedback.finalHit.turnEnd, 'Third dart advances accepted rules while retaining its hit presentation');
+        dartsAssert(!toast.hidden && toast.textContent.includes('T20') && toast.textContent.includes('60'), 'The third T20 score is visible below the board');
+        dartsAssert(overlay.hidden && doc.getElementById('turn-notice').hidden && !api.gesture(), 'Handoff and next-player input wait for the hit');
+        api.refresh(); api.step(w.DartsFeedback.TIMING.finalHit - 1, 1); api.refresh();
+        dartsAssert(!toast.hidden && overlay.hidden && api.snapshot().feedback.resultPending, 'The accepted result survives sprite cleanup and repeated snapshots for the whole interval');
+        dartsAssert(api.snapshot().match.turnStartedAt + state.turnMs === deadline, 'Presentation does not reset the accepted turn timer');
+        api.step(1, 0);
+        dartsAssert(!api.snapshot().feedback.resultPending && !overlay.hidden, 'Local handoff appears only after the third hit interval');
+        dartsAssert(JSON.stringify(doc.getElementById('stage').getBoundingClientRect().toJSON()) === JSON.stringify(board), 'The handoff sequence never moves the board');
+        dartsClick(f, 'handoff-ready-btn');
+        dartsAssert(api.gesture(), 'The next player can throw after confirmation'); api.land();
+        dartsAssert(api.snapshot().match.seq === 4 && !toast.hidden && !api.snapshot().feedback.notice, 'The next accepted hit replaces old turn feedback');
+        f.remove();
+    }
+}
+async function checkDartsTurnHitCpuV2() {
+    const f = await dartsBoot('third-hit-cpu'), api = dartsApi(f), doc = dartsDoc(f), w = f.contentWindow;
+    await dartsChange(f, 'mode-select', 'countup'); await dartsChange(f, 'timer-select', 0); await dartsAddCpu(f); await dartsCpuStart(f, 0);
+    for (let i = 0; i < 3; i++) api.accepted(w.DartsRules.hit(20, 3));
+    dartsAssert(!doc.getElementById('hit-toast').hidden && !api.cpu().pending && api.snapshot().feedback.blocking, 'CPU waits while the human third hit is presented');
+    api.step(w.DartsFeedback.TIMING.finalHit - 1, 1);
+    dartsAssert(!api.cpu().pending, 'CPU cannot schedule before the third-hit interval ends');
+    api.step(1, 0);
+    dartsAssert(api.cpu().pending.at === w.__dartsNow + 900 && api.snapshot().feedback.notice.kind === 'turn', 'CPU gets its normal thinking interval after the hit');
+    dartsCpuDart(f); dartsCpuDart(f); const last = dartsCpuDart(f, false, true);
+    dartsAssert(api.snapshot().feedback.finalHit.dart.uid === last.dart.uid && !doc.getElementById('hit-toast').hidden && !api.gesture(), 'The actual third CPU impact is visible before returning to the human');
+    api.step(w.DartsFeedback.TIMING.finalHit, 1);
+    dartsAssert(!api.snapshot().feedback.resultPending && !api.snapshot().feedback.handoff && api.snapshot().feedback.notice.kind === 'turn', 'A sole human returns without an unnecessary handoff');
+    dartsAssert(api.gesture(), 'The human can throw when the CPU result presentation ends'); api.land();
+    dartsAssert(!doc.getElementById('hit-toast').hidden && !api.snapshot().feedback.notice, 'A fresh human impact clears the turn notice');
+    f.remove();
+}
+async function checkDartsTurnHitRemoteV2() {
+    const a = await dartsBoot('third-hit-host'), b = await dartsBoot('third-hit-guest');
+    await dartsChange(a, 'mode-select', 'countup'); await dartsChange(a, 'timer-select', 30000);
+    const code = await dartsPromote(a); await dartsJoin(b, code); await dartsStartOnline(a, [b]);
+    const tools = dartsRoomTools(code, [a, b]);
+    await tools.throwAt(0, 80); await tools.throwAt(0, 80); await tools.throwAt(0, 103, null, true);
+    const state = tools.read().game, seq = state.seq, deadline = state.turnStartedAt + state.turnMs;
+    for (const f of [a, b]) {
+        const doc = dartsDoc(f), api = dartsApi(f);
+        dartsAssert(api.snapshot().feedback.resultPending && !doc.getElementById('hit-toast').hidden && doc.getElementById('hit-toast').textContent.includes('T20'), 'Both devices retain the actual third T20 impact');
+        dartsAssert(doc.getElementById('turn-notice').hidden && !api.gesture(), 'Neither device can obscure or bypass the third-hit interval');
+    }
+    await dartsApi(a).controller().service.heartbeat(code, 0);
+    for (const f of [a, b]) {
+        dartsApi(f).step(f.contentWindow.DartsFeedback.TIMING.finalHit - 1, 1);
+        dartsAssert(dartsApi(f).snapshot().feedback.resultPending, 'Room heartbeats do not shorten or restart the hit');
+        dartsApi(f).step(1, 0);
+        dartsAssert(!dartsApi(f).snapshot().feedback.resultPending && dartsApi(f).snapshot().feedback.notice.kind === 'turn', 'Remote turn notice follows the result on both devices');
+    }
+    dartsAssert(tools.read().game.seq === seq && tools.read().game.turnStartedAt + state.turnMs === deadline, 'Presentation adds no scoring writes or deadline changes');
+    await tools.throwAt(0, 80);
+    dartsAssert(tools.read().game.seq === seq + 1 && [a, b].every(f => !dartsDoc(f).getElementById('hit-toast').hidden && !dartsApi(f).snapshot().feedback.notice), 'The next accepted flight replaces the previous notice everywhere');
+    await dartsApi(a).controller().leave(); await dartsApi(b).controller().leave(); a.remove(); b.remove();
+}
+async function checkDartsTurnHitPreviewV2() {
+    if (!turnHitOnly || !preview) return;
+    const width = preview === 'desktop' ? 1200 : 390, height = preview === 'desktop' ? 800 : 844;
+    const f = await dartsBoot('third-hit-preview', width, height), api = dartsApi(f), w = f.contentWindow;
+    f.style.cssText = 'position:fixed;inset:0;width:' + width + 'px;height:' + height + 'px;border:0;z-index:20';
+    await dartsChange(f, 'mode-select', 'countup'); await dartsChange(f, 'timer-select', 0); await dartsAdd(f, 1);
+    w.ArcadeCommon.i18n.setLocale('zh'); await dartsStartLocal(f);
+    for (let i = 0; i < 3; i++) api.accepted(w.DartsRules.hit(20, 3));
+    api.step(500, 0); await dartsDoc(f).fonts.ready; await sleep(60);
+}
+async function checkDartsTurnHitCorkV2() {
+    const f = await dartsBoot('third-hit-before-cork'), api = dartsApi(f), doc = dartsDoc(f);
+    await dartsPrepareCork(f, 'tie', true);
+    dartsAssert(api.snapshot().match.phase === 'cork' && api.snapshot().feedback.finalHit.turnEnd && api.snapshot().feedback.finalHit.dart.phase === 'play', 'The final ordinary third dart remains distinct from the following Cork');
+    dartsAssert(!doc.getElementById('hit-toast').hidden && doc.getElementById('turn-notice').hidden && doc.getElementById('handoff-overlay').hidden, 'Cork entry cannot obscure the preceding ordinary result');
+    dartsSettleTurnHit(f); dartsConfirmHandoff(f); dartsAssertCorkContext(f, 'tie');
+    dartsAssert(api.snapshot().feedback.notice.kind === 'cork', 'Cork instructions follow the ordinary hit and local handoff');
+    f.remove();
 }

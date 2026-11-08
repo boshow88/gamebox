@@ -15,6 +15,31 @@ const event = state => ({ id: state.matchId + ':' + state.seq, dart: state.lastD
 const update = (feedback, state, now, landed = false) => feedback.update(state,
     { now, ...(landed ? { throwEvent: event(state) } : {}) });
 
+// A normal third hit stays readable before local, remote and CPU transitions.
+for (const nextType of ['local', 'remote', 'cpu']) {
+    let s = create('countup', ['A', 'B']);
+    s.owners.B = nextType === 'remote' ? 'device2' : nextType === 'cpu' ? 'local-cpu' : 'device1';
+    s.participants = { A: { type: 'human' }, B: { type: nextType === 'cpu' ? 'cpu' : 'human' } };
+    const f = F.create({ controllerId: 'device1' }); update(f, s, 0);
+    for (let i = 1; i < 3; i++) { s = throwDart(s, 20, 1); assert.equal(update(f, s, i * 10, true).resultPending, false); }
+    s = throwDart(s, 20, 3); const accepted = JSON.stringify(s), deadline = s.turnStartedAt;
+    const hit = update(f, s, 100, true);
+    assert.equal(hit.finalHit.dart.result.score, 60); assert.equal(hit.finalHit.turnEnd, true);
+    assert.equal(hit.resultPending, true); assert.equal(hit.blocking, true); assert.equal(hit.notice, null);
+    assert(!hit.handoff || !hit.handoff.visible); assert.equal(f.confirm(101), false);
+    assert.equal(update(f, s, 1099, true).resultPending, true, 'Duplicates cannot shorten the third-hit interval');
+    const ready = update(f, s, 1100, true);
+    assert.equal(ready.resultPending, false, 'Duplicates cannot extend the third-hit interval');
+    if (nextType === 'local') {
+        assert.equal(ready.handoff.visible, true); assert.equal(f.confirm(1101, ready.handoff.key), true);
+    } else { assert.equal(ready.blocking, false); assert.equal(ready.notice.player, 'B'); }
+    assert.equal(JSON.stringify(s), accepted); assert.equal(s.turnStartedAt, deadline, 'Feedback never edits scoring or timer state');
+    const stale = s; s = throwDart(s, 1, 1);
+    assert.equal(update(f, s, 1110, true).notice, null, 'A fresh impact clears the preceding turn notice');
+    assert.equal(update(f, stale, 1111, true).resultPending, false, 'An older snapshot cannot revive the previous result');
+    f.reset(); assert.equal(f.snapshot(1112).blocking, false);
+}
+
 // Ownership is evaluated per transition, including rooms with two slots on each device.
 {
     const first = F.create({ controllerId: 'device1' }), second = F.create({ controllerId: 'device2' });
@@ -23,21 +48,25 @@ const update = (feedback, state, now, landed = false) => feedback.update(state,
     s = throwDart(s); assert.equal(update(first, s, 20, true).notice, null);
     s = throwDart(s);
     let v = update(first, s, 30, true);
-    assert.equal(v.handoff.player, 'B'); assert.equal(v.handoff.visible, true); assert.equal(v.blocking, true);
+    assert.equal(v.handoff.player, 'B'); assert.equal(v.handoff.visible, false); assert.equal(v.blocking, true);
+    assert.equal(v.finalHit.dart.uid, 'A'); assert.equal(v.finalHit.turnEnd, true);
     assert.equal(v.notice, null); assert.equal(update(second, s, 30, true).handoff, null);
-    assert.equal(first.confirm(31, v.handoff.key), true);
-    assert.equal(first.confirm(32), false);
-    assert.equal(update(first, s, 40, true).blocking, false, 'A duplicate cannot undo confirmation');
+    assert.equal(first.confirm(31, v.handoff.key), false, 'Handoff cannot skip the last ordinary hit');
+    assert.equal(first.snapshot(1029).handoff.visible, false);
+    assert.equal(first.confirm(1030, v.handoff.key), true);
+    assert.equal(first.confirm(1031), false);
+    assert.equal(update(first, s, 1040, true).blocking, false, 'A duplicate cannot undo confirmation');
     s = finishTurn(s);
-    v = update(first, s, 50, true); update(second, s, 50, true);
+    update(first, s, 2000, true); update(second, s, 2000, true);
+    v = update(first, s, 3000);
     assert.equal(v.handoff, null); assert.equal(v.notice.kind, 'turn'); assert.equal(v.notice.player, 'C');
-    assert.equal(first.snapshot(50 + F.TIMING.turn).notice, null);
+    assert.equal(first.snapshot(3000 + F.TIMING.turn).notice, null);
     s = finishTurn(s);
-    assert.equal(update(first, s, 60, true).handoff, null);
-    assert.equal(update(second, s, 60, true).handoff.player, 'D');
+    assert.equal(update(first, s, 5000, true).handoff, null);
+    assert.equal(update(second, s, 5000, true).handoff.player, 'D');
     s = finishTurn(s);
-    assert.equal(update(first, s, 70, true).handoff, null, 'Remote → local needs no device handoff');
-    assert.equal(update(second, s, 70, true).handoff, null);
+    assert.equal(update(first, s, 7000, true).handoff, null, 'Remote → local needs no device handoff');
+    assert.equal(update(second, s, 7000, true).handoff, null);
 }
 
 // Resume establishes a baseline; solo turns and successive darts never request a handoff.
@@ -348,11 +377,13 @@ function cpuMatch(ids, extra = {}) {
     const f = F.create({ controllerId: 'device1' }); update(f, s, 0);
     s = finishTurn(s); let v = update(f, s, 100, true);
     assert.equal(s.active, 'CPU1'); assert.equal(v.handoff, null);
-    assert.equal(v.notice.kind, 'turn'); assert.equal(v.notice.player, 'CPU1');
-    assert.equal(f.confirm(101), false, 'A CPU never needs Ready to Throw');
-    s = finishTurn(s); v = update(f, s, 200, true);
+    assert.equal(v.notice, null); assert.equal(v.resultPending, true);
+    assert.equal(update(f, s, 1100).notice.player, 'CPU1');
+    assert.equal(f.confirm(1101), false, 'A CPU never needs Ready to Throw');
+    s = finishTurn(s); v = update(f, s, 2000, true);
     assert.equal(s.active, 'B'); assert.equal(v.handoff.player, 'B'); assert.equal(v.blocking, true);
-    assert.equal(f.confirm(201, v.handoff.key), true, 'A different human still receives the shared device after CPU');
+    assert.equal(f.confirm(2001, v.handoff.key), false);
+    assert.equal(f.confirm(3000, v.handoff.key), true, 'A different human still receives the shared device after CPU presentation');
 }
 {
     // B exists on this device but is outside this tied Cork's eligible subset.
@@ -374,9 +405,11 @@ function cpuMatch(ids, extra = {}) {
     let s = cpuMatch(['A', 'CPU1', 'CPU2', 'CPU3']);
     const f = F.create({ controllerId: 'device1' }); update(f, s, 0);
     for (let turn = 0; turn < 12; turn++) {
-        s = finishTurn(s); const v = update(f, s, 100 + turn * 10, true);
+        s = finishTurn(s); const v = update(f, s, 100 + turn * 2000, true);
         assert.equal(v.handoff, null, 'One human and three CPUs never exchange a shared device');
-        assert.equal(v.blocking, false); assert.equal(f.confirm(101 + turn * 10), false);
+        assert.equal(v.blocking, true); assert.equal(v.resultPending, true);
+        assert.equal(update(f, s, 1100 + turn * 2000).blocking, false);
+        assert.equal(f.confirm(1101 + turn * 2000), false);
     }
 }
 {
@@ -384,7 +417,8 @@ function cpuMatch(ids, extra = {}) {
     const f = F.create({ controllerId: 'device1' }); update(f, s, 0);
     s = finishTurn(s); const v = update(f, s, 100, true);
     assert.equal(s.active, 'A'); assert.equal(v.handoff, null, 'An initial CPU has no previous human holder');
-    assert.equal(v.notice.player, 'A'); assert.equal(v.blocking, false);
+    assert.equal(v.notice, null); assert.equal(v.blocking, true);
+    assert.equal(update(f, s, 1100).notice.player, 'A');
 }
 {
     let s = cpuMatch(['A', 'B', 'CPU1']);
@@ -397,8 +431,9 @@ function cpuMatch(ids, extra = {}) {
     assert.equal(f.confirm(31001, pending.handoff.key), false, 'An obsolete human confirmation cannot target CPU');
     s = finishTurn(s); v = update(f, s, 31100, true);
     assert.equal(s.active, 'A'); assert.equal(v.handoff, null, 'Unconfirmed B did not take the device from A');
-    assert.equal(v.blocking, false);
-    assert.equal(update(f, stale, 31101, true).handoff, null, 'An old B snapshot cannot restore the obsolete handoff');
+    assert.equal(v.blocking, true);
+    assert.equal(update(f, s, 32100).blocking, false);
+    assert.equal(update(f, stale, 32101, true).handoff, null, 'An old B snapshot cannot restore the obsolete handoff');
 }
 
 // Room aliases migrate the retained human holder; a new Match clears that history.
@@ -411,7 +446,7 @@ function cpuMatch(ids, extra = {}) {
     assert.equal(f.update(s, { controllerId: 'local-controller', now: 110 }).handoff, null);
     s = finishTurn(s); const v = update(f, s, 200, true);
     assert.equal(v.handoff.player, 'B', 'Alias rebinding preserves A as the previous human holder across CPU');
-    assert.equal(f.confirm(201, v.handoff.key), true);
+    assert.equal(f.confirm(1200, v.handoff.key), true);
     let next = cpuMatch(['CPU2', 'A', 'B']); next.matchId = 'different-cpu-match';
     assert.equal(update(f, next, 300).handoff, null);
     next = finishTurn(next); next.owners.A = 'local-controller'; next.owners.B = 'local-controller';
