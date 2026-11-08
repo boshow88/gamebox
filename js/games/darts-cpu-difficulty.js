@@ -9,13 +9,14 @@
     var TIERS = ['easy', 'normal', 'hard', 'insane'], ROMAN = ['I', 'II', 'III', 'IV'];
     var LEGACY = Object.freeze({ easy: 1, normal: 6, hard: 11, insane: 14 });
     var CURVE_POWER = 1.8;
+    var LAPSE_SPREAD_MULTIPLIER = 2.5;
     var ANCHORS = [
         { level: 0, velocity: 380, timing: 0.055, shape: 0.12, lapse: 0.13 },
-        { level: 1, velocity: 300, timing: 0.045, shape: 0.10, lapse: 0.10 },
-        { level: 6, velocity: 100, timing: 0.030, shape: 0.055, lapse: 0.04 },
-        { level: 11, velocity: 55, timing: 0.015, shape: 0.025, lapse: 0.015 },
-        { level: 14, velocity: 36, timing: 0.008, shape: 0.012, lapse: 0.006 },
-        { level: 15, velocity: 30, timing: 0.006, shape: 0.009, lapse: 0.004 }
+        { level: 1, velocity: 330, timing: 0.048, shape: 0.105, lapse: 0.10 },
+        { level: 6, velocity: 130, timing: 0.035, shape: 0.065, lapse: 0.04 },
+        { level: 11, velocity: 75, timing: 0.020, shape: 0.035, lapse: 0.015 },
+        { level: 14, velocity: 52, timing: 0.011, shape: 0.018, lapse: 0.006 },
+        { level: 15, velocity: 45, timing: 0.009, shape: 0.015, lapse: 0.004 }
     ];
     var VALUES = Object.freeze(Array.from({ length: 16 }, function (_, i) { return i; }));
     function valid(value) {
@@ -32,18 +33,21 @@
     }
     function strength(value) {
         var n = normalize(value);
-        // Keep the exact endpoint profiles and RNG behavior. Compress intermediate
-        // levels toward the easier part of the original scale for both subsystems.
+        // Compress intermediate levels toward the easier part of the reference
+        // scale for both subsystems. The profile range is tuned independently.
         return n === 0 || n === 15 ? n : 15 * Math.pow(n / 15, CURVE_POWER);
     }
     var profiles = VALUES.map(function (level) {
         level = strength(level);
         var hi = ANCHORS.findIndex(function (a) { return a.level >= level; });
-        var a = ANCHORS[Math.max(0, hi - 1)], b = ANCHORS[hi], p = { lapseVelocity: 650 };
+        var a = ANCHORS[Math.max(0, hi - 1)], b = ANCHORS[hi], p = {};
         var fraction = a.level === b.level ? 0 : (level - a.level) / (b.level - a.level);
         ['velocity', 'timing', 'shape', 'lapse'].forEach(function (key) {
             p[key] = level === a.level ? a[key] : level === b.level ? b[key] : a[key] * Math.pow(b[key] / a[key], fraction);
         });
+        // A lapse is a broader version of this player's normal execution error.
+        // Strong CPUs no longer jump to the same 650 px/s spread as beginners.
+        p.lapseVelocity = Math.min(650, p.velocity * LAPSE_SPREAD_MULTIPLIER);
         return Object.freeze(p);
     });
     // Blend established tactics at the same curved strength as execution error.
@@ -61,5 +65,6 @@
     return Object.freeze({ values: VALUES, legacy: LEGACY, defaultLevel: LEGACY.normal,
         valid: valid, normalize: normalize, label: label, strategy: strategy,
         strength: strength, curvePower: CURVE_POWER,
+        lapseSpreadMultiplier: LAPSE_SPREAD_MULTIPLIER,
         profiles: Object.freeze(profiles) });
 });

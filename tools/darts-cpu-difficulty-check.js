@@ -7,7 +7,7 @@ const Strategy = require('../js/games/darts-cpu-strategy.js');
 const Rules = require('../js/games/darts-rules.js');
 const physics = require('./helpers/darts-physics.js')(), cpu = Gesture.create(physics);
 assert.deepEqual(Difficulty.profiles[0], { velocity: 380, timing: .055, shape: .12, lapse: .13, lapseVelocity: 650 }, 'Easy I retains its original physical difficulty');
-assert.deepEqual(Difficulty.profiles[15], { velocity: 30, timing: .006, shape: .009, lapse: .004, lapseVelocity: 650 }, 'Insane IV retains its original physical difficulty');
+assert.deepEqual(Difficulty.profiles[15], { velocity: 45, timing: .009, shape: .015, lapse: .004, lapseVelocity: 112.5 }, 'Insane IV combines weaker ordinary execution with softer lapses');
 assert.equal(Difficulty.strength(0), 0); assert.equal(Difficulty.strength(15), 15);
 const noExtraRandom = () => { throw Error('Endpoints must not consume a policy blending draw'); };
 assert.equal(Difficulty.strategy(0, noExtraRandom), 'easy');
@@ -21,6 +21,8 @@ for (const bad of [-1, 16, 1.5, NaN, Infinity, null, undefined, false, {}, '', '
 for (const n of Difficulty.values) {
     assert(Difficulty.valid(n)); assert(Difficulty.valid(String(n)));
     assert.equal(Difficulty.normalize(String(n)), n);
+    assert(Difficulty.profiles[n].lapseVelocity >= Difficulty.profiles[n].velocity);
+    assert(Difficulty.profiles[n].lapseVelocity <= Math.min(650, Difficulty.profiles[n].velocity * 2.5));
     if (n && n < 15) assert(Difficulty.strength(n) < n, 'Every intermediate level is easier than its previous strength');
     if (n) {
         assert(Difficulty.strength(n) > Difficulty.strength(n - 1), 'Strength remains strictly ordered');
@@ -63,9 +65,27 @@ for (let i = 1; i < rows.length; i++) {
     assert(rows[i].PPR > rows[i - 1].PPR, 'Physical scoring must improve between levels ' + i + ' and ' + (i + 1));
     assert(rows[i].corkMM < rows[i - 1].corkMM, 'Cork precision must improve between adjacent levels');
 }
-assert.deepEqual([rows[0], rows[15]], [
-    { level: 1, PPR: 19.56, missPct: 48.4, corkMM: 125.53 },
-    { level: 16, PPR: 109.64, missPct: .3, corkMM: 9.84 }
-], 'Seeded endpoint scoring and Cork results remain unchanged by the curve');
+assert.deepEqual(rows[0], { level: 1, PPR: 19.56, missPct: 48.4, corkMM: 125.53 }, 'The weakest baseline remains unchanged');
+assert(rows[15].PPR >= 75 && rows[15].PPR <= 95, 'Top-level ordinary scoring is weaker even after softening its rare lapses');
+const lapseAudit = [];
+for (const [name, base, mult] of [['T20', 20, 3], ['BULL', 25, 2], ['D16', 16, 2]]) {
+    const rng = Gesture.seeded('insane-iv-miss-audit-' + name), target = Strategy.target(base, mult), errors = [];
+    let darts = 0, misses = 0, lapses = 0;
+    for (let i = 0; i < 30000; i++) {
+        const generated = cpu.generate(target, 15, rng), analysis = physics.analyseGesture(generated.samples);
+        if (!analysis.valid) continue;
+        const hit = physics.computeImpact(physics.computeThrow(analysis));
+        darts++; misses += Number(Rules.scoreAt(hit.x, hit.y).miss);
+        if (generated.diagnostics.lapse) { lapses++; errors.push(Math.hypot(hit.x - target.x, hit.y - target.y)); }
+    }
+    errors.sort((a, b) => a - b);
+    const p95 = errors[Math.floor(errors.length * .95)];
+    assert(lapses > 50, 'The audit actually exercises rare lapses');
+    assert(p95 < 100, 'High-level lapses stay near the intended target in the seeded physical sample');
+    if (name !== 'D16') assert(misses / darts < .001, 'High-level inner targets rarely miss the entire board');
+    else assert(misses / darts > .1, 'Edge doubles still miss naturally; no impact is clamped back onto the board');
+    lapseAudit.push({ target: name, missPct: +(misses / darts * 100).toFixed(3), lapseP95MM: +p95.toFixed(2) });
+}
 console.log(JSON.stringify(rows));
-console.log('PASS: sixteen-level validation, fixed endpoint profiles/tactics, easier ordered intermediate strengths, legacy gesture/tactic compatibility and increasing physical scoring/Cork precision.');
+console.log(JSON.stringify(lapseAudit));
+console.log('PASS: sixteen-level validation, weaker ordered profiles, legacy compatibility, unchanged weakest baseline, softer high-level lapses and natural edge-double misses.');

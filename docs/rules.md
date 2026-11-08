@@ -577,8 +577,10 @@ continue from the persistent between-Leg result screen.
 In a competitive lobby, choose **Add CPU** to fill a normal player slot.
 Each CPU has a name and one of **16 difficulty levels**: Easy, Normal, Hard and
 Insane each have I–IV. New CPUs default to **Normal III**. The scale places more
-levels toward the easier end, keeping **Easy I** and **Insane IV** fixed while
-gradually improving execution and tactics between them. Old four-tier room values
+levels toward the easier end. Ordinary execution is less precise at higher levels
+than the initial release, while rare lapses scale with each CPU's usual error
+instead of producing the same broad scatter at every difficulty. Easy I retains
+its initial baseline; Insane IV is also weaker. Old four-tier room values
 still map to **Easy II / Normal III / Hard IV / Insane III**, using their current
 retuned strengths. At least one human
 must remain, and the total stays at four. CPU supports X01, both Cricket variants,
