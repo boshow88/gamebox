@@ -1942,8 +1942,8 @@ async function checkDartsCricketFocusV2() {
         await dartsChange(f, 'mode-select', 'cricket'); await dartsChange(f, 'cricket-select', variant); await dartsAdd(f, 3); await dartsStartLocal(f); api.refresh();
         const bounds = doc.getElementById('stage').getBoundingClientRect().toJSON(), pixel = n => api.boardPixel(n, 3), sum = p => p[0] + p[1] + p[2];
         const open20 = pixel(20), unrelated = pixel(13);
-        const dark20 = api.boardPixel(20, 1), dark18 = api.boardPixel(18, 1), dark13 = api.boardPixel(13, 1);
-        dartsAssert(sum(dark20) > sum(dark13) * 2 && sum(dark18) > sum(dark13) * 2, 'The dark 20/18 single beds are visibly emphasized alongside light Cricket targets');
+        const dark20 = api.boardPixel(20, 1), dark18 = api.boardPixel(18, 1);
+        dartsAssert([5, 1, 4].every(n => sum(dark20) < sum(api.boardPixel(n, 1)) * .35 && sum(dark18) < sum(api.boardPixel(n, 1)) * .35), 'Dark 20/18 beds stay distinct from neighboring muted light 5/1/4 beds');
         dartsAssert(sum(open20) > sum(unrelated) * 1.3, 'Relevant Cricket rings retain their color while unrelated rings recede');
         dartsAssert(sum(api.boardPixel(15, 1)) > sum(api.boardPixel(1, 1)) * 1.3, 'Cricket single beds stand out without changing their geometry');
         let state = structuredClone(api.snapshot().match);
@@ -1954,7 +1954,7 @@ async function checkDartsCricketFocusV2() {
         dartsAssert(JSON.stringify(pixel(20)) === JSON.stringify(open20), 'One remaining open opponent keeps the number relevant');
         state = w.DartsRules.withdraw(state, openOpponent, w.Date.now()); api.replace(state);
         dartsAssert(sum(pixel(20)) < sum(unrelated), 'A target closed by all remaining players fades even when a withdrawn player has it open');
-        dartsAssert(sum(api.boardPixel(20, 1)) < sum(dark20) * .6, 'A globally closed dark target loses its warm highlight');
+        dartsAssert(sum(api.boardPixel(20, 1)) < sum(dark20), 'A globally closed dark target still dims');
         const bull = api.boardPixel(25, 2);
         state.players.forEach(id => { state.marks[id][25] = 3; }); state.seq++; api.replace(state);
         dartsAssert(sum(api.boardPixel(25, 2)) < sum(bull) * .7, 'Bull also fades only after global closure');

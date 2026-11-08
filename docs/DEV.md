@@ -973,7 +973,7 @@ and its feedback preserves the established free-throw interaction.
 
 `cricketBoardFocus()` supplies presentation-only target emphasis in ordinary
 Cricket. The renderer keeps the standard red/green rings and light single beds,
-lifts active dark 20/18 single beds to warm charcoal (`COL.cricketDark`), uses
+keeps active dark 20/18 beds dark with thin gold outlines (`COL.cricketOutline`), uses
 brighter, slightly larger bold number labels, and draws unrelated beds at 58% opacity.
 Targets closed by every non-withdrawn player fade to 32% with subdued labels;
 closing only the current player's marks does not fade a still-useful scoring or

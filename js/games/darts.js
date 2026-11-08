@@ -935,7 +935,7 @@
         wire: '#0b0e12',
         numberRing: '#141414',
         singleDark: '#1c1c1c',
-        cricketDark: '#514e43',
+        cricketOutline: '#dbc478',
         singleLight: '#e8d7ac',
         ringRed: '#d33a2c',
         ringGreen: '#2e8b57',
@@ -987,8 +987,7 @@
             var centreCanvas = -Math.PI / 2 + i * 18 * Math.PI / 180;
             var a0 = centreCanvas - half, a1 = centreCanvas + half;
             var dark = (i % 2 === 0);                    // 20 (i=0) is a dark single
-            var emphasized = focus && Object.hasOwn(focus, SECTORS[i]) && !focus[SECTORS[i]];
-            var single = dark ? emphasized ? COL.cricketDark : COL.singleDark : COL.singleLight;
+            var single = dark ? COL.singleDark : COL.singleLight;
             var ring = dark ? COL.ringRed : COL.ringGreen;
             if (focus) {
                 ctx.save();
@@ -1014,6 +1013,21 @@
         [rOutBull, rTripIn, rTripOut, rDoubleIn, rDoubleOut].forEach(function (rr) {
             ctx.beginPath(); ctx.arc(cx, cy, rr, 0, PI2); ctx.stroke();
         });
+
+        // Keep dark targets distinct from adjacent light beds; outline active
+        // dark sectors instead of brightening their fill to a similar gray.
+        if (focus) {
+            ctx.save(); ctx.strokeStyle = COL.cricketOutline; ctx.lineWidth = 1.2; ctx.lineJoin = 'round';
+            for (var h = 0; h < 20; h += 2) {
+                if (!Object.hasOwn(focus, SECTORS[h]) || focus[SECTORS[h]]) continue;
+                var angle = -Math.PI / 2 + h * Math.PI / 10;
+                ctx.beginPath();
+                ctx.arc(cx, cy, rDoubleOut, angle - half, angle + half);
+                ctx.arc(cx, cy, rOutBull, angle + half, angle - half, true);
+                ctx.closePath(); ctx.stroke();
+            }
+            ctx.restore();
+        }
 
         // bulls
         ctx.save();
