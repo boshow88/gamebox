@@ -8,7 +8,7 @@
     'use strict';
     var TIERS = ['easy', 'normal', 'hard', 'insane'], ROMAN = ['I', 'II', 'III', 'IV'];
     var LEGACY = Object.freeze({ easy: 1, normal: 6, hard: 11, insane: 14 });
-    var CURVE_POWER = 1.5;
+    var CURVE_POWER = 1.8;
     var ANCHORS = [
         { level: 0, velocity: 380, timing: 0.055, shape: 0.12, lapse: 0.13 },
         { level: 1, velocity: 300, timing: 0.045, shape: 0.10, lapse: 0.10 },

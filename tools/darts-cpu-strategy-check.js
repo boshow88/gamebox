@@ -56,10 +56,18 @@ for (const outRule of ['open', 'master', 'double']) for (const bullMode of ['25-
 // A one-dart checkout search must not depend on unused darts from the next turn.
 const oneDart = remaining(62, {}, 2), setup = choose(oneDart);
 assert.notEqual(apply(oneDart, setup).lastDart.reason, 'bust');
-assert.equal(choose(game({ mode: 'countup' }), 'normal').label, 'BULL');
+assert.equal(choose(game({ mode: 'countup' }), 0).label, 'S20');
+assert.equal(choose(game({ mode: 'countup' }), 7).label, 'BULL');
+// Normal III now lies between the single-bed and Bull reference policies.
+// Exercise both sides of that blend rather than assuming its old target.
+for (const bullMode of ['25-50', '50-50']) {
+    const s = game({ mode: 'countup', bullMode });
+    assert.equal(CPU.choose(s, s.active, 'normal', () => 0).label, 'BULL');
+    assert.equal(choose(s, 'normal').label, 'S20');
+}
 assert.equal(choose(game({ mode: 'countup' }), 'hard').label, 'T20');
 assert.equal(choose(game({ mode: 'countup' }), 'insane').label, 'T20');
-for (const difficulty of ['normal', 'hard', 'insane']) {
+for (const difficulty of [10, 11, 12, 13, 14, 15]) {
     assert.equal(choose(game({ mode: 'countup', bullMode: '50-50' }), difficulty).label, 'BULL',
         'The broad 50-point Bull is a better expected-value scoring target');
     assert.equal(choose(game({ mode: 'x01', bullMode: '50-50' }), difficulty).label, 'BULL');

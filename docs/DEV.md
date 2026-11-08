@@ -825,7 +825,7 @@ numerals in Chinese.
 
 The original profiles are interpolation references, rather than fixed interior
 difficulty levels. Public level `n` maps to reference strength
-`15 * (n / 15)^1.5`, controlled by `CURVE_POWER`. This concentrates more choices
+`15 * (n / 15)^1.8`, controlled by `CURVE_POWER`. This concentrates more choices
 toward the easier end. Easy I and Insane IV keep their exact profiles, tactics and
 RNG consumption; every interior level, including the four legacy aliases, uses
 the easier curve. Positive error parameters interpolate geometrically at that
@@ -898,10 +898,10 @@ complete-game net PPR with Bust and checkout effects.
 
 | Difficulty | Ordinary PPR | Physical miss | Cork mean distance | Standard Cricket target MPR |
 | --- | ---: | ---: | ---: | ---: |
-| Easy II | 19.59 | 48.23% | 117.64 mm | 0.67 |
-| Normal III | 33.90 | 11.88% | 57.75 mm | 1.15 |
-| Hard IV | 58.15 | 1.13% | 23.51 mm | 2.59 |
-| Insane III | 93.75 | 0.43% | 12.74 mm | 3.95 |
+| Easy II | 19.12 | 49.35% | 121.27 mm | 0.63 |
+| Normal III | 30.93 | 19.42% | 69.27 mm | 1.13 |
+| Hard IV | 52.94 | 1.20% | 26.21 mm | 2.39 |
+| Insane III | 91.21 | 0.53% | 13.31 mm | 3.95 |
 
 The default calibration retains the original four string seeds for historical
 comparison. `node tools/darts-cpu-calibrate.js --all-levels` reports all sixteen
@@ -909,10 +909,10 @@ numeric levels with their own seeds. Ordinary PPR is approximately:
 
 | Tier | I | II | III | IV |
 | --- | ---: | ---: | ---: | ---: |
-| Easy | 19.43 | 20.09 | 21.56 | 23.46 |
-| Normal | 27.12 | 29.98 | 33.82 | 37.09 |
-| Hard | 40.02 | 45.30 | 50.64 | 56.67 |
-| Insane | 67.89 | 78.70 | 92.22 | 109.99 |
+| Easy | 19.43 | 19.80 | 20.35 | 21.72 |
+| Normal | 23.46 | 27.22 | 29.88 | 33.21 |
+| Hard | 36.72 | 41.73 | 45.69 | 51.52 |
+| Insane | 62.25 | 74.57 | 89.85 | 109.99 |
 
 Numeric and legacy probes use different random seeds, so their sample averages
 differ at the same difficulty. A same-seed comparison with the previous curve
@@ -921,8 +921,8 @@ target accuracy, Cricket and Cork. The all-level four-player Cut-Throat matchup
 keeps one of each legacy position, rather than sixteen seats.
 
 For 301 Open In/Double Out simulations, net game PPR is respectively
-12.95/21.19/48.13/76.41. A separate 1,000-dart D16 probe converts a 32-point
-checkout on 1.2/5.7/19.7/32.3% of darts. The script also reports turn distributions,
+12.28/16.97/44.63/74.58. A separate 1,000-dart D16 probe converts a 32-point
+checkout on 1.2/4.0/17.1/30.9% of darts. The script also reports turn distributions,
 Busts, closing efficiency, penalties, Cork medians/near-Bull frequency and small
 matchup samples. Stronger tiers generally perform better; lower tiers can still
 win some seeded games. Easy did not close all Cricket targets in the
