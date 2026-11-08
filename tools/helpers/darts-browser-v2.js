@@ -1935,3 +1935,46 @@ async function checkDartsTurnHitCorkV2() {
     dartsAssert(api.snapshot().feedback.notice.kind === 'cork', 'Cork instructions follow the ordinary hit and local handoff');
     f.remove();
 }
+
+async function checkDartsCricketFocusV2() {
+    for (const [width, height] of [[320, 568], [390, 844], [1200, 800]]) for (const variant of ['standard', 'cutthroat']) {
+        const f = await dartsBoot('cricket-focus-' + variant + width, width, height), api = dartsApi(f), w = f.contentWindow, doc = dartsDoc(f);
+        await dartsChange(f, 'mode-select', 'cricket'); await dartsChange(f, 'cricket-select', variant); await dartsAdd(f, 3); await dartsStartLocal(f); api.refresh();
+        const bounds = doc.getElementById('stage').getBoundingClientRect().toJSON(), pixel = n => api.boardPixel(n, 3), sum = p => p[0] + p[1] + p[2];
+        const open20 = pixel(20), unrelated = pixel(13);
+        dartsAssert(sum(open20) > sum(unrelated) * 1.3, 'Relevant Cricket rings retain their color while unrelated rings recede');
+        dartsAssert(sum(api.boardPixel(15, 1)) > sum(api.boardPixel(1, 1)) * 1.3, 'Cricket single beds stand out without changing their geometry');
+        let state = structuredClone(api.snapshot().match);
+        state.marks[state.active][20] = 3; state.seq++; api.replace(state);
+        dartsAssert(JSON.stringify(pixel(20)) === JSON.stringify(open20), 'Own closure stays bright while any opponent can still receive points or penalties');
+        const openOpponent = state.players.find(id => id !== state.active);
+        state.players.forEach(id => { state.marks[id][20] = id === openOpponent ? 0 : 3; }); state.seq++; api.replace(state);
+        dartsAssert(JSON.stringify(pixel(20)) === JSON.stringify(open20), 'One remaining open opponent keeps the number relevant');
+        state = w.DartsRules.withdraw(state, openOpponent, w.Date.now()); api.replace(state);
+        dartsAssert(sum(pixel(20)) < sum(unrelated), 'A target closed by all remaining players fades even when a withdrawn player has it open');
+        const bull = api.boardPixel(25, 2);
+        state.players.forEach(id => { state.marks[id][25] = 3; }); state.seq++; api.replace(state);
+        dartsAssert(sum(api.boardPixel(25, 2)) < sum(bull) * .7, 'Bull also fades only after global closure');
+        const unchanged = JSON.stringify(api.snapshot().match); api.refresh(); api.refresh();
+        dartsAssert(JSON.stringify(api.snapshot().match) === unchanged, 'Drawing does not mutate accepted scores, marks or history');
+        const cork = structuredClone(state); cork.seq++; cork.phase = 'cork'; cork.corkPurpose = 'tie'; cork.corkRound = 1;
+        cork.corkPlayers = cork.players.filter(id => !cork.withdrawn.includes(id)); cork.corkDistances = {}; api.replace(cork);
+        dartsAssert(JSON.stringify(pixel(20)) === JSON.stringify(pixel(13)), 'Cork restores the ordinary board instead of carrying Cricket number emphasis');
+        dartsClick(f, 'restart-btn'); await until(() => dartsData(f).phase === 'lobby', 'leave Cricket focus fixture');
+        await dartsChange(f, 'mode-select', 'x01'); await dartsStartLocal(f); api.refresh();
+        dartsAssert(JSON.stringify(pixel(20)) === JSON.stringify(pixel(13)), 'X01 retains its original board palette');
+        dartsAssert(JSON.stringify(doc.getElementById('stage').getBoundingClientRect().toJSON()) === JSON.stringify(bounds), 'Focus never resizes or repositions the board');
+        dartsAssert(doc.documentElement.scrollWidth <= width && doc.documentElement.scrollHeight <= height, 'Focus creates no viewport overflow');
+        f.remove();
+    }
+}
+async function checkDartsCricketFocusPreviewV2() {
+    if (!cricketFocusOnly || !preview) return;
+    const width = preview === 'desktop' ? 1200 : 390, height = preview === 'desktop' ? 800 : 844;
+    const f = await dartsBoot('cricket-focus-preview', width, height), api = dartsApi(f), w = f.contentWindow;
+    f.style.cssText = 'position:fixed;inset:0;width:' + width + 'px;height:' + height + 'px;border:0;z-index:20';
+    await dartsChange(f, 'mode-select', 'cricket'); await dartsChange(f, 'timer-select', 0); await dartsAdd(f, 3);
+    w.ArcadeCommon.i18n.setLocale('zh'); await dartsStartLocal(f); api.previewCricket();
+    const state = api.snapshot().match; state.players.forEach(id => { state.marks[id][20] = 3; }); api.refresh();
+    await dartsDoc(f).fonts.ready; await sleep(60);
+}

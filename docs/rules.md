@@ -530,6 +530,12 @@ Standard awards the thrower 40 if an opponent is open; Cut-Throat adds 40 to
 each applicable opponent. History and feedback list the actual penalty recipients.
 Bull marks always retain their ordinary Cricket values.
 
+Cricket emphasizes the 15–20 labels and keeps those beds and Bull in full color.
+Unrelated numbers are muted. A target fades further only when every remaining
+player has closed it; your own closed target stays prominent while an opponent
+can still receive points or penalties. This is a visual aid; dartboard geometry
+and scoring are unchanged.
+
 The lobby's Automatic choice selects Standard for two players and Cut-Throat
 for three/four at match start. Explicit Standard/Cut-Throat choices are preserved
 when players join or leave; active-match rules remain fixed.

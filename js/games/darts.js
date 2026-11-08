@@ -952,6 +952,16 @@
         ctx.fill();
     }
 
+    function cricketBoardFocus() {
+        if (!localRoom) return null;
+        var data = roomData(), state = data.phase === 'lobby' ? null : viewMatch || match;
+        if ((state ? state.mode : data.options.mode) !== 'cricket' || state && state.phase === 'cork') return null;
+        var players = state ? state.players.filter(function (id) { return !(state.withdrawn || []).includes(id); }) : [];
+        return Object.fromEntries(Rules.TARGETS.map(function (n) {
+            return [n, players.length > 0 && players.every(function (id) { return ((state.marks || {})[id] || {})[n] >= 3; })];
+        }));
+    }
+
     function drawBoard() {
         var cx = TUNING.boardCenterX, cy = TUNING.boardCenterY;
         var s = boardScaleNow();   // dynamic: the board grows as the camera dollies in
@@ -962,6 +972,7 @@
         var rOutBull = TUNING.rOuterBull * s;
         var rInBull = TUNING.rInnerBull * s;
         var rNumber = rDoubleOut * 1.12;
+        var focus = cricketBoardFocus();
 
         // number-ring backing + board shadow
         ctx.save();
@@ -977,10 +988,15 @@
             var dark = (i % 2 === 0);                    // 20 (i=0) is a dark single
             var single = dark ? COL.singleDark : COL.singleLight;
             var ring = dark ? COL.ringRed : COL.ringGreen;
+            if (focus) {
+                ctx.save();
+                ctx.globalAlpha *= Object.hasOwn(focus, SECTORS[i]) ? focus[SECTORS[i]] ? 0.32 : 1 : 0.58;
+            }
             wedge(cx, cy, rOutBull, rTripIn, a0, a1, single);       // inner single
             wedge(cx, cy, rTripIn, rTripOut, a0, a1, ring);         // triple
             wedge(cx, cy, rTripOut, rDoubleIn, a0, a1, single);     // outer single
             wedge(cx, cy, rDoubleIn, rDoubleOut, a0, a1, ring);     // double
+            if (focus) ctx.restore();
         }
 
         // sector wires
@@ -998,15 +1014,20 @@
         });
 
         // bulls
+        ctx.save();
+        if (focus && focus[25]) ctx.globalAlpha *= 0.32;
         ctx.beginPath(); ctx.arc(cx, cy, rOutBull, 0, PI2); ctx.fillStyle = COL.bullOuter; ctx.fill(); ctx.stroke();
         ctx.beginPath(); ctx.arc(cx, cy, rInBull, 0, PI2); ctx.fillStyle = COL.bullInner; ctx.fill(); ctx.stroke();
+        ctx.restore();
 
         // numbers around the ring (scale with the board; small floor so a far board keeps them proportional, not oversized)
-        ctx.fillStyle = '#efe7d0';
-        ctx.font = '600 ' + Math.max(3, Math.round(rDoubleOut * 0.12)) + 'px ' + getFont();
+        var numberSize = Math.max(3, Math.round(rDoubleOut * 0.12));
         ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
         for (var m = 0; m < 20; m++) {
             var na = -Math.PI / 2 + m * 18 * Math.PI / 180;
+            var target = focus && Object.hasOwn(focus, SECTORS[m]), open = target && !focus[SECTORS[m]];
+            ctx.fillStyle = !focus ? '#efe7d0' : open ? '#fff2b0' : target ? '#6b706e' : '#8d918d';
+            ctx.font = (open ? '800 ' : '600 ') + (open ? Math.max(3, Math.round(numberSize * 1.08)) : numberSize) + 'px ' + getFont();
             ctx.fillText(String(SECTORS[m]), cx + Math.cos(na) * rNumber, cy + Math.sin(na) * rNumber);
         }
     }

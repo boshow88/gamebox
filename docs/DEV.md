@@ -971,6 +971,15 @@ an explicit "Last turn" label until the next player throws. Cork replaces mode
 details with one dart and its distance. Practice player cards show per-slot darts,
 and its feedback preserves the established free-throw interaction.
 
+`cricketBoardFocus()` supplies presentation-only target emphasis in ordinary
+Cricket. The renderer keeps 15–20/Bull in their standard colors, uses brighter,
+slightly larger bold number labels, and draws unrelated beds at 58% opacity.
+Targets closed by every non-withdrawn player fade to 32% with subdued labels;
+closing only the current player's marks does not fade a still-useful scoring or
+penalty target. Lobby previews use the selected mode without stale match marks.
+Cork and other modes retain the ordinary board palette. This reads accepted
+`viewMatch` state and does not change scores, geometry, gestures or physics.
+
 Pointer-downs in `#throw-surface` or `#mode-panel` can begin a throw, allowing a
 mobile flick to start below the board. Buttons, links, inputs, player cards and
 result overlays keep normal interaction. History/lobby dialogs block throwing

@@ -255,6 +255,13 @@ and shared CPU turns through hidden-page maintenance without animation updates,
 including Timer Off and paused local play. These checks also run in `--darts`.
 Add `--darts-mobile` or `--darts-desktop` for ignored opening screenshots in `.cache`.
 
+`node tools/rooms-browser-check.js --darts-cricket-focus` samples actual canvas
+pixels for both Cricket variants at 320/390/1200px. It checks target contrast,
+own-only versus global closure, Bull closure, withdrawn-player exclusion, unchanged
+accepted state/board bounds, and ordinary colors in Cork/X01. These cases also run
+in `--darts`. Add `--darts-mobile` or `--darts-desktop` for ignored Cricket focus
+previews in `.cache`.
+
 Lobby checks keep the header/footer visible at every content scroll position
 with four players and expanded rules at 320x568, 390x844 and 1200x420. They verify
 mode-aware Start/Starting/Ready/waiting labels, minimum-player reasons, per-device
