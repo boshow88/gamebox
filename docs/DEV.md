@@ -971,6 +971,14 @@ an explicit "Last turn" label until the next player throws. Cork replaces mode
 details with one dart and its distance. Practice player cards show per-slot darts,
 and its feedback preserves the established free-throw interaction.
 
+After the first-player presentation finishes, player cards and Cricket columns
+follow the Leg's cyclic throwing order, starting with `legStarter`. Cork comparison
+rows use the same display order. Original seat numbers, colors and identities stay
+attached to each player. The display stays fixed within a Leg, including departures
+and tie-breaks, and rotates only for the next Leg's starter. Opening Cork and random
+draws keep the original seat order until their presentation ends. This is a HUD-only
+rotation; accepted participant order, owners, scoring and history are unchanged.
+
 Cricket's 1/2/3 marks use the shared inline Lucide `slash`/`x`/`circle-x` SVGs
 through the injected `ArcadeCommon.icon` helper. Their diagonal strokes stay at
 45 degrees and inherit the cell's color, independent of system font glyphs.

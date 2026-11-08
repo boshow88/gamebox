@@ -3,6 +3,24 @@ const dartsApi = f => f.contentWindow.__dartsTest;
 const dartsDoc = f => f.contentDocument;
 const dartsData = f => dartsApi(f).snapshot().data;
 function dartsAssert(value, message) { if (!value) throw new Error(message); }
+function dartsAssertPlayerOrder(f, ids) {
+    const doc = dartsDoc(f), state = dartsApi(f).snapshot().match, cards = [...doc.querySelectorAll('.darts-player')];
+    dartsAssert(JSON.stringify(cards.map(card => card.dataset.playerUid)) === JSON.stringify(ids), 'Player cards follow the fixed Leg order');
+    cards.forEach((card, i) => {
+        dartsAssert(Number(card.querySelector('.player-seat').textContent) === state.players.indexOf(ids[i]) + 1, 'Reordered cards retain their original seat number');
+        dartsAssert(Number(card.querySelector('.darts-player-score').textContent) === state.scores[ids[i]], 'Reordered score for ' + ids[i] + ' at seq ' + state.seq + ': displayed ' + card.querySelector('.darts-player-score').textContent + ', accepted ' + state.scores[ids[i]]);
+    });
+    if (!doc.getElementById('cricket-board').hidden) {
+        const headers = [...doc.querySelectorAll('.cricket-table thead th')].slice(1);
+        headers.forEach((header, i) => {
+            dartsAssert(header.textContent === cards[i].querySelector('.player-seat').textContent && header.title === cards[i].querySelector('.darts-player-name').title, 'Cricket column identity matches its player card');
+            dartsAssert(f.contentWindow.getComputedStyle(header).color === f.contentWindow.getComputedStyle(cards[i].querySelector('.player-seat')).color, 'Cricket columns preserve player colors after reordering');
+        });
+    }
+    if (!doc.getElementById('cork-panel').hidden) {
+        dartsAssert(JSON.stringify([...doc.querySelectorAll('.cork-result')].map(row => row.dataset.playerUid)) === JSON.stringify(ids), 'Cork rows align with the fixed player cards');
+    }
+}
 function dartsConfirmHandoff(f) {
     const overlay = dartsDoc(f).getElementById('handoff-overlay');
     if (dartsApi(f).snapshot().feedback && dartsApi(f).snapshot().feedback.blocking && overlay.hidden) {
@@ -914,8 +932,11 @@ async function checkDartsOpeningCorkV2() {
         }
         const started = api.snapshot().match, expectedStarter = [...distances].sort((a, b) => a[1] - b[1])[0][0];
         dartsAssert(started.phase === 'play' && started.status === 'playing' && started.active === expectedStarter && started.legStarter === expectedStarter, 'Closest physical Bull distance selects the opening starter');
+        dartsAssertPlayerOrder(f, seats);
         dartsFinishPresentation(f);
         dartsAssert(doc.getElementById('match-meta').textContent.startsWith('301') && !doc.getElementById('match-meta').textContent.includes('X01'), 'Ordinary gameplay restores the actual X01 variant after opening Cork');
+        const starterIndex = seats.indexOf(expectedStarter);
+        dartsAssertPlayerOrder(f, seats.slice(starterIndex).concat(seats.slice(0, starterIndex)));
         dartsAssert(JSON.stringify(started.players) === JSON.stringify(seats), 'Opening Cork preserves participant seat order');
         dartsAssert(seats.every(id => started.scores[id] === 301 && started.turns[id] === 0 && started.stats[id].darts === 0 && started.stats[id].points === 0 && Object.values(started.marks[id]).every(n => n === 0)), 'Opening Cork never consumes scores, marks, normal darts or permitted turns');
         dartsAssert(started.history.length === (count === 4 ? 6 : count) && started.history.every(entry => entry.phase === 'cork' && entry.corkPurpose === 'opening'), 'Opening Cork is recorded separately in match history');
@@ -925,6 +946,8 @@ async function checkDartsOpeningCorkV2() {
         dartsFinishPresentation(f); dartsClick(f, 'next-leg-btn');
         const next = api.snapshot().match, expectedNext = seats[(seats.indexOf(expectedStarter) + 1) % seats.length];
         dartsAssert(next.leg === 2 && next.phase === 'play' && next.active === expectedNext && next.history.length === started.history.length + 1, 'Later Legs rotate from the Cork-selected starter without another opening Cork or losing history');
+        const nextIndex = seats.indexOf(expectedNext);
+        dartsAssertPlayerOrder(f, seats.slice(nextIndex).concat(seats.slice(0, nextIndex)));
         f.remove();
     }
     const solo = await dartsBoot('solo-no-opening-cork');
@@ -1758,6 +1781,7 @@ async function checkDartsRandomOpeningV2() {
         const seen = new Set();
         for (let elapsed = 0; elapsed <= 900; elapsed += 100) {
             w.__dartsNow = at + elapsed; api.refresh();
+            dartsAssertPlayerOrder(f, state.players);
             seen.add(doc.querySelector('.darts-player.active').dataset.playerUid);
             dartsAssert(api.snapshot().feedback.blocking && !api.cpu().pending && api.snapshot().match.seq === 0, 'Draw animation cannot launch a dart or advance a turn');
         }
@@ -1768,9 +1792,13 @@ async function checkDartsRandomOpeningV2() {
         dartsAssert(JSON.stringify(doc.getElementById('stage').getBoundingClientRect().toJSON()) === JSON.stringify(before), 'Opening presentation never moves or resizes the board');
         dartsAssert(doc.documentElement.scrollWidth <= width && doc.documentElement.scrollHeight <= height, 'Opening creates no page overflow');
         w.__dartsNow = end - 1; api.refresh(); dartsAssert(!api.gesture(), 'Reveal still blocks the final millisecond');
+        dartsAssertPlayerOrder(f, state.players);
         w.__dartsNow = end; api.refresh();
         dartsAssert(!api.snapshot().feedback.opening && !api.snapshot().feedback.blocking && doc.getElementById('turn-timer').textContent === '30s', 'Winner receives the full configured turn time');
+        const displayOrder = [state.players.at(-1), ...state.players.slice(0, -1)];
+        dartsAssertPlayerOrder(f, displayOrder);
         dartsAssert(api.gesture(), 'The accepted starter can throw after reveal'); api.land();
+        dartsAssertPlayerOrder(f, displayOrder);
         dartsAssert(api.snapshot().match.seq === 1 && !api.snapshot().feedback.opening, 'First throw cannot replay the opening');
         const reduced = structuredClone(state); reduced.matchId += '-reduced'; reduced.openingDraw.at = w.__dartsNow;
         reduced.readyAt = reduced.turnStartedAt = reduced.openingDraw.at + 1900;
@@ -1801,6 +1829,7 @@ async function checkDartsRandomOpeningRemoteV2() {
     const initial = tools.read().game, at = initial.openingDraw.at;
     for (const elapsed of [0, 300, 700, 1000, 1800]) {
         for (const f of [a, b]) { f.contentWindow.__dartsNow = at + elapsed; dartsApi(f).step(0, 0); }
+        [a, b].forEach(f => dartsAssertPlayerOrder(f, initial.players));
         const first = dartsApi(a).snapshot().feedback.opening, second = dartsApi(b).snapshot().feedback.opening;
         dartsAssert(JSON.stringify(first) === JSON.stringify(second) && first.winner === guestCpu, 'Both devices show the same accepted random starter');
         dartsAssert(!dartsApi(a).cpu().pending && !dartsApi(b).cpu().pending && tools.read().game.seq === 0, 'Neither device executes a CPU during the opening');
@@ -1809,6 +1838,8 @@ async function checkDartsRandomOpeningRemoteV2() {
     await dartsApi(a).controller().service.heartbeat(code, 0);
     dartsAssert(tools.read().game.openingDraw.at === at && tools.read().game.turnStartedAt === initial.readyAt, 'Heartbeats cannot reroll or restart the opening');
     for (const f of [a, b]) { f.contentWindow.__dartsNow = initial.readyAt; dartsApi(f).step(0, 0); }
+    const displayOrder = [guestCpu, ...initial.players.slice(0, -1)];
+    [a, b].forEach(f => dartsAssertPlayerOrder(f, displayOrder));
     dartsAssert(!dartsApi(a).cpu().pending && dartsApi(b).cpu().pending.at === initial.readyAt + 900, 'Only the owning device schedules the selected CPU after reveal');
     dartsApi(b).step(900, 0);
     await until(() => tools.read().game.seq === 1 && [a, b].every(f => dartsApi(f).snapshot().match.seq === 1), 'first CPU flight accepted after opening');
@@ -1818,6 +1849,8 @@ async function checkDartsRandomOpeningRemoteV2() {
         dartsApi(b).background(1000); await sleep(30);
     }
     await until(() => [a, b].every(f => dartsApi(f).snapshot().match.seq === 3), 'hidden owner finishes its shared CPU turn');
+    [a, b].forEach(f => { dartsApi(f).land(); dartsSettleTurnHit(f); });
+    [a, b].forEach(f => dartsAssertPlayerOrder(f, displayOrder));
     dartsAssert(tools.read().game.lastTurn.uid === guestCpu && !dartsApi(a).cpu().last, 'Hidden-page maintenance executes only the owning device CPU');
     await dartsApi(a).controller().leave(); await dartsApi(b).controller().leave(); a.remove(); b.remove();
 }
@@ -1947,9 +1980,12 @@ async function checkDartsCricketFocusV2() {
         dartsAssert(sum(open20) > sum(unrelated) * 1.3, 'Relevant Cricket rings retain their color while unrelated rings recede');
         dartsAssert(sum(api.boardPixel(15, 1)) > sum(api.boardPixel(1, 1)) * 1.3, 'Cricket single beds stand out without changing their geometry');
         let state = structuredClone(api.snapshot().match);
-        state.players.forEach((id, n) => { state.marks[id][18] = n; }); state.seq++; api.replace(state);
+        state.firstStarter = 2; state.legStarter = state.active = state.players[2];
+        state.players.forEach((id, n) => { state.marks[id][18] = n; state.scores[id] = [120, 80, 40, 95][n]; }); state.seq++; api.replace(state);
+        const displayOrder = [state.players[2], state.players[3], state.players[0], state.players[1]];
+        dartsAssertPlayerOrder(f, displayOrder);
         const markRow = [...doc.querySelectorAll('.cricket-table tbody tr')].find(row => row.querySelector('th').textContent === '18');
-        const cells = [...markRow.querySelectorAll('td')];
+        const displayCells = [...markRow.querySelectorAll('td')], cells = state.players.map(id => displayCells[displayOrder.indexOf(id)]);
         dartsAssert(cells[0].textContent === '·' && !cells[0].querySelector('svg'), 'An empty Cricket target retains its dot');
         for (let n = 1; n <= 3; n++) {
             const svg = cells[n].querySelector('svg.cricket-mark'), rect = svg.getBoundingClientRect(), cell = cells[n].getBoundingClientRect();
@@ -1970,6 +2006,7 @@ async function checkDartsCricketFocusV2() {
         state.players.forEach(id => { state.marks[id][20] = id === openOpponent ? 0 : 3; }); state.seq++; api.replace(state);
         dartsAssert(JSON.stringify(pixel(20)) === JSON.stringify(open20), 'One remaining open opponent keeps the number relevant');
         state = w.DartsRules.withdraw(state, openOpponent, w.Date.now()); api.replace(state);
+        dartsAssertPlayerOrder(f, displayOrder);
         dartsAssert(sum(pixel(20)) < sum(unrelated), 'A target closed by all remaining players fades even when a withdrawn player has it open');
         dartsAssert(sum(api.boardPixel(20, 1)) < sum(dark20), 'A globally closed dark target still dims');
         const bull = api.boardPixel(25, 2);
@@ -1979,6 +2016,7 @@ async function checkDartsCricketFocusV2() {
         dartsAssert(JSON.stringify(api.snapshot().match) === unchanged, 'Drawing does not mutate accepted scores, marks or history');
         const cork = structuredClone(state); cork.seq++; cork.phase = 'cork'; cork.corkPurpose = 'tie'; cork.corkRound = 1;
         cork.corkPlayers = cork.players.filter(id => !cork.withdrawn.includes(id)); cork.corkDistances = {}; api.replace(cork);
+        dartsAssertPlayerOrder(f, displayOrder);
         dartsAssert(JSON.stringify(pixel(20)) === JSON.stringify(pixel(13)), 'Cork restores the ordinary board instead of carrying Cricket number emphasis');
         dartsClick(f, 'restart-btn'); await until(() => dartsData(f).phase === 'lobby', 'leave Cricket focus fixture');
         await dartsChange(f, 'mode-select', 'x01'); await dartsStartLocal(f); api.refresh();
@@ -1996,6 +2034,8 @@ async function checkDartsCricketFocusPreviewV2() {
     f.style.cssText = 'position:fixed;inset:0;width:' + width + 'px;height:' + height + 'px;border:0;z-index:20';
     await dartsChange(f, 'mode-select', 'cricket'); await dartsChange(f, 'timer-select', 0); await dartsAdd(f, 3);
     w.ArcadeCommon.i18n.setLocale('zh'); await dartsStartLocal(f); api.previewCricket();
-    const state = api.snapshot().match; state.players.forEach(id => { state.marks[id][19] = 3; }); api.refresh();
+    const state = api.snapshot().match; state.players.forEach(id => { state.marks[id][19] = 3; });
+    state.firstStarter = 2; state.legStarter = state.active = state.players[2]; state.seq++; api.replace(state);
+    dartsConfirmHandoff(f);
     await dartsDoc(f).fonts.ready; await sleep(60);
 }

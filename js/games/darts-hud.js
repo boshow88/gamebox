@@ -6,11 +6,11 @@
 })(typeof window === 'object' ? window : globalThis, function (Rules, Difficulty) {
     'use strict';
     var COLORS = ['#86efac', '#7dd3fc', '#f9a8d4', '#fcd34d'];
-    function corkModel(s) {
+    function corkModel(s, ids) {
         var purpose = s.corkPurpose || 'tie', distances = s.corkDistances || {}, round = s.corkRound || 1;
         var eligible = (s.corkPlayers || []).filter(function (id) { return !(s.withdrawn || []).includes(id); });
         return { purpose: purpose, round: round, eligible: eligible, rethrow: round > 1,
-            entries: s.players.map(function (id) {
+            entries: ids.map(function (id) {
                 var latest = null, previous = null;
                 (s.history || []).slice().reverse().some(function (entry) {
                     if (entry.uid !== id || entry.leg !== s.leg || entry.phase !== 'cork' ||
@@ -39,12 +39,16 @@
         var previous = s && !current && s.lastTurn && (!cork || s.lastTurn.phase === 'cork') ? s.lastTurn : null;
         var mode = s ? s.mode : 'practice', limit = s ? s.roundLimit || 0 : 0;
         var opening = input.effects && input.effects.opening;
+        // Rotate the presentation once per Leg; seat numbers/colors keep their original identities.
+        // Opening comparisons and random draws retain their positions until the presentation ends.
+        var starter = s && mode !== 'practice' && !opening && !(cork && corkState.corkPurpose === 'opening') ? ids.indexOf(s.legStarter) : 0;
+        var displayIds = starter > 0 ? ids.slice(starter).concat(ids.slice(0, starter)) : ids;
         return {
             mode: mode, startingScore: s ? s.startingScore || 501 : 501,
             opening: opening || null,
             phase: s ? s.status : 'playing', throwPhase: cork ? 'cork' : 'play',
             corkPurpose: corkState ? corkState.corkPurpose || 'tie' : null,
-            cork: cork ? corkModel(corkState) : null,
+            cork: cork ? corkModel(corkState, displayIds) : null,
             leg: s && mode !== 'practice' ? s.leg : 0, bestOf: s ? s.bestOf : 1,
             legsToWin: s ? s.legsToWin || (s.bestOf === 3 ? 2 : 1) : 1,
             round: s && limit && !cork ? Math.min(limit, (s.turns[s.active] || 0) + 1) : 0,
@@ -54,7 +58,7 @@
             active: finalCork ? finalCork.active : s ? s.active : 'practice', dart: s ? Math.min(cork ? 1 : 3, s.dart + 1) : 0,
             timer: s && s.turnMs > 0 && s.status === 'playing' ? Math.min(s.turnMs / 1000,
                 Math.max(0, Math.ceil((s.turnStartedAt + s.turnMs - input.now) / 1000))) : null,
-            players: ids.map(function (id, index) { return { id: id, seat: index + 1, color: COLORS[index],
+            players: displayIds.map(function (id) { var index = ids.indexOf(id); return { id: id, seat: index + 1, color: COLORS[index],
                 type: s && s.participants && s.participants[id] ? s.participants[id].type : 'human',
                 difficulty: s && s.participants && s.participants[id] ? s.participants[id].difficulty : null,
                 name: s ? input.name(id) : input.you, score: s ? mode === 'practice' ? s.stats[id].darts : s.scores[id] : practice.darts,

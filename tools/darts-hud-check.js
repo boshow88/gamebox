@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const R = require('../js/games/darts-rules.js');
 const H = require('../js/games/darts-hud.js');
 const F = require('../js/games/darts-feedback.js');
+const O = require('../js/games/darts-opening.js');
 const tr = (key, ...args) => [key, ...args];
 const miss = R.hit(0, 0);
 function model(state, effects) {
@@ -27,6 +28,57 @@ function expected(s, key, ...args) {
     assert.deepEqual(H.resultReason(m, tr), [key, ...args]);
     assert.equal(JSON.stringify(s), before, 'Building and explaining a model cannot mutate accepted state');
     return m;
+}
+
+// Turn order is visible without changing accepted seat identity or following the active player.
+{
+    const ids = ['A', 'B', 'C', 'D'], colors = model(R.create({ mode: 'countup' }, ids, 1000)).players.map(p => p.color);
+    for (const mode of ['x01', 'cricket', 'countup']) {
+        let state = R.create({ mode, legsToWin: 2, roundLimit: 10 }, ids, 1000, 2);
+        const accepted = JSON.stringify(state), order = ['C', 'D', 'A', 'B'];
+        let view = model(state);
+        assert.deepEqual(view.players.map(p => p.id), order);
+        assert.deepEqual(view.players.map(p => p.seat), [3, 4, 1, 2]);
+        assert.deepEqual(view.players.map(p => p.color), [colors[2], colors[3], colors[0], colors[1]]);
+        assert.equal(JSON.stringify(state), accepted, 'Display order cannot alter the shared match snapshot');
+        for (let i = 0; i < 3; i++) state = dart(state, miss);
+        assert.equal(state.active, 'D');
+        assert.deepEqual(model(state).players.map(p => p.id), order, 'Ordinary handoffs cannot move player cards');
+        state = R.withdraw(state, 'C', 2000);
+        assert.deepEqual(model(state).players.map(p => p.id), order, 'A departed starter retains its place for the rest of the Leg');
+        assert.equal(model(state).players[0].left, true);
+        state = play(state, () => miss);
+        if (state.phase === 'cork') {
+            assert.deepEqual(model(state).cork.entries.map(p => p.id), order, 'Tie-break comparisons align with the fixed player cards');
+            while (state.status === 'playing') state = dart(state, miss, { x: state.active === 'A' ? 1 : 10, y: 0 });
+        }
+        assert.equal(state.status, 'between');
+        state = R.nextLeg(state, 3000);
+        assert.equal(state.legStarter, 'D');
+        assert.deepEqual(model(state).players.map(p => p.id), ['D', 'A', 'B', 'C'], 'Only a new Leg rotates the display');
+        assert.deepEqual(state.players, ids);
+    }
+
+    const random = O.prepare(R.create({ mode: 'countup' }, ids, 1000, 2));
+    for (const now of [1000, 1500, 2100, 2899]) {
+        assert.deepEqual(model(random, { opening: O.model(random, now, false) }).players.map(p => p.id), ids,
+            'Random draw and reveal retain their positions until the presentation ends');
+    }
+    assert.deepEqual(model(random, { opening: O.model(random, 2900, false) }).players.map(p => p.id), ['C', 'D', 'A', 'B']);
+
+    let cork = R.create({ mode: 'cricket', startingPlayer: 'cork' }, ids, 1000);
+    for (const x of [20, 30, 5, 40]) {
+        assert.deepEqual(model(cork).players.map(p => p.id), ids, 'Opening Cork keeps seat order before the starter is known');
+        cork = dart(cork, miss, { x, y: 0 });
+    }
+    assert.equal(cork.legStarter, 'C');
+    const f = F.create(); f.update(cork, { now: 1000, throwEvent: { id: cork.seq, dart: cork.lastDart } });
+    assert.deepEqual(model(cork, f.snapshot(1000)).players.map(p => p.id), ids, 'The final Cork comparison cannot jump to the selected order early');
+    assert.deepEqual(model(cork, f.update(cork, { now: 1000 + F.TIMING.finalHit })).players.map(p => p.id), ['C', 'D', 'A', 'B']);
+    for (const mode of ['practice', 'countup']) {
+        assert.equal(model(R.create({ mode }, ['A'], 1000)).players[0].id, 'A', 'Solo play retains its one card');
+    }
+    assert.deepEqual(model(R.create({ mode: 'practice' }, ids, 1000, 2)).players.map(p => p.id), ids, 'Practice keeps its seat order');
 }
 
 // A real Double-Out checkout, either a Leg result or the final Match result.
@@ -211,4 +263,4 @@ for (const purpose of ['opening', 'tie', 'limit']) for (const tied of [false, tr
     assert.equal(JSON.stringify(state), accepted, 'Showing the prior Cork comparison cannot modify accepted state');
 }
 
-console.log('PASS: results, scoring history, Cork eligibility and complete final-round comparison presentation.');
+console.log('PASS: fixed Leg display order, results, scoring history, Cork eligibility and complete final-round comparison presentation.');
