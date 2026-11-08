@@ -9,6 +9,7 @@
     var TIERS = ['easy', 'normal', 'hard', 'insane'], ROMAN = ['I', 'II', 'III', 'IV'];
     var LEGACY = Object.freeze({ easy: 1, normal: 6, hard: 11, insane: 14 });
     var CURVE_POWER = 1.8;
+    var ORDINARY_ERROR_SCALE = 0.97;
     var LAPSE_SPREAD_MULTIPLIER = 2.5;
     var ANCHORS = [
         { level: 0, velocity: 380, timing: 0.055, shape: 0.12, lapse: 0.13 },
@@ -45,6 +46,10 @@
         ['velocity', 'timing', 'shape', 'lapse'].forEach(function (key) {
             p[key] = level === a.level ? a[key] : level === b.level ? b[key] : a[key] * Math.pow(b[key] / a[key], fraction);
         });
+        // Slightly sharpen ordinary execution, ramping smoothly away from the
+        // unchanged weakest profile. Lapse frequency and target policies stay fixed.
+        var scale = Math.pow(ORDINARY_ERROR_SCALE, Math.min(1, level));
+        ['velocity', 'timing', 'shape'].forEach(function (key) { p[key] *= scale; });
         // A lapse is a broader version of this player's normal execution error.
         // Strong CPUs no longer jump to the same 650 px/s spread as beginners.
         p.lapseVelocity = Math.min(650, p.velocity * LAPSE_SPREAD_MULTIPLIER);
@@ -65,6 +70,7 @@
     return Object.freeze({ values: VALUES, legacy: LEGACY, defaultLevel: LEGACY.normal,
         valid: valid, normalize: normalize, label: label, strategy: strategy,
         strength: strength, curvePower: CURVE_POWER,
+        ordinaryErrorScale: ORDINARY_ERROR_SCALE,
         lapseSpreadMultiplier: LAPSE_SPREAD_MULTIPLIER,
         profiles: Object.freeze(profiles) });
 });

@@ -7,7 +7,7 @@ const Strategy = require('../js/games/darts-cpu-strategy.js');
 const Rules = require('../js/games/darts-rules.js');
 const physics = require('./helpers/darts-physics.js')(), cpu = Gesture.create(physics);
 assert.deepEqual(Difficulty.profiles[0], { velocity: 380, timing: .055, shape: .12, lapse: .13, lapseVelocity: 650 }, 'Easy I retains its original physical difficulty');
-assert.deepEqual(Difficulty.profiles[15], { velocity: 45, timing: .009, shape: .015, lapse: .004, lapseVelocity: 112.5 }, 'Insane IV combines weaker ordinary execution with softer lapses');
+assert.deepEqual(Difficulty.profiles[15], { velocity: 45 * .97, timing: .009 * .97, shape: .015 * .97, lapse: .004, lapseVelocity: 45 * .97 * 2.5 }, 'Insane IV receives a small precision increase while retaining softer lapses');
 assert.equal(Difficulty.strength(0), 0); assert.equal(Difficulty.strength(15), 15);
 const noExtraRandom = () => { throw Error('Endpoints must not consume a policy blending draw'); };
 assert.equal(Difficulty.strategy(0, noExtraRandom), 'easy');
@@ -88,4 +88,4 @@ for (const [name, base, mult] of [['T20', 20, 3], ['BULL', 25, 2], ['D16', 16, 2
 }
 console.log(JSON.stringify(rows));
 console.log(JSON.stringify(lapseAudit));
-console.log('PASS: sixteen-level validation, weaker ordered profiles, legacy compatibility, unchanged weakest baseline, softer high-level lapses and natural edge-double misses.');
+console.log('PASS: sixteen-level validation, ordered profiles, legacy compatibility, unchanged weakest baseline, softer high-level lapses and natural edge-double misses.');
