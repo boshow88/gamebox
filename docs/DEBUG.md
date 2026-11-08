@@ -185,7 +185,7 @@ efficiency/penalties and matchup samples; see DEV's local CPU section for its
 definition and known Easy Cricket limitation.
 
 The difficulty check verifies all sixteen levels, invalid inputs, the original
-Easy I profile and golden results, weaker top-level scoring, ordered intermediate
+Easy I profile and golden results, top-level scoring near 100 PPR, ordered intermediate
 strengths, legacy/numeric seeded target and gesture agreement, and increasing
 common-seed real-physics scoring/Cork precision. A 30,000-attempt probe per target
 checks softer high-level lapse position errors, rare inner-target board misses

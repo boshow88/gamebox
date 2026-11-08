@@ -7,7 +7,7 @@ const Strategy = require('../js/games/darts-cpu-strategy.js');
 const Rules = require('../js/games/darts-rules.js');
 const physics = require('./helpers/darts-physics.js')(), cpu = Gesture.create(physics);
 assert.deepEqual(Difficulty.profiles[0], { velocity: 380, timing: .055, shape: .12, lapse: .13, lapseVelocity: 650 }, 'Easy I retains its original physical difficulty');
-assert.deepEqual(Difficulty.profiles[15], { velocity: 45 * .97, timing: .009 * .97, shape: .015 * .97, lapse: .004, lapseVelocity: 45 * .97 * 2.5 }, 'Insane IV receives a small precision increase while retaining softer lapses');
+assert.deepEqual(Difficulty.profiles[15], { velocity: 45 * .80, timing: .009 * .80, shape: .015 * .80, lapse: .004, lapseVelocity: 45 * .80 * 2.5 }, 'Insane IV targets roughly 100 PPR while retaining softer lapses');
 assert.equal(Difficulty.strength(0), 0); assert.equal(Difficulty.strength(15), 15);
 const noExtraRandom = () => { throw Error('Endpoints must not consume a policy blending draw'); };
 assert.equal(Difficulty.strategy(0, noExtraRandom), 'easy');
@@ -66,7 +66,7 @@ for (let i = 1; i < rows.length; i++) {
     assert(rows[i].corkMM < rows[i - 1].corkMM, 'Cork precision must improve between adjacent levels');
 }
 assert.deepEqual(rows[0], { level: 1, PPR: 19.56, missPct: 48.4, corkMM: 125.53 }, 'The weakest baseline remains unchanged');
-assert(rows[15].PPR >= 75 && rows[15].PPR <= 95, 'Top-level ordinary scoring is weaker even after softening its rare lapses');
+assert(rows[15].PPR >= 95 && rows[15].PPR <= 105, 'Top-level ordinary scoring stays close to the requested 100 PPR');
 const lapseAudit = [];
 for (const [name, base, mult] of [['T20', 20, 3], ['BULL', 25, 2], ['D16', 16, 2]]) {
     const rng = Gesture.seeded('insane-iv-miss-audit-' + name), target = Strategy.target(base, mult), errors = [];

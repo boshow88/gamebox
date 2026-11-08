@@ -830,10 +830,10 @@ toward the easier end. Easy I keeps its initial profile; the remaining reference
 profiles have larger ordinary velocity/timing/shape errors, including Insane IV.
 Every interior level, including the four legacy aliases, uses the easier curve.
 Positive error parameters interpolate geometrically at that
-reference strength. `ORDINARY_ERROR_SCALE` (0.97) then reduces ordinary velocity,
-timing and shape errors by up to 3%, ramping from no change at Easy I to the full
+reference strength. `ORDINARY_ERROR_SCALE` (0.80) then reduces ordinary velocity,
+timing and shape errors by up to 20%, ramping from no change at Easy I to the full
 adjustment at reference strength 1. Lapse probabilities and tactical selection
-are unchanged by this small strength increase. Tactics blend the neighboring reference
+are unchanged by this strength increase. Tactics blend the neighboring reference
 policies at the same strength, avoiding a sudden policy change at a tier label.
 The thinking interval and physical pipeline remain common to every level.
 Seeded six-thousand-dart probes verify increasing ordinary scoring and Cork
@@ -841,13 +841,13 @@ precision across all sixteen levels, with golden results for the weakest baselin
 
 Rare lapse probabilities remain difficulty-dependent, but their velocity spread
 is `min(650, ordinaryVelocitySpread * LAPSE_SPREAD_MULTIPLIER)`, with multiplier
-2.5. Insane IV now uses ordinary spread 43.65 and lapse spread 109.125, rather than
-jumping from 30 to 650. This makes high-level mistakes more local while the larger
-ordinary error lowers scoring strength overall. The probability is not a forced
+2.5. Insane IV now uses ordinary spread 36 and lapse spread 90, keeping high-level
+mistakes more local while its regular execution targets roughly 100 ordinary PPR.
+The probability is not a forced
 miss: synthetic samples still pass through unchanged human physics. No impact
 is clamped to the board; edge doubles can still miss naturally. A seeded
 30,000-attempt probe per target measures 0 observed board misses at T20/Bull and
-36.15% at D16 for Insane IV, with lapse position-error p95 around 61–64 mm. These
+32.97% at D16 for Insane IV, with lapse position-error p95 around 50–53 mm. These
 are sampled results, not a guarantee that an inner target can never miss.
 
 `darts-cpu-strategy.js` chooses physical target centres. X01 uses bounded legal
@@ -913,10 +913,10 @@ complete-game net PPR with Bust and checkout effects.
 
 | Difficulty | Ordinary PPR | Physical miss | Cork mean distance | Standard Cricket target MPR |
 | --- | ---: | ---: | ---: | ---: |
-| Easy II | 19.02 | 49.52% | 121.99 mm | 0.66 |
-| Normal III | 30.23 | 21.40% | 75.13 mm | 1.06 |
-| Hard IV | 45.43 | 0.30% | 29.67 mm | 1.87 |
-| Insane III | 71.50 | 0.03% | 16.71 mm | 3.01 |
+| Easy II | 19.37 | 48.92% | 119.85 mm | 0.62 |
+| Normal III | 31.91 | 17.28% | 61.96 mm | 1.08 |
+| Hard IV | 50.67 | 0.12% | 24.47 mm | 2.38 |
+| Insane III | 83.50 | 0.02% | 13.78 mm | 3.45 |
 
 The default calibration retains the original four string seeds for historical
 comparison. `node tools/darts-cpu-calibrate.js --all-levels` reports all sixteen
@@ -924,10 +924,10 @@ numeric levels with their own seeds. Ordinary PPR is approximately:
 
 | Tier | I | II | III | IV |
 | --- | ---: | ---: | ---: | ---: |
-| Easy | 19.43 | 19.65 | 19.79 | 21.17 |
-| Normal | 22.59 | 26.86 | 28.74 | 31.94 |
-| Hard | 35.24 | 38.83 | 41.33 | 44.28 |
-| Insane | 51.32 | 59.09 | 70.48 | 85.29 |
+| Easy | 19.43 | 19.97 | 21.24 | 22.61 |
+| Normal | 25.35 | 28.31 | 30.82 | 34.16 |
+| Hard | 37.50 | 41.97 | 44.79 | 49.82 |
+| Insane | 59.08 | 69.36 | 82.63 | 97.62 |
 
 Numeric and legacy probes use different random seeds, so their sample averages
 differ at the same difficulty. The lowest neighboring levels have overlapping
@@ -938,8 +938,8 @@ progression are tested separately. The all-level four-player Cut-Throat matchup
 keeps one of each legacy position, rather than sixteen seats.
 
 For 301 Open In/Double Out simulations, net game PPR is respectively
-12.52/16.49/37.48/56.49. A separate 1,000-dart D16 probe converts a 32-point
-checkout on 1.2/3.0/11.3/21.4% of darts. The script also reports turn distributions,
+12.16/18.97/43.92/69.73. A separate 1,000-dart D16 probe converts a 32-point
+checkout on 1.2/4.0/15.8/26.4% of darts. The script also reports turn distributions,
 Busts, closing efficiency, penalties, Cork medians/near-Bull frequency and small
 matchup samples. Stronger tiers generally perform better; lower tiers can still
 win some seeded games. Easy did not close all Cricket targets in the

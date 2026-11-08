@@ -9,7 +9,7 @@
     var TIERS = ['easy', 'normal', 'hard', 'insane'], ROMAN = ['I', 'II', 'III', 'IV'];
     var LEGACY = Object.freeze({ easy: 1, normal: 6, hard: 11, insane: 14 });
     var CURVE_POWER = 1.8;
-    var ORDINARY_ERROR_SCALE = 0.97;
+    var ORDINARY_ERROR_SCALE = 0.80;
     var LAPSE_SPREAD_MULTIPLIER = 2.5;
     var ANCHORS = [
         { level: 0, velocity: 380, timing: 0.055, shape: 0.12, lapse: 0.13 },
@@ -46,7 +46,7 @@
         ['velocity', 'timing', 'shape', 'lapse'].forEach(function (key) {
             p[key] = level === a.level ? a[key] : level === b.level ? b[key] : a[key] * Math.pow(b[key] / a[key], fraction);
         });
-        // Slightly sharpen ordinary execution, ramping smoothly away from the
+        // Sharpen ordinary execution, ramping smoothly away from the
         // unchanged weakest profile. Lapse frequency and target policies stay fixed.
         var scale = Math.pow(ORDINARY_ERROR_SCALE, Math.min(1, level));
         ['velocity', 'timing', 'shape'].forEach(function (key) { p[key] *= scale; });
