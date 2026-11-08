@@ -935,6 +935,7 @@
         wire: '#0b0e12',
         numberRing: '#141414',
         singleDark: '#1c1c1c',
+        cricketDark: '#514e43',
         singleLight: '#e8d7ac',
         ringRed: '#d33a2c',
         ringGreen: '#2e8b57',
@@ -986,7 +987,8 @@
             var centreCanvas = -Math.PI / 2 + i * 18 * Math.PI / 180;
             var a0 = centreCanvas - half, a1 = centreCanvas + half;
             var dark = (i % 2 === 0);                    // 20 (i=0) is a dark single
-            var single = dark ? COL.singleDark : COL.singleLight;
+            var emphasized = focus && Object.hasOwn(focus, SECTORS[i]) && !focus[SECTORS[i]];
+            var single = dark ? emphasized ? COL.cricketDark : COL.singleDark : COL.singleLight;
             var ring = dark ? COL.ringRed : COL.ringGreen;
             if (focus) {
                 ctx.save();

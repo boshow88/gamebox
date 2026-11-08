@@ -1942,6 +1942,8 @@ async function checkDartsCricketFocusV2() {
         await dartsChange(f, 'mode-select', 'cricket'); await dartsChange(f, 'cricket-select', variant); await dartsAdd(f, 3); await dartsStartLocal(f); api.refresh();
         const bounds = doc.getElementById('stage').getBoundingClientRect().toJSON(), pixel = n => api.boardPixel(n, 3), sum = p => p[0] + p[1] + p[2];
         const open20 = pixel(20), unrelated = pixel(13);
+        const dark20 = api.boardPixel(20, 1), dark18 = api.boardPixel(18, 1), dark13 = api.boardPixel(13, 1);
+        dartsAssert(sum(dark20) > sum(dark13) * 2 && sum(dark18) > sum(dark13) * 2, 'The dark 20/18 single beds are visibly emphasized alongside light Cricket targets');
         dartsAssert(sum(open20) > sum(unrelated) * 1.3, 'Relevant Cricket rings retain their color while unrelated rings recede');
         dartsAssert(sum(api.boardPixel(15, 1)) > sum(api.boardPixel(1, 1)) * 1.3, 'Cricket single beds stand out without changing their geometry');
         let state = structuredClone(api.snapshot().match);
@@ -1952,6 +1954,7 @@ async function checkDartsCricketFocusV2() {
         dartsAssert(JSON.stringify(pixel(20)) === JSON.stringify(open20), 'One remaining open opponent keeps the number relevant');
         state = w.DartsRules.withdraw(state, openOpponent, w.Date.now()); api.replace(state);
         dartsAssert(sum(pixel(20)) < sum(unrelated), 'A target closed by all remaining players fades even when a withdrawn player has it open');
+        dartsAssert(sum(api.boardPixel(20, 1)) < sum(dark20) * .6, 'A globally closed dark target loses its warm highlight');
         const bull = api.boardPixel(25, 2);
         state.players.forEach(id => { state.marks[id][25] = 3; }); state.seq++; api.replace(state);
         dartsAssert(sum(api.boardPixel(25, 2)) < sum(bull) * .7, 'Bull also fades only after global closure');
@@ -1963,6 +1966,7 @@ async function checkDartsCricketFocusV2() {
         dartsClick(f, 'restart-btn'); await until(() => dartsData(f).phase === 'lobby', 'leave Cricket focus fixture');
         await dartsChange(f, 'mode-select', 'x01'); await dartsStartLocal(f); api.refresh();
         dartsAssert(JSON.stringify(pixel(20)) === JSON.stringify(pixel(13)), 'X01 retains its original board palette');
+        dartsAssert(JSON.stringify(api.boardPixel(20, 1)) === JSON.stringify(api.boardPixel(13, 1)), 'X01 keeps ordinary dark single beds');
         dartsAssert(JSON.stringify(doc.getElementById('stage').getBoundingClientRect().toJSON()) === JSON.stringify(bounds), 'Focus never resizes or repositions the board');
         dartsAssert(doc.documentElement.scrollWidth <= width && doc.documentElement.scrollHeight <= height, 'Focus creates no viewport overflow');
         f.remove();
@@ -1975,6 +1979,6 @@ async function checkDartsCricketFocusPreviewV2() {
     f.style.cssText = 'position:fixed;inset:0;width:' + width + 'px;height:' + height + 'px;border:0;z-index:20';
     await dartsChange(f, 'mode-select', 'cricket'); await dartsChange(f, 'timer-select', 0); await dartsAdd(f, 3);
     w.ArcadeCommon.i18n.setLocale('zh'); await dartsStartLocal(f); api.previewCricket();
-    const state = api.snapshot().match; state.players.forEach(id => { state.marks[id][20] = 3; }); api.refresh();
+    const state = api.snapshot().match; state.players.forEach(id => { state.marks[id][19] = 3; }); api.refresh();
     await dartsDoc(f).fonts.ready; await sleep(60);
 }
