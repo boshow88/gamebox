@@ -972,10 +972,10 @@ details with one dart and its distance. Practice player cards show per-slot dart
 and its feedback preserves the established free-throw interaction.
 
 `cricketBoardFocus()` supplies presentation-only target emphasis in ordinary
-Cricket. The renderer keeps the standard red/green rings and light single beds,
-keeps active dark 20/18 beds dark with thin gold outlines (`COL.cricketOutline`), uses
-brighter, slightly larger bold number labels, and draws unrelated beds at 58% opacity.
-Targets closed by every non-withdrawn player fade to 32% with subdued labels;
+Cricket. The renderer keeps all active target fills in their standard colors,
+including dark 20/18 beds, with no extra outlines. It uses brighter, slightly
+larger bold target labels and draws unrelated beds at 35% opacity with darker labels.
+Targets closed by every non-withdrawn player fade to 22% with subdued labels;
 closing only the current player's marks does not fade a still-useful scoring or
 penalty target. Lobby previews use the selected mode without stale match marks.
 Cork and other modes retain the ordinary board palette. This reads accepted

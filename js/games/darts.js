@@ -935,7 +935,6 @@
         wire: '#0b0e12',
         numberRing: '#141414',
         singleDark: '#1c1c1c',
-        cricketOutline: '#dbc478',
         singleLight: '#e8d7ac',
         ringRed: '#d33a2c',
         ringGreen: '#2e8b57',
@@ -991,7 +990,7 @@
             var ring = dark ? COL.ringRed : COL.ringGreen;
             if (focus) {
                 ctx.save();
-                ctx.globalAlpha *= Object.hasOwn(focus, SECTORS[i]) ? focus[SECTORS[i]] ? 0.32 : 1 : 0.58;
+                ctx.globalAlpha *= Object.hasOwn(focus, SECTORS[i]) ? focus[SECTORS[i]] ? 0.22 : 1 : 0.35;
             }
             wedge(cx, cy, rOutBull, rTripIn, a0, a1, single);       // inner single
             wedge(cx, cy, rTripIn, rTripOut, a0, a1, ring);         // triple
@@ -1014,24 +1013,9 @@
             ctx.beginPath(); ctx.arc(cx, cy, rr, 0, PI2); ctx.stroke();
         });
 
-        // Keep dark targets distinct from adjacent light beds; outline active
-        // dark sectors instead of brightening their fill to a similar gray.
-        if (focus) {
-            ctx.save(); ctx.strokeStyle = COL.cricketOutline; ctx.lineWidth = 1.2; ctx.lineJoin = 'round';
-            for (var h = 0; h < 20; h += 2) {
-                if (!Object.hasOwn(focus, SECTORS[h]) || focus[SECTORS[h]]) continue;
-                var angle = -Math.PI / 2 + h * Math.PI / 10;
-                ctx.beginPath();
-                ctx.arc(cx, cy, rDoubleOut, angle - half, angle + half);
-                ctx.arc(cx, cy, rOutBull, angle + half, angle - half, true);
-                ctx.closePath(); ctx.stroke();
-            }
-            ctx.restore();
-        }
-
         // bulls
         ctx.save();
-        if (focus && focus[25]) ctx.globalAlpha *= 0.32;
+        if (focus && focus[25]) ctx.globalAlpha *= 0.22;
         ctx.beginPath(); ctx.arc(cx, cy, rOutBull, 0, PI2); ctx.fillStyle = COL.bullOuter; ctx.fill(); ctx.stroke();
         ctx.beginPath(); ctx.arc(cx, cy, rInBull, 0, PI2); ctx.fillStyle = COL.bullInner; ctx.fill(); ctx.stroke();
         ctx.restore();
@@ -1042,7 +1026,7 @@
         for (var m = 0; m < 20; m++) {
             var na = -Math.PI / 2 + m * 18 * Math.PI / 180;
             var target = focus && Object.hasOwn(focus, SECTORS[m]), open = target && !focus[SECTORS[m]];
-            ctx.fillStyle = !focus ? '#efe7d0' : open ? '#fff2b0' : target ? '#6b706e' : '#8d918d';
+            ctx.fillStyle = !focus ? '#efe7d0' : open ? '#fff2b0' : target ? '#555c58' : '#6f7470';
             ctx.font = (open ? '800 ' : '600 ') + (open ? Math.max(3, Math.round(numberSize * 1.08)) : numberSize) + 'px ' + getFont();
             ctx.fillText(String(SECTORS[m]), cx + Math.cos(na) * rNumber, cy + Math.sin(na) * rNumber);
         }
