@@ -974,6 +974,7 @@ and its feedback preserves the established free-throw interaction.
 Cricket's 1/2/3 marks use the shared inline Lucide `slash`/`x`/`circle-x` SVGs
 through the injected `ArcadeCommon.icon` helper. Their diagonal strokes stay at
 45 degrees and inherit the cell's color, independent of system font glyphs.
+The slash renders at 80% scale to balance its longer diagonal against the other marks.
 Empty marks keep the dot, withdrawn seats keep the dash, and existing accessible
 cell labels describe the mark count while the SVG is decorative/non-focusable.
 

@@ -317,7 +317,7 @@
                     m.players.forEach(function (p) {
                         var n = p.marks[target], mark = el('td', p.left ? 'withdrawn' : n === 3 ? 'closed' : '', p.left ? '—' : n === 0 ? '·' : null);
                         if (!p.left && n > 0) {
-                            var glyph = options.icon(['', 'slash', 'x', 'circle-x'][n], { className: 'cricket-mark' });
+                            var glyph = options.icon(['', 'slash', 'x', 'circle-x'][n], { className: 'cricket-mark' + (n === 1 ? ' cricket-mark-slash' : '') });
                             glyph.setAttribute('focusable', 'false'); mark.append(glyph);
                         }
                         mark.setAttribute('aria-label', p.name + ' · ' + (p.left ? t('dartsWithdrawn') : t('dartsMark' + n)));
