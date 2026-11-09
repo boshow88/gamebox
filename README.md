@@ -39,7 +39,7 @@ js/
   birthday-cake.js    Reusable directional candle interaction
   birthday-settings.js Optional manual birthday account settings
   games/*.js          One module per game (logic + rendering)
-  games/unshackle/    Unshackle's isolated 3D engine, renderer and UI
+  games/unshackle/    Unshackle's 3D engine, renderer, UI and continuous sliding
   generators/*.js     Puzzle generators & solvers
 games/*.html          One page per game (each sets <body data-theme="…">)
 tools/*.html          Puzzle dev tools (generators/solvers test harnesses)

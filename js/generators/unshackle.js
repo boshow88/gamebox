@@ -8,9 +8,10 @@
     'use strict';
     const E = global.UnshackleEngine, M = E.math;
     const VERSION = 1;
-    const SIZES = [6, 12, 18, 24, 30];
-    const SHARE_SIZES = [...SIZES, 8, 10, 16, 20];
-    const GENERATION_SIZES = [...SHARE_SIZES, 36, 48];
+    const SIZES = [12, 18, 24, 30, 36, 48];
+    const SETTINGS = { easy: { sizes: [12, 18] }, medium: { sizes: [24, 30] }, hard: { sizes: [36, 48] } };
+    const SHARE_SIZES = [...SIZES, 6, 8, 10, 16, 20];
+    const GENERATION_SIZES = SHARE_SIZES;
     const COLORS = ['#43b9de', '#f4a34f', '#d86db1', '#69b77d', '#dbba46', '#a58adb', '#dd7e70', '#619bc4', '#a6ad58', '#b681a3', '#60aaa3', '#cc955c'];
     const LARGE_COLORS = [...COLORS, '#5e85cc', '#cf6991', '#7bac56', '#ba8250', '#55aeba', '#aa75c4', '#dcaa3b', '#cf7659', '#728bc1', '#78a49b', '#bda052', '#b56a83'];
     const EXTENDED_COLORS = [...LARGE_COLORS, '#b35f45', '#4c9f88', '#7d71c5', '#d48c3e', '#bd619a', '#669a47',
@@ -73,11 +74,12 @@
         return graph.map((bs, i) => `${s.depths[i]},${bs.length},${out[i]}`).sort().join(';');
     }
 
-    async function assemble(size, difficulty, rng, yieldWork) {
+    async function assemble(size, difficulty, rng, yieldWork, profile) {
+        const makePiece = profile?.makePiece || E.piece;
         const b = band(size, difficulty), target = difficulty === 'easy' ? b.max : b.min;
         const rootCount = Math.min(size, size > 24 ? 24 : 12);
-        const rootLength = grid(rng, 3.0 + rootCount * 0.42, 4.6 + rootCount * 0.42);
-        const pieces = [E.piece(1, COLORS[0], [0, 0, 0], AXES[0], AXES[2], rootLength, rng() < 0.5 ? -1 : 1)];
+        const rootLength = grid(rng, profile?.rootLength?.[0] ?? 3.0 + rootCount * 0.42, profile?.rootLength?.[1] ?? 4.6 + rootCount * 0.42);
+        const pieces = [makePiece(1, COLORS[0], [0, 0, 0], AXES[0], AXES[2], rootLength, rng() < 0.5 ? -1 : 1)];
         let graph = [[]];
         for (let id = 2; id <= size; id++) {
             let accepted = false;
@@ -94,10 +96,10 @@
                 const ranked = hosts.slice().sort((a, b) => stats.depth < target ? downstream(b.id) - downstream(a.id) : downstream(a.id) - downstream(b.id));
                 const host = extend && ranked.length && rng() < 0.9 ? ranked[0] : one(rng, hosts.length ? hosts : pieces);
                 const u = M.mul(M.cross(host.u, host.v), rng() < 0.5 ? -1 : 1), v = M.mul(host.u, rng() < 0.5 ? -1 : 1);
-                const length = grid(rng, 3.2, 5.6);
+                const length = grid(rng, profile?.pieceLength?.[0] ?? 3.2, profile?.pieceLength?.[1] ?? 5.6);
                 const center = M.add(host.center, M.add(M.mul(host.u, grid(rng, -host.length / 2 + 0.8, host.length / 2 - 0.8)),
                     M.add(M.mul(host.v, grid(rng, -0.16, 0.16)), M.mul(u, grid(rng, -length / 2 + 0.8, length / 2 - 0.8)))));
-                const p = E.piece(id, COLORS[(id - 1) % COLORS.length], center, u, v, length, rng() < 0.5 ? -1 : 1);
+                const p = makePiece(id, COLORS[(id - 1) % COLORS.length], center, u, v, length, rng() < 0.5 ? -1 : 1);
                 if (pieces.some(q => E.overlaps(p, q, 0.035))) continue;
                 if (pieces.some(q => E.sweptCollision(p, q))) continue;
                 const blocked = pieces.map(q => E.sweptCollision(q, p));
@@ -107,7 +109,7 @@
                 if (nextStats.depth > b.max) continue;
                 // Bound the cluster diameter so increasing count does not just
                 // produce a very long, sparse chain outside the playable view.
-                if (E.bounds([...pieces, p]).radius > 7.5 + Math.max(0, size - 12) * 0.15) continue;
+                if (E.bounds([...pieces, p]).radius > (profile?.maxRadius ?? 7.5 + Math.max(0, size - 12) * 0.15)) continue;
                 pieces.push(p); graph = next; accepted = true; break;
             }
             if (!accepted) return null;
@@ -118,10 +120,10 @@
         return { pieces, graph, stats };
     }
 
-    async function generate(size, difficulty, seed, onProgress) {
+    async function generate(size, difficulty, seed, onProgress, profile) {
         if (!GENERATION_SIZES.includes(size) || !['easy', 'medium', 'hard'].includes(difficulty)) throw new Error('Invalid Unshackle settings');
         const rng = makeRng(seed), pool = [];
-        const poolTarget = difficulty === 'easy' ? 2 : 4, budget = 48;
+        const poolTarget = profile?.candidatePool ?? (difficulty === 'easy' ? 2 : 4), budget = profile?.assemblyBudget ?? 48;
         let lastYield = Date.now(), attempts = 0;
         const yieldWork = async () => {
             if (onProgress && Date.now() - lastYield > 35) {
@@ -129,7 +131,7 @@
             }
         };
         for (; attempts < budget && pool.length < poolTarget; attempts++) {
-            const candidate = await assemble(size, difficulty, rng, yieldWork);
+            const candidate = await assemble(size, difficulty, rng, yieldWork, profile);
             if (candidate) {
                 candidate.fingerprint = fingerprint(candidate.pieces);
                 candidate.structure = structureKey(candidate.graph);
@@ -143,7 +145,8 @@
         // IDs and colours are independently shuffled, hiding insertion order.
         // Preserve version-1 outputs for the original sizes and shared seeds.
         const order = shuffle(chosen.pieces.slice(), rng), colors = shuffle((size <= 12 ? COLORS : size <= 24 ? LARGE_COLORS : EXTENDED_COLORS).slice(), rng);
-        const pieces = order.map((p, i) => E.piece(i + 1, colors[i], p.center, p.u, p.v, p.length, M.dot(p.u, p.dir) > 0 ? 1 : -1));
+        const makePiece = profile?.makePiece || E.piece;
+        const pieces = order.map((p, i) => makePiece(i + 1, colors[i], p.center, p.u, p.v, p.length, M.dot(p.u, p.dir) > 0 ? 1 : -1, p));
         const graph = E.blockingGraph(pieces), stats = E.analyze(graph);
         if (!qualifies(stats, size, difficulty)) throw new Error('Unshackle final verification failed');
         // A successful constructive witness must agree with the independent
@@ -160,13 +163,13 @@
     }
     global.PuzzleGenerators = global.PuzzleGenerators || {};
     global.PuzzleGenerators.unshackle = generate;
-    global.PuzzleGenerators.unshackleInternals = { band, qualifies, fingerprint, structureKey, SIZES, SHARE_SIZES, VERSION };
+    global.PuzzleGenerators.unshackleInternals = { band, qualifies, fingerprint, structureKey, SETTINGS, SIZES, SHARE_SIZES, VERSION };
 })(typeof window === 'undefined' ? globalThis : window);
 
 /** Optional match-three mode, using the same physical geometry as Classic. */
 (function (global) {
     'use strict';
-    const SIZES = [12, 24, 36, 48], CAPACITY = 5;
+    const SIZES = global.PuzzleGenerators.unshackleInternals.SIZES, CAPACITY = 5;
     const GROUPS = [
         // Keep the first six entries stable for legacy shared puzzles.
         { color: '#dd7e70', symbol: '●' }, { color: '#619bc4', symbol: '▲' },
@@ -175,13 +178,14 @@
         { color: '#cf6d9e', symbol: '★' }, { color: '#4a9e9b', symbol: '⬟' },
     ];
     // Append-only group IDs preserve both legacy replay and solver count indices.
-    const PALETTE = ['#d64235', '#2468cf', '#e8bc20', '#328443', '#8346bb', '#ef8422',
-        '#d94a91', '#49342b', '#8ca82d', '#25344d', '#a8cce8', '#858585'];
+    // Muted warm/cool hues; extra groups differ in lightness as well as hue.
+    const PALETTE = ['#cf8276', '#619bc4', '#c9b257', '#73a581', '#a58adb', '#d7a06b',
+        '#c4779b', '#98725d', '#a6ad58', '#526581', '#b5cedb', '#91918b'];
     while (GROUPS.length < PALETTE.length) GROUPS.push({ color: PALETTE[GROUPS.length], symbol: ['○', '△', '□', '◇'][GROUPS.length - 8] });
     const SETTINGS = {
-        easy: { sizes: [12, 24], slots: 3, greedyMin: 3, greedyMax: 4, tripleFraction: 1 },
-        medium: { sizes: [24, 36], slots: 4, greedyMin: 0, greedyMax: 1, tripleFraction: 0.5 },
-        hard: { sizes: [36, 48], slots: 5, greedyMin: 0, greedyMax: 0, tripleFraction: 0.25 },
+        easy: { sizes: global.PuzzleGenerators.unshackleInternals.SETTINGS.easy.sizes, slots: 3, greedyMin: 3, greedyMax: 4, tripleFraction: 1 },
+        medium: { sizes: global.PuzzleGenerators.unshackleInternals.SETTINGS.medium.sizes, slots: 4, greedyMin: 0, greedyMax: 1, tripleFraction: 0.5 },
+        hard: { sizes: global.PuzzleGenerators.unshackleInternals.SETTINGS.hard.sizes, slots: 5, greedyMin: 0, greedyMax: 0, tripleFraction: 0.25 },
     };
     function rngFor(seed) {
         let a = (seed ^ 0x47ad31b9) >>> 0;
@@ -222,7 +226,64 @@
     // With immediate triples, residual colour counts depend only on the removed
     // subset. A memoized subset search is exact; exhausting its budget is unknown,
     // never evidence that a position is unsolvable.
+    // Two 24-bit lanes fit all supported boards in an exact Number key.
+    // Keep the same DFS order, budget and dominance proof as the BigInt path.
     function solve(puzzle, removed = [], capacity = CAPACITY, budget = 60000) {
+        const n = puzzle.pieces.length;
+        if (n > 48) return solveBigInt(puzzle, removed, capacity, budget);
+        const lane = 2 ** 24;
+        const low = Array.from({ length: n }, (_, i) => i < 24 ? 1 << i : 0);
+        const high = Array.from({ length: n }, (_, i) => i >= 24 ? 1 << (i - 24) : 0);
+        const fullLow = 2 ** Math.min(n, 24) - 1, fullHigh = 2 ** Math.max(0, n - 24) - 1;
+        const needsLow = puzzle.graph.map(bs => bs.reduce((m, id) => m | low[id - 1], 0));
+        const needsHigh = puzzle.graph.map(bs => bs.reduce((m, id) => m | high[id - 1], 0));
+        const dependents = n > 24 ? Array.from({ length: n }, (_, i) => {
+            let lo = 0, hi = 0;
+            for (let j = 0; j < n; j++) if ((needsLow[j] & low[i]) || (needsHigh[j] & high[i])) {
+                lo |= low[j]; hi |= high[j];
+            }
+            return { lo, hi };
+        }) : null;
+        const groups = puzzle.pieces.map(p => p.group), counts = GROUPS.map(() => 0);
+        let initialLow = 0, initialHigh = 0;
+        for (const id of removed) { initialLow |= low[id - 1]; initialHigh |= high[id - 1]; }
+        for (let i = 0; i < n; i++) if ((initialLow & low[i]) || (initialHigh & high[i])) counts[groups[i]]++;
+        for (let i = 0; i < counts.length; i++) counts[i] %= 3;
+        const occupied = counts.reduce((a, b) => a + b, 0), dead = new Set(), path = [];
+        let visited = 0, exhausted = false;
+        function visit(lo, hi, used) {
+            if (used > capacity) return false;
+            if (lo === fullLow && hi === fullHigh) return used === 0;
+            const key = lo + hi * lane;
+            if (dead.has(key)) return false;
+            if (++visited > budget) { exhausted = true; return false; }
+            const legal = [];
+            for (let i = 0; i < n; i++) {
+                if ((lo & low[i]) || (hi & high[i]) || (lo & needsLow[i]) !== needsLow[i] || (hi & needsHigh[i]) !== needsHigh[i]) continue;
+                const next = used + (counts[groups[i]] === 2 ? -2 : 1);
+                if (next <= capacity) legal.push({ i, next });
+            }
+            legal.sort((a, b) => a.next - b.next || a.i - b.i);
+            for (const { i, next } of legal) {
+                if (dependents) {
+                    const blockedLow = dependents[i].lo & (fullLow ^ lo), blockedHigh = dependents[i].hi & (fullHigh ^ hi);
+                    if (legal.some(({ i: j }) => j !== i && groups[j] === groups[i]
+                        && (blockedLow & dependents[j].lo) === blockedLow && (blockedHigh & dependents[j].hi) === blockedHigh
+                        && ((dependents[j].lo & (fullLow ^ lo)) !== blockedLow || (dependents[j].hi & (fullHigh ^ hi)) !== blockedHigh || j < i))) continue;
+                }
+                const g = groups[i], before = counts[g];
+                counts[g] = (before + 1) % 3; path.push(i + 1);
+                if (visit(lo | low[i], hi | high[i], next)) return true;
+                path.pop(); counts[g] = before;
+                if (exhausted) return false;
+            }
+            dead.add(key); return false;
+        }
+        const solved = visit(initialLow, initialHigh, occupied);
+        return { status: solved ? 'solved' : exhausted ? 'budget' : 'unsolvable',
+            solution: solved ? path.slice() : [], visited };
+    }
+    function solveBigInt(puzzle, removed = [], capacity = CAPACITY, budget = 60000) {
         const n = puzzle.pieces.length, bits = Array.from({ length: n }, (_, i) => 1n << BigInt(i));
         const full = (1n << BigInt(n)) - 1n;
         const needs = puzzle.graph.map(bs => bs.reduce((m, id) => m | bits[id - 1], 0n));

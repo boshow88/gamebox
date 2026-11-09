@@ -4,15 +4,16 @@
 
 Static, offline, vanilla JS; no packages, CDN, build or account requirement.
 `PuzzleCommon` supplies language, sound, timer, staged selectors, solve records,
-progress, sharing and undo snapshots. Shared engines, CSS, existing games,
-generators and their tests are unchanged. Player copy is English / Traditional
+progress, sharing and undo snapshots. Shared puzzle/arcade infrastructure and
+unrelated games remain unchanged. Player copy is English / Traditional
 Chinese; comments and docs are English.
 
-The three game modules are grouped under `js/games/unshackle/`, as requested:
+Game modules are grouped under `js/games/unshackle/`:
 
 - `engine.js`: tube geometry, continuous collision queries, bounds and graph analysis.
 - `view.js`: local WebGL meshes, lighting, depth-tested ID picking and camera.
 - `game.js`: shell integration, generation lifecycle, input, animation and undo.
+- `free.js`: continuous axial positions, contact intervals, solver and seeded generation.
 
 `js/generators/unshackle.js` contains generation and grading, following the existing
 one-generator-file-per-game convention. `games/unshackle.html` owns the page and
@@ -60,8 +61,8 @@ edge count and join count. A cyclic graph is rejected.
 
 Generator version 1 accepts `(size, difficulty, seed, onProgress)` and returns
 pieces, graph, solution, geometry fingerprint, structural signature and stats.
-Classic offers 6, 12, 18, 24 and 30 pieces, defaulting to 12. The generator also
-accepts 36/48 for Triple match, plus legacy 8/10/16/20 shared links. A local
+Classic offers 12, 18, 24, 30, 36 and 48 pieces, defaulting to 12. The generator
+also accepts legacy 6/8/10/16/20 shared links. A local
 Mulberry32 stream drives construction and Fisher-Yates shuffles, including seed
 zero. IDs/colours are shuffled after assembly
 so they do not reveal construction order.
@@ -142,7 +143,7 @@ links carry neither match parameter.
 Sharing always identifies the running puzzle, even with another mode staged.
 The selectors remember each mode's size while switching within the page.
 
-Triple match offers 12, 24, 36 and 48 pieces. New 24/36/48-piece boards use all
+Triple match offers 12, 18, 24, 30, 36 and 48 pieces. New 24/36/48-piece boards use all
 eight colours; 12 pieces can contain only four complete triples, so use four
 colours selected from the palette. Every colour also has a unique symbol.
 Group symbols are off by default; an optional
@@ -220,8 +221,8 @@ Version 3 uses one shared difficulty policy for the generator and match toolbar:
 
 | Difficulty | New puzzle sizes | Colours | Greedy completions (four strategies) |
 | --- | --- | --- | --- |
-| Easy | 12, 24 | One unique triple per colour | At least three |
-| Medium | 24, 36 | One unique triple per colour | At most one |
+| Easy | 12, 18 | One unique triple per colour | At least three |
+| Medium | 24, 30 | One unique triple per colour | At most one |
 | Hard | 36, 48 | Eight colours, some with two triples | None |
 
 Minimum required occupancy remains 2–3 / 4 / 5. Medium requires a verified bad
@@ -233,7 +234,7 @@ clearing an accessible triple: each must have a verified five-place continuation
 Unknown searches reject an assignment. This guarantee does not cover arbitrary
 partial extractions with leftovers on the plate.
 
-New puzzles use a twelve-colour palette with separated hue and lightness, replacing
+New puzzles use a muted twelve-colour palette with separated hue and lightness, replacing
 the old teal/blue-green pairing. Only Medium 36 needs all twelve; Easy and Hard
 use at most eight. Symbols remain optional and off by default. Colour alone still
 needs human assessment on small screens and under the renderer's lighting.
@@ -349,3 +350,171 @@ Additional checks cover seed replay, direct
 picking and small viewports. WebGL is required; unavailable or lost contexts
 display localized feedback. Desktop Chromium and synthetic touch events do not
 establish physical iOS/Android behavior.
+
+## Continuous sliding: compact structural interlocks (versions 4–5)
+
+The three toolbar modes are Classic, Triple match and Continuous slide. The old
+fixed-stop mode and its level bank, controls, solver and checks have been removed.
+Continuous slide offers 12/18/24/30/36/48-piece Interwoven layouts, defaulting
+to 12. Six- and eight-piece generation remains available for internal core
+construction and existing shared links, but is no longer offered in new-game
+settings. Piece counts use the common numeric segmented control.
+Larger layouts retain an eight-piece blocked core and grow connected frames by
+reverse insertion with bounded backtracking when an insertion leaves no space
+for subsequent frames. Each added frame has a clear exit and robustly blocks existing
+bodies; the full removal and sliding witness is replayed. More pieces increase
+assembly size and do not establish a higher difficulty rating. The selector labels describe structure, not calibrated human
+difficulty. New Game generates a fresh arrangement; Share preserves size and seed.
+The two-layout prototype and artificial second-rescue-path obstacle are retired.
+
+`free.js` owns continuous positions, contact intervals, generation and route
+search. Pieces retain their exact real-valued position on release. Escape,
+pointer cancellation and pinching discard a preview. Contact intervals use
+continuous swept capsules and bisection, with a 0.0001-unit clearance. Reverse
+travel has no artificial stop in an unobstructed direction. Full removal remains
+toward the white cap. A clear full ray and a deliberate 56px forward pull show
+Release to remove; release animates the remaining checked exit. An obstacle
+anywhere along the full ray disables that assistance.
+
+The compact construction profile uses 1.25-unit-wide frames, 4–4.8-unit roots and
+3.2–4.5-unit other frames, with a 5.2-unit assembly-radius ceiling. Visible rounded
+shoulders on the locked core are real collision capsules, rendered at the same
+radius and orientation. The white end cap is contained by its structural shoulder;
+a blocking cycle cannot be supported solely by the white marker. Shoulders are
+removed from already-extractable outer pieces to reduce clutter, and the final
+geometry is checked again. Shared `engine.piece` accepts an optional width, and
+the shared reverse-assembly generator accepts an optional construction profile.
+Defaults preserve Classic and legacy Triple match seeds exactly.
+
+Generation reverse-assembles these actual physical parts, then scrambles legal
+continuous translations near the assembly. Collision-limited scrambles stop at
+contact instead of repeatedly rejecting the whole attempted move. The 1.6-unit
+scramble bound is a generation constraint only. Reversing the legal scramble
+provides a constructive witness; the final shoulder/outer-frame configuration
+also requires a complete, independently replayed solution.
+
+Acceptance checks physical layout rather than counting small extra moves:
+
+- Greedy extraction leaves at least three pieces in Practice and four in the
+  8-piece layout. There is a cycle made of structural bodies alone.
+- Those body-blocking edges survive 0.04-unit perturbations in both transverse
+  directions. At least 80% of all blocking edges are stable, and none are
+  end-cap-only catches.
+- The blocked core is connected by nearby body surfaces (at most a 0.55-unit
+  surface gap). Its center span is at most 3.2 units; the whole board's is at most
+  4.4. Overall radius may grow by at most 10% from the compact assembly.
+- A bounded search verifies one to four useful shifts. Shifts are at least
+  0.38 units. Under- and overshooting a target by 0.18 units must both preserve
+  the remaining route; a real physical contact clamps the overshoot.
+- Fingerprints include the actual shoulder geometry as well as frames, not just
+  piece labels or a rendered camera scale.
+
+There is no requirement to manufacture a second shift or obstruct an otherwise
+valid rescue path. `stats.verifiedShifts` and `coordinatedPieces` describe the
+witness, not a global minimum or a claim of subjective difficulty. Initial hints
+and matching remaining-piece sets reuse a geometrically revalidated suffix;
+arbitrary poses use bounded search. Unknown searches reject generation candidates
+and never prove a playing position unsolvable.
+
+Progress yields roughly every 35ms without affecting seeded results. Generation
+uses at most 256/384 compact assemblies for 6/8 pieces, each with up to 144 scramble
+attempts. The optional construction profile asks for one accepted assembly per
+16 attempts. Solves use `solves:unshackle-free`. Undo, reset, framing and input are
+shared with the page; Reset view refits current poses to recover offscreen parts.
+
+Run `node tools/unshackle-free-check.js [samples per size]`. It independently
+sweeps every witness motion, checks both sides of the opening tolerance, rejects
+an end-cap-only grazing fixture, verifies tight body-connected cores and physical
+shoulders, checks exact seeded replay, hints, fractional positions and contacts.
+Classic and legacy Match replay checks cover the default geometry profile.
+Browser checks complete both sizes using real pointer drags and verify that a
+short clear-path pull cues removal, exits and undoes correctly.
+
+Generation runs in `free-worker.js` in browsers; only serializable puzzle data
+crosses the worker boundary, and the main thread rebuilds the collision model.
+Node and environments without Worker use the same deterministic generator directly.
+Collision tests cache immutable capsule bounds, and continuous models cache pairwise
+full-ray results (bounded to 32768 entries). Fresh continuous layouts are no longer
+discarded solely for matching a recent degree signature; geometry fingerprints
+still prevent repeats. Larger layouts use a square-root-scaled overall span bound;
+the locked core retains the original compactness and tolerance checks.
+
+## Shared count selector and continuous difficulty
+
+All three modes show 12/18/24/30/36/48 at every difficulty. The common settings
+policy lives in `unshackleInternals.SETTINGS`: Easy allows 12/18; Medium allows
+24/30; Hard allows 36/48. Ineligible buttons remain visible but disabled,
+with per-button difficulty tooltips and accessible labels. There is no explanatory
+block below the count selector.
+Changing difficulty selects the nearest eligible count if needed. Generation
+locks do not re-enable ineligible buttons when generation ends. Legacy shared
+boards still replay even when outside the current new-game policy.
+
+Continuous difficulty is now selectable. Easy accepts a verified route with one
+repositioning move; Medium permits up to three and requires a blocked core of at
+least four. Hard permits up to four and chooses the stronger of two verified core
+candidates, scored by core size, repositioning count and coordinated actors. This
+is bounded candidate grading, not a proof of minimum move count or a guarantee
+that every Hard puzzle exceeds every Medium puzzle in human difficulty. All
+levels retain visible structural contacts and the existing opening tolerance.
+
+## Partial-pull relays (version 6)
+
+New Continuous slide games now build connected three-part relays throughout the
+board. Every part starts physically blocked; adding more pieces no longer adds
+an extraction-only shell around a single small sliding core. Each constructive
+route contains A partway forward, B out, C out, then A out. A's original body
+blocks B; its partial position clears B while C still blocks A. B blocks C until
+B leaves, and A remains at its partial coordinate until C leaves. The generator
+independently audits all of these intermediate geometric states.
+
+A parameterized three-frame construction supplies a comfortable opening window.
+Frame positions, lengths, widths and shoulders vary with the seed. New relays are
+rotated/reflected and placed near the existing assembly, with at least one real
+body-blocking dependency on an older relay. Each new four-move witness is checked
+against all older geometry; removing the new relay leaves the older witness
+intact. Piece IDs and colours are shuffled independently of helper roles. This
+is a construction primitive, not a bank of complete stored levels. The difficulty
+counts remain 12/18, 24/30 and 36/48: their witnesses contain 4/6, 8/10 and 12/16
+partial pulls respectively. These are witnessed counts, not globally optimal
+move counts or calibrated human difficulty ratings.
+
+Quality checks retain exact continuous collision, no initial overlaps (0.02-unit
+clearance), no end-cap-only blocking, connected nearby bodies and compact local
+three-part interlocks. All new blocking relations survive the existing 0.04-unit
+transverse perturbations. Moving 0.18 units short or long of each intended partial
+pull must preserve the full continuation; an overshoot clamps at real contact.
+A partial helper never qualifies for assisted extraction while its path is
+blocked. The whole assembly can contain multiple tight cores, so its center span
+is bounded by `4.5 * sqrt(pieceCount / 3)` and its radius by
+`4 + 2.5 * sqrt(pieceCount / 3)` instead of applying the old single-core span to
+all parts. Every initial piece belongs to the extraction-blocked core.
+
+Small relay geometry is validated before trying assembly placements. Fixed
+candidate/backtracking budgets and monotonic progress preserve seeded replay.
+The verified route, opening tolerance, cross-relay body edges and relay count are
+recorded with the puzzle. Hints first revalidate a witness continuation, then try
+a physical relay continuation from the player's actual coordinates, then use the
+existing bounded contact search. Partial positions remain real values; there are
+no scripted stops, logical gates, or automatic position resets.
+
+New shares carry `mode=free&fv=6`. Unversioned existing Continuous slide shares
+continue to use the unchanged version-4/5 generator through `generateLegacy`;
+New Game switches to version 6. Both the worker and the no-worker path respect
+the share version. Other modes remove `fv` from their URLs.
+
+`node tools/unshackle-free-check.js 10` passed 80 boards and 2,400 independently
+swept witness motions, including 60 new relay boards across all six count/tier
+settings. The checks prove the A/B/C dependency sequence, retained partial
+coordinates, fractional dragging, opening tolerance, exact replay, verified hints
+at every prefix and noncanonical opening positions, geometric diversity, and
+byte-for-byte preservation of two large legacy shares. Assembly-only timings for
+the new hard boards are measured separately from these more extensive checks.
+
+Browser checks also passed a complete 12-piece solve using 16 real pointer drags,
+including A held partway while B/C leave, undo back through the partial state,
+reset, a 48-piece worker-generated board and its 64-move verified hint, Chinese
+instructions, a 390px viewport, legacy-to-new-game share version transitions,
+and Classic/Match URL cleanup without browser exceptions. Separate local Node
+benchmarks for hard seeds 0/1 measured 36-piece generation at 509/367ms and
+48-piece generation at 423/517ms; timings depend on device and seed.

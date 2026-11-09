@@ -7,10 +7,10 @@
 (function (global) {
     'use strict';
 
-    const add = (a, b) => a.map((v, i) => v + b[i]);
-    const sub = (a, b) => a.map((v, i) => v - b[i]);
-    const mul = (a, n) => a.map(v => v * n);
-    const dot = (a, b) => a.reduce((s, v, i) => s + v * b[i], 0);
+    const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
+    const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+    const mul = (a, n) => [a[0] * n, a[1] * n, a[2] * n];
+    const dot = (a, b) => 0 + a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
     const cross = (a, b) => [a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2], a[0]*b[1]-a[1]*b[0]];
     const unit = a => mul(a, 1 / (Math.hypot(...a) || 1));
     const clamp = n => Math.max(0, Math.min(1, n));
@@ -68,8 +68,8 @@
             segmentDistance2(p, q, a, b), segmentDistance2(p, q, b, c), segmentDistance2(p, q, c, a));
     }
 
-    function piece(id, color, center, u, v, length = 3.2, sign = 1) {
-        const width = 0.94, corner = 0.34;
+    function piece(id, color, center, u, v, length = 3.2, sign = 1, dimensions) {
+        const width = dimensions?.width ?? 0.94, corner = 0.34;
         const point = (x, y) => add(center, add(mul(u, x), mul(v, y)));
         const path = [];
         // Rounded rectangle centreline, in its own plane.
@@ -100,20 +100,59 @@
         return { lo, hi, center, radius: Math.hypot(...sub(hi, lo)) / 2 };
     }
 
+    // Geometry arrays are immutable; translated poses own new arrays. Reuse
+    // bounds and directional extents across the many candidate motion checks.
+    const geometryCache = new WeakMap();
+    function geometry(piece) {
+        let cached = geometryCache.get(piece.segments);
+        if (!cached) {
+            const boxes = piece.segments.map(s => ({
+                lo: s.a.map((x, k) => Math.min(x, s.b[k]) - s.r),
+                hi: s.a.map((x, k) => Math.max(x, s.b[k]) + s.r)
+            }));
+            const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
+            for (const box of boxes) for (let k = 0; k < 3; k++) {
+                lo[k] = Math.min(lo[k], box.lo[k]); hi[k] = Math.max(hi[k], box.hi[k]);
+            }
+            cached = { boxes, lo, hi, projections: new Map() };
+            geometryCache.set(piece.segments, cached);
+        }
+        return cached;
+    }
+    function projectionBounds(piece, dir) {
+        const cache = geometry(piece).projections, key = dir.join(',');
+        if (!cache.has(key)) {
+            let min = Infinity, max = -Infinity;
+            for (const s of piece.segments) {
+                const a = dot(s.a, dir), b = dot(s.b, dir);
+                min = Math.min(min, a - s.r, b - s.r);
+                max = Math.max(max, a + s.r, b + s.r);
+            }
+            cache.set(key, { min, max });
+        }
+        return cache.get(key);
+    }
     function exitDistance(moving, pieces) {
-        const projection = p => dot(p, moving.dir);
         let minMoving = Infinity, maxScene = -Infinity;
-        for (const p of pieces) for (const s of p.segments) {
-            maxScene = Math.max(maxScene, projection(s.a) + s.r, projection(s.b) + s.r);
-            if (p === moving) minMoving = Math.min(minMoving, projection(s.a) - s.r, projection(s.b) - s.r);
+        for (const p of pieces) {
+            const extent = projectionBounds(p, moving.dir);
+            maxScene = Math.max(maxScene, extent.max);
+            if (p === moving) minMoving = extent.min;
         }
         return maxScene - minMoving + 1;
     }
 
+    function separated(a, b, margin = 0) {
+        return a.lo[0] > b.hi[0] + margin || a.hi[0] < b.lo[0] - margin ||
+            a.lo[1] > b.hi[1] + margin || a.hi[1] < b.lo[1] - margin ||
+            a.lo[2] > b.hi[2] + margin || a.hi[2] < b.lo[2] - margin;
+    }
     function overlaps(a, b, margin = 0) {
-        for (const s of a.segments) for (const t of b.segments) {
-            const r = s.r + t.r + margin;
-            if (s.a.some((v, k) => Math.min(v, s.b[k]) > Math.max(t.a[k], t.b[k]) + r || Math.max(v, s.b[k]) < Math.min(t.a[k], t.b[k]) - r)) continue;
+        const ga = geometry(a), gb = geometry(b);
+        if (separated(ga, gb, margin)) return false;
+        for (let i = 0; i < a.segments.length; i++) for (let j = 0; j < b.segments.length; j++) {
+            if (separated(ga.boxes[i], gb.boxes[j], margin)) continue;
+            const s = a.segments[i], t = b.segments[j], r = s.r + t.r + margin;
             if (segmentDistance2(s.a, s.b, t.a, t.b) < r * r - 1e-8) return true;
         }
         return false;
@@ -121,12 +160,21 @@
 
     function sweptCollision(moving, fixed, travel = exitDistance(moving, [moving, fixed])) {
         const offset = mul(moving.dir, travel);
+        const gm = geometry(moving), gf = geometry(fixed), boxes = gf.boxes;
+        // A swept bounding box is only a rejection filter. Every possible
+        // contact still runs the original continuous capsule/triangle test.
+        for (let k = 0; k < 3; k++) {
+            if (gm.lo[k] + Math.min(0, offset[k]) > gf.hi[k] ||
+                gm.hi[k] + Math.max(0, offset[k]) < gf.lo[k]) return false;
+        }
         for (const a of moving.segments) {
             const a2 = add(a.a, offset), b2 = add(a.b, offset);
             const lo = a.a.map((v, i) => Math.min(v, a.b[i], a2[i], b2[i]) - a.r);
             const hi = a.a.map((v, i) => Math.max(v, a.b[i], a2[i], b2[i]) + a.r);
-            for (const b of fixed.segments) {
-                if (lo.some((v, i) => v > Math.max(b.a[i], b.b[i]) + b.r || hi[i] < Math.min(b.a[i], b.b[i]) - b.r)) continue;
+            for (let j = 0; j < fixed.segments.length; j++) {
+                const box = boxes[j];
+                if (lo[0] > box.hi[0] || hi[0] < box.lo[0] || lo[1] > box.hi[1] || hi[1] < box.lo[1] || lo[2] > box.hi[2] || hi[2] < box.lo[2]) continue;
+                const b = fixed.segments[j];
                 const r2 = (a.r + b.r) ** 2;
                 const d2 = Math.min(segmentTriangleDistance2(b.a, b.b, a.a, a.b, b2),
                     segmentTriangleDistance2(b.a, b.b, a.a, b2, a2));

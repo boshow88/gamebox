@@ -6,10 +6,14 @@
     const Generator = window.PuzzleGenerators.unshackle;
     const GI = window.PuzzleGenerators.unshackleInternals;
     const Match = window.PuzzleGenerators.unshackleMatch;
-    const initialMode = new URL(location.href).searchParams.get('mode') === 'match' ? 'match' : 'classic';
+    const Free = window.UnshackleFree;
+    const modeName = mode => ({ classic: 'unlockClassic', match: 'unlockMatch', free: 'unlockFree' }[mode]);
+    const requestedMode = new URL(location.href).searchParams.get('mode');
+    const initialMode = ['match', 'free'].includes(requestedMode) ? requestedMode : 'classic';
     const initialMatchVersion = Number(new URL(location.href).searchParams.get('mv') || 1);
+    const initialFreeVersion = Number(new URL(location.href).searchParams.get('fv') || 5);
     const rawInitial = PC.share.readParams();
-    const urlInitial = (initialMode === 'match' ? Match.SIZES : GI.SHARE_SIZES).includes(rawInitial.size) && DIFFICULTIES.includes(rawInitial.difficulty)
+    const urlInitial = (initialMode === 'match' ? Match.SIZES : initialMode === 'free' ? Free.SHARE_SIZES : GI.SHARE_SIZES).includes(rawInitial.size) && DIFFICULTIES.includes(rawInitial.difficulty)
         && Number.isInteger(rawInitial.seed) ? rawInitial : null;
     let pendingSeed = urlInitial ? urlInitial.seed : null;
     const RECENT_KEY = PC.storage.storageKey('recent:unshackle:v1');
@@ -19,13 +23,23 @@
     let recent = Array.isArray(storedRecent) ? storedRecent.filter(p => p && typeof p.fingerprint === 'string' && typeof p.structure === 'string').slice(-24) : [];
     Object.assign(PC.i18n.STRINGS.en, {
         unlockName: 'Unshackle', unlockCount: 'Pieces',
+        unlockFreeBoard: 'Drag a piece freely along its axis. Release anywhere. Drag empty space to rotate.',
+        unlockFree: 'Continuous slide', unlockFreeReady: 'Pull a piece partway to let others pass, then come back for it.',
+        unlockFreeHelp: 'Drag along the axis; release to stop. Pull toward the white cap once the path is clear.',
+        unlockFreeRelease: 'Release to remove', unlockFreeLevel: (n, difficulty) => `Continuous slide · ${difficulty} · ${n} pieces`,
+        unlockFreeCaption: 'Drag a piece to move · Drag empty space to rotate', unlockFreeViewAxis: 'Rotate the view to see this piece from the side, then drag along its axis.',
+        unlockFreePiece: id => `Select piece ${id}`, unlockFreePieces: 'Select a piece',
+        unlockFreeMoved: id => `Piece ${id} shifted. Check what can now move.`, unlockFreeBlocked: (id, blockers) => `Piece ${id} cannot slide past ${blockers.join(', ')}.`,
+        unlockFreeHint: (id, action) => `Piece ${id}: ${action}. A complete solution is verified.`,
+        unlockFreeBack: 'Away from cap', unlockFreeForward: 'Toward cap', unlockFreeExtract: 'Pull out',
+        unlockFreeRule: 'Pull pieces partway to open a path for others. Untangle every piece to win.',
         unlockMode: 'Mode', unlockClassic: 'Classic', unlockMatch: 'Triple match',
         unlockBuffer: 'Five-place serving plate', unlockUsed: n => `${n} / 5`, unlockShipped: n => `${n} treats eaten`,
         unlockEmptyPlace: n => `Empty plate place ${n}`,
         unlockMonster: 'A little creature waiting for star treats', unlockSymbols: 'Colour symbols',
         unlockMatchReady: 'Match three of one colour. Fuse a star treat for the little creature.',
-        unlockMatchRule: 'Three of one colour fuse into one star treat. The plate holds five pieces; a completing third piece goes directly to fusion.',
-        unlockMatchHelp: 'Tap a waiting piece to slide it back along its original path. Make room by matching or returning pieces. Hard can contain six of one colour: plan which three to remove first. Undo also restores eaten triples. Optional colour symbols are available.',
+        unlockMatchRule: 'Pull out pieces to match three of one colour. Clear every piece to win.',
+        unlockMatchHelp: 'The plate holds five pieces. A full plate can still complete a triple; tap a waiting piece to return it along its path.',
         unlockReturn: (id, symbol) => `Return piece ${id}${symbol ? `, group ${symbol}` : ''}`,
         unlockReturned: id => `Piece ${id} is back in its original position.`,
         unlockReturnFailed: 'Could not return this piece. You can try again or use Undo.',
@@ -56,19 +70,29 @@
         unlockCode: seed => `Puzzle ${seed}`,
         unlockWebGL: '3D rendering is unavailable. Enable WebGL or try another browser.',
         unlockContextLost: '3D rendering was interrupted. Waiting for the browser to restore it…',
-        unlockHelp1: 'Remove every piece. Each slides straight toward its white end cap.',
-        unlockHelp2: 'Drag to rotate the puzzle. Tap a piece or its numbered button to pull it out. A blocked piece stays in place; its blockers briefly flash amber.',
-        unlockHelp3: 'Pinch or scroll to zoom. Keyboard: arrows to rotate, 1–9 to pull, Home to reset the view, Ctrl+Z to undo. New Game generates a fresh puzzle; Share copies this exact puzzle.',
+        unlockHelp1: 'Remove every piece. Each pulls straight toward its white cap.',
+        unlockHelp2: 'Tap a piece to pull it out. Free its blockers first if the path is blocked.',
+        unlockHelp3: 'Drag empty space to rotate; pinch or scroll to zoom.',
     });
     Object.assign(PC.i18n.STRINGS.zh, {
         unlockName: '枷鎖', unlockCount: '零件數',
+        unlockFreeBoard: '沿軸線自由拖曳零件，放開即停。拖空白處旋轉。',
+        unlockFree: '連續滑動', unlockFreeReady: '先把零件抽出一部分讓路，再回頭解開它。',
+        unlockFreeHelp: '沿軸拖曳，放開即停；通道暢通後朝白端抽出。',
+        unlockFreeRelease: '放開即可取下', unlockFreeLevel: (n, difficulty) => `連續滑動・${difficulty}・${n} 個零件`,
+        unlockFreeCaption: '拖零件移動 · 拖空白旋轉', unlockFreeViewAxis: '這個方向看不清移動軸線，先轉個角度再沿軸拖曳。',
+        unlockFreePiece: id => `選取零件 ${id}`, unlockFreePieces: '選取零件',
+        unlockFreeMoved: id => `零件 ${id} 已移動，看看哪些通道打開了。`, unlockFreeBlocked: (id, blockers) => `零件 ${id} 的滑動路徑被 ${blockers.join('、')} 擋住。`,
+        unlockFreeHint: (id, action) => `零件 ${id}：${action}，此步驟後仍有完整解法。`,
+        unlockFreeBack: '背離白端移動', unlockFreeForward: '朝白端移動', unlockFreeExtract: '抽出零件',
+        unlockFreeRule: '先半抽讓路，再解開互相卡住的零件；清空即過關。',
         unlockMode: '模式', unlockClassic: '經典拆解', unlockMatch: '三消暫存',
         unlockBuffer: '五格餐盤', unlockUsed: n => `${n} / 5`, unlockShipped: n => `已餵食 ${n} 顆`,
         unlockEmptyPlace: n => `餐盤空位 ${n}`,
         unlockMonster: '等待星星糖的小獸', unlockSymbols: '辨色輔助符號',
         unlockMatchReady: '湊齊三根同色，融合成星星糖餵給小獸。',
-        unlockMatchRule: '同色三根融合成星星糖。餐盤最多放五根；能湊成三根的零件會直接融合，不占第六格。',
-        unlockMatchHelp: '點暫存零件可沿原路插回。空間滿時，先湊三消或放回零件。困難可能有六根同色，先規劃要抽哪三根；已吃掉的組合也可復原。可選擇開啟辨色輔助符號。',
+        unlockMatchRule: '抽出零件湊齊同色三消，清空所有零件即過關。',
+        unlockMatchHelp: '餐盤限放五根，滿盤仍可湊三消；點暫存零件可沿原路放回。',
         unlockReturn: (id, symbol) => `放回零件 ${id}${symbol ? `，${symbol} 組` : ''}`,
         unlockReturned: id => `零件 ${id} 已放回原位。`,
         unlockReturnFailed: '暫時無法放回這個零件，可以再試一次或使用復原。',
@@ -99,9 +123,9 @@
         unlockCode: seed => `題目 ${seed}`,
         unlockWebGL: '目前無法顯示 3D 畫面，請啟用 WebGL 或換個瀏覽器。',
         unlockContextLost: '3D 畫面暫時中斷，等待瀏覽器恢復中…',
-        unlockHelp1: '抽出所有零件即過關。每個零件只能朝白色端點的方向直線移動。',
-        unlockHelp2: '拖曳旋轉整組枷鎖，點擊零件或下方編號即可抽出。被擋住的零件會留在原位，阻擋它的零件會短暫亮成琥珀色。',
-        unlockHelp3: '雙指縮放或滾輪調整遠近。鍵盤：方向鍵旋轉、1–9 抽出、Home 視角歸位、Ctrl+Z 復原。「新局」產生新題；「分享」複製相同題目的連結。',
+        unlockHelp1: '依序抽出所有零件；每件只能朝白色端點移動。',
+        unlockHelp2: '點擊零件抽出；路徑被擋住時，先移開阻擋它的零件。',
+        unlockHelp3: '拖曳空白處旋轉，雙指或滾輪縮放。',
     });
     // custom: two rounded links separating along a diagonal.
     const icon = '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 15-2 2a3.5 3.5 0 0 1-5-5l4-4a3.5 3.5 0 0 1 5 0m2 8a3.5 3.5 0 0 0 5 0l4-4a3.5 3.5 0 0 0-5-5l-2 2M9 3v2m-6 0 2 2m14 10 2 2m-6 0v2"/></svg>';
@@ -116,23 +140,25 @@
         return;
     }
 
-    const state = { mode: initialMode, difficulty: urlInitial ? urlInitial.difficulty : 'easy', size: urlInitial ? urlInitial.size : initialMode === 'match' ? 24 : 12,
+    const state = { mode: initialMode, difficulty: urlInitial ? urlInitial.difficulty : 'easy', size: urlInitial ? urlInitial.size : initialMode === 'free' ? 12 : initialMode === 'match' ? 24 : 12,
         puzzle: null, pieces: [], graph: [], removed: new Set(), won: false,
-        animation: null, blocked: null, blockers: [], highlight: null, hover: null };
+        drag: null, positions: [], selected: null, moveCount: 0, animation: null, blocked: null, blockers: [], highlight: null, hover: null };
     let shell, frame = 0, hintOn = false, contextLost = false, generating = false;
     let blockedFeedbackTimer = 0;
     let monsterReactionTimer = 0;
     let feedback = { key: 'unlockReady', args: [] };
     let lastTime = '';
-    let stagedMode = initialMode, matchSolveLogged = false;
-    const modeSizes = { classic: initialMode === 'classic' ? state.size : 12, match: initialMode === 'match' ? state.size : 24 };
+    let stagedMode = initialMode, modeSolveLogged = false;
+    const modeSizes = { classic: initialMode === 'classic' ? state.size : 12, match: initialMode === 'match' ? state.size : 24, free: initialMode === 'free' ? state.size : 12 };
     const history = PC.history.create({
         limit: 64,
-        snapshot: () => [...state.removed],
-        restore: removed => {
+        snapshot: () => ({ removed: [...state.removed], positions: state.positions.slice(), selected: state.selected, moveCount: state.moveCount }),
+        restore: snapshot => {
             cancelAnimation();
             if (state.won) { state.won = false; shell.clearWin(); }
-            state.removed = new Set(removed);
+            state.removed = new Set(snapshot.removed);
+            state.positions = snapshot.positions; state.selected = snapshot.selected; state.moveCount = snapshot.moveCount;
+            if (state.mode === 'free') rebuildFreePieces();
             clearFeedback(); say('unlockUndo'); syncUI(); invalidate();
         },
     });
@@ -140,7 +166,7 @@
     function say(key, ...args) {
         feedback = { key, args };
         $('unlock-feedback').textContent = key === 'unlockTrayFull' ? '' : t(key, ...args);
-        $('unlock-feedback').classList.toggle('blocked', ['unlockBlocked', 'unlockReturnBlocked', 'unlockTrayFull', 'unlockMatchDead'].includes(key));
+        $('unlock-feedback').classList.toggle('blocked', ['unlockBlocked', 'unlockReturnBlocked', 'unlockTrayFull', 'unlockMatchDead', 'unlockFreeBlocked'].includes(key));
         const trayFull = key === 'unlockTrayFull';
         $('match-panel').classList.toggle('rejected', trayFull);
     }
@@ -175,11 +201,14 @@
         }, 850);
     }
     function blockersFor(p) {
+        if (state.mode === 'free') return state.puzzle.model.blockers(state.positions, p.id - 1, Free.REMOVED);
         return state.graph[state.pieces.indexOf(p)].filter(id => !state.removed.has(id));
     }
     function waiting() { return state.mode === 'match' && state.puzzle ? Match.trayAfter(state.puzzle, state.removed) : []; }
-    function readyMessage() { return state.mode === 'match' ? 'unlockMatchReady' : 'unlockReady'; }
+    function readyMessage() { return state.mode === 'free' ? 'unlockFreeReady' : state.mode === 'match' ? 'unlockMatchReady' : 'unlockReady'; }
     function cancelAnimation() {
+        state.drag = null;
+        if (gesture?.piece) gesture.multi = true;
         if (state.animation && state.animation.flight) state.animation.flight.remove();
         state.animation = null;
         $('match-monster').classList.remove('feeding', 'chewing');
@@ -210,7 +239,6 @@
         canvas.closest('.unlock-board').classList.toggle('match-mode', active);
         $('match-dock').hidden = !active || state.won;
         $('match-panel').hidden = !active || state.won;
-        $('match-help').hidden = !active; $('match-rule').hidden = !active;
         $('match-shipped').hidden = !active;
         $('match-monster').hidden = !active;
         $('match-symbols-control').hidden = !active; $('match-symbols').checked = showSymbols;
@@ -236,8 +264,8 @@
         }
     }
     function syncLevelReadout() {
-        const current = `${t(state.mode === 'match' ? 'unlockMatch' : 'unlockClassic')} · ${t('unlockSettings', t(state.difficulty), state.size)}`;
-        const pending = `${t(stagedMode === 'match' ? 'unlockMatch' : 'unlockClassic')} · ${t('unlockSettings', t(shell.difficulty), shell.size)}`, readout = $('level-readout');
+        const current = state.mode === 'free' ? t('unlockFreeLevel', state.size, t(state.difficulty)) : `${t(modeName(state.mode))} · ${t('unlockSettings', t(state.difficulty), state.size)}`;
+        const pending = stagedMode === 'free' ? t('unlockFreeLevel', shell.size, t(shell.difficulty)) : `${t(modeName(stagedMode))} · ${t('unlockSettings', t(shell.difficulty), shell.size)}`, readout = $('level-readout');
         readout.classList.toggle('pending', pending !== current);
         readout.replaceChildren();
         if (pending === current) readout.textContent = current;
@@ -257,35 +285,59 @@
             b.classList.toggle('committed', b.dataset.mode === state.mode);
             b.setAttribute('aria-checked', String(b.dataset.mode === stagedMode));
         });
-        const sizes = stagedMode === 'match' ? Match.SETTINGS[shell.difficulty].sizes : GI.SIZES;
+        $('difficulty-seg').closest('.toolbar-group').hidden = false;
+        const sizes = GI.SETTINGS[shell.difficulty].sizes;
         $('size-seg').querySelectorAll('button').forEach(b => {
-            const size = Number(b.dataset.value);
-            b.hidden = !sizes.includes(size) && !(stagedMode === 'classic' && size === modeSizes.classic && GI.SHARE_SIZES.includes(size));
+            const size = Number(b.dataset.value), tiers = DIFFICULTIES.filter(d => GI.SETTINGS[d].sizes.includes(size));
+            b.textContent = String(size);
+            b.hidden = !GI.SIZES.includes(size);
+            b.disabled = generating || contextLost || !sizes.includes(size);
+            b.title = `${size} · ${tiers.map(d => t(d)).join(' / ')}`;
+            b.setAttribute('aria-label', b.title);
         });
+
     }
     function syncUI() {
+        syncFreeUI();
+        const sliding = state.mode === 'free';
+
+        canvas.dataset.i18nAriaLabel = sliding ? 'unlockFreeBoard' : 'unlockBoard';
+        canvas.setAttribute('aria-label', t(canvas.dataset.i18nAriaLabel));
+        $('piece-tray').dataset.i18nAriaLabel = sliding ? 'unlockFreePieces' : 'unlockPieces';
+        $('piece-tray').setAttribute('aria-label', t($('piece-tray').dataset.i18nAriaLabel));
+        const helpKeys = sliding ? ['unlockFreeRule', 'unlockFreeHelp', 'unlockHelp3']
+            : state.mode === 'match' ? ['unlockMatchRule', 'unlockMatchHelp', 'unlockHelp3']
+            : ['unlockHelp1', 'unlockHelp2', 'unlockHelp3'];
+        document.querySelectorAll('#unlock-help li').forEach((item, i) => {
+            item.dataset.i18n = helpKeys[i]; item.textContent = t(helpKeys[i]);
+        });
+        document.querySelector('.board-caption').dataset.i18n = sliding ? 'unlockFreeCaption' : 'unlockCaption';
+        document.querySelector('.board-caption').textContent = t(state.mode === 'free' ? 'unlockFreeCaption' : 'unlockCaption');
         $('unlock-progress').textContent = t('unlockProgress', state.removed.size, state.pieces.length);
         const locked = generating || contextLost;
-        $('undo-btn').disabled = !history.canUndo() || !!state.animation || locked;
-        $('hint-btn').disabled = state.won || !!state.animation || locked || !state.puzzle;
+        $('undo-btn').disabled = !history.canUndo() || !!state.animation || !!state.drag || locked;
+        $('hint-btn').disabled = state.won || !!state.animation || !!state.drag || locked || !state.puzzle;
         document.querySelectorAll('#new-game-btn, #reset-btn, #share-btn, #next-level-btn, #difficulty-seg button, #size-seg button, #mode-seg button').forEach(b => { b.disabled = locked; });
         $('reset-btn').disabled = locked || !state.puzzle;
         $('share-btn').disabled = locked || !state.puzzle;
         $('puzzle-code').textContent = state.puzzle ? t('unlockCode', state.puzzle.seed.toString(36)) : '';
         $('unlock-win').hidden = !state.won;
         $('unlock-win').querySelector('h2').textContent = t(state.mode === 'match' ? 'unlockMatchComplete' : 'unlockComplete');
-        $('unlock-win-detail').textContent = `${t(state.mode === 'match' ? 'unlockMatch' : 'unlockClassic')} · ${t('unlockWinDetail', t(state.difficulty), state.size, lastTime)}`;
+        $('unlock-win-detail').textContent = `${t(modeName(state.mode))} · ${t('unlockWinDetail', t(state.difficulty), state.size, lastTime)}`;
         $('next-level-btn').textContent = t('unlockNext');
         for (const p of state.pieces) {
             const button = $(`piece-${p.id}`), removed = state.removed.has(p.id);
             if (!button) continue;
-            button.disabled = removed || !!state.animation || locked;
+            button.disabled = removed || !!state.animation || !!state.drag || locked;
             button.classList.toggle('removed', removed);
+            button.classList.toggle('selected', state.mode === 'free' && state.selected === p.id);
+            if (state.mode === 'free') button.setAttribute('aria-pressed', String(state.selected === p.id));
+            else button.removeAttribute('aria-pressed');
             button.classList.toggle('hinted', p.id === state.highlight);
             const symbols = state.mode === 'match' && showSymbols, swatch = button.querySelector('.piece-swatch');
             swatch.classList.toggle('match-token', symbols); swatch.textContent = symbols ? p.symbol : '';
             $(`marker-${p.id}`).textContent = symbols ? `${p.id}${p.symbol}` : p.id;
-            const label = t('unlockPiece', p.id, removed) + (symbols ? ` · ${p.symbol}` : '');
+            const label = t(state.mode === 'free' ? 'unlockFreePiece' : 'unlockPiece', p.id, removed) + (symbols ? ` · ${p.symbol}` : '');
             button.setAttribute('aria-label', label);
             button.title = label;
         }
@@ -296,6 +348,10 @@
     function finishPull(anim) {
         if (state.mode === 'match') history.push();
         state.removed.add(anim.id);
+        if (state.mode === 'free') {
+            state.positions[anim.id - 1] = Free.REMOVED;
+            state.selected = state.pieces.find(p => !state.removed.has(p.id))?.id || null;
+        }
         if (state.removed.size === state.pieces.length) {
             state.won = true; recordWin(); lastTime = $('timer').textContent;
             say(state.mode === 'match' ? 'unlockMatchComplete' : 'unlockComplete');
@@ -330,13 +386,14 @@
         if (contextLost) return;
         const anim = state.animation;
         if (anim) {
-            const duration = anim.feeding ? 1100 : anim.docking ? 460 : anim.returning ? (anim.phase === 'lift' ? 260 : 680)
+            const duration = anim.fromOffset !== undefined ? 420 : anim.feeding ? 1100 : anim.docking ? 460 : anim.returning ? (anim.phase === 'lift' ? 260 : 680)
                 : anim.trayFull ? 420 : anim.blocked ? 340 : anim.shortPull ? Math.max(80, 320*Math.min(1,anim.distance/0.6)) : 680;
             const progress = Math.min(1, (now - anim.start) / duration), ease = progress*progress*(3-2*progress);
             anim.progress = progress;
             if (anim.returning) anim.offset = anim.phase === 'lift' ? anim.distance : anim.distance * (1 - ease);
             else anim.offset = anim.docking ? anim.distance : anim.blocked ? Math.sin(progress * Math.PI)*(anim.reducedMotion ? 0 : anim.trayFull ? 0.12 : 0.025)
                 : anim.distance * (anim.shortPull ? 1-(1-progress)**3 : progress*progress);
+            if (anim.fromOffset !== undefined && !anim.blocked) anim.offset = anim.fromOffset + (anim.distance - anim.fromOffset) * ease;
             if (progress === 1) {
                 if (anim.returning && anim.phase === 'lift') {
                     anim.flight.remove(); delete anim.flight;
@@ -382,8 +439,9 @@
                 cancelAnimation(); say(effect.returning ? 'unlockReturnFailed' : 'unlockEffectFailed'); syncUI();
             }
         }
+        drawFreeGuide();
         const fittedPositions = state.pieces.map(p => {
-            const offset = state.animation && state.animation.id === p.id ? state.animation.offset : 0;
+            const offset = state.animation && state.animation.id === p.id ? state.animation.offset : state.drag?.id === p.id ? state.drag.offset : 0;
             return view.project(Engine.math.add(p.knob, Engine.math.mul(p.dir, offset)));
         });
         const visible = view.pickMany(fittedPositions, state);
@@ -399,10 +457,13 @@
     }
     function invalidate() { if (!frame) frame = requestAnimationFrame(draw); }
 
-    function pull(id) {
+    function pull(id, extract = false) {
         if (state.won || state.animation || contextLost || generating) return;
         const p = state.pieces.find(p => p.id === id);
         if (!p || state.removed.has(id)) return;
+        if (state.mode === 'free' && !extract) {
+            state.selected = id; clearFeedback(); say(readyMessage()); syncUI(); invalidate(); return;
+        }
         PC.audio.unlock(); clearFeedback();
         const blockers = blockersFor(p);
         if (blockers.length) {
@@ -434,6 +495,38 @@
         syncUI(); invalidate();
     }
 
+    function drawFreeGuide() {
+        const guide = $('free-guide'), hidden = state.mode !== 'free' || !state.selected || state.won;
+        guide.toggleAttribute('hidden', hidden); if (hidden) return;
+        const rect = canvas.getBoundingClientRect(); guide.setAttribute('viewBox', `0 0 ${rect.width} ${rect.height}`);
+        const piece = state.pieces[state.selected - 1], offset = state.drag?.id === piece.id ? state.drag.offset : 0;
+        const point = n => view.project(Engine.math.add(piece.knob, Engine.math.mul(piece.dir, offset + n)));
+        const a = point(-1), b = point(1), line = guide.querySelector('line');
+        for (const [key, value] of Object.entries({ x1: a.x, y1: a.y, x2: b.x, y2: b.y })) line.setAttribute(key, value);
+    }
+    function commitFreeDrag(drag) {
+        if (Math.abs(drag.plan.offset) < 0.00001) return;
+        history.push();
+        if (drag.plan.extract) {
+            state.animation = { id: drag.id, start: performance.now(), offset: drag.plan.offset,
+                fromOffset: drag.plan.offset, distance: Math.max(drag.plan.offset + 1.5, drag.plan.exitDistance) };
+        } else {
+            state.positions[drag.id - 1] += drag.plan.offset; state.moveCount++;
+            rebuildFreePieces(); say('unlockFreeMoved', drag.id);
+        }
+    }
+    function rebuildFreePieces() {
+        state.pieces = state.puzzle.pieces.map((p, i) => Free.at(p, state.positions[i] === Free.REMOVED ? 0 : state.positions[i]));
+        view.setPieces(state.pieces, true);
+    }
+    function syncFreeUI() {
+        const active = state.mode === 'free';
+        const ready = !!state.drag?.extract;
+        $('free-panel').hidden = !active || state.won || !ready;
+        $('free-panel').classList.toggle('extract-ready', ready);
+        $('free-selection').textContent = ready ? t('unlockFreeRelease') : '';
+    }
+
     function returnPiece(id) {
         if (state.mode !== 'match' || state.won || state.animation || contextLost || generating || !waiting().includes(id)) return;
         const p = state.pieces.find(p => p.id === id), blockers = blockersFor(p);
@@ -461,9 +554,9 @@
         $('size-seg').querySelector(`[data-value="${size}"]`).click();
     }
     function recordWin() {
-        if (state.mode === 'match') {
+        if (state.mode === 'match' || state.mode === 'free') {
             const elapsed = shell.timer.stop();
-            if (!matchSolveLogged) { PC.solves.log('unshackle-match', state.size, state.difficulty, elapsed); matchSolveLogged = true; }
+            if (!modeSolveLogged) { PC.solves.log(state.mode === 'free' ? 'unshackle-free' : 'unshackle-match', state.size, state.difficulty, elapsed); modeSolveLogged = true; }
             shell.setWin(true); return;
         }
         // The shell records its current selector values. Preserve staged choices
@@ -491,8 +584,17 @@
             const seed = sharedSeed !== null ? sharedSeed : randomSeed();
             let candidate;
             try {
-                const generate = mode === 'match' ? (sharedSeed !== null ? ({ 1: Match.generateLegacy, 2: Match.generateV2, 3: Match.generate }[initialMatchVersion] || Match.generate) : Match.generate) : Generator;
+                const matchGenerator = sharedSeed !== null
+                    ? ({ 1: Match.generateLegacy, 2: Match.generateV2, 3: Match.generate }[initialMatchVersion] || Match.generate) : Match.generate;
+                const generate = { classic: Generator, match: matchGenerator, free: (size, difficulty, seed, onProgress) => Free.generateAsync(size, difficulty, seed, onProgress,
+                    sharedSeed !== null ? initialFreeVersion : 6) }[mode];
+                let lastProgressPaint = -Infinity;
                 candidate = await generate(size, difficulty, seed, async fraction => {
+                    // Fast colour assignments and worker messages can arrive
+                    // faster than a frame. Yield for painting at most every 35 ms.
+                    const now = performance.now();
+                    if (fraction < 1 && now - lastProgressPaint < 35) return;
+                    lastProgressPaint = now;
                     PC.progress.setFraction(fraction); await PC.progress.waitNextPaint();
                 });
             } catch (error) {
@@ -502,14 +604,15 @@
             if (sharedSeed !== null) { puzzle = candidate; break; }
             if (avoid.has(candidate.fingerprint)) continue;
             if (!firstFresh) firstFresh = candidate;
-            if (recentStructures.has(candidate.structure) && attempt < 2) continue;
+            if (mode !== 'free' && recentStructures.has(candidate.structure) && attempt < 2) continue;
             puzzle = candidate; break;
         }
         puzzle = puzzle || firstFresh;
         if (!puzzle) throw new Error('No fresh Unshackle puzzle');
-        state.puzzle = puzzle; state.difficulty = difficulty; state.size = size; state.mode = mode; matchSolveLogged = false;
+        state.puzzle = puzzle; state.difficulty = difficulty; state.size = size; state.mode = mode; modeSolveLogged = false;
         cancelAnimation(); state.won = false; state.removed = new Set();
-        state.pieces = puzzle.pieces; state.graph = puzzle.graph; state.hover = null;
+        state.positions = mode === 'free' ? puzzle.initial.slice() : []; state.moveCount = 0; state.selected = mode === 'free' ? 1 : null;
+        state.pieces = mode === 'free' ? puzzle.pieces.map((p, i) => Free.at(p, state.positions[i])) : puzzle.pieces; state.graph = puzzle.graph; state.hover = null;
         history.clear(); clearFeedback(); view.reset(); view.setPieces(state.pieces);
         $('piece-tray').replaceChildren(); $('piece-markers').replaceChildren();
         state.pieces.forEach(p => {
@@ -526,16 +629,19 @@
         recent = recent.slice(-24); PC.storage.writeJSON(RECENT_KEY, recent);
         PC.share.replaceUrl({ size, difficulty, seed: puzzle.seed });
         const url = new URL(location.href);
-        if (mode === 'match') {
-            url.searchParams.set('mode', 'match');
+        if (mode === 'free') {
+            url.searchParams.set('mode', mode); url.searchParams.delete('mv');
+            if (puzzle.version >= 6) url.searchParams.set('fv', String(puzzle.version)); else url.searchParams.delete('fv');
+        } else if (mode === 'match') {
+            url.searchParams.set('mode', 'match'); url.searchParams.delete('fv');
             if (puzzle.matchVersion) url.searchParams.set('mv', String(puzzle.matchVersion)); else url.searchParams.delete('mv');
-        } else { url.searchParams.delete('mode'); url.searchParams.delete('mv'); }
+        } else { url.searchParams.delete('mode'); url.searchParams.delete('mv'); url.searchParams.delete('fv'); }
         window.history.replaceState(null, '', url);
         say(readyMessage()); syncUI(); invalidate();
     }
     async function startPuzzle() {
         if (generating || contextLost) return;
-        if (pendingSeed === null) syncMatchSettings();
+        if (pendingSeed === null) syncModeSettings();
         generating = true; clearMonsterReaction(); cancelAnimation(); shell.timer.stop(); syncUI();
         try { await shell.start(); }
         catch (_) {
@@ -547,10 +653,11 @@
     shell = PC.shell.create({ gameId: 'unshackle', difficulty: { default: state.difficulty }, size: { kind: 'segmented', default: state.size },
         onNewGame: loadLevel,
         onReset: () => {
-            matchSolveLogged = false;
+            modeSolveLogged = false;
             if (state.won) history.clear();
-            else if (state.removed.size) history.push();
+            else if (state.removed.size || state.moveCount) history.push();
             cancelAnimation(); state.won = false; state.removed = new Set();
+            if (state.mode === 'free') { state.positions = state.puzzle.initial.slice(); state.moveCount = 0; state.selected = 1; rebuildFreePieces(); }
             clearFeedback(); say(readyMessage()); syncUI(); invalidate();
         },
         solveSound: () => {
@@ -559,9 +666,10 @@
     });
     // Catch generation failures locally without changing the shared puzzle shell.
     $('new-game-btn').addEventListener('click', e => { e.stopImmediatePropagation(); startPuzzle(); }, true);
-    function syncMatchSettings() {
-        if (stagedMode === 'match') {
-            const sizes = Match.SETTINGS[shell.difficulty].sizes;
+    function syncModeSettings() {
+        syncLevelReadout();
+        {
+            const sizes = GI.SETTINGS[shell.difficulty].sizes;
             if (!sizes.includes(shell.size)) {
                 const nearest = sizes.reduce((a, b) => Math.abs(b - shell.size) < Math.abs(a - shell.size) ? b : a);
                 $('size-seg').querySelector(`[data-value="${nearest}"]`).click();
@@ -569,7 +677,7 @@
         }
         syncLevelReadout();
     }
-    $('difficulty-seg').addEventListener('click', syncMatchSettings);
+    $('difficulty-seg').addEventListener('click', syncModeSettings);
     $('size-seg').addEventListener('click', syncLevelReadout);
     $('match-symbols').addEventListener('change', () => {
         showSymbols = $('match-symbols').checked;
@@ -579,14 +687,26 @@
         const button = e.target.closest('button[data-mode]');
         if (!button || button.disabled || button.dataset.mode === stagedMode) return;
         modeSizes[stagedMode] = shell.size; stagedMode = button.dataset.mode;
-        $('size-seg').querySelector(`[data-value="${modeSizes[stagedMode]}"]`).click();
-        syncMatchSettings();
+        syncLevelReadout();
+        const sizes = GI.SETTINGS[shell.difficulty].sizes;
+        const remembered = sizes.includes(modeSizes[stagedMode]) ? modeSizes[stagedMode] : sizes[0];
+        $('size-seg').querySelector(`[data-value="${remembered}"]`).click();
+        syncModeSettings();
     });
     $('undo-btn').addEventListener('click', () => { if (!state.animation) history.undo(); });
     $('hint-btn').addEventListener('click', () => {
         if (state.animation || state.won || contextLost || generating) return;
         const previous = hintOn; clearFeedback();
         if (!previous) {
+            if (state.mode === 'free') {
+                const result = Free.solve(state.puzzle, state.positions);
+                if (result.status === 'solved' && result.solution.length) {
+                    const move = result.solution[0]; state.selected = move.id; state.highlight = move.id; hintOn = true;
+                    const action = move.extract ? 'unlockFreeExtract' : move.offset > state.positions[move.id - 1] ? 'unlockFreeForward' : 'unlockFreeBack';
+                    say('unlockFreeHint', move.id, t(action));
+                } else say('unlockMatchUnknown');
+                syncUI(); invalidate(); return;
+            }
             if (state.mode === 'match') {
                 const result = Match.solve(state.puzzle, state.removed);
                 if (result.status === 'solved' && result.solution.length) {
@@ -599,7 +719,7 @@
         } else say(readyMessage());
         syncUI(); invalidate();
     });
-    $('view-reset-btn').addEventListener('click', () => { view.reset(); invalidate(); });
+    $('view-reset-btn').addEventListener('click', () => { if (state.mode === 'free') view.setPieces(state.pieces); view.reset(); invalidate(); });
     $('next-level-btn').addEventListener('click', startPuzzle);
     $('share-btn').addEventListener('click', async () => {
         const ok = await PC.share.copyCurrentUrl(); PC.toast.show(t(ok ? 'shareCopied' : 'shareFailed'));
@@ -649,16 +769,46 @@
     }
     document.querySelectorAll('[data-turn]').forEach(b => b.addEventListener('click', () => turn(b.dataset.turn)));
 
-    // Pointer gestures distinguish taps, orbit drags and multi-touch zoom.
+    // Piece drags manipulate the model; empty-space drags orbit the camera.
     const pointers = new Map();
     let gesture = null, pinchDistance = 0;
     const distance = () => { const p = [...pointers.values()]; return Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y); };
+    function beginPieceDrag(e) {
+        if (state.mode !== 'free' || state.animation || state.won) return null;
+        const rect = canvas.getBoundingClientRect(), x = e.clientX - rect.left, y = e.clientY - rect.top;
+        // A small touch-sized picking tolerance, still using depth-tested meshes.
+        const samples = [[0,0],[-5,0],[5,0],[0,-5],[0,5]].map(([dx,dy]) => ({ x: x + dx, y: y + dy }));
+        const id = view.pickMany(samples, state).find(Boolean);
+        if (!id) return null;
+        state.selected = id; clearFeedback(); say(readyMessage());
+        const p = state.pieces[id - 1], a = view.project(p.knob), b = view.project(Engine.math.add(p.knob, Engine.math.mul(p.dir, 1)));
+        const dx = b.x - a.x, dy = b.y - a.y, spacing = Math.hypot(dx, dy), from = state.positions[id - 1];
+        state.drag = { id, offset: 0 };
+        if (spacing < 12) { say('unlockFreeViewAxis'); return { id, endOn: true }; }
+        return { id, from, dx, dy, spacing, range: state.puzzle.model.limits(state.positions, id - 1) };
+    }
+    function updatePieceDrag(e) {
+        const drag = gesture.piece;
+        if (drag.endOn) return;
+        const travel = ((e.clientX - gesture.x) * drag.dx + (e.clientY - gesture.y) * drag.dy) / drag.spacing ** 2;
+        drag.plan = Free.dragPlan(drag.range, travel, 56 / drag.spacing);
+        state.drag = { id: drag.id, offset: drag.plan.offset, extract: drag.plan.extract };
+        syncFreeUI();
+        const sign = travel >= 0 ? 1 : -1, contact = sign > 0 ? drag.range.forward : drag.range.back;
+        if (contact.blockers.length && Math.abs(travel - drag.plan.offset) > 0.02 && drag.warned !== sign) {
+            drag.warned = sign; flashBlocked(drag.id, contact.blockers); say('unlockFreeBlocked', drag.id, contact.blockers);
+        }
+    }
     canvas.addEventListener('pointerdown', e => {
         if (e.button !== 0 || contextLost || generating || !state.puzzle) return;
         canvas.focus({ preventScroll: true }); canvas.setPointerCapture(e.pointerId);
         pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-        if (pointers.size === 1) gesture = { x: e.clientX, y: e.clientY, moved: false, multi: false };
-        else { gesture.multi = true; pinchDistance = distance(); }
+        if (pointers.size === 1) {
+            gesture = { x: e.clientX, y: e.clientY, moved: false, multi: false, piece: beginPieceDrag(e) };
+            syncUI(); invalidate();
+        } else {
+            state.drag = null; gesture.multi = true; pinchDistance = distance(); syncUI(); invalidate();
+        }
     });
     canvas.addEventListener('pointermove', e => {
         const previous = pointers.get(e.pointerId);
@@ -671,37 +821,49 @@
         pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
         if (pointers.size > 1) {
             const d = distance(); if (pinchDistance > 0) view.zoom(d / pinchDistance); pinchDistance = d;
-        } else if (!gesture.multi) {
+        } else if (gesture && !gesture.multi) {
             if (Math.hypot(e.clientX - gesture.x, e.clientY - gesture.y) > 6) gesture.moved = true;
-            if (gesture.moved) view.rotate((e.clientX - previous.x) * 0.009, (e.clientY - previous.y) * 0.009);
+            if (gesture.moved) {
+                if (gesture.piece) updatePieceDrag(e);
+                else view.rotate((e.clientX - previous.x) * 0.009, (e.clientY - previous.y) * 0.009);
+            }
         }
         state.hover = null; invalidate();
     });
     function release(e, cancelled) {
         if (!pointers.has(e.pointerId)) return;
-        pointers.delete(e.pointerId);
-        if (!cancelled && gesture && !gesture.moved && !gesture.multi) {
-            const rect = canvas.getBoundingClientRect();
-            pull(view.pick(e.clientX - rect.left, e.clientY - rect.top, state));
+        const completed = gesture;
+        pointers.delete(e.pointerId); state.drag = null;
+        if (!cancelled && completed && !completed.multi) {
+            if (completed.piece && completed.moved) {
+                const drag = completed.piece;
+                if (drag.plan) commitFreeDrag(drag);
+            } else if (!completed.moved && !completed.piece?.endOn) {
+                const rect = canvas.getBoundingClientRect();
+                pull(completed.piece?.id || view.pick(e.clientX - rect.left, e.clientY - rect.top, state));
+            }
         }
         if (!pointers.size) gesture = null;
-        invalidate();
+        else if (gesture) gesture.multi = true;
+        syncUI(); invalidate();
     }
     canvas.addEventListener('pointerup', e => release(e, false));
     canvas.addEventListener('pointercancel', e => release(e, true));
     canvas.addEventListener('lostpointercapture', e => release(e, true));
     canvas.addEventListener('pointerleave', () => { state.hover = null; canvas.classList.remove('over-piece'); invalidate(); });
     canvas.addEventListener('wheel', e => {
-        if (contextLost) return;
+        if (contextLost || state.drag) return;
         e.preventDefault(); view.zoom(Math.exp(-e.deltaY * 0.001)); invalidate();
     }, { passive: false });
     document.addEventListener('keydown', e => {
         if (/INPUT|TEXTAREA|SELECT/.test(e.target.tagName)) return;
+        if (state.drag && e.key === 'Escape') { state.drag = null; if (gesture) gesture.multi = true; syncUI(); invalidate(); e.preventDefault(); return; }
+        if (state.drag) return;
         if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
             e.preventDefault(); if (!state.animation && !generating && !contextLost) history.undo(); return;
         }
         if (e.ctrlKey || e.metaKey || e.altKey || generating || contextLost) return;
-        if (/^[1-9]$/.test(e.key)) { e.preventDefault(); pull(Number(e.key)); }
+        if (/^[1-9]$/.test(e.key)) { e.preventDefault(); pull(Number(e.key)); if (state.mode === 'free') canvas.focus({ preventScroll: true }); }
         if (e.target !== canvas) return;
         const keys = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down' };
         if (keys[e.key]) { e.preventDefault(); turn(keys[e.key]); }

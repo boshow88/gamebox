@@ -90,6 +90,42 @@ function checkWalk(puzzle, order, capacity) {
         assert.deepEqual(continuation.solution, solved.solution.slice(33));
         checkWalk(chain, [...prefix, ...continuation.solution], 5);
     }
+    // Independent subset oracle, with live pieces straddling both 24-bit lanes.
+    // Removed filler triples preserve the small board's capacity requirements.
+    let state = 0x7529ab31;
+    const random = () => { state = (Math.imul(state, 1664525) + 1013904223) >>> 0; return state / 2 ** 32; };
+    for (let sample = 0; sample < 32; sample++) {
+        const groups = Array.from({ length: 12 }, (_, i) => Math.floor(i / 3));
+        for (let i = groups.length - 1; i > 0; i--) {
+            const j = Math.floor(random() * (i + 1)); [groups[i], groups[j]] = [groups[j], groups[i]];
+        }
+        const small = { size: 12, pieces: groups.map((group, i) => ({ id: i + 1, group })),
+            graph: groups.map((_, i) => groups.flatMap((_, j) => j < i && random() < 0.16 ? [j + 1] : [])) };
+        const ids = [1,2,3,23,24,25,26,27,28,46,47,48];
+        const padded = { size: 48, pieces: Array.from({ length: 48 }, (_, i) => ({ id: i + 1, group: 0 })),
+            graph: Array.from({ length: 48 }, () => []) };
+        ids.forEach((id, i) => {
+            padded.pieces[id - 1].group = groups[i];
+            padded.graph[id - 1] = small.graph[i].map(blocker => ids[blocker - 1]);
+        });
+        const filler = padded.pieces.filter(p => !ids.includes(p.id)).map(p => p.id);
+        const minimum = minimumCapacity(small);
+        for (let capacity = 2; capacity <= 5; capacity++) {
+            const expected = minimum <= capacity ? 'solved' : 'unsolvable';
+            assert.equal(Match.solve(small, [], capacity).status, expected);
+            const result = Match.solve(padded, filler, capacity);
+            assert.equal(result.status, expected);
+            if (result.status === 'solved') {
+                checkWalk(padded, [...filler, ...result.solution], capacity);
+                const prefix = result.solution.slice(0, 3), smallPrefix = prefix.map(id => ids.indexOf(id) + 1);
+                for (let limit = 2; limit <= 5; limit++)
+                    assert.equal(Match.solve(padded, [...filler, ...prefix], limit).status,
+                        minimumCapacity(small, smallPrefix) <= limit ? 'solved' : 'unsolvable');
+            }
+            capacityChecks++;
+        }
+    }
+    console.log('32 independent capacity fixtures passed across both mask lanes and solution prefixes.');
     for (const size of sizes) for (const difficulty of difficulties) {
         if (!Match.SETTINGS[difficulty].sizes.includes(size)) continue;
         for (let seed = 0; seed < samples; seed++) {

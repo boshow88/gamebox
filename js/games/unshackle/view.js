@@ -101,17 +101,26 @@
                     ...point(i, j), ...point(i + 1, j + 1), ...point(i, j + 1));
             return vertices;
         }
-        function setPieces(next) {
+        function setPieces(next, preserveFrame = false) {
             meshes.forEach(m => { gl.deleteBuffer(m.body.buffer); gl.deleteBuffer(m.knob.buffer); });
             pieces = next;
-            const bounds = window.UnshackleEngine.bounds(pieces);
-            center = bounds.center;
-            sceneRadius = Math.max(2.5, ...pieces.flatMap(p => p.segments.flatMap(s =>
-                [Math.hypot(...M.sub(s.a, center)) + s.r, Math.hypot(...M.sub(s.b, center)) + s.r])));
+            if (!preserveFrame) {
+                const bounds = window.UnshackleEngine.bounds(pieces);
+                center = bounds.center;
+                sceneRadius = Math.max(2.5, ...pieces.flatMap(p => p.segments.flatMap(s =>
+                    [Math.hypot(...M.sub(s.a, center)) + s.r, Math.hypot(...M.sub(s.b, center)) + s.r])));
+            }
             meshes = pieces.map(p => {
                 const n = M.unit(M.cross(p.u, p.v));
-                return { body: upload([...tube(p.path, p.radius, n, true), ...tube(p.stem, p.radius, n, false)]),
-                    knob: upload(sphere(p.knob, 0.19)), color: p.color.match(/\w\w/g).map(n => parseInt(n, 16) / 255) };
+                let knobVertices;
+                if (p.shoulder) {
+                    const branch = p.branches[0], axis = M.unit(M.sub(branch[1], branch[0]));
+                    const band = [-0.13, 0.13].map(d => M.add(p.knob, M.mul(axis, d)));
+                    knobVertices = tube(band, p.branchRadius + 0.001, p.dir, false);
+                } else knobVertices = sphere(p.knob, 0.19);
+                return { body: upload([...tube(p.path, p.radius, n, true), ...tube(p.stem, p.radius, n, false),
+                    ...(p.branches || []).flatMap(branch => [...tube(branch, p.branchRadius || p.radius, p.dir, false), ...sphere(branch[0], p.branchRadius || p.radius), ...sphere(branch[branch.length - 1], p.branchRadius || p.radius)])]),
+                    knob: upload(knobVertices), color: p.color.match(/\w\w/g).map(n => parseInt(n, 16) / 255) };
             });
         }
 
@@ -152,11 +161,11 @@
                 const anim = state.animation && state.animation.id === p.id ? state.animation : null;
                 if (anim && anim.docking) return;
                 if (state.removed.has(p.id) && !(anim && anim.returning && anim.phase === 'insert')) return;
-                gl.uniform3fv(loc.uOffset, M.sub(M.mul(p.dir, anim ? anim.offset : 0), center));
+                gl.uniform3fv(loc.uOffset, M.sub(M.mul(p.dir, anim ? anim.offset : state.drag?.id === p.id ? state.drag.offset : 0), center));
                 let color = meshes[i].color;
                 if (p.id === state.blocked) color = [0.9, 0.28, 0.28];
                 else if (state.blockers.includes(p.id)) color = [0.96, 0.69, 0.27];
-                else if (p.id === state.highlight || p.id === state.hover) color = color.map(n => n * 0.8 + 0.2);
+                else if (p.id === state.highlight || p.id === state.hover || p.id === state.selected) color = color.map(n => n * 0.8 + 0.2);
                 gl.uniform3fv(loc.uColor, picking ? [p.id / 255, 0, 0] : color);
                 drawMesh(meshes[i].body);
                 gl.uniform3fv(loc.uColor, picking ? [p.id / 255, 0, 0] : [0.97, 0.98, 1]);

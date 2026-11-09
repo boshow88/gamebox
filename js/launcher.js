@@ -241,7 +241,7 @@
             'queens_body': 'Place N queens so that every row, column, colour region and 8-neighbourhood contains exactly one.',
             'unshackle_name': 'Unshackle',
             'unshackle_tagline': 'A different angle. A way out.',
-            'unshackle_body': 'Rotate the interlocking pieces and find the order to slide them free. Fresh 3D puzzles in three difficulties.',
+            'unshackle_body': 'Untangle interlocking frames: pull them free, match colours in a five-slot tray, or partly pull them out to let others pass.',
         },
         zh: {
             subtitle: '一個小遊戲合輯。',
@@ -366,7 +366,7 @@
             'queens_body': '在每個列、行、色塊區域與 8 鄰域中各放一個皇后。',
             'unshackle_name': '枷鎖',
             'unshackle_tagline': '轉個角度，找到出口。',
-            'unshackle_body': '旋轉交錯的零件，找出能依序抽出的方向。每次生成新題，提供三種難度。',
+            'unshackle_body': '解開交錯的立體枷鎖：依序拆解、五格暫存湊三消，或半抽零件替彼此讓路。',
         },
     };
 
