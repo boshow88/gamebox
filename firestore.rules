@@ -89,7 +89,7 @@ service cloud.firestore {
     }
     function validFeedbackCreate(data) {
       return request.auth != null
-             && data.keys().hasOnly(['text', 'lang', 'kind', 'game', 'uid', 'name', 'email', 'anon', 'at', 'resolved', 'replyVersion', 'unread'])
+             && data.keys().hasOnly(['text', 'lang', 'kind', 'game', 'uid', 'name', 'email', 'anon', 'at', 'resolved', 'replyVersion', 'unread', 'adminUnread'])
              && data.uid == request.auth.uid
              && data.anon == (request.auth.token.firebase.sign_in_provider == 'anonymous')
              && data.email == request.auth.token.get('email', null)
@@ -101,7 +101,8 @@ service cloud.firestore {
              && data.at == request.time
              && data.get('resolved', false) == false
              && data.get('replyVersion', 0) == 0
-             && data.get('unread', false) == false;
+             && data.get('unread', false) == false
+             && data.get('adminUnread', true) == true;
     }
     match /feedback/{id} {
       allow create: if validFeedbackCreate(request.resource.data);
@@ -119,6 +120,7 @@ service cloud.firestore {
         let data = request.resource.data;
         let changed = data.diff(resource.data).affectedKeys();
         return (changed.hasOnly(['resolved']) && data.resolved is bool)
+               || (changed.hasOnly(['adminUnread']) && data.adminUnread == false)
                || (changed.hasOnly(['reply', 'replyVersion', 'unread'])
                    && data.replyVersion is int
                    && data.replyVersion == resource.data.get('replyVersion', 0) + 1

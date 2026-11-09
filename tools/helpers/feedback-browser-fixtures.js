@@ -11,10 +11,19 @@ function publish(items) { localStorage.setItem(key, JSON.stringify(items)); emit
 function timestamp(value) { return value ? { toDate: () => new Date(value) } : null; }
 function hydrate(item) { return { ...item, at: timestamp(item.at), reply: item.reply ? { ...item.reply, at: timestamp(item.reply.at) } : null }; }
 function unread(uid) { return records().filter(item => item.uid === uid && item.unread).slice(0, 20).map(hydrate); }
-function emit() { noticeCallbacks.slice().forEach(watch => { if (watch.active) watch.next(unread(watch.uid)); }); }
+function adminUnread() { return records().filter(item => item.adminUnread === true).sort((a,b) => a.id.localeCompare(b.id)); }
+function emit() { noticeCallbacks.slice().forEach(watch => { if (watch.active) watch.next(watch.admin ? adminUnread().slice(0,20).map(hydrate) : unread(watch.uid)); }); }
 addEventListener('storage', event => { if (event.key === key) emit(); });
-window.calls = []; window.unsubscribes = 0;
-window.failNotices = () => noticeCallbacks.filter(watch => watch.active).forEach(watch => watch.error(Error('Simulated listener failure')));
+window.calls = []; window.unsubscribes = 0; window.adminUnsubscribes = 0;
+window.failNotices = () => noticeCallbacks.filter(watch => watch.active && !watch.admin).forEach(watch => watch.error(Error('Simulated listener failure')));
+window.failAdminNotices = () => noticeCallbacks.filter(watch => watch.active && watch.admin).forEach(watch => watch.error(Error('Simulated admin listener failure')));
+window.replayAdminNotices = () => noticeCallbacks.filter(watch => watch.admin).forEach(watch => watch.next([{id:'stale-admin-note',adminUnread:true}]));
+const BrowserObserver=window.IntersectionObserver;
+window.activeReadObservers=0;
+window.IntersectionObserver=class extends BrowserObserver {
+ observe(target){if(!this.watching){this.watching=true;window.activeReadObservers++;}super.observe(target);}
+ disconnect(){if(this.watching){this.watching=false;window.activeReadObservers--;}super.disconnect();}
+};
 window.setTestUser = next => { user = next; callbacks.forEach(fn => fn(next)); };
 function patch(id, build) { const items = records(), item = items.find(row => row.id === id); if (!item) throw Error('not-found'); build(item); publish(items); }
 const box = {
@@ -22,6 +31,9 @@ const box = {
  listAdmin: async () => { window.calls.push(['admin', user.uid]); return { items: records().sort((a,b) => b.at-a.at).map(hydrate), cursor: null, more: false }; },
  listUnread: async () => ({ items: unread(user.uid), cursor: null, more: false }),
  watchUnread: (next, error) => { const watch = { uid: user.uid, next, error, active: true }; noticeCallbacks.push(watch); queueMicrotask(emit); return () => { watch.active = false; window.unsubscribes++; }; },
+ listAdminUnread: async cursor => { window.calls.push(['adminNew',user.uid]); const items=adminUnread().filter(item=>!cursor||item.id>cursor).slice(0,20); return {items:items.map(hydrate),cursor:items.at(-1)?.id||null,more:items.length===20}; },
+ watchAdminUnread: (next,error) => { window.calls.push(['adminWatch',user.uid]); const watch={admin:true,next,error,active:true}; noticeCallbacks.push(watch); queueMicrotask(emit); return ()=>{watch.active=false;window.adminUnsubscribes++;}; },
+ markAdminRead: id => { window.calls.push(['adminRead',id,user.uid]); const commit=()=>{if(window.failAdminAck)throw Error('Simulated acknowledgement failure');patch(id,item=>{item.adminUnread=false;});}; if(window.deferAdminAck)return new Promise(resolve=>{window.finishAdminAck=()=>{commit();resolve();};}); return Promise.resolve().then(commit); },
  markRead: async (id, expected) => { window.calls.push(['read', id, expected]); let saved = false; patch(id, item => { if (item.uid === user.uid && item.replyVersion === expected && item.unread) { item.unread = false; saved = true; } }); return saved; },
  reply: async (id, text, expected) => { window.calls.push(['reply', id, expected]); patch(id, item => { if ((item.replyVersion || 0) !== expected) throw Error('feedback/reply-changed'); item.reply = { text: text.trim(), by: user.uid, at: Date.now() }; item.replyVersion = expected+1; item.unread = true; }); return expected+1; },
  setResolved: async (id, value) => patch(id, item => { item.resolved = value; }),
@@ -29,8 +41,8 @@ const box = {
 };
 window.ArcadeNet = { ok: true, currentUser: () => user, onAuth: fn => { callbacks.push(fn); queueMicrotask(() => fn(user)); },
  profile: { get: async () => ({ recordsMigratedAt: Date.now() }), save: async () => {} }, field: { delete: () => null },
- isAdmin: async () => query.has('admin'), signOut: async () => window.setTestUser(null), signInGoogle: async () => {},
- feedbackBox: box, feedback: async input => publish([...records(), { ...input, id: 'new', uid: user.uid, at: Date.now(), replyVersion: 0, unread: false }]),
+ isAdmin: async () => query.has('admin') && !!user && user.uid.startsWith('admin'), signOut: async () => window.setTestUser(null), signInGoogle: async () => {},
+ feedbackBox: box, feedback: async input => publish([...records(), { ...input, id: 'new', uid: user.uid, at: Date.now(), replyVersion: 0, unread: false, adminUnread: true }]),
 };
 window.dispatchEvent(new CustomEvent('arcade-net-ready'));
 `;
@@ -148,10 +160,77 @@ function dots(doc, active) {
  await until(()=>JSON.parse(localStorage.getItem('feedback-browser-fixture')).some(item=>item.id==='new'&&item.uid==='player-a'),'new submission');
  ad.querySelector('[data-feedback-id="a-23"] .fb-del').click(); ad.querySelector('[data-feedback-id="a-23"] .fb-del').click();
  await until(()=>!ad.querySelector('[data-feedback-id="a-23"]'),'admin deletion');
- close(ad); d.querySelector('#lang-toggle [data-lang="zh"]').click();
+ close(ad);
+ // Admin notifications have their own branch and shared, viewport-based acknowledgements.
+ const aw=admin.contentWindow; admin.scrollIntoView();
+ const queued=Array.from({length:24},(_,i)=>({id:'queue-'+String(i).padStart(2,'0'),uid:'player-a',text:'New submission '+i,at:20000+i,adminUnread:true,resolved:i===19,unread:false,replyVersion:0}));
+ queued.push({id:'legacy',uid:'player-a',text:'Legacy note',at:1});
+ queued.push({id:'admin-own',uid:'admin',text:'Admin personal submission',at:2,unread:true,replyVersion:1,reply:{text:'A personal reply',at:3}});
+ localStorage.setItem('feedback-browser-fixture',JSON.stringify(queued));
+ await until(()=>aw.testNoticeHub.state('feedback-admin').count===20&&aw.testNoticeHub.state('feedback').count===1,'bounded admin queue and personal reply');
+ if(!aw.testNoticeHub.state('feedback-admin').atLeast)throw Error('Full admin queue must report a lower-bound count');
+ if(w.calls.some(call=>call[0]==='adminWatch'))throw Error('Ordinary player subscribed to admin feedback');
+ for(const id of ['drawer-announcements-admin','drawer-admins'])if(ad.getElementById(id).classList.contains('has-unread'))throw Error('Unrelated admin entry inherited a notification');
+ const adminAnnouncements=aw.testNoticeHub.source('announcements','menu');adminAnnouncements.publish(1);
+ ad.getElementById('menu-btn').click();await sleep(80);
+ if(aw.calls.some(call=>call[0]==='adminRead'))throw Error('Opening menu acknowledged unseen submissions');
+ ad.getElementById('drawer-feedback-admin').click();
+ await until(()=>ad.querySelectorAll('.fb-item').length===20,'new submissions page');
+ if(ad.querySelector('.feedback-submissions-tab').getAttribute('aria-pressed')!=='true'||!ad.querySelector('.feedback-submissions-tab').classList.contains('has-unread'))throw Error('Admin new-submission tab missing');
+ if(ad.querySelector('[data-feedback-id="legacy"]'))throw Error('Legacy note treated as a new notification');
+ await until(()=>aw.calls.some(call=>call[0]==='adminRead'&&call[1]==='queue-00'),'visible text acknowledged after dwell');
+ await sleep(650);
+ if(aw.calls.some(call=>call[0]==='adminRead'&&call[1]==='queue-19'))throw Error('Offscreen submission was acknowledged');
+ let far=ad.querySelector('[data-feedback-id="queue-19"]');
+ if(!far.querySelector('.fb-meta').classList.contains('has-unread'))throw Error('Bounded listener eviction cleared an unseen item');
+ far.scrollIntoView({block:'start'});
+ await until(()=>aw.calls.some(call=>call[0]==='adminRead'&&call[1]==='queue-19')&&!far.querySelector('.fb-meta').classList.contains('has-unread'),'scrolling acknowledges offscreen submission');
+ if(!far.classList.contains('is-resolved'))throw Error('Reading changed handled status');
+ for(const width of [320,390,768]){admin.style.width=width+'px';const modal=ad.querySelector('.modal-card');if(modal.scrollWidth>modal.clientWidth+1)throw Error('Admin notification overflow at '+width);}
+ aw.failAdminNotices();
+ if(!ad.getElementById('drawer-feedback-admin').classList.contains('has-unread')||!ad.querySelector('.feedback-status').textContent.includes('unavailable'))throw Error('Admin listener failure erased known notices or lacked an error');
+ [...ad.querySelectorAll('.feedback-action')].find(b=>b.textContent==='Refresh').click();
+ await until(()=>!ad.querySelector('.feedback-status').textContent.includes('unavailable'),'admin listener retry');
+ const acknowledged=JSON.parse(localStorage.getItem('feedback-browser-fixture')).map(item=>({...item,adminUnread:false}));
+ localStorage.setItem('feedback-browser-fixture',JSON.stringify(acknowledged));
+ await until(()=>!ad.getElementById('drawer-feedback-admin').classList.contains('has-unread'),'shared admin acknowledgements');
+ if(!ad.getElementById('menu-btn').classList.contains('has-unread')||!ad.getElementById('drawer-feedback-mine').classList.contains('has-unread'))throw Error('Clearing admin submissions erased other notification branches');
+ close(ad);
+ // Backgrounding stops only active subscriptions; returning reconnects and finds new notes.
+ const stopped=aw.adminUnsubscribes;
+ Object.defineProperty(ad,'hidden',{configurable:true,value:true});ad.dispatchEvent(new aw.Event('visibilitychange'));
+ if(aw.adminUnsubscribes<=stopped)throw Error('Background admin listener was not stopped');
+ const wake={id:'wake-note',uid:'player-a',text:'While backgrounded',at:30000,adminUnread:true,resolved:false,unread:false,replyVersion:0};
+ localStorage.setItem('feedback-browser-fixture',JSON.stringify([...acknowledged,wake]));await sleep(50);
+ if(aw.testNoticeHub.state('feedback-admin').unread)throw Error('Stopped listener processed background data');
+ Object.defineProperty(ad,'hidden',{configurable:true,value:false});ad.dispatchEvent(new aw.Event('visibilitychange'));
+ await until(()=>aw.testNoticeHub.state('feedback-admin').count===1,'foreground reconnect');
+ ad.querySelector('#lang-toggle [data-lang="zh"]').click();
+ if(!ad.getElementById('drawer-feedback-admin').getAttribute('aria-label').includes('新投稿'))throw Error('Admin notification locale did not update');
+ ad.querySelector('#lang-toggle [data-lang="en"]').click();
+ // Two admins share the queue: viewing one note clears both admin entry dots.
+ const peer=frame('admin-peer',true);peer.scrollIntoView();
+ await until(()=>peer.contentWindow.testNoticeHub?.state('feedback-admin').count===1,'second admin notification');
+ peer.contentDocument.getElementById('drawer-feedback-admin').click();
+ await until(()=>!aw.testNoticeHub.state('feedback-admin').unread&&!peer.contentWindow.testNoticeHub.state('feedback-admin').unread,'shared admin view');
+ close(peer.contentDocument);peer.remove();admin.scrollIntoView();
+ // Closing before dwell expiry must cancel the pending acknowledgement.
+ localStorage.setItem('feedback-browser-fixture',JSON.stringify([...acknowledged,{...wake,id:'closed-note'}]));
+ await until(()=>aw.testNoticeHub.state('feedback-admin').count===1,'new note before close');
+ ad.getElementById('drawer-feedback-admin').click();await until(()=>ad.querySelector('[data-feedback-id="closed-note"]'),'close cancellation card');close(ad);await sleep(650);
+ if(aw.calls.some(call=>call[0]==='adminRead'&&call[1]==='closed-note')||aw.activeReadObservers!==0)throw Error('Closed modal retained its observer or acknowledged a note');
+ // Failed writes retain the dot and may be retried on another visit.
+ aw.failAdminAck=true;ad.getElementById('drawer-feedback-admin').click();
+ await until(()=>ad.querySelector('.feedback-status')?.textContent.includes('Could not'),'failed admin acknowledgement');
+ if(!aw.testNoticeHub.state('feedback-admin').unread)throw Error('Failed admin write cleared the notification');
+ close(ad);aw.failAdminAck=false;aw.deferAdminAck=true;ad.getElementById('drawer-feedback-admin').click();
+ await until(()=>aw.finishAdminAck,'deferred admin acknowledgement');
+ aw.setTestUser({uid:'player-b',anon:false});aw.finishAdminAck();aw.replayAdminNotices();await sleep(60);
+ if(ad.querySelector('.feedback-inbox')||!ad.getElementById('drawer-feedback-admin').hidden||aw.testNoticeHub.state('feedback-admin').unread||aw.testNoticeHub.state('menu').unread)throw Error('Account switch retained admin data or accepted stale callbacks');
+ d.querySelector('#lang-toggle [data-lang="zh"]').click();
  if(d.getElementById('drawer-feedback-mine').textContent!=='我的意見') throw Error('Inbox locale did not update');
  a.remove(); admin.remove();
- document.getElementById('result').textContent='PASS: private feedback UI, pagination, admin reply/update/status/delete, live unread notice, explicit read acknowledgement, plain-text rendering, account-switch isolation, existing submission flow, bilingual labels and mobile layout.';
+ document.getElementById('result').textContent='PASS: private feedback UI, admin shared notifications and viewport acknowledgement, bounded queue, listener/write failures, background lifecycle, nested independent dots, replies, account isolation, bilingual labels and mobile layout.';
 })().catch(error=>{document.getElementById('result').textContent='FAIL: '+error.stack;});
 </script>`;
 module.exports = { accountStub, runner };

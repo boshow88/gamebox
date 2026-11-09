@@ -396,7 +396,8 @@ Checks and the two-role acceptance flow are in [DEBUG.md](DEBUG.md#announcement-
 
 `js/net/feedback.mjs` owns the Firestore operations, injected with the Firebase SDK
 and current user. `ArcadeNet.feedbackBox` exposes `send`, `listMine`, `listAdmin`,
-`listUnread`, `watchUnread`, `reply`, `markRead`, `setResolved` and `remove`.
+`listUnread`, `watchUnread`, `listAdminUnread`, `watchAdminUnread`, `markAdminRead`,
+`reply`, `markRead`, `setResolved` and `remove`.
 `ArcadeNet.feedback(data)` remains the submission entry point. `js/feedback.js`
 owns the account/admin inbox UI and notification lifetime; `css/feedback.css`
 extends the launcher's modal styling. Messages are rendered with `textContent`.
@@ -410,6 +411,7 @@ Each `feedback/{id}` document keeps the immutable original submission (`uid`,
 | `reply` | Latest admin response: `{ text, by: adminUid, at: serverTimestamp }` |
 | `replyVersion` | Integer revision, starting at zero; each admin response increments it |
 | `unread` | Set true by a reply, cleared only by its submitting account after viewing |
+| `adminUnread` | New submission awaiting any admin's first view; independent of handled status and player reply unread state |
 
 This is a submission with one replaceable admin response, not a chat archive.
 The admin editor says that only the latest response is retained. Updating it
@@ -450,6 +452,42 @@ browser push or OS permission request. Notifications persist in Firestore until
 read and appear on later homepage visits. History loads 20 items per explicit
 page; admin history loads 50. Unread refresh loads the next current unread batch.
 Other game pages initialize the service but do not subscribe to feedback.
+
+### Admin submission notifications
+
+After the launcher's existing verified-admin check succeeds, `setAdmin(true, uid)`
+enables a separate `feedback-admin` source under `menu`. It drives the Feedback
+inbox entry and New submissions tab, without affecting announcement management or
+the admin roster. Ordinary accounts never start the admin listener. Account changes
+and stale admin-check/listener callbacks cannot restore another account's source.
+
+New submissions, including anonymous ones, set `adminUnread: true` in their original
+create operation. Only an admin can clear it; clients cannot submit it as false,
+and nobody can reset it to true after acknowledgement. Admins **share** this queue:
+viewing a submission once clears its notification for every admin. This is an
+inbox triage marker, not a personal per-admin reading history. `resolved` remains
+an independent workflow decision; replies do not implicitly change either flag.
+
+The homepage watches `adminUnread == true`, limited to 20 documents; a full batch
+reports `20+`. New submissions uses the same bounded filter, with cursor pagination
+in Firestore's default document order. All feedback retains chronological history
+and 50-item pages. Both the listener and filtered list use the standard single-field
+index; no additional composite index is required. An item leaving a full listener
+batch must not be assumed read: it may have been displaced by another pending item.
+
+Opening the menu or loading the list does not bulk-acknowledge posts. The submission
+text must intersect the modal's scroll viewport for 500ms, or the admin must focus
+or interact with that card. Offscreen posts retain their markers. Without
+IntersectionObserver, card interaction still acknowledges the post. Closing the
+modal, backgrounding, or changing identity cancels pending view timers. An
+acknowledgement performs one idempotent field update, without a preliminary
+document read. Duplicate concurrent views are harmless. Failed writes retain the
+marker; listener failures retain known outer indicators and offer Refresh in the
+inbox. Background pages unsubscribe and reconnect on return, with no polling.
+
+Publish the updated rules **before** serving the new sender. Legacy documents and
+already-open older senders may lack `adminUnread`; they remain in history but are
+not backfilled as new notifications. No migration or bulk write is needed.
 
 ### Publish feedback rules and indexes
 

@@ -335,6 +335,13 @@ account changes, translation and 320/390/768px layout. The account checks load t
 actual networking modules with only the Firebase SDK replaced. They cover
 profile access, feedback listener integration, sign-out and RTDB configuration.
 
+Admin coverage includes the separate new-submission branch, its 20+ lower bound,
+New submissions tab, viewport dwell versus offscreen cards, shared acknowledgement
+between two admins, handled-status independence, listener/write failure recovery,
+background unsubscribe/reconnect, modal-close cancellation and stale results after
+an admin switches to an ordinary account. Legacy notes do not produce new dots;
+clearing the admin queue leaves personal reply and announcement dots intact.
+
 `notifications-check.js` tests the pure unread tree: ancestor aggregation,
 independent sources, lower-bound counts, publisher replacement, cycle rejection,
 and late publishers after account changes. It uses no Firebase or browser.
@@ -351,7 +358,8 @@ Node 22+ and Java 21+ must be on PATH. The test refuses to run without
 `FIRESTORE_EMULATOR_HOST`, uses only `demo-gamebox`, and tests the actual rules:
 cross-account queries/reads, forged identity, unauthorized status/reply/delete,
 oversized and pre-filled payloads, stale response/read guards, legacy records,
-profile isolation and retired Firestore room paths. Permission-denied probes are
+admin-only new-submission acknowledgements, idempotent concurrent reads, bounded
+queue refill/cursor pagination, profile isolation and retired Firestore room paths. Permission-denied probes are
 expected; only an unexpected success/failure fails the check.
 
 After publishing the rules and indexes as described in
@@ -361,6 +369,11 @@ Open My feedback and expand the response: only then should it be marked read.
 Update the response to receive another notification. Account B must never see
 A's submission or response; signing out must remove private views immediately.
 Confirm anonymous submission still works without promising later account access.
+For the admin queue, send a new note from the refreshed website and confirm the
+Feedback inbox/menu dots appear for an admin. Open the inbox and leave a lower
+card offscreen: only text viewed for half a second should be acknowledged. Another
+admin's view clears that same shared marker. The handled checkbox must remain
+unchanged, and older notes missing `adminUnread` must remain visible in All feedback.
 
 Known pre-existing check limitation: the default `rooms-browser-check.js` and its
 bare `--invalid-rtdb` UI path still expect Beam's retired `#lobby` structure.

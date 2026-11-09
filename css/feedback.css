@@ -10,6 +10,8 @@
 .feedback-list { display: grid; gap: 14px; }
 .feedback-inbox .fb-item { gap: 10px; min-width: 0; background: var(--bg-card); }
 .feedback-inbox .fb-meta { margin: 0; overflow-wrap: anywhere; }
+.feedback-inbox .fb-meta.notification-indicator { padding-right: 14px; }
+.feedback-inbox .fb-meta.notification-indicator.has-unread::after { top: 6px; right: 1px; transform: none; }
 .feedback-status { margin: 0; min-height: 20px; color: var(--text-secondary); font-size: 13px; line-height: 1.6; }
 .feedback-reply { padding: 10px; border: 1px solid var(--border-color); border-radius: var(--radius-sm); background: var(--bg-elevated); }
 .feedback-reply summary { color: var(--accent); cursor: pointer; font-size: 13px; overflow-wrap: anywhere; }

@@ -31,7 +31,7 @@ export function createFeedbackService({ sdk, db, getUser }) {
                 game: typeof input.game === 'string' && input.game.length <= 80 ? input.game : null,
                 uid: user.uid, name: user.name ? user.name.slice(0, 200) : null,
                 email: user.email || null, anon: !!user.anon, at: serverTimestamp(),
-                resolved: false, replyVersion: 0, unread: false,
+                resolved: false, replyVersion: 0, unread: false, adminUnread: true,
             });
             return ref.id;
         },
@@ -45,6 +45,23 @@ export function createFeedbackService({ sdk, db, getUser }) {
             const uid = account().uid;
             return onSnapshot(query(root(), where('uid', '==', uid), where('unread', '==', true), limit(20)),
                 snapshot => next(snapshot.docs.map(item)), error);
+        },
+        async listAdminUnread(cursor = null) {
+            account();
+            const clauses = [where('adminUnread', '==', true)];
+            if (cursor) clauses.push(startAfter(cursor));
+            const snapshot = await getDocs(query(root(), ...clauses, limit(20)));
+            return { items: snapshot.docs.map(item), cursor: snapshot.docs.at(-1) || null, more: snapshot.docs.length === 20 };
+        },
+        watchAdminUnread(next, error) {
+            account();
+            return onSnapshot(query(root(), where('adminUnread', '==', true), limit(20)),
+                snapshot => next(snapshot.docs.map(item)), error);
+        },
+        markAdminRead(id) {
+            account();
+            // Idempotent: concurrent admins may view the same submission. No extra read.
+            return updateDoc(doc(db, 'feedback', id), { adminUnread: false });
         },
         async reply(id, value, expectedVersion) {
             const user = account(), replyText = text(value), ref = doc(db, 'feedback', id);

@@ -814,12 +814,17 @@
         var body = document.createElement('div'); body.className = 'modal-body';
         card.appendChild(head); card.appendChild(body); ov.appendChild(card);
         function onKey(e) { if (e.key === 'Escape') close(); }
-        function close() { ov.remove(); document.removeEventListener('keydown', onKey); }
+        function close() {
+            if (!ov.isConnected) return;
+            ov.remove(); document.removeEventListener('keydown', onKey);
+            if (modal.onClose) modal.onClose();
+        }
         x.addEventListener('click', close);
         ov.addEventListener('click', function (e) { if (e.target === ov) close(); });
         document.addEventListener('keydown', onKey);
         document.body.appendChild(ov);
-        return { ov: ov, body: body, close: close };
+        var modal = { ov: ov, body: body, close: close };
+        return modal;
     }
 
     function showRecords() {
@@ -1009,6 +1014,7 @@
                 if (adminInbox) adminInbox.hidden = !ok;
                 if (adminRoster) adminRoster.hidden = !ok;
                 if (announcementAdmin) announcementAdmin.hidden = !ok;
+                if (feedback) feedback.setAdmin(!!ok, user.uid);
                 setAdminUnlock(!!ok);
                 // Keep my own roster name in sync with my Google display name.
                 if (ok && user.email && user.name && N.getAdmins && N.adminAdd) {
@@ -1017,7 +1023,7 @@
                         if (accountUser && accountUser.uid === user.uid && e && e.name !== user.name) N.adminAdd(user.email, user.name);
                     }).catch(function () { /* ignore */ });
                 }
-            }).catch(function () { if (accountUser && accountUser.uid === user.uid) setAdminUnlock(false); });
+            }).catch(function () { if (accountUser && accountUser.uid === user.uid) { setAdminUnlock(false); if (feedback) feedback.setAdmin(false, user.uid); } });
         } else {
             setAdminUnlock(false);
         }
