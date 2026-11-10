@@ -411,7 +411,8 @@ button { font-family: inherit; cursor: pointer; }
 }
 
 .game-card-footer {
-    margin-top: var(--space-md);
+    margin-top: auto;
+    padding-top: var(--space-md);
     display: flex;
     align-items: center;
     justify-content: flex-end;
