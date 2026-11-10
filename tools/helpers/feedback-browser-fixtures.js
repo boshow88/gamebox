@@ -77,7 +77,18 @@ function dots(doc, active) {
  const admin=frame('admin',true); await until(()=>admin.contentDocument.getElementById('drawer-feedback-admin')&&!admin.contentDocument.getElementById('drawer-feedback-admin').hidden,'admin entry');
  const ad=admin.contentDocument; ad.getElementById('drawer-feedback-admin').click();
  await until(()=>ad.querySelector('[data-feedback-id="a-23"] textarea'),'admin reply editor');
- let card=ad.querySelector('[data-feedback-id="a-23"]'); card.querySelector('textarea').value='<b>Official reply</b>'; card.querySelector('form').requestSubmit();
+ let card=ad.querySelector('[data-feedback-id="a-23"]');
+ if([...ad.querySelectorAll('.feedback-admin-reply')].some(el=>el.open)||card.querySelector('textarea').getClientRects().length)throw Error('Admin editors must start collapsed');
+ if(!card.querySelector('.fb-author')||!card.querySelector('.fb-tags .fb-state'))throw Error('Admin cards need structured identity and status');
+ const compactHeight=card.getBoundingClientRect().height;
+ card.querySelector('.feedback-admin-reply summary').click();
+ await until(()=>card.querySelector('textarea').getClientRects().length,'expand admin editor');
+ if(card.getBoundingClientRect().height<=compactHeight+80)throw Error('Reply editor did not expand');
+ card.querySelector('textarea').value='Draft survives folding';
+ card.querySelector('.feedback-admin-reply summary').click();
+ card.querySelector('.feedback-admin-reply summary').click();
+ if(card.querySelector('textarea').value!=='Draft survives folding')throw Error('Folding erased draft');
+ card.querySelector('textarea').value='<b>Official reply</b>'; card.querySelector('form').requestSubmit();
  await until(()=>ad.querySelector('[data-feedback-id="a-23"] .feedback-reply'),'saved reply');
  await until(()=>!d.getElementById('feedback-notification').hidden,'realtime reply notification');
  dots(d,true);
@@ -86,7 +97,7 @@ function dots(doc, active) {
  w.failNotices(); dots(d,true);
  if (d.getElementById('feedback-notification-error').hidden) throw Error('Listener failure must retain known indicators with an error message');
  // A second unread reply keeps the outer dots until both are explicitly read.
- let second=ad.querySelector('[data-feedback-id="a-22"]'); second.querySelector('textarea').value='Second reply'; second.querySelector('form').requestSubmit();
+ let second=ad.querySelector('[data-feedback-id="a-22"]'); second.querySelector('.feedback-admin-reply').open=true; second.querySelector('textarea').value='Second reply'; second.querySelector('form').requestSubmit();
  await until(()=>d.getElementById('feedback-notification').textContent.includes('2 unread'),'two unread replies');
  d.getElementById('menu-btn').click(); dots(d,true);
  if (d.getElementById('drawer').getAttribute('aria-hidden')!=='false') throw Error('Menu did not open');
@@ -135,11 +146,14 @@ function dots(doc, active) {
  if (announcement.publish(5)!==false || feedbackSource.publish(5)!==false) throw Error('Old feature publishers survived an account change');
  if (reply.querySelector('b') || !reply.textContent.includes('<b>Official reply</b>')) throw Error('Admin markup must render as plain text');
  if (d.querySelector('.modal-card')) close(d);
- card=ad.querySelector('[data-feedback-id="a-23"]'); card.querySelector('textarea').value='Updated official reply'; card.querySelector('form').requestSubmit();
+ card=ad.querySelector('[data-feedback-id="a-23"]');
+ if(card.querySelectorAll('details').length!==1||card.querySelector('.feedback-admin-reply').open||!card.querySelector('summary').textContent.includes('Replied'))throw Error('Saved admin reply should have one collapsed editor and replied status');
+ card.querySelector('.feedback-admin-reply').open=true; card.querySelector('textarea').value='Updated official reply'; card.querySelector('form').requestSubmit();
  await until(()=>!d.getElementById('feedback-notification').hidden,'updated reply notifies again');
  dots(d,true);
  card=ad.querySelector('[data-feedback-id="a-23"]'); card.querySelector('.fb-resolved input').click();
  await until(()=>card.classList.contains('is-resolved'),'resolved status');
+ if(card.querySelector('.fb-state').textContent!=='Handled')throw Error('Handled badge did not update');
  d.getElementById('drawer-feedback-mine').click(); await until(()=>d.querySelector('[data-feedback-id="a-23"].is-resolved'),'owner sees handled status');
  close(d);
  // A delayed response from the old account must not survive an identity switch.
@@ -230,7 +244,7 @@ function dots(doc, active) {
  d.querySelector('#lang-toggle [data-lang="zh"]').click();
  if(d.getElementById('drawer-feedback-mine').textContent!=='我的意見') throw Error('Inbox locale did not update');
  a.remove(); admin.remove();
- document.getElementById('result').textContent='PASS: private feedback UI, admin shared notifications and viewport acknowledgement, bounded queue, listener/write failures, background lifecycle, nested independent dots, replies, account isolation, bilingual labels and mobile layout.';
+ document.getElementById('result').textContent='PASS: private feedback UI, collapsed admin editors, preserved drafts, structured metadata, admin shared notifications and viewport acknowledgement, bounded queue, listener/write failures, background lifecycle, nested independent dots, replies, account isolation, bilingual labels and mobile layout.';
 })().catch(error=>{document.getElementById('result').textContent='FAIL: '+error.stack;});
 </script>`;
 module.exports = { accountStub, runner };

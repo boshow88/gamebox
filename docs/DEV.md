@@ -472,6 +472,13 @@ submissions. Admin membership requires a verified email in `config/admins`.
 Lists require a limit no greater than 100. Owner queries include the exact UID;
 Firestore rules are not result filters.
 
+Admin cards separate author/date, status/category/game badges and submission text.
+Each card has one native `details` reply editor, collapsed by default, with a
+replied/no-reply indicator. Expanding and folding preserves an unsent draft.
+Saving folds the editor and returns focus to its summary; the latest response
+remains available when reopened. Player reply expansion and read acknowledgement
+keep their existing behavior.
+
 An admin response uses a transaction with the editor's captured `replyVersion`.
 Another admin's newer response rejects a stale save. Read acknowledgement also
 uses a transaction and captured version; viewing an old response cannot mark a

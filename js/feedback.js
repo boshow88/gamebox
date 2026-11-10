@@ -5,6 +5,7 @@
         zh: {
             mine: '我的意見', admin: '意見箱（管理）', loading: '正在讀取…', empty: '目前沒有意見紀錄。',
             all: '全部紀錄', unread: '未讀回覆', noUnread: '目前沒有未讀回覆。', more: '載入更多', refresh: '重新整理',
+            replied: '已回覆', lastReply: '上次回覆：',
             pending: '待處理', resolved: '已處理', reply: '管理員回覆', noReply: '尚未回覆', read: '查看回覆',
             replyPlaceholder: '輸入給玩家的回覆…', sendReply: '送出回覆', updateReply: '更新回覆', latest: '此處保留最新一則管理員回覆。',
             replySaved: '回覆已送出。', error: '操作失敗，請稍後再試。', changed: '回覆已更新，請重新整理後再操作。',
@@ -18,6 +19,7 @@
         en: {
             mine: 'My feedback', admin: 'Feedback inbox', loading: 'Loading…', empty: 'No feedback yet.',
             all: 'All feedback', unread: 'Unread replies', noUnread: 'No unread replies.', more: 'Load more', refresh: 'Refresh',
+            replied: 'Replied', lastReply: 'Last reply: ',
             pending: 'Pending', resolved: 'Handled', reply: 'Admin reply', noReply: 'No reply yet', read: 'View reply',
             replyPlaceholder: 'Write a reply to the player…', sendReply: 'Send reply', updateReply: 'Update reply', latest: 'Only the latest admin reply is retained here.',
             replySaved: 'Reply sent.', error: 'Could not complete the request. Please try again.', changed: 'The reply has changed. Refresh before continuing.',
@@ -177,10 +179,20 @@
                 card.dataset.feedbackId = fb.id;
                 card.classList.toggle('is-resolved', fb.resolved === true);
                 var metaParts = [fb.resolved ? c.resolved : c.pending, date(fb.at)];
-                if (admin) metaParts.unshift(fb.anon ? c.guest : fb.name || fb.email || c.guest);
-                if (fb.kind) metaParts.push(options.translate('feedbackKind' + fb.kind.charAt(0).toUpperCase() + fb.kind.slice(1)));
-                if (fb.game) metaParts.push(options.gameName(fb.game));
-                card.append(text, node('div', 'fb-meta', metaParts.filter(Boolean).join(' · ')));
+                var kind = fb.kind && options.translate('feedbackKind' + fb.kind.charAt(0).toUpperCase() + fb.kind.slice(1));
+                if (admin) {
+                    var meta = node('header', 'fb-meta fb-admin-meta');
+                    meta.append(node('span', 'fb-author', fb.anon ? c.guest : fb.name || fb.email || c.guest), document.createTextNode(' '), node('time', 'fb-date', date(fb.at)));
+                    var tags = node('div', 'fb-tags');
+                    tags.append(node('span', 'fb-tag fb-state', fb.resolved ? c.resolved : c.pending));
+                    if (kind) tags.append(node('span', 'fb-tag', kind));
+                    if (fb.game) tags.append(node('span', 'fb-tag', options.gameName(fb.game)));
+                    card.append(meta, tags, text);
+                } else {
+                    if (kind) metaParts.push(kind);
+                    if (fb.game) metaParts.push(options.gameName(fb.game));
+                    card.append(text, node('div', 'fb-meta', metaParts.filter(Boolean).join(' · ')));
+                }
                 if (admin) {
                     paintSubmission(fb, card);
                     if (fb.adminUnread === true) {
@@ -190,7 +202,7 @@
                         card.addEventListener('pointerdown', function () { acknowledge(fb, card); });
                     }
                 }
-                if (fb.reply && fb.reply.text) {
+                if (!admin && fb.reply && fb.reply.text) {
                     var details = node('details', 'feedback-reply');
                     var summary = node('summary', '', c.read + (fb.unread && !admin ? ' · ' + c.unread : ''));
                     indicator(summary, fb.unread && !admin, summary.textContent);
@@ -206,7 +218,7 @@
                         }).catch(fail).finally(function () { acknowledging = false; });
                     });
                     card.append(details);
-                } else card.append(node('p', 'fb-meta', c.noReply));
+                } else if (!admin) card.append(node('p', 'fb-meta', c.noReply));
                 if (admin) {
                     var controls = node('div', 'fb-actions'), label = node('label', 'fb-resolved');
                     var resolved = node('input'); resolved.type = 'checkbox'; resolved.checked = fb.resolved === true;
@@ -224,14 +236,19 @@
                     resolved.addEventListener('change', function () {
                         var next = resolved.checked; resolved.disabled = true;
                         Promise.resolve().then(function () { if (current()) return box.setResolved(fb.id, next); }).then(function () {
-                            if (current()) { fb.resolved = next; card.classList.toggle('is-resolved', next); }
+                            if (current()) { fb.resolved = next; card.classList.toggle('is-resolved', next); card.querySelector('.fb-state').textContent = next ? c.resolved : c.pending; }
                         }).catch(function (error) { resolved.checked = fb.resolved === true; fail(error); }).finally(function () { resolved.disabled = false; });
                     });
                     card.append(controls);
+                    var editor = node('details', 'feedback-reply feedback-admin-reply');
+                    var editorSummary = node('summary', 'feedback-reply-summary');
+                    editorSummary.append(node('span', '', c.reply), node('span', 'fb-reply-state', fb.reply && fb.reply.text ? c.replied : c.noReply));
+                    editor.append(editorSummary);
                     var form = node('form', 'feedback-reply-form'), inputLabel = node('label', '', c.reply);
                     var input = node('textarea', 'feedback-input'); input.rows = 3; input.maxLength = 2000; input.required = true;
                     input.placeholder = c.replyPlaceholder; input.value = fb.reply && fb.reply.text || ''; inputLabel.append(input);
                     var submit = node('button', 'feedback-action primary', fb.reply ? c.updateReply : c.sendReply); submit.type = 'submit';
+                    if (fb.reply && fb.reply.at) form.append(node('p', 'fb-meta', c.lastReply + date(fb.reply.at)));
                     form.append(inputLabel, node('p', 'fb-meta', c.latest), submit);
                     if (fb.anon) form.append(node('p', 'fb-meta', c.anonReply));
                     form.addEventListener('submit', function (event) {
@@ -243,9 +260,9 @@
                             fb.reply = { text: input.value.trim(), by: uid, at: { toDate: function () { return new Date(); } } };
                             status.textContent = c.replySaved;
                             var updated = renderItem(fb); card.replaceWith(updated);
-                            updated.querySelector('textarea').focus();
+                            updated.querySelector('.feedback-admin-reply summary').focus();
                         }).catch(fail).finally(function () { submit.disabled = false; input.disabled = false; del.disabled = false; });
-                    }); card.append(form);
+                    }); editor.append(form); card.append(editor);
                 }
                 return card;
             }

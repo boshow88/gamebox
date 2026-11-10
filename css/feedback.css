@@ -22,3 +22,17 @@
 .feedback-reply-form button { justify-self: start; }
 .feedback-reply-form .feedback-input { background: var(--bg-elevated); }
 .feedback-inbox .fb-text { overflow-wrap: anywhere; }
+
+/* Admin cards keep context visible while reply editors stay compact until opened. */
+.fb-admin-meta { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 12px; }
+.fb-author { min-width: 0; color: var(--text-secondary); font-weight: 600; }
+.fb-date { color: var(--text-muted); }
+.fb-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.fb-tag { max-width: 100%; padding: 3px 7px; border-radius: var(--radius-sm); background: var(--bg-elevated); color: var(--text-secondary); font-size: 11px; line-height: 1.4; overflow-wrap: anywhere; }
+.fb-state { border: 1px solid var(--border-color); }
+.is-resolved .fb-state { color: var(--accent); border-color: var(--accent); }
+.feedback-admin-reply summary { min-height: 24px; line-height: 1.8; }
+.fb-reply-state { margin-left: 8px; color: var(--text-secondary); font-size: 11px; }
+.feedback-admin-reply .feedback-reply-form { margin-top: 10px; }
+.feedback-admin-reply:not([open]) > .feedback-reply-form { display: none; }
+.feedback-status:empty { display: none; }
