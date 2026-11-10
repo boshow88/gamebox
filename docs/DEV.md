@@ -321,6 +321,48 @@ must acquire a new publisher for the new scope, so old asynchronous callbacks
 cannot relight or clear another account's notifications. Both the feedback and
 announcement controllers use this hub; their persistence policies remain separate.
 
+## Account startup and permissions
+
+`js/net/net.js` starts Firebase App/Auth and Firestore downloads concurrently.
+It publishes `window.ArcadeAuth` and `arcade-auth-ready` as soon as Auth initializes;
+identity restoration and the launcher account UI do not wait for Firestore or
+rooms. `ArcadeAuth.authState()` returns `loading`, `ready` or `error`; `currentUser()`
+returns a user or null for compatibility, so callers needing a confirmed identity
+must use `onAuth(callback)`. Its return value unsubscribes. Initialization failure
+still publishes an `ok:false` facade; later Auth errors emit `arcade-auth-error`.
+
+Auth uses `initializeAuth` with the normal IndexedDB/localStorage/sessionStorage
+fallbacks. It supplies `browserPopupRedirectResolver` explicitly to
+`signInWithPopup`, keeping the default popup/redirect iframe out of account
+restoration. Google uses popup sign-in on all platforms. Existing persistence
+keys are retained. Guest fallback waits for initial Auth restoration and reuses
+an existing session, so an early online/feedback action cannot replace Google
+with an anonymous account. The display-only `gamebox:account-name` hint is retained. See
+[Firebase's dependency initialization reference](https://firebase.google.com/docs/auth/web/custom-dependencies).
+The launcher's head preloads the App/Auth modules; keep their pinned version in
+sync with `SDK` in `net.js`.
+
+Firestore services publish `ArcadeNet` and `arcade-net-ready` separately. Existing
+profile/feedback/announcement consumers use this event. A Firestore download
+failure does not replace an already available `ArcadeAuth`. Room code and the
+RTDB SDK load only after `await ArcadeNet.rooms.ready()`; see [ROOMS.md](ROOMS.md).
+
+Admin checks share one server-verified `config/admins` read per Auth lifetime.
+Successful results are reused; transient errors discard the failed promise and
+remain retryable. A server `permission-denied` result is ordinary non-membership,
+since only admins can read the roster. `isAdmin({refresh:true})` starts a fresh read
+for an explicit retry. Auth transitions invalidate cached reads and stale results.
+No browser storage hint grants administrative access; Firestore Rules enforce
+actual database authorization.
+
+The launcher maintains permission state separately from account rendering, so
+language and score redraws neither query membership nor hide verified controls.
+An unknown identity displays a restoration status; only a resolved sign-out offers
+sign-in. An early WIP click opens a cancellable access check, keeps its destination,
+and continues once approved. A confirmed non-admin receives the ordinary WIP gate;
+network errors offer retry. After 12 seconds the pending action stops automatic
+navigation and requires retry; account changes cancel an existing action.
+
 ## Announcements
 
 `js/net/announcements.mjs` exposes the public board and admin publishing API through
@@ -591,7 +633,8 @@ mobile scroll cue and brief finished-cake pause; detailed mechanics live in
 ### WIP gating (the `wip` flag)
 
 A game whose `GAMES` entry has `wip: true` is still shown on the launcher, but
-opening it goes through a soft gate (`openWipGate` in `js/launcher.js`). What the
+opening it checks access before a soft gate (`requestWipAccess` / `openWipGate` in
+`js/launcher.js`). What the
 gate does depends on who's looking — so a half-built game can ship on `main`
 without being openly playable, while you and testers still reach it directly:
 

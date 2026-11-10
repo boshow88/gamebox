@@ -3367,10 +3367,13 @@
 
     function setupOnline() {
         if (window.CloudSync) window.CloudSync.onApplied(updateHud);   // repaint records on account swap / cloud merge
-        const onReady = () => {
+        const onReady = async () => {
             const N = window.ArcadeNet;
             const btn = document.getElementById('online-btn');
-            if (!N || !N.ok || (N.rooms && N.rooms.ok === false)) { if (btn) btn.hidden = true; return; }
+            if (!N || !N.ok) { if (btn) btn.hidden = true; return; }
+            try { if (N.rooms.ready) await N.rooms.ready(); }
+            catch (_) { if (btn) btn.hidden = true; return; }
+            if (N.rooms.ok === false) { if (btn) btn.hidden = true; return; }
             net = N;
             roomPresence = net.rooms.presence({ timeoutMs: 15000 });
             matchmaking = net.rooms.create({

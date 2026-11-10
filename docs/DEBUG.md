@@ -414,6 +414,38 @@ automatic redirect while preserving completed-proceedings wording. Normal use
 does not reset markers when the birthday field changes. Localhost and the deployed
 site, different browsers and different devices have independent marker storage.
 
+## Account startup checks
+
+Run `node tools/auth-startup-audit.js` for isolated SDK dependency/permission
+checks and `node tools/auth-startup-browser-audit.js /path/to/chrome` for the real
+launcher with delayed account/admin fixtures. Neither uses a real account nor
+reads/writes Firebase.
+
+The SDK checks hold Firestore or RTDB for 800 ms and require Auth delivery before
+release. The homepage must not import RTDB or room implementation modules. Checks
+also cover explicit popup dependencies, shared roster reads, server verification,
+transient failures/retries, permission denial, stale A→B→A responses, unsubscribe,
+and failure isolation between Auth, Firestore and RTDB.
+
+The browser checks restore identity after 2200 ms, publish Firestore services
+at 2800 ms and hold membership for another 1500 ms. Identity must appear before
+Firestore, unknown identity must never offer sign-in, and pending WIP clicks must
+wait. They verify cancellation, automatic continuation after approval, stable
+admin menus on locale changes, one lookup per identity, explicit retry, account
+changes and logout. Timing fixtures are deliberate delays, not production latency
+measurements.
+
+`node tools/rooms-browser-check.js /path/to/chrome` tests Beam and Rune Stones
+with the real network module and a local fake Firebase SDK. Add `--darts` for
+Darts, `--account` for profile/feedback integration, or `--invalid-rtdb` for failure
+isolation. Non-screenshot checks use Chrome's debugging protocol with real frame
+time; virtual-time DOM dumps can stall on asynchronous imports.
+
+For an affected real account, inspect the SDK requests, `arcade-auth-ready`, the
+first `ArcadeAuth.onAuth` callback, `arcade-net-ready`, and `config/admins` read in
+that account's browser. A signed-out timing sample cannot establish its token
+restoration or server-read latency. Do not share account tokens in diagnostics.
+
 ## Ungated console logging
 
 Not behind any flag — plain defensive/dev `console.warn` / `console.log` that

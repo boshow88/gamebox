@@ -7,7 +7,12 @@ DOM dependency. `js/net/rtdb-rooms.mjs` provides the Realtime Database transport
 covers Console setup and Firestore room retirement.
 `js/net/room-lobby.mjs` and `css/room-lobby.css` provide the shared lobby view.
 `js/net/net.js` handles authentication and exposes `ArcadeNet.rooms.create(options)`,
-`rooms.presence(options)` and `rooms.lobby(options)`.
+`rooms.presence(options)` and `rooms.lobby(options)`. First call and await
+`ArcadeNet.rooms.ready()` before using any of these methods. It shares one lazy
+load of the RTDB SDK and local room modules; `rooms.ok` is null until loaded, true
+on success, and false on failure. A rejected load can be retried. Account/Auth
+readiness is independent of rooms. Beam and Rune Stones initialize rooms on their
+game pages; Darts waits until an online action. The launcher never loads them.
 
 Rune Stones supplies translated text, player badges, results and actions
 to the shared lobby view. Beam and Darts each use their own unified lobby view on

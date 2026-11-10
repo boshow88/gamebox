@@ -122,6 +122,11 @@
             subtitle: 'A collection of small games.',
             all: 'All',
             signIn: 'Sign in',
+            accountLoading: 'Restoring your account…',
+            accountError: 'Account verification is unavailable. Please reload to retry.',
+            accessChecking: 'Checking access…',
+            accessError: 'Unable to verify access. Please try again.',
+            retryAccess: 'Try again',
             signOut: 'Sign out',
             account: 'Account',
             personalization: 'Personalization',
@@ -247,6 +252,11 @@
             subtitle: '一個小遊戲合輯。',
             all: '全部',
             signIn: '登入',
+            accountLoading: '正在恢復登入狀態…',
+            accountError: '暫時無法確認登入狀態，請重新整理後再試。',
+            accessChecking: '正在確認存取權限…',
+            accessError: '暫時無法確認權限，請重試。',
+            retryAccess: '重試',
             signOut: '登出',
             account: '帳號',
             personalization: '個人化設定',
@@ -449,7 +459,10 @@
     var wipUnlocked = false;      // WIP games open directly on this device (set by the ?backstage link)
     var wipJustUnlocked = false;  // the ?backstage link was used on THIS load (→ confirm with a toast)
     var adminUnlock = false;      // signed-in owner (config/admins) → WIP games open directly, no gate
-    var accountUser = null;       // signed-in user (from ArcadeNet), or null
+    var accountUser;              // undefined = restoring; null = confirmed signed out
+    var authFailed = false, authObserved = false;
+    var adminState = 'loading', adminEpoch = 0, adminClient = null;
+    var pendingAccess = null;
     var personalization = null;
     var feedback = null;
     var notifications = null;
@@ -594,12 +607,61 @@
             if (g.wip && !adminUnlock) {
                 card.addEventListener('click', function (ev) {
                     ev.preventDefault();
-                    openWipGate(ev.currentTarget.getAttribute('href'));
+                    requestWipAccess(ev.currentTarget.getAttribute('href'));
                 });
             }
 
             grid.appendChild(card);
         }
+    }
+
+    // Keep the user's click while identity/permissions are pending. Only a
+    // confirmed non-admin gets the WIP deterrent; successful checks continue once.
+    function accessState() {
+        if (adminUnlock) return 'allowed';
+        if (authFailed) return 'error';
+        if (accountUser === undefined) return 'loading';
+        if (!accountUser || accountUser.anon) return 'denied';
+        return adminState === 'ready' ? 'denied' : adminState;
+    }
+    function settleAccess() {
+        if (!pendingAccess || pendingAccess.timedOut) return;
+        var state = accessState(), intent = pendingAccess;
+        if (state === 'allowed' || state === 'denied') {
+            intent.modal.close();
+            if (state === 'allowed') location.href = intent.href;
+            else openWipGate(intent.href);
+            return;
+        }
+        intent.message.textContent = t(state === 'error' ? 'accessError' : 'accessChecking');
+        intent.retry.hidden = state !== 'error';
+        intent.message.setAttribute('aria-busy', state === 'loading' ? 'true' : 'false');
+    }
+    function requestWipAccess(href) {
+        if (accessState() === 'denied') { openWipGate(href); return; }
+        if (pendingAccess) pendingAccess.modal.close();
+        var m = openModal(t('accessChecking'));
+        m.ov.dataset.accessCheck = 'true';
+        var message = document.createElement('p'); message.setAttribute('role', 'status');
+        var retry = document.createElement('button'); retry.type = 'button'; retry.className = 'account-btn'; retry.textContent = t('retryAccess');
+        m.body.appendChild(message); m.body.appendChild(retry);
+        var intent = { modal: m, href: href, message: message, retry: retry, timedOut: false };
+        pendingAccess = intent;
+        function armTimeout() {
+            clearTimeout(intent.timer);
+            intent.timer = setTimeout(function () {
+                if (pendingAccess !== intent) return;
+                intent.timedOut = true; message.textContent = t('accessError');
+                message.setAttribute('aria-busy', 'false'); retry.hidden = false;
+            }, 12000);
+        }
+        m.onClose = function () { clearTimeout(intent.timer); if (pendingAccess === intent) pendingAccess = null; };
+        retry.addEventListener('click', function () {
+            intent.timedOut = false;
+            if (accountUser && !accountUser.anon && accessState() !== 'allowed') refreshAdmin(true);
+            armTimeout(); settleAccess();
+        });
+        armTimeout(); settleAccess();
     }
 
     // Confirm dialog for a WIP game. Locked: a "not open yet" deterrent whose "let me
@@ -960,11 +1022,15 @@
     // out; avatar + name + "Sign out" when signed in with a real account.
     function renderAccount(user) {
         var el = document.getElementById('account'); if (!el) return;
-        var N = window.ArcadeNet;
-        if (!N || !N.ok) { el.hidden = true; el.innerHTML = ''; return; }
+        var N = window.ArcadeAuth || window.ArcadeNet;
+        if (N && !N.ok) authFailed = true;
         el.hidden = false;
         el.innerHTML = '';
-        if (user && !user.anon) {
+        el.setAttribute('aria-busy', user === undefined && !authFailed ? 'true' : 'false');
+        if (user === undefined || authFailed) {
+            var status = document.createElement('span'); status.className = 'account-name'; status.setAttribute('role', 'status');
+            status.textContent = t(authFailed ? 'accountError' : 'accountLoading'); el.appendChild(status);
+        } else if (user && !user.anon) {
             if (user.photo) {
                 var img = document.createElement('img');
                 img.className = 'account-avatar'; img.src = user.photo; img.alt = '';
@@ -997,36 +1063,52 @@
             if (user && !user.anon && user.photo) { av.src = user.photo; av.referrerPolicy = 'no-referrer'; av.hidden = false; }
             else { av.removeAttribute('src'); av.hidden = true; }
         }
-        // Owner-only items (feedback inbox + admin roster), revealed per the locked
-        // config/admins doc; no identifiers live in this code.
-        var adminInbox = document.getElementById('drawer-feedback-admin');
-        var adminRoster = document.getElementById('drawer-admins');
-        var announcementAdmin = document.getElementById('drawer-announcements-admin');
-        if (adminInbox) adminInbox.hidden = true;
-        if (adminRoster) adminRoster.hidden = true;
-        if (announcementAdmin) announcementAdmin.hidden = true;
-        // Admins also unlock WIP games (play directly — no ?backstage needed). Re-render
-        // the grid when the status resolves so the gate is added/removed accordingly.
-        function setAdminUnlock(v) { if (adminUnlock === v) return; adminUnlock = v; renderGrid(); }
-        if (N && N.ok && N.isAdmin && user && !user.anon) {
-            N.isAdmin().then(function (ok) {
-                if (!accountUser || accountUser.uid !== user.uid) return;
-                if (adminInbox) adminInbox.hidden = !ok;
-                if (adminRoster) adminRoster.hidden = !ok;
-                if (announcementAdmin) announcementAdmin.hidden = !ok;
-                if (feedback) feedback.setAdmin(!!ok, user.uid);
-                setAdminUnlock(!!ok);
-                // Keep my own roster name in sync with my Google display name.
-                if (ok && user.email && user.name && N.getAdmins && N.adminAdd) {
-                    N.getAdmins().then(function (m) {
-                        var e = m[user.email.toLowerCase()];
-                        if (accountUser && accountUser.uid === user.uid && e && e.name !== user.name) N.adminAdd(user.email, user.name);
-                    }).catch(function () { /* ignore */ });
-                }
-            }).catch(function () { if (accountUser && accountUser.uid === user.uid) { setAdminUnlock(false); if (feedback) feedback.setAdmin(false, user.uid); } });
-        } else {
-            setAdminUnlock(false);
-        }
+        paintAdmin();
+    }
+
+    function paintAdmin() {
+        ['drawer-feedback-admin', 'drawer-admins', 'drawer-announcements-admin'].forEach(function (id) {
+            var el = document.getElementById(id); if (el) el.hidden = !adminUnlock;
+        });
+    }
+    function setAdmin(value, state) {
+        var changed = adminUnlock !== value;
+        adminUnlock = value; adminState = state; paintAdmin();
+        if (feedback && accountUser) feedback.setAdmin(value, accountUser.uid);
+        if (changed) renderGrid();
+        settleAccess();
+    }
+    function refreshAdmin(force) {
+        var N = window.ArcadeNet, user = accountUser, epoch = ++adminEpoch;
+        adminClient = N;
+        setAdmin(false, 'loading');
+        if (authFailed) { setAdmin(false, 'error'); return; }
+        if (!user || user.anon) { setAdmin(false, accountUser === undefined ? 'loading' : 'ready'); return; }
+        if (!N) return; // Firestore is still downloading; net-ready resumes this check.
+        if (!N.ok || !N.isAdmin) { setAdmin(false, 'error'); return; }
+        N.isAdmin({ refresh: !!force }).then(function (ok) {
+            if (epoch !== adminEpoch) return;
+            setAdmin(!!ok, 'ready');
+            if (ok && user.email && user.name && N.getAdmins && N.adminAdd) {
+                N.getAdmins().then(function (members) {
+                    var entry = members[user.email.toLowerCase()];
+                    if (epoch === adminEpoch && entry && entry.name !== user.name) return N.adminAdd(user.email, user.name);
+                }).catch(function () { /* Name synchronization is optional. */ });
+            }
+        }).catch(function () { if (epoch === adminEpoch) setAdmin(false, 'error'); });
+    }
+    function observeAccount(N) {
+        if (authObserved) return;
+        if (!N || !N.ok || !N.onAuth) { authFailed = true; renderAccount(accountUser); settleAccess(); return; }
+        authObserved = true;
+        if (N.authState && N.authState() === 'error') authFailed = true;
+        N.onAuth(function (user) {
+            if (pendingAccess && accountUser !== undefined && (accountUser && accountUser.uid) !== (user && user.uid)) pendingAccess.modal.close();
+            // Clear the previous account's permissions synchronously, even for A→B→A.
+            accountUser = user; authFailed = !!(N.authState && N.authState() === 'error');
+            if (personalization) personalization.setUser(user);
+            refreshAdmin(); renderAccount(user);
+        });
     }
 
     function renderAll() {
@@ -1129,10 +1211,15 @@
         feedback = window.GameBoxFeedback && window.GameBoxFeedback.create({ getLocale: function () { return lang; }, translate: t, gameName: gameName, openModal: openModal, notifications: notifications });
         announcements = window.GameBoxAnnouncements.create({ getLocale: function () { return lang; }, openModal: openModal, notifications: notifications,
             getGames: function () { return GAMES.map(function (game) { return { id: game.id, name: gameName(game.id), href: game.href }; }); } });
-        // Account: reflect sign-in state once the Firebase layer reports in.
+        // Auth can finish before Firestore and rooms. Subscribe to its small facade first.
+        if (window.ArcadeAuth) observeAccount(window.ArcadeAuth);
+        else window.addEventListener('arcade-auth-ready', function () { observeAccount(window.ArcadeAuth); }, { once: true });
+        window.addEventListener('arcade-auth-error', function () { authFailed = true; adminEpoch++; setAdmin(false, 'error'); renderAccount(accountUser); });
         whenNet(function (N) {
+            if (!authObserved) observeAccount(window.ArcadeAuth || N);
+            else if (adminClient !== N) refreshAdmin();
             if (N && N.ok && N.onAuth) {
-                N.onAuth(function (u) { notifications.setScope(u ? u.uid : null); accountUser = u; renderAccount(u); if (birthday) birthday.setUser(u); if (personalization) personalization.setUser(u); if (feedback) feedback.setUser(u); announcements.setUser(u); });
+                N.onAuth(function (u) { notifications.setScope(u ? u.uid : null); if (birthday) birthday.setUser(u); if (personalization) personalization.setUser(u); if (feedback) feedback.setUser(u); announcements.setUser(u); });
                 if (window.CloudSync && window.CloudSync.onProfile) {
                     window.CloudSync.onProfile(function (profile, uid) {
                         var u = N.currentUser();

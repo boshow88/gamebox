@@ -28,9 +28,9 @@
         if (text != null) element.textContent = text; return element;
     }
     function create(options) {
-        var user = null, profile = null, draft = null, dirty = false, busy = false, message = '', dialog = null, serial = 0, armed = false, armTimer = null;
+        var user, profile = null, draft = null, dirty = false, busy = false, message = '', dialog = null, serial = 0, armed = false, armTimer = null;
         function copy() { return COPY[options.getLocale() === 'zh' ? 'zh' : 'en']; }
-        function network() { return window.ArcadeNet; }
+        function network() { return window.ArcadeAuth || window.ArcadeNet; }
         function signed() { return user && !user.anon; }
         function errorKey(error) {
             var code = error && error.code || '';
@@ -59,7 +59,8 @@
             dialog.ov.querySelector('.modal-title').textContent = text.title;
             var body = dialog.body; body.replaceChildren(); body.classList.add('personalization-settings'); body.setAttribute('aria-busy', String(busy));
             var section = node('section', 'personalization-section'); section.append(node('h2', '', text.birthday), node('p', 'personalization-note', text.note));
-            if (!N || !N.ok) section.append(node('p', 'personalization-note', text.offline));
+            if (!N || (user === undefined && N.ok)) section.append(node('p', 'personalization-note', text.loading));
+            else if (!N.ok) section.append(node('p', 'personalization-note', text.offline));
             else if (!signed()) {
                 section.append(node('p', 'personalization-note', text.signinNote));
                 var signin = node('button', 'personalization-button primary', text.signin); signin.type = 'button';
@@ -70,6 +71,7 @@
             } else if (!profile) {
                 section.append(node('p', 'personalization-note', text.loading));
                 var retry = node('button', 'personalization-button', text.retry); retry.type = 'button';
+                retry.disabled = !window.ArcadeNet || !window.ArcadeNet.ok;
                 retry.addEventListener('click', function () {
                     retry.disabled = true;
                     Promise.resolve(window.CloudSync.sync()).then(function (ok) { if (!ok) { message = 'error'; render(); } }).finally(function () { retry.disabled = false; });

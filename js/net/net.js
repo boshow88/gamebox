@@ -1,6 +1,3 @@
-import { createRoomService, createRoomPresence, generateRoomCode } from './rooms.mjs';
-import { createRoomLobby } from './room-lobby.mjs';
-import { createRealtimeRoomStore } from './rtdb-rooms.mjs';
 import { createFeedbackService } from './feedback.mjs';
 import { createAnnouncementService } from './announcements.mjs';
 
@@ -21,6 +18,10 @@ const BASE = `https://www.gstatic.com/firebasejs/${SDK}`;
 function fail(err) {
     console.warn('[ArcadeNet] disabled:', err && (err.message || err));
     window.ArcadeNet = { ok: false, error: String(err && (err.message || err) || err) };
+    if (!window.ArcadeAuth) {
+        window.ArcadeAuth = window.ArcadeNet;
+        window.dispatchEvent(new CustomEvent('arcade-auth-ready'));
+    }
     window.dispatchEvent(new CustomEvent('arcade-net-ready'));
 }
 
@@ -28,66 +29,118 @@ function fail(err) {
     try {
         if (!window.FIREBASE_READY || !window.FIREBASE_CONFIG) throw new Error('config not set');
 
-        const [{ initializeApp }, authMod, fsMod] = await Promise.all([
-            import(`${BASE}/firebase-app.js`),
-            import(`${BASE}/firebase-auth.js`),
-            import(`${BASE}/firebase-firestore.js`),
+        // Start downloads together, but never make account restoration wait for Firestore.
+        // Observe failure immediately even if the Auth download is still pending.
+        const firestoreLoad = import(`${BASE}/firebase-firestore.js`).then(
+            sdk => ({ sdk }), error => ({ error }));
+        const [{ initializeApp }, authMod] = await Promise.all([
+            import(`${BASE}/firebase-app.js`), import(`${BASE}/firebase-auth.js`),
         ]);
         const {
-            getAuth, onAuthStateChanged, signInAnonymously, signOut,
-            GoogleAuthProvider, signInWithPopup,
+            initializeAuth, indexedDBLocalPersistence, browserLocalPersistence, browserSessionPersistence,
+            onAuthStateChanged, signInAnonymously, signOut,
+            GoogleAuthProvider, signInWithPopup, browserPopupRedirectResolver,
         } = authMod;
-        const {
-            getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, serverTimestamp, deleteField,
-        } = fsMod;
-
         const app = initializeApp(window.FIREBASE_CONFIG);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-
-        let user = undefined;                 // undefined = unknown yet, null = signed out
-        let adminPromise = null;              // cached read of config/admins (admin roster)
-        function readAdmins() {
-            if (!adminPromise) adminPromise = getDoc(doc(db, 'config', 'admins')).then((s) => (s.exists() ? (s.data().members || {}) : {})).catch(() => ({}));
-            return adminPromise;
-        }
-        const authCbs = [];
+        // Preserve the usual storage fallbacks. Popup support is supplied only when
+        // requested, avoiding an eager cross-origin auth iframe during restoration.
+        const auth = initializeAuth(app, {
+            persistence: [indexedDBLocalPersistence, browserLocalPersistence, browserSessionPersistence],
+        });
+        let user; // undefined = restoring, null = confirmed signed out
+        let authError = null, authEpoch = 0, adminPromise = null;
+        const authCbs = new Set();
+        const account = {
+            ok: true,
+            authState() { return authError ? 'error' : user === undefined ? 'loading' : 'ready'; },
+            onAuth(fn) {
+                authCbs.add(fn); if (user !== undefined) fn(user);
+                return () => authCbs.delete(fn);
+            },
+            currentUser() { return user || null; },
+            signInGoogle() { return signInWithPopup(auth, new GoogleAuthProvider(), browserPopupRedirectResolver); },
+            async signInGuest() {
+                // A fast online/feedback action must not replace a still-restoring
+                // Google session with an anonymous account.
+                await auth.authStateReady();
+                return auth.currentUser ? { user: auth.currentUser } : signInAnonymously(auth);
+            },
+            signOut() { return signOut(auth); },
+        };
         onAuthStateChanged(auth, (u) => {
-            adminPromise = null;
+            authEpoch++; adminPromise = null; authError = null;
             user = u ? { uid: u.uid, name: u.displayName || null, email: u.email || null, photo: u.photoURL || null, anon: u.isAnonymous } : null;
-            // A display hint lets local-only games reuse an existing account name without
-            // loading Firebase. It is never used for authentication or room ownership.
+            // Display hint only; never grants authentication or permissions.
             try {
                 if (user && !user.anon && user.name && user.name.trim()) localStorage.setItem('gamebox:account-name', JSON.stringify({ uid: user.uid, name: user.name.trim() }));
                 else localStorage.removeItem('gamebox:account-name');
-            } catch (_) { /* Local play also works when browser storage is unavailable. */ }
-            authCbs.forEach((fn) => { try { fn(user); } catch (e) { /* ignore */ } });
+            } catch (_) { /* Storage may be unavailable. */ }
+            [...authCbs].forEach(fn => { if (!authCbs.has(fn)) return; try { fn(user); } catch (err) { console.warn('[ArcadeNet] auth subscriber:', err); } });
+        }, (error) => {
+            authError = error; authEpoch++; adminPromise = null;
+            window.dispatchEvent(new CustomEvent('arcade-auth-error'));
         });
+        window.ArcadeAuth = account;
+        window.dispatchEvent(new CustomEvent('arcade-auth-ready'));
 
+        const loaded = await firestoreLoad;
+        if (loaded.error) throw loaded.error;
+        const fsMod = loaded.sdk;
+        const { getFirestore, doc, getDoc, getDocFromServer, setDoc, updateDoc, serverTimestamp, deleteField } = fsMod;
+        const db = getFirestore(app);
+        function readAdmins(refresh = false) {
+            if (refresh) adminPromise = null;
+            if (!adminPromise) {
+                const pending = getDocFromServer(doc(db, 'config', 'admins'))
+                    .then(s => s.exists() ? (s.data().members || {}) : {})
+                    .catch(error => {
+                        // A transient error must remain retryable and must not become
+                        // a cached empty roster. Ignore invalidation from older requests.
+                        if (adminPromise === pending) adminPromise = null;
+                        throw error;
+                    });
+                adminPromise = pending;
+            }
+            return adminPromise;
+        }
         const roomSessionId = crypto.getRandomValues(new Uint32Array(4)).join('-');
         const roomSettings = window.FIREBASE_ROOMS || {};
-        let rtdbSdk = null, rtdb = null, roomError = null;
-        try {
-            if (!roomSettings.databaseURL || !/^https:\/\/[a-z0-9.-]+\.(firebaseio\.com|firebasedatabase\.app)\/?$/i.test(roomSettings.databaseURL)) {
-                throw new Error('Copy the Realtime Database URL from Firebase Console into FIREBASE_ROOMS.databaseURL');
-            }
-            rtdbSdk = await import(`${BASE}/firebase-database.js`);
-            rtdb = rtdbSdk.getDatabase(app, roomSettings.databaseURL);
-        } catch (err) {
-            roomError = err;
-            console.warn('[rooms] disabled; account sync is still available:', err);
-        }
+        let rtdbSdk = null, rtdb = null, roomLoad = null, roomModule, lobbyModule, transportModule;
+        const rooms = {
+            ok: null, backend: 'rtdb', error: null,
+            // Download only for a game that actually uses rooms; account UI never waits.
+            ready() {
+                if (!roomLoad) roomLoad = (async () => {
+                    if (!roomSettings.databaseURL || !/^https:\/\/[a-z0-9.-]+\.(firebaseio\.com|firebasedatabase\.app)\/?$/i.test(roomSettings.databaseURL)) {
+                        throw new Error('Copy the Realtime Database URL from Firebase Console into FIREBASE_ROOMS.databaseURL');
+                    }
+                    [rtdbSdk, roomModule, lobbyModule, transportModule] = await Promise.all([
+                        import(`${BASE}/firebase-database.js`), import('./rooms.mjs'),
+                        import('./room-lobby.mjs'), import('./rtdb-rooms.mjs'),
+                    ]);
+                    rtdb = rtdbSdk.getDatabase(app, roomSettings.databaseURL);
+                    rooms.ok = true; rooms.error = null;
+                })().catch(error => {
+                    rooms.ok = false; rooms.error = error; roomLoad = null;
+                    throw error;
+                });
+                return roomLoad;
+            },
+            create: configureRooms,
+            presence(...args) { return roomModule.createRoomPresence(...args); },
+            lobby(...args) { return lobbyModule.createRoomLobby(...args); },
+        };
         function configureRooms(options) {
             if (!options || !options.collection) throw new Error('Room collection is required');
-            if (roomError) throw roomError;
-            const store = createRealtimeRoomStore(rtdbSdk, rtdb, options.collection, {
+            if (rooms.ok !== true) throw rooms.error || new Error('Await rooms.ready() before creating a room service');
+            const store = transportModule.createRealtimeRoomStore(rtdbSdk, rtdb, options.collection, {
                 presenceField: options.presenceField,
                 getPlayerId: () => user ? (options.identity === 'tab' ? user.uid + '_' + roomSessionId : user.uid) : null,
             });
-            return createRoomService({
+            return roomModule.createRoomService({
                 store,
                 getUser: () => user, sessionId: roomSessionId,
-                generateCode: generateRoomCode,
+                generateCode: roomModule.generateRoomCode,
             }, Object.assign({}, options, { codeLength: 4 }));
         }
 
@@ -95,15 +148,7 @@ function fail(err) {
         window.ArcadeNet = {
             ok: true,
             sdk: SDK,
-            // auth
-            onAuth(fn) { authCbs.push(fn); if (user !== undefined) fn(user); },
-            currentUser() { return user || null; },
-            // Popup on every platform: a redirect would need the app and Firebase's
-            // authDomain to share an origin (they don't on GitHub Pages), which modern
-            // browsers' cross-site storage partitioning silently breaks.
-            signInGoogle() { return signInWithPopup(auth, new GoogleAuthProvider()); },
-            signInGuest() { return signInAnonymously(auth); },
-            signOut() { return signOut(auth); },
+            ...account,
             // per-user cloud profile — e.g. { bests: { "<gameId>:<mode>": score } } —
             // so a signed-in player's high scores follow them across devices.
             profile: {
@@ -123,10 +168,15 @@ function fail(err) {
             // firestore.rules). Shape: config/admins = { members: { "<email>": { name } } }.
             // No identifiers live in source; membership is keyed by Google email.
             getAdmins() { return readAdmins(); },
-            isAdmin() {
-                if (!user || !user.email) return Promise.resolve(false);
-                const em = user.email.toLowerCase();
-                return readAdmins().then((m) => !!m[em]);
+            isAdmin({ refresh = false } = {}) {
+                if (authError) return Promise.reject(authError);
+                if (!user || user.anon || !user.email) return Promise.resolve(false);
+                const em = user.email.toLowerCase(), epoch = authEpoch;
+                return readAdmins(refresh).then(m => epoch === authEpoch && !!m[em]).catch(error => {
+                    // The roster is intentionally unreadable to non-admins.
+                    if (error.code === 'permission-denied') return false;
+                    throw error;
+                });
             },
             adminAdd(email, name) {
                 const em = (email || '').trim().toLowerCase();
@@ -146,8 +196,7 @@ function fail(err) {
             },
             field: { delete: deleteField, now: serverTimestamp },
             // Each game supplies its own matchmaking policy and initial match data.
-            rooms: { ok: !roomError, backend: 'rtdb', error: roomError,
-                create: configureRooms, presence: createRoomPresence, lobby: createRoomLobby },
+            rooms,
         };
         window.dispatchEvent(new CustomEvent('arcade-net-ready'));
     } catch (err) {

@@ -31,6 +31,7 @@ function accountRef(ref) { if (ref.split('/')[0].endsWith('_rooms')) throw new E
 export const getFirestore = () => ({}), doc = (_db, ...parts) => accountRef(parts.join('/'));
 export const serverTimestamp = () => Date.now(), deleteField = () => null;
 export const getDoc = async ref => ({ exists: () => records.has(accountRef(ref)), data: () => records.get(ref) });
+export const getDocFromServer = getDoc;
 export const setDoc = async (ref, data) => records.set(accountRef(ref), data);
 export const updateDoc = async (ref, data) => records.set(accountRef(ref), { ...records.get(ref), ...data });
 export const deleteDoc = async ref => records.delete(accountRef(ref));
@@ -41,7 +42,8 @@ export const onSnapshot = (_query, next) => { queueMicrotask(() => next({ docs: 
 export const runTransaction = async (_db, task) => task({ get: getDoc, update: updateDoc });
 `;
 const auth = `
-export const getAuth = () => ({});
+export const initializeAuth = () => ({ authStateReady: async () => {}, get currentUser() { return user; } });
+export const indexedDBLocalPersistence = {}, browserLocalPersistence = {}, browserSessionPersistence = {}, browserPopupRedirectResolver = {};
 const uid = new URLSearchParams(location.search).get('testUser') || 'same-account';
 let user = { uid, displayName: uid.startsWith('google-') ? 'Google Player' : 'Test player', photoURL: null, isAnonymous: !uid.startsWith('google-') };
 const observers = [];
@@ -91,6 +93,36 @@ function layout(f, entry = false) {
             if (rect.left < bounds.left - 1 || rect.right > bounds.right + 1) throw new Error('Action outside lobby card');
         }
     }
+}
+// Beam uses its unified native dialog; Rune Stones uses the shared lobby.
+async function checkBeam() {
+    const a = frame('beam', 'same-account'), b = frame('beam', 'same-account');
+    for (const f of [a, b]) {
+        await until(() => f.contentWindow.ArcadeNet && f.contentWindow.ArcadeNet.ok && f.contentDocument.getElementById('beam-lobby'), 'Beam account boot');
+        await f.contentWindow.ArcadeNet.rooms.ready();
+        f.contentWindow.ArcadeCommon.i18n.setLocale('en');
+        f.contentDocument.getElementById('room-btn').click();
+        f.contentDocument.getElementById('mode-online-btn').click();
+    }
+    a.contentDocument.getElementById('create-room-btn').click();
+    await until(() => /^[A-Z0-9]{4}$/.test(a.contentDocument.getElementById('room-code').textContent), 'Beam create after lazy SDK');
+    const code = a.contentDocument.getElementById('room-code').textContent;
+    const read = () => decode(JSON.parse(localStorage.getItem('__rooms-browser-db') || '{}')['rooms/beam_rooms/R-' + code]);
+    b.contentDocument.getElementById('room-code-input').value = code;
+    b.contentDocument.getElementById('join-room-btn').click();
+    await until(() => read() && Object.keys(read().players).length === 2, 'Beam join');
+    const ids = Object.keys(read().players);
+    if (ids[0] === ids[1] || !ids.every(id => id.startsWith('same-account_'))) throw Error('Beam lost tab-scoped account ownership');
+    await until(() => !b.contentDocument.getElementById('lobby-start-btn').disabled, 'Beam ready action');
+    b.contentDocument.getElementById('lobby-start-btn').click();
+    await until(() => Object.values(read().ready).some(Boolean), 'Beam guest ready');
+    await until(() => !a.contentDocument.getElementById('lobby-start-btn').disabled, 'Beam start action');
+    a.contentDocument.getElementById('lobby-start-btn').click();
+    await until(() => read().game.status === 'playing', 'Beam start');
+    b.contentDocument.getElementById('room-btn').click();
+    b.contentDocument.getElementById('leave-room-btn').click();
+    await until(() => Object.keys(read().players).length === 1, 'Beam leave');
+    a.remove(); b.remove(); await sleep(50);
 }
 async function check(game, group, prefix) {
     const a = frame(game, 'same-account'), b = frame(game, 'same-account');
@@ -199,6 +231,7 @@ ${dartsOnly ? fs.readFileSync(path.join(__dirname, 'helpers/darts-browser-v2.js'
         if (!net.feedbackBox || (await net.feedbackBox.listMine()).items.length) throw Error('Feedback service integration failed');
         let delivered = false; const stop = net.feedbackBox.watchUnread(() => { delivered = true; }, error => { throw error; });
         await until(() => delivered, 'unread service subscription'); stop();
+        await net.rooms.ready().catch(() => {});
         if (net.rooms.ok !== (mode === 'rtdb')) throw Error('Room backend configuration changed');
         f.contentWindow.__setTestAuth(null);
         if (net.currentUser()) throw Error('Sign-out retained the account');
@@ -214,7 +247,10 @@ ${dartsOnly ? fs.readFileSync(path.join(__dirname, 'helpers/darts-browser-v2.js'
             const f = frame(game, 'same-account');
             await until(() => f.contentWindow.ArcadeNet && f.contentWindow.ArcadeNet.ok, 'auth boot');
             const net = f.contentWindow.ArcadeNet;
-            if (net.rooms.ok !== false || !f.contentDocument.getElementById('online-btn').hidden) throw new Error('Invalid RTDB settings must disable rooms');
+            await net.rooms.ready().catch(() => {});
+            if (net.rooms.ok !== false) throw Error('Invalid RTDB settings must disable rooms');
+            if (game === 'rune-stones' && !f.contentDocument.getElementById('online-btn').hidden) throw Error('Unavailable Rune Stones online entry should be hidden');
+            if (game === 'beam' && !f.contentDocument.getElementById('room-btn')) throw Error('Beam solo setup must remain available');
             await net.profile.save('same-account', { games: { beam: { bests: { test: 7 } } } });
             if ((await net.profile.get('same-account')).games.beam.bests.test !== 7) throw new Error('Account records unavailable');
             f.remove();
@@ -236,7 +272,7 @@ ${dartsOnly ? fs.readFileSync(path.join(__dirname, 'helpers/darts-browser-v2.js'
                 await check();
             }
         }
-        else { await check('beam', 'beam_rooms', 'beam'); await check('rune-stones', 'duel_rooms', 'rd'); }
+        else { await checkBeam(); await check('rune-stones', 'duel_rooms', 'rd'); }
     }
     document.getElementById('result').textContent = 'PASS (' + mode + '): ' + (mode === 'invalid' ? 'disabled online rooms and working account profiles.' : cricketFocusOnly ? 'Darts Cricket target contrast, global closure, Bull, withdrawn players, Cork/X01 palette and responsive geometry.' : turnHitOnly ? 'Darts third-hit visibility, delayed handoff, human/CPU gating, remote agreement, Cork entry, deadlines and responsive geometry.' : openingOnly ? 'Darts synchronized random starter, full first-turn timer, reduced motion, input/CPU gating, hidden-page CPU progress and responsive geometry.' : guideOnly ? 'Darts throw-area guidance, shared gesture feedback, persistence, controls, CPU/remote ownership, handoff, reduced motion and responsive geometry.' : cpuOnly ? 'Darts local CPU slots, physical gestures, all compositions, pacing, cancellation, handoff, timers, Cricket and Cork.' : dartsOnly ? 'Darts Cricket target contrast, third-hit visibility, random starter, hidden-page CPU progress, throwing guidance, CPU opponents, Cork contexts/rethrows/ownership, overflow and reduced-motion detail, X01 settings, final-hit timing, local/mixed rooms, history and responsive geometry.' : 'real browser room flows, backend selection and account isolation.');
 })().catch(error => { document.getElementById('result').textContent = 'FAIL: ' + error.stack; });
@@ -311,13 +347,18 @@ async function main() {
             const target = path.join(root, '.cache'); fs.mkdirSync(target, { recursive: true });
             extra.push('--screenshot=' + path.join(target, 'darts-' + (cricketFocusOnly ? 'cricket-focus-' : turnHitOnly ? 'turn-hit-' : openingOnly ? 'opening-' : guideOnly ? 'guide-' : cpuOnly ? 'cpu-' : '') + (lobbyPreview ? 'lobby-' : corkPreview ? 'cork-' : '') + preview + '.png'), '--window-size=' + (preview === 'mobile' ? '390,844' : '1200,800'), '--hide-scrollbars');
         }
+        const targetUrl = 'http://127.0.0.1:' + server.address().port + '/__check';
         browser = spawn(chrome, ['--headless=new', '--disable-gpu', '--no-first-run', '--no-default-browser-check', ...extra,
-            '--disable-background-networking', '--user-data-dir=' + profile, '--dump-dom', '--virtual-time-budget=' + (dartsOnly ? 180000 : 45000),
-            'http://127.0.0.1:' + server.address().port + '/__check'], { windowsHide: true });
+            '--disable-background-networking', '--user-data-dir=' + profile,
+            ...(preview ? ['--dump-dom', '--virtual-time-budget=' + (dartsOnly ? 180000 : 45000)] : ['--remote-debugging-port=0', '--remote-debugging-address=127.0.0.1']),
+            targetUrl], { windowsHide: true });
         let output = '', diagnostics = '';
         browser.stdout.on('data', chunk => { output += chunk; }); browser.stderr.on('data', chunk => { diagnostics += chunk; });
         const timeout = setTimeout(() => browser.kill(), 45000);
-        try { await new Promise((resolve, reject) => { browser.on('error', reject); browser.on('exit', resolve); }); }
+        try {
+            if (preview) await new Promise((resolve, reject) => { browser.on('error', reject); browser.on('exit', resolve); });
+            else output = '<pre id="result">' + await require('./helpers/chrome-result.js')(profile, targetUrl) + '</pre>';
+        }
         finally { clearTimeout(timeout); }
         const match = output.match(/<pre id="result">([\s\S]*?)<\/pre>/);
         assert(match && match[1].startsWith('PASS ('), (match && match[1]) || diagnostics.slice(-2000) || 'No browser result');

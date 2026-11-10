@@ -1283,7 +1283,7 @@
     function initNet() {
         if (matchmaking) return true;
         var N = window.ArcadeNet;
-        if (!N || !N.ok || (N.rooms && N.rooms.ok === false)) return false;
+        if (!N || !N.ok || !N.rooms || N.rooms.ok === false || (N.rooms.ready && N.rooms.ok !== true)) return false;
         net = N;
         matchmaking = net.rooms.create({
             collection: GROUP, identity: 'tab', minPlayers: 1, maxPlayers: MAX_PLAYERS,
@@ -1335,13 +1335,15 @@
     }
     function ensureOnline() {
         if (initNet()) return Promise.resolve();
-        if (!onlineLoading) onlineLoading = onNetReady().then(function () {
+        if (!onlineLoading) onlineLoading = onNetReady().then(async function () {
+            var N = window.ArcadeNet;
+            if (N && N.ok && N.rooms.ready) await N.rooms.ready();
             if (!initNet()) throw new Error('online unavailable');   // loaded but Firebase/rooms are unavailable
         }).catch(function (e) { onlineLoading = null; throw e; });    // reset so a later attempt can retry
         return onlineLoading;
     }
     function setupOnline() {
-        if (!initNet()) window.addEventListener('arcade-net-ready', function () { if (initNet()) renderLobby(); }, { once: true });
+        ensureOnline().then(renderLobby).catch(function () { /* A later online action can retry. */ });
         setInterval(watchdog, 250);
         window.addEventListener('beforeunload', function () { if (room && room.code && net && !(om && om.local) && room.data && netUser && room.data.players && room.data.players[netUser.uid]) { roomSession.leave().catch(function () { }); } });
     }

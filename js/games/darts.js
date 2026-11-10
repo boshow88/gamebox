@@ -1622,7 +1622,9 @@
                 finally { cleanupLoad(); }
             }
             net = window.ArcadeNet;
-            if (!net || !net.ok || net.rooms.ok === false) throw new Error('Online unavailable');
+            if (!net || !net.ok) throw new Error('Online unavailable');
+            if (net.rooms.ready) await net.rooms.ready();
+            if (net.rooms.ok === false) throw new Error('Online unavailable');
             online = window.createDartsRoom({ net: net, onChange: onRoom, onError: showNetError,
                 resolveThrow: function (th) { var impact = computeImpact(th); return { impact: impact, result: scoreAt(impact.x, impact.y) }; } });
             await new Promise(function (resolve) { net.onAuth(function (user) {
