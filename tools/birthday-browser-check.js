@@ -13,7 +13,7 @@ const cakeScreenshot = args.includes('--cake-screenshot');
 const homeScreenshot = args.includes('--home-screenshot');
 const screenshot = args.includes('--screenshot') || cakeScreenshot || homeScreenshot;
 const screenshotPath = path.join(os.tmpdir(), cakeScreenshot ? 'gamebox-birthday-cake.png' : homeScreenshot ? 'gamebox-birthday-entry.png' : 'gamebox-birthday-notice.png');
-const { accountStub, fixedClock, runner } = require('./helpers/birthday-browser-fixtures.js');
+const { accountStub, fixedClock, runner, transformSource } = require('./helpers/birthday-browser-fixtures.js');
 
 (async () => {
     const server = http.createServer((request, response) => {
@@ -24,6 +24,7 @@ const { accountStub, fixedClock, runner } = require('./helpers/birthday-browser-
             const file = path.resolve(root, '.' + url.pathname);
             if (!file.startsWith(root + path.sep) || !fs.existsSync(file) || !fs.statSync(file).isFile()) { response.writeHead(404); response.end(); return; }
             body = fs.readFileSync(file);
+            if (transformSource) body = transformSource(file, body);
             if (cakeScreenshot && url.pathname === '/games/birthday.html') body = body.toString().replace('</body>', '<script>setTimeout(() => { document.getElementById("birthday-start").click(); }, 200);</script></body>');
             if (file.endsWith('.html')) { type = 'text/html'; if (['/index.html', '/games/birthday.html'].includes(url.pathname)) body = body.toString().replace('<head>', '<head>' + fixedClock); }
             else if (file.endsWith('.css')) type = 'text/css';

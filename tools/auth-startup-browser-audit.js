@@ -3,6 +3,9 @@
 'use strict';
 const fixtures = require('./helpers/birthday-browser-fixtures.js');
 fixtures.fixedClock = '';
+// Keep gate coverage even when every shipped game has been released.
+fixtures.transformSource = (file, body) => file.endsWith(require('node:path').join('js', 'launcher.js'))
+    ? body.toString().replace("id: 'unshackle',", "id: 'unshackle', wip: true,") : body;
 fixtures.accountStub = `
 let user;
 const callbacks = new Set();

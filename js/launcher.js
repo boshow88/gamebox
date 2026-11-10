@@ -107,7 +107,7 @@
         {
             id: 'unshackle', theme: 'puzzle', icon: 'unlink', color: '#b5684e',
             href: './games/unshackle.html',
-            tags: ['puzzle', 'casual', 'single'], wip: true,
+            tags: ['puzzle', 'casual', 'single'],
         },
     ];
 
