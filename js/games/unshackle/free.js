@@ -585,7 +585,7 @@
     function generateAsync(size, difficulty, seed, onProgress, version = 6) {
         if (typeof Worker === 'undefined') return (version >= 6 ? generate : generateLegacy)(size, difficulty, seed, onProgress);
         return new Promise((resolve, reject) => {
-            const worker = new Worker('../js/games/unshackle/free-worker.js?v=relay-interlocks-10');
+            const worker = new Worker('../js/games/unshackle/free-worker.js?v=touch-material-11');
             worker.onerror = event => { worker.terminate(); reject(new Error(event.message || 'Continuous worker failed')); };
             worker.onmessage = ({ data }) => {
                 if (data.error) { worker.terminate(); reject(new Error(data.error)); }

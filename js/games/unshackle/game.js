@@ -25,7 +25,7 @@
         unlockName: 'Unshackle', unlockCount: 'Pieces',
         unlockFreeBoard: 'Drag a piece freely along its axis. Release anywhere. Drag empty space to rotate.',
         unlockFree: 'Continuous slide', unlockFreeReady: 'Pull a piece partway to let others pass, then come back for it.',
-        unlockFreeHelp: 'Drag along the axis; release to stop. Pull toward the white cap once the path is clear.',
+        unlockFreeHelp: 'Grab near a piece and drag along its axis; release to stop. Pull toward the white cap to remove.',
         unlockFreeRelease: 'Release to remove', unlockFreeLevel: (n, difficulty) => `Continuous slide · ${difficulty} · ${n} pieces`,
         unlockFreeCaption: 'Drag a piece to move · Drag empty space to rotate', unlockFreeViewAxis: 'Rotate the view to see this piece from the side, then drag along its axis.',
         unlockFreePiece: id => `Select piece ${id}`, unlockFreePieces: 'Select a piece',
@@ -54,8 +54,8 @@
         unlockMatchDead: 'This order cannot finish within five slots. Return a waiting piece, undo an earlier move or reset.',
         unlockMatchUnknown: 'No hint found within the search limit. You can keep playing or undo.',
         unlockSettings: (diff, count) => `${diff} · ${count} pieces`,
-        unlockBoard: '3D interlocking puzzle. Drag or use arrow keys to rotate; press 1 through 9 to pull a piece.',
-        unlockCaption: 'Drag to rotate · Tap to pull', unlockViewReset: 'Reset view',
+        unlockBoard: 'Tap near a piece or drag toward its white cap to pull. Drag empty space to rotate.',
+        unlockCaption: 'Drag to pull · Drag empty space to rotate', unlockViewReset: 'Reset view',
         unlockCamera: 'Rotate the view', unlockLeft: 'Rotate left', unlockRight: 'Rotate right',
         unlockUp: 'Rotate up', unlockDown: 'Rotate down', unlockPieces: 'Pull a piece',
         unlockPiece: (id, removed) => `Piece ${id}${removed ? ' · removed' : ' · pull toward its white cap'}`,
@@ -71,14 +71,14 @@
         unlockWebGL: '3D rendering is unavailable. Enable WebGL or try another browser.',
         unlockContextLost: '3D rendering was interrupted. Waiting for the browser to restore it…',
         unlockHelp1: 'Remove every piece. Each pulls straight toward its white cap.',
-        unlockHelp2: 'Tap a piece to pull it out. Free its blockers first if the path is blocked.',
+        unlockHelp2: 'Tap near a piece or drag it toward its white cap to pull it out. Free its blockers first.',
         unlockHelp3: 'Drag empty space to rotate; pinch or scroll to zoom.',
     });
     Object.assign(PC.i18n.STRINGS.zh, {
         unlockName: '枷鎖', unlockCount: '零件數',
         unlockFreeBoard: '沿軸線自由拖曳零件，放開即停。拖空白處旋轉。',
         unlockFree: '連續滑動', unlockFreeReady: '先把零件抽出一部分讓路，再回頭解開它。',
-        unlockFreeHelp: '沿軸拖曳，放開即停；通道暢通後朝白端抽出。',
+        unlockFreeHelp: '按住零件附近沿軸拖曳，放開即停；通道暢通後朝白端抽出。',
         unlockFreeRelease: '放開即可取下', unlockFreeLevel: (n, difficulty) => `連續滑動・${difficulty}・${n} 個零件`,
         unlockFreeCaption: '拖零件移動 · 拖空白旋轉', unlockFreeViewAxis: '這個方向看不清移動軸線，先轉個角度再沿軸拖曳。',
         unlockFreePiece: id => `選取零件 ${id}`, unlockFreePieces: '選取零件',
@@ -107,8 +107,8 @@
         unlockMatchDead: '目前順序已無法在五格內完成，請放回暫存零件、復原較早的步驟或重置。',
         unlockMatchUnknown: '搜尋上限內暫時找不到提示，可以繼續嘗試或復原。',
         unlockSettings: (diff, count) => `${diff}・${count} 個零件`,
-        unlockBoard: '立體解鎖盤面。拖曳或用方向鍵旋轉；按 1 至 9 抽出零件。',
-        unlockCaption: '拖曳旋轉 · 點擊抽出', unlockViewReset: '視角歸位',
+        unlockBoard: '點零件附近或朝白端拖曳可抽出；拖空白處旋轉。',
+        unlockCaption: '拖零件抽出 · 拖空白旋轉', unlockViewReset: '視角歸位',
         unlockCamera: '旋轉視角', unlockLeft: '向左旋轉', unlockRight: '向右旋轉',
         unlockUp: '向上旋轉', unlockDown: '向下旋轉', unlockPieces: '抽出零件',
         unlockPiece: (id, removed) => `零件 ${id}${removed ? '・已抽出' : '・朝白色端點抽出'}`,
@@ -124,7 +124,7 @@
         unlockWebGL: '目前無法顯示 3D 畫面，請啟用 WebGL 或換個瀏覽器。',
         unlockContextLost: '3D 畫面暫時中斷，等待瀏覽器恢復中…',
         unlockHelp1: '依序抽出所有零件；每件只能朝白色端點移動。',
-        unlockHelp2: '點擊零件抽出；路徑被擋住時，先移開阻擋它的零件。',
+        unlockHelp2: '點零件附近或朝白端拖動即可抽出；被擋住時，先移開阻擋的零件。',
         unlockHelp3: '拖曳空白處旋轉，雙指或滾輪縮放。',
     });
     // custom: two rounded links separating along a diagonal.
@@ -142,7 +142,9 @@
 
     const state = { mode: initialMode, difficulty: urlInitial ? urlInitial.difficulty : 'easy', size: urlInitial ? urlInitial.size : initialMode === 'free' ? 12 : initialMode === 'match' ? 24 : 12,
         puzzle: null, pieces: [], graph: [], removed: new Set(), won: false,
-        drag: null, positions: [], selected: null, moveCount: 0, animation: null, blocked: null, blockers: [], highlight: null, hover: null };
+        drag: null, grabbed: null, positions: [], selected: null, moveCount: 0, animation: null, blocked: null, blockers: [], highlight: null, hover: null };
+    const pointers = new Map();
+    let gesture = null, pinchDistance = 0, controlPress = null, pullModel = null;
     let shell, frame = 0, hintOn = false, contextLost = false, generating = false;
     let blockedFeedbackTimer = 0;
     let monsterReactionTimer = 0;
@@ -152,12 +154,12 @@
     const modeSizes = { classic: initialMode === 'classic' ? state.size : 12, match: initialMode === 'match' ? state.size : 24, free: initialMode === 'free' ? state.size : 12 };
     const history = PC.history.create({
         limit: 64,
-        snapshot: () => ({ removed: [...state.removed], positions: state.positions.slice(), selected: state.selected, moveCount: state.moveCount }),
+        snapshot: () => ({ removed: [...state.removed], positions: state.positions.slice(), moveCount: state.moveCount }),
         restore: snapshot => {
             cancelAnimation();
             if (state.won) { state.won = false; shell.clearWin(); }
             state.removed = new Set(snapshot.removed);
-            state.positions = snapshot.positions; state.selected = snapshot.selected; state.moveCount = snapshot.moveCount;
+            state.positions = snapshot.positions; state.selected = null; state.moveCount = snapshot.moveCount;
             if (state.mode === 'free') rebuildFreePieces();
             clearFeedback(); say('unlockUndo'); syncUI(); invalidate();
         },
@@ -207,8 +209,7 @@
     function waiting() { return state.mode === 'match' && state.puzzle ? Match.trayAfter(state.puzzle, state.removed) : []; }
     function readyMessage() { return state.mode === 'free' ? 'unlockFreeReady' : state.mode === 'match' ? 'unlockMatchReady' : 'unlockReady'; }
     function cancelAnimation() {
-        state.drag = null;
-        if (gesture?.piece) gesture.multi = true;
+        cancelPointerInput();
         if (state.animation && state.animation.flight) state.animation.flight.remove();
         state.animation = null;
         $('match-monster').classList.remove('feeding', 'chewing');
@@ -315,8 +316,8 @@
         document.querySelector('.board-caption').textContent = t(state.mode === 'free' ? 'unlockFreeCaption' : 'unlockCaption');
         $('unlock-progress').textContent = t('unlockProgress', state.removed.size, state.pieces.length);
         const locked = generating || contextLost;
-        $('undo-btn').disabled = !history.canUndo() || !!state.animation || !!state.drag || locked;
-        $('hint-btn').disabled = state.won || !!state.animation || !!state.drag || locked || !state.puzzle;
+        $('undo-btn').disabled = !history.canUndo() || !!state.animation || state.grabbed != null || !!state.drag || locked;
+        $('hint-btn').disabled = state.won || !!state.animation || state.grabbed != null || !!state.drag || locked || !state.puzzle;
         document.querySelectorAll('#new-game-btn, #reset-btn, #share-btn, #next-level-btn, #difficulty-seg button, #size-seg button, #mode-seg button').forEach(b => { b.disabled = locked; });
         $('reset-btn').disabled = locked || !state.puzzle;
         $('share-btn').disabled = locked || !state.puzzle;
@@ -328,10 +329,10 @@
         for (const p of state.pieces) {
             const button = $(`piece-${p.id}`), removed = state.removed.has(p.id);
             if (!button) continue;
-            button.disabled = removed || !!state.animation || !!state.drag || locked;
+            button.disabled = removed || !!state.animation || !!state.drag || (state.grabbed != null && !controlPress) || locked;
             button.classList.toggle('removed', removed);
-            button.classList.toggle('selected', state.mode === 'free' && state.selected === p.id);
-            if (state.mode === 'free') button.setAttribute('aria-pressed', String(state.selected === p.id));
+            button.classList.toggle('selected', state.grabbed === p.id);
+            if (state.mode === 'free') button.setAttribute('aria-pressed', String(state.grabbed === p.id));
             else button.removeAttribute('aria-pressed');
             button.classList.toggle('hinted', p.id === state.highlight);
             const symbols = state.mode === 'match' && showSymbols, swatch = button.querySelector('.piece-swatch');
@@ -350,7 +351,7 @@
         state.removed.add(anim.id);
         if (state.mode === 'free') {
             state.positions[anim.id - 1] = Free.REMOVED;
-            state.selected = state.pieces.find(p => !state.removed.has(p.id))?.id || null;
+            state.selected = null;
         }
         if (state.removed.size === state.pieces.length) {
             state.won = true; recordWin(); lastTime = $('timer').textContent;
@@ -439,7 +440,6 @@
                 cancelAnimation(); say(effect.returning ? 'unlockReturnFailed' : 'unlockEffectFailed'); syncUI();
             }
         }
-        drawFreeGuide();
         const fittedPositions = state.pieces.map(p => {
             const offset = state.animation && state.animation.id === p.id ? state.animation.offset : state.drag?.id === p.id ? state.drag.offset : 0;
             return view.project(Engine.math.add(p.knob, Engine.math.mul(p.dir, offset)));
@@ -457,10 +457,11 @@
     }
     function invalidate() { if (!frame) frame = requestAnimationFrame(draw); }
 
-    function pull(id, extract = false) {
+    function pull(id, extract = false, fromOffset = 0) {
         if (state.won || state.animation || contextLost || generating) return;
         const p = state.pieces.find(p => p.id === id);
         if (!p || state.removed.has(id)) return;
+        cancelPointerInput();
         if (state.mode === 'free' && !extract) {
             state.selected = id; clearFeedback(); say(readyMessage()); syncUI(); invalidate(); return;
         }
@@ -491,19 +492,14 @@
             state.animation = { id, start: performance.now(), offset: 0, blocked: false, distance,
                 shortPull: state.mode === 'match', plateIndex: waiting().length,
                 matchIds: plan && plan.matching ? plan.consumed : null };
+            if (fromOffset > 0) {
+                state.animation.fromOffset = Math.min(fromOffset, distance);
+                state.animation.offset = state.animation.fromOffset;
+            }
         }
         syncUI(); invalidate();
     }
 
-    function drawFreeGuide() {
-        const guide = $('free-guide'), hidden = state.mode !== 'free' || !state.selected || state.won;
-        guide.toggleAttribute('hidden', hidden); if (hidden) return;
-        const rect = canvas.getBoundingClientRect(); guide.setAttribute('viewBox', `0 0 ${rect.width} ${rect.height}`);
-        const piece = state.pieces[state.selected - 1], offset = state.drag?.id === piece.id ? state.drag.offset : 0;
-        const point = n => view.project(Engine.math.add(piece.knob, Engine.math.mul(piece.dir, offset + n)));
-        const a = point(-1), b = point(1), line = guide.querySelector('line');
-        for (const [key, value] of Object.entries({ x1: a.x, y1: a.y, x2: b.x, y2: b.y })) line.setAttribute(key, value);
-    }
     function commitFreeDrag(drag) {
         if (Math.abs(drag.plan.offset) < 0.00001) return;
         history.push();
@@ -611,8 +607,9 @@
         if (!puzzle) throw new Error('No fresh Unshackle puzzle');
         state.puzzle = puzzle; state.difficulty = difficulty; state.size = size; state.mode = mode; modeSolveLogged = false;
         cancelAnimation(); state.won = false; state.removed = new Set();
-        state.positions = mode === 'free' ? puzzle.initial.slice() : []; state.moveCount = 0; state.selected = mode === 'free' ? 1 : null;
+        state.positions = mode === 'free' ? puzzle.initial.slice() : []; state.moveCount = 0; state.selected = null;
         state.pieces = mode === 'free' ? puzzle.pieces.map((p, i) => Free.at(p, state.positions[i])) : puzzle.pieces; state.graph = puzzle.graph; state.hover = null;
+        pullModel = mode === 'free' ? null : Free.compile(puzzle.pieces);
         history.clear(); clearFeedback(); view.reset(); view.setPieces(state.pieces);
         $('piece-tray').replaceChildren(); $('piece-markers').replaceChildren();
         state.pieces.forEach(p => {
@@ -657,7 +654,8 @@
             if (state.won) history.clear();
             else if (state.removed.size || state.moveCount) history.push();
             cancelAnimation(); state.won = false; state.removed = new Set();
-            if (state.mode === 'free') { state.positions = state.puzzle.initial.slice(); state.moveCount = 0; state.selected = 1; rebuildFreePieces(); }
+            state.selected = null;
+            if (state.mode === 'free') { state.positions = state.puzzle.initial.slice(); state.moveCount = 0; rebuildFreePieces(); }
             clearFeedback(); say(readyMessage()); syncUI(); invalidate();
         },
         solveSound: () => {
@@ -719,7 +717,7 @@
         } else say(readyMessage());
         syncUI(); invalidate();
     });
-    $('view-reset-btn').addEventListener('click', () => { if (state.mode === 'free') view.setPieces(state.pieces); view.reset(); invalidate(); });
+    $('view-reset-btn').addEventListener('click', () => { cancelPointerInput(); if (state.mode === 'free') view.setPieces(state.pieces); view.reset(); syncUI(); invalidate(); });
     $('next-level-btn').addEventListener('click', startPuzzle);
     $('share-btn').addEventListener('click', async () => {
         const ok = await PC.share.copyCurrentUrl(); PC.toast.show(t(ok ? 'shareCopied' : 'shareFailed'));
@@ -765,50 +763,52 @@
 
     function turn(direction) {
         const turns = { left: [-0.25, 0], right: [0.25, 0], up: [0, -0.2], down: [0, 0.2] };
-        view.rotate(...turns[direction]); invalidate();
+        cancelPointerInput(); view.rotate(...turns[direction]); syncUI(); invalidate();
     }
     document.querySelectorAll('[data-turn]').forEach(b => b.addEventListener('click', () => turn(b.dataset.turn)));
 
-    // Piece drags manipulate the model; empty-space drags orbit the camera.
-    const pointers = new Map();
-    let gesture = null, pinchDistance = 0;
+    // Each press owns one part until release. Picking is generous, while
+    // movement, collision and per-mode completion remain exact.
     const distance = () => { const p = [...pointers.values()]; return Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y); };
+    function cancelPointerInput() {
+        state.drag = null; state.grabbed = null; state.hover = null;
+        pointers.clear(); gesture = null; pinchDistance = 0; controlPress = null;
+        canvas.classList.remove('over-piece');
+    }
     function beginPieceDrag(e) {
-        if (state.mode !== 'free' || state.animation || state.won) return null;
-        const rect = canvas.getBoundingClientRect(), x = e.clientX - rect.left, y = e.clientY - rect.top;
-        // A small touch-sized picking tolerance, still using depth-tested meshes.
-        const samples = [[0,0],[-5,0],[5,0],[0,-5],[0,5]].map(([dx,dy]) => ({ x: x + dx, y: y + dy }));
-        const id = view.pickMany(samples, state).find(Boolean);
+        const rect = canvas.getBoundingClientRect();
+        const id = view.pickNear(e.clientX - rect.left, e.clientY - rect.top, state);
         if (!id) return null;
-        state.selected = id; clearFeedback(); say(readyMessage());
-        const p = state.pieces[id - 1], a = view.project(p.knob), b = view.project(Engine.math.add(p.knob, Engine.math.mul(p.dir, 1)));
-        const dx = b.x - a.x, dy = b.y - a.y, spacing = Math.hypot(dx, dy), from = state.positions[id - 1];
-        state.drag = { id, offset: 0 };
-        if (spacing < 12) { say('unlockFreeViewAxis'); return { id, endOn: true }; }
-        return { id, from, dx, dy, spacing, range: state.puzzle.model.limits(state.positions, id - 1) };
+        state.grabbed = id; state.selected = id; clearFeedback(); say(readyMessage());
+        const p = state.pieces[id - 1], a = view.project(p.knob), b = view.project(Engine.math.add(p.knob, p.dir));
+        return { id, dx: b.x - a.x, dy: b.y - a.y, spacing: Math.hypot(b.x - a.x, b.y - a.y) };
     }
     function updatePieceDrag(e) {
         const drag = gesture.piece;
         if (drag.endOn) return;
-        const travel = ((e.clientX - gesture.x) * drag.dx + (e.clientY - gesture.y) * drag.dy) / drag.spacing ** 2;
+        let travel = ((e.clientX - drag.x) * drag.dx + (e.clientY - drag.y) * drag.dy) / drag.spacing ** 2;
+        if (state.mode !== 'free') travel = Math.max(0, travel);
         drag.plan = Free.dragPlan(drag.range, travel, 56 / drag.spacing);
-        state.drag = { id: drag.id, offset: drag.plan.offset, extract: drag.plan.extract };
+        state.drag = { id: drag.id, offset: Math.min(drag.plan.offset, drag.visualLimit ?? Infinity), extract: drag.plan.extract };
         syncFreeUI();
         const sign = travel >= 0 ? 1 : -1, contact = sign > 0 ? drag.range.forward : drag.range.back;
         if (contact.blockers.length && Math.abs(travel - drag.plan.offset) > 0.02 && drag.warned !== sign) {
-            drag.warned = sign; flashBlocked(drag.id, contact.blockers); say('unlockFreeBlocked', drag.id, contact.blockers);
+            drag.warned = sign; say('unlockFreeBlocked', drag.id, contact.blockers);
         }
     }
     canvas.addEventListener('pointerdown', e => {
-        if (e.button !== 0 || contextLost || generating || !state.puzzle) return;
+        if (e.button !== 0 || state.animation || state.won || contextLost || generating || !state.puzzle) return;
         canvas.focus({ preventScroll: true }); canvas.setPointerCapture(e.pointerId);
         pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
         if (pointers.size === 1) {
             gesture = { x: e.clientX, y: e.clientY, moved: false, multi: false, piece: beginPieceDrag(e) };
-            syncUI(); invalidate();
+            state.hover = null;
         } else {
-            state.drag = null; gesture.multi = true; pinchDistance = distance(); syncUI(); invalidate();
+            state.drag = null; state.grabbed = null; state.selected = null;
+            if (gesture) gesture.multi = true;
+            pinchDistance = distance();
         }
+        syncUI(); invalidate();
     });
     canvas.addEventListener('pointermove', e => {
         const previous = pointers.get(e.pointerId);
@@ -816,14 +816,39 @@
             if (e.pointerType !== 'mouse' || state.animation || state.won || contextLost || generating || !state.puzzle) return;
             const rect = canvas.getBoundingClientRect();
             state.hover = view.pick(e.clientX - rect.left, e.clientY - rect.top, state);
-            canvas.classList.toggle('over-piece', !!state.hover); invalidate(); return;
+            canvas.classList.toggle('over-piece', !!state.hover); return;
         }
         pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
         if (pointers.size > 1) {
             const d = distance(); if (pinchDistance > 0) view.zoom(d / pinchDistance); pinchDistance = d;
         } else if (gesture && !gesture.multi) {
-            if (Math.hypot(e.clientX - gesture.x, e.clientY - gesture.y) > 6) gesture.moved = true;
-            if (gesture.moved) {
+            const dx = e.clientX - gesture.x, dy = e.clientY - gesture.y;
+            if (!gesture.moved && Math.hypot(dx, dy) >= 8) {
+                gesture.moved = true;
+                const drag = gesture.piece;
+                if (drag) {
+                    const alignment = drag.spacing ? Math.abs(dx * drag.dx + dy * drag.dy) / (Math.hypot(dx, dy) * drag.spacing) : 0;
+                    // Classic/Match retain their existing drag-to-rotate gesture
+                    // across a part; dragging along its axis pulls it instead.
+                    if (state.mode !== 'free' && (drag.spacing < 8 || alignment < 0.65)) {
+                        gesture.piece = null; state.grabbed = null; state.selected = null;
+                    } else if (drag.spacing < 8) {
+                        drag.endOn = true; say('unlockFreeViewAxis');
+                    } else {
+                        drag.x = e.clientX; drag.y = e.clientY;
+                        const ps = state.mode === 'free' ? state.positions : state.pieces.map(p => state.removed.has(p.id) ? Free.REMOVED : 0);
+                        const model = state.mode === 'free' ? state.puzzle.model : pullModel;
+                        drag.range = model.limits(ps, drag.id - 1);
+                        if (state.mode === 'match') {
+                            const rect = canvas.getBoundingClientRect();
+                            drag.visualLimit = view.pullPreviewDistance(state.pieces[drag.id - 1], drag.range.forward.exit,
+                                { left: 8, top: 8, right: rect.width - 8, bottom: rect.height - 20 }, state);
+                        }
+                        state.drag = { id: drag.id, offset: 0 };
+                    }
+                    syncUI();
+                }
+            } else if (gesture.moved) {
                 if (gesture.piece) updatePieceDrag(e);
                 else view.rotate((e.clientX - previous.x) * 0.009, (e.clientY - previous.y) * 0.009);
             }
@@ -833,32 +858,52 @@
     function release(e, cancelled) {
         if (!pointers.has(e.pointerId)) return;
         const completed = gesture;
-        pointers.delete(e.pointerId); state.drag = null;
+        pointers.delete(e.pointerId); state.drag = null; state.grabbed = null; state.selected = null;
+        if (!pointers.size) gesture = null;
+        else if (gesture) gesture.multi = true;
         if (!cancelled && completed && !completed.multi) {
             if (completed.piece && completed.moved) {
                 const drag = completed.piece;
-                if (drag.plan) commitFreeDrag(drag);
-            } else if (!completed.moved && !completed.piece?.endOn) {
-                const rect = canvas.getBoundingClientRect();
-                pull(completed.piece?.id || view.pick(e.clientX - rect.left, e.clientY - rect.top, state));
+                if (drag.plan) {
+                    if (state.mode === 'free') commitFreeDrag(drag);
+                    else if (drag.plan.extract || (drag.warned === 1 && blockersFor(state.pieces[drag.id - 1]).length))
+                        pull(drag.id, false, Math.min(drag.plan.offset, drag.visualLimit ?? Infinity));
+                }
+            } else if (!completed.moved && completed.piece) {
+                if (state.mode !== 'free') pull(completed.piece.id);
             }
         }
-        if (!pointers.size) gesture = null;
-        else if (gesture) gesture.multi = true;
         syncUI(); invalidate();
     }
     canvas.addEventListener('pointerup', e => release(e, false));
     canvas.addEventListener('pointercancel', e => release(e, true));
     canvas.addEventListener('lostpointercapture', e => release(e, true));
-    canvas.addEventListener('pointerleave', () => { state.hover = null; canvas.classList.remove('over-piece'); invalidate(); });
+    canvas.addEventListener('pointerleave', () => { state.hover = null; canvas.classList.remove('over-piece'); });
     canvas.addEventListener('wheel', e => {
-        if (contextLost || state.drag) return;
+        if (contextLost || state.grabbed != null || state.drag) return;
         e.preventDefault(); view.zoom(Math.exp(-e.deltaY * 0.001)); invalidate();
     }, { passive: false });
+    // The existing numbered controls also show press-only material feedback.
+    $('piece-tray').addEventListener('pointerdown', e => {
+        const button = e.target.closest('.piece-btn');
+        if (!button || button.disabled || controlPress || pointers.size || state.animation || generating || contextLost) return;
+        controlPress = { pointerId: e.pointerId }; state.grabbed = Number(button.id.slice(6));
+        clearFeedback(); syncUI(); invalidate();
+    });
+    function releaseControl(e) {
+        if (controlPress?.pointerId !== e.pointerId) return;
+        controlPress = null; state.grabbed = null; syncUI(); invalidate();
+    }
+    document.addEventListener('pointerup', releaseControl);
+    document.addEventListener('pointercancel', releaseControl);
+    window.addEventListener('blur', () => { cancelPointerInput(); syncUI(); invalidate(); });
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) { cancelPointerInput(); syncUI(); invalidate(); }
+    });
     document.addEventListener('keydown', e => {
         if (/INPUT|TEXTAREA|SELECT/.test(e.target.tagName)) return;
-        if (state.drag && e.key === 'Escape') { state.drag = null; if (gesture) gesture.multi = true; syncUI(); invalidate(); e.preventDefault(); return; }
-        if (state.drag) return;
+        if ((state.drag || state.grabbed != null) && e.key === 'Escape') { cancelPointerInput(); syncUI(); invalidate(); e.preventDefault(); return; }
+        if (state.drag || state.grabbed != null) return;
         if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
             e.preventDefault(); if (!state.animation && !generating && !contextLost) history.undo(); return;
         }

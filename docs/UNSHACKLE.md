@@ -22,15 +22,17 @@ card; the in-game title has no prototype badge. New shared abstractions are unne
 
 ## Rules and camera
 
-Every piece translates along its long axis toward its white cap. Dragging rotates
-the view, never individual pieces. Unit quaternions accumulate incremental turns
+Every piece translates along its long axis toward its white cap. Classic and
+Triple match accept taps or forward axial drags to extract; Continuous slide
+retains partial positions on release. Dragging empty space rotates the view.
+Classic/Match also retain transverse drags across pieces for rotation. Unit quaternions accumulate incremental turns
 about the current screen axes: horizontal input uses screen-up, vertical input
 uses screen-right, even after tilting or turning upside down. Neither direction
 has an angular limit. Pinch/wheel zoom (up to 3x), directional camera buttons, view
 reset and keyboard controls are available. The camera fits a bounding sphere of
 the actual tube/cap geometry, keeping the original puzzle in view during rotation.
 
-Tap a visible piece or its numbered button to pull. A blocked pull nudges back and
+Tap near a visible piece or its numbered button to pull. A blocked pull nudges back and
 highlights blockers. Hint identifies a currently free piece. Reset preserves the
 puzzle; undo can leave a win. New Game/Next puzzle generate fresh puzzles. Size and
 difficulty remain staged until generation. Solve records use the played settings
@@ -518,3 +520,50 @@ instructions, a 390px viewport, legacy-to-new-game share version transitions,
 and Classic/Match URL cleanup without browser exceptions. Separate local Node
 benchmarks for hard seeds 0/1 measured 36-piece generation at 509/367ms and
 48-piece generation at 423/517ms; timings depend on device and seed.
+
+## Nearby acquisition and press-only saturation
+
+All three modes use `view.pickNear` for board presses. The capture area extends
+20 CSS pixels from a frame surface and 24 near the white cap. Candidate surfaces
+come from projected capsule segments, not piece centres. At most eight nearby
+parts contribute five distinct surface probes each; their pixel IDs are checked
+in one depth-tested picking pass. An exact visible pixel wins, followed by the
+closest visible candidate. Fully hidden geometry cannot acquire the gesture.
+Selection never prefers a legal move or a solvable continuation.
+
+The pressed part is stored separately as transient `grabbed` state. Only its
+cached material saturation increases, preserving hue and HSL lightness; neutral
+materials receive a small brightness cue. Other materials stay unchanged while
+holding. Release, cancellation, lost capture, Escape, blur, reset, generation and
+pinch takeover clear the cue immediately. Hover, remembered selection and undo
+snapshots cannot restore it. Explicit Hint remains a separate persistent cue.
+Numbered piece buttons provide the same press-only feedback.
+
+Eight pixels of movement establish a drag without moving the part on acquisition.
+The part and its projected axis stay locked until release, even if the finger
+leaves the tube or crosses other pieces. Continuous slide uses the existing exact
+contact interval and assisted-exit intent; free-hand contact reports text without
+changing neighbouring materials. Classic/Match keep tap extraction and add forward
+axial dragging. Their previews never persist a partial gameplay state. Successful
+extractions continue from the preview offset, and Match limits its visual preview
+to its existing in-view handoff before transferring to the serving plate. Capacity,
+matching, returns, undo, seeds and score namespaces are unchanged. Transverse drags
+in Classic/Match and empty-space drags still rotate the camera. Two-finger input
+cancels a part preview before zooming. No external slider or drawn axis is used.
+
+`node tools/unshackle-input-check.js <Chrome-CDP-WebSocket-URL>` runs real touch
+checks with Node 22+ and an existing Chrome debugging session. The dependency-free
+runner serves this checkout on an ephemeral local port and owns only its test tab.
+It checks nearby taps/drags in all three modes, real WebGL material uniforms,
+numbered buttons, extraction handoff, plate return, undo, continuous relay solves,
+press cancellation and 48-piece acquisition at mobile viewport sizes. The browser
+endpoint is available from a debugging browser's `/json/version` response or
+`agent-browser get cdp-url`. Temporary control experiments are not part of the site.
+
+The input integration passed the real-browser touch suite for all three modes,
+including nearby taps and axial drags, transverse camera rotation, numbered
+controls, material-uniform colour checks, plate return and undo, an A-half/B/C/A
+relay, lost capture, Escape, blur, reset and pinch cancellation, and 48-piece
+acquisition at 390px/320px widths. Existing generator checks passed 18 match boards
+(5,268 solution prefixes and 131 capacity-oracle comparisons) and 24 continuous
+boards (720 independent physical motions), including byte-for-byte legacy shares.

@@ -3,6 +3,14 @@
     'use strict';
     const M = window.UnshackleEngine.math;
 
+    function saturated(color) {
+        const hi = Math.max(...color), lo = Math.min(...color), lightness = (hi + lo) / 2;
+        const saturation = (hi - lo) / (1 - Math.abs(2 * lightness - 1) || 1);
+        const factor = Math.min(0.95, saturation * 2 + 0.15) / (saturation || 1);
+        // Keep hue and lightness. Neutral materials use a small brightness cue.
+        return color.map(v => Math.max(0, Math.min(1, saturation < 0.06 ? v + 0.10 : lightness + (v - lightness) * factor)));
+    }
+
     function create(canvas) {
         const gl = canvas.getContext('webgl', { antialias: true, alpha: false });
         if (!gl) return null;
@@ -118,9 +126,10 @@
                     const band = [-0.13, 0.13].map(d => M.add(p.knob, M.mul(axis, d)));
                     knobVertices = tube(band, p.branchRadius + 0.001, p.dir, false);
                 } else knobVertices = sphere(p.knob, 0.19);
+                const color = p.color.match(/\w\w/g).map(n => parseInt(n, 16) / 255);
                 return { body: upload([...tube(p.path, p.radius, n, true), ...tube(p.stem, p.radius, n, false),
                     ...(p.branches || []).flatMap(branch => [...tube(branch, p.branchRadius || p.radius, p.dir, false), ...sphere(branch[0], p.branchRadius || p.radius), ...sphere(branch[branch.length - 1], p.branchRadius || p.radius)])]),
-                    knob: upload(knobVertices), color: p.color.match(/\w\w/g).map(n => parseInt(n, 16) / 255) };
+                    knob: upload(knobVertices), color, saturated: saturated(color) };
             });
         }
 
@@ -163,9 +172,12 @@
                 if (state.removed.has(p.id) && !(anim && anim.returning && anim.phase === 'insert')) return;
                 gl.uniform3fv(loc.uOffset, M.sub(M.mul(p.dir, anim ? anim.offset : state.drag?.id === p.id ? state.drag.offset : 0), center));
                 let color = meshes[i].color;
-                if (p.id === state.blocked) color = [0.9, 0.28, 0.28];
+                if (state.grabbed != null) {
+                    // Press feedback changes only the held part, never neighbours.
+                    if (p.id === state.grabbed) color = meshes[i].saturated;
+                } else if (p.id === state.blocked) color = [0.9, 0.28, 0.28];
                 else if (state.blockers.includes(p.id)) color = [0.96, 0.69, 0.27];
-                else if (p.id === state.highlight || p.id === state.hover || p.id === state.selected) color = color.map(n => n * 0.8 + 0.2);
+                else if (p.id === state.highlight) color = color.map(n => n * 0.8 + 0.2);
                 gl.uniform3fv(loc.uColor, picking ? [p.id / 255, 0, 0] : color);
                 drawMesh(meshes[i].body);
                 gl.uniform3fv(loc.uColor, picking ? [p.id / 255, 0, 0] : [0.97, 0.98, 1]);
@@ -204,6 +216,48 @@
             return { x: ((r[0]*p[0] + r[3]*p[1] + r[6]*p[2]) * scale[0] + shift[0] + 1) / 2 * canvas.clientWidth,
                 y: (1 - (r[1]*p[0] + r[4]*p[1] + r[7]*p[2]) * scale[1] - shift[1]) / 2 * canvas.clientHeight,
                 z: r[2]*p[0] + r[5]*p[1] + r[8]*p[2] };
+        }
+        function pickNear(x, y, state) {
+            fit(state);
+            const origin = project([0, 0, 0]);
+            const unit = Math.hypot(...[[1,0,0], [0,1,0], [0,0,1]].map(a => project(a).x - origin.x));
+            const probes = [{ x, y }], entries = [];
+            for (const p of pieces) {
+                if (state.removed.has(p.id)) continue;
+                const offset = M.mul(p.dir, state.animation?.id === p.id ? state.animation.offset : state.drag?.id === p.id ? state.drag.offset : 0);
+                const at = point => project(M.add(point, offset)), knob = at(p.knob), options = [];
+                for (const segment of p.segments) {
+                    const a = at(segment.a), b = at(segment.b), dx = b.x - a.x, dy = b.y - a.y;
+                    const t = Math.max(0, Math.min(1, ((x - a.x) * dx + (y - a.y) * dy) / (dx * dx + dy * dy || 1)));
+                    const q = { x: a.x + t * dx, y: a.y + t * dy };
+                    const gap = Math.max(0, Math.hypot(q.x - x, q.y - y) - segment.r * unit);
+                    const radius = Math.hypot(q.x - knob.x, q.y - knob.y) < 5 ? 24 : 20;
+                    if (gap <= radius) options.push({ ...q, gap });
+                }
+                options.sort((a, b) => a.gap - b.gap);
+                const unique = [];
+                for (const q of options) {
+                    if (!unique.some(other => Math.hypot(q.x - other.x, q.y - other.y) < 2.5)) unique.push(q);
+                    if (unique.length === 5) break;
+                }
+                if (unique.length) entries.push({ id: p.id, gap: unique[0].gap, points: unique, samples: [] });
+            }
+            entries.sort((a, b) => a.gap - b.gap); entries.splice(8);
+            for (const entry of entries) for (const q of entry.points) {
+                for (const [dx, dy] of [[0,0], [-1,0], [1,0], [0,-1], [0,1]]) {
+                    const sample = { x: q.x + dx, y: q.y + dy };
+                    if (sample.x < 0 || sample.y < 0 || sample.x >= canvas.clientWidth || sample.y >= canvas.clientHeight) continue;
+                    entry.samples.push({ index: probes.length, gap: q.gap }); probes.push(sample);
+                }
+            }
+            // Exact visible hits win. Expanded hits must also have a visible
+            // surface in the same depth-tested ID buffer; hidden parts cannot win.
+            const visible = pickMany(probes, state);
+            if (visible[0]) return visible[0];
+            const candidates = entries.map(entry => ({ id: entry.id,
+                gap: Math.min(...entry.samples.filter(sample => visible[sample.index] === entry.id).map(sample => sample.gap)) }))
+                .filter(candidate => Number.isFinite(candidate.gap)).sort((a, b) => a.gap - b.gap || a.id - b.id);
+            return candidates[0]?.id || null;
         }
         // Full swept-path legality is checked by the engine. Limit only the
         // visible extraction preview, handing over before any part leaves view.
@@ -398,7 +452,7 @@
                 remove() { svg.remove(); },
             };
         }
-        return { setPieces, render, project, pickMany, pullPreviewDistance, createPlateFlight, createReturnFlight, createFeedingFlight,
+        return { setPieces, render, project, pickMany, pickNear, pullPreviewDistance, createPlateFlight, createReturnFlight, createFeedingFlight,
             pick(x, y, state) { return pickMany([{ x, y }], state)[0]; },
             rotate(dx, dy) {
                 const angle = Math.hypot(dx, dy);
