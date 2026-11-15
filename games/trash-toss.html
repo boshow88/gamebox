@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="arcade">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trash Toss · GameBox</title>
+    <link rel="icon" type="image/svg+xml" href="../favicon.svg">
+    <link rel="stylesheet" href="../css/common.css">
+    <link rel="stylesheet" href="../css/arcade.css">
+    <link rel="stylesheet" href="../css/trash-toss.css">
+</head>
+<body>
+    <main class="game-shell">
+        <header class="game-topbar">
+            <a class="back-link" href="../index.html"><span data-icon="arrow-left" aria-hidden="true"></span><span data-i18n="menu">Menu</span></a>
+            <div class="game-title"><span class="game-icon" data-icon="trash-2" aria-hidden="true"></span><span data-i18n="ttName">Trash Toss</span></div>
+            <div class="lang-toggle" id="lang-toggle" role="radiogroup" data-i18n-aria-label="language">
+                <button type="button" data-lang="en" role="radio" aria-checked="true">EN</button>
+                <button type="button" data-lang="zh" role="radio" aria-checked="false">中</button>
+            </div>
+        </header>
+        <section class="tt-settings" data-i18n-aria-label="ttSettings" aria-label="Game settings">
+            <label><span data-i18n="ttMode">Mode</span><select id="tt-mode"><option value="practice" data-i18n="ttPractice">Practice</option><option value="cpu" data-i18n="ttCpu">Vs CPU</option><option value="local" data-i18n="ttLocal">Two players</option><option value="qa" data-i18n="ttQaName">Physics QA</option></select></label>
+            <label><span data-i18n="ttScene">Scene</span><select id="tt-scene"><option value="office" data-i18n="ttOffice">Office</option><option value="park" data-i18n="ttPark">Park</option></select></label>
+            <label id="tt-difficulty-field" hidden><span data-i18n="ttStrength">CPU strength</span><select id="tt-difficulty"><option value="easy" data-i18n="ttEasy">Easy</option><option value="normal" data-i18n="ttNormal">Normal</option><option value="hard" data-i18n="ttHard">Hard</option></select></label>
+            <button class="btn" type="button" id="tt-apply" data-i18n="ttNew">New game</button>
+            <p id="tt-pending" class="tt-pending" hidden></p>
+        </section>
+        <div class="hud tt-hud">
+            <div class="hud-stat"><span class="hud-label" data-i18n="ttRound">Round</span><span class="hud-value" id="tt-round">∞</span></div>
+            <div class="hud-stat accent"><span class="hud-label" id="tt-player-label">You</span><span class="hud-value" id="tt-score-a">0</span></div>
+            <div class="hud-stat" id="tt-rival-stat" hidden><span class="hud-label" id="tt-rival-label">CPU</span><span class="hud-value" id="tt-score-b">0</span></div>
+            <div class="hud-stat" id="tt-best-stat"><span class="hud-label" data-i18n="ttBestFive">Best five rounds</span><span class="hud-value" id="best">0</span></div>
+        </div>
+        <div class="tt-scene-bar"><div><span class="tt-live-dot" aria-hidden="true"></span><strong id="tt-turn"></strong><span id="tt-turn-order"></span></div><span id="tt-next"></span></div>
+        <div class="stage-wrap">
+            <canvas class="stage-canvas" id="stage" width="960" height="540" role="img" data-i18n-aria-label="ttCanvas" aria-label="Side-view throwing field"></canvas>
+            <div class="tt-field-weather" role="group" data-i18n-aria-label="ttWeather" aria-label="Weather and wind"><strong id="tt-weather-name"></strong><div class="tt-wind-line"><svg id="tt-wind-icon" viewBox="0 0 32 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><!-- custom: flowing wind curls --><path d="M2 8h17c7 0 7-7 2-7-3 0-4 2-4 3M1 13h24c7 0 7 9 1 9-3 0-4-2-4-3M5 18h8c5 0 5 5 1 5"/></svg><span id="tt-wind"></span></div><small id="tt-rain-effect" data-i18n="ttRainEffect" hidden>Rain increases air resistance</small></div>
+            <div class="tt-field-material"><span data-i18n="ttCurrentTrash">Current trash</span><strong id="tt-material"></strong></div>
+            <details class="tt-qa-hud" id="tt-qa-hud" open hidden><summary id="tt-qa-hud-title">QA data · px / s</summary><div id="tt-qa-hud-metrics"></div><button class="btn" id="tt-qa-quick-fire" type="submit" form="tt-qa-form" data-i18n="ttQaRepeat">Repeat numeric throw</button></details>
+            <div id="tt-qa-legend" class="tt-qa-legend" data-i18n="ttQaLegend" hidden>Green: current · Orange: previous · Blue: no wind</div>
+            <span class="tt-field-debris" id="tt-debris"></span>
+            <div class="overlay" id="overlay" hidden><div class="overlay-card">
+                <span class="overlay-badge" id="overlay-badge" aria-hidden="true"></span>
+                <h2 class="overlay-title" id="overlay-title"></h2><p class="overlay-message" id="overlay-message"></p>
+                <button class="btn btn-primary overlay-btn" id="overlay-btn" type="button"></button><p class="overlay-hint" id="overlay-hint"></p>
+            </div></div>
+        </div>
+        <div class="tt-status-row"><p id="tt-status" role="status" aria-live="polite"></p><button class="btn" id="tt-ready" type="button" data-i18n="ttReady" hidden>I'm ready</button><span id="tt-clock"></span></div>
+        <section id="tt-normal-controls" class="tt-console" data-i18n-aria-label="ttControls" aria-label="Throwing controls">
+            <div class="tt-angle-control"><div class="tt-control-title"><label for="tt-angle" data-i18n="ttAngle">Angle</label><output id="tt-angle-value" for="tt-angle">45°</output></div>
+                <div class="tt-angle-input"><button class="btn" id="tt-angle-down" type="button" data-i18n-aria-label="ttLower" aria-label="Lower angle">−</button><input id="tt-angle" type="range" min="15" max="80" step="1" value="45"><button class="btn" id="tt-angle-up" type="button" data-i18n-aria-label="ttRaise" aria-label="Raise angle">＋</button></div>
+                <p class="tt-control-note" data-i18n="ttAngleHint">Arrow keys to adjust</p>
+            </div>
+            <div class="tt-power-control"><div class="tt-control-title"><span id="tt-power-label" data-i18n="ttPower">Power</span><output id="tt-power-value">0</output></div>
+                <div id="tt-power-meter" class="tt-power-meter" role="meter" aria-labelledby="tt-power-label" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span id="tt-power-fill"></span><i id="tt-last-mark" hidden></i></div>
+                <p class="tt-control-note" id="tt-last" data-i18n="ttNoLast">Your last throw appears here</p>
+            </div>
+            <button class="btn btn-primary tt-throw" id="tt-throw" type="button" disabled><span data-icon="arrow-up-right" aria-hidden="true"></span><span id="tt-throw-label" data-i18n="ttHold">Hold to charge</span><small data-i18n="ttRelease">Release to throw · Space</small></button>
+        </section>
+        <section class="tt-qa" id="tt-qa-panel" hidden>
+            <h3 data-i18n="ttQaName">Physics QA</h3>
+            <p class="tt-qa-note" data-i18n="ttQaNote">No people, birds or old trash. Bin collisions are on unless Free flight is checked. Units are game px and seconds, not m/s.</p>
+            <form id="tt-qa-form" class="tt-qa-inputs">
+                <label><span data-i18n="ttItem">Trash</span><select id="tt-qa-item"><option value="paper" data-i18n="ttPaper">Paper</option><option value="can" data-i18n="ttCan">Can</option><option value="bottle" data-i18n="ttBottle">Bottle</option><option value="cup" data-i18n="ttCup">Paper cup</option><option value="carton" data-i18n="ttCarton">Carton</option><option value="peel" data-i18n="ttPeel">Banana peel</option><option value="apple" data-i18n="ttApple">Apple core</option><option value="book" data-i18n="ttBook">Book</option></select></label>
+                <label><span data-i18n="ttQaWeight">Weight (g)</span><input id="tt-qa-weight" type="number" min="2" max="32" step="0.01" value="8" required></label>
+                <label><span data-i18n="ttAngle">Angle</span><input id="tt-qa-angle" type="number" min="15" max="80" step="0.1" value="45" required></label>
+                <label><span data-i18n="ttPower">Power</span><input id="tt-qa-power" type="number" min="0" max="100" step="0.1" value="65" required></label>
+                <label><span data-i18n="ttQaWind">Wind (−100 to +100)</span><input id="tt-qa-wind" type="number" min="-100" max="100" step="1" value="30" required></label>
+                <label><span data-i18n="ttQaRain">Rain intensity</span><select id="tt-qa-rain"><option value="0" data-i18n="ttQaDry">Dry</option><option value="0.22" data-i18n="ttDrizzleWeather">Drizzle</option><option value="0.7" data-i18n="ttRainWeather">Rain</option><option value="1.6" data-i18n="ttStormWeather">Heavy rain</option></select></label>
+                <label class="tt-qa-check"><input id="tt-qa-freeflight" type="checkbox"><span data-i18n="ttQaFreeFlight">Free flight: ignore bin collisions</span></label>
+                <div class="tt-qa-actions"><button class="btn btn-primary" id="tt-qa-fire" type="submit" data-i18n="ttQaFire">Test throw</button><button class="btn" id="tt-qa-sweep" type="button" data-i18n="ttQaSweep">Compare wind</button><button class="btn" id="tt-qa-clear" type="button" data-i18n="ttQaClear">Clear tests</button></div>
+            </form>
+            <p class="tt-qa-note" data-i18n="ttQaBaseline">Green: current actual flight. Orange dashes: previous actual flight. Blue dots: no wind. All follow the selected bin collision setting.</p>
+            <details class="tt-qa-details"><summary data-i18n="ttQaDetails">Full diagnostics and test history</summary><div class="tt-qa-metrics" id="tt-qa-metrics"></div>
+            <div class="tt-qa-table-wrap"><table class="tt-qa-table"><caption data-i18n="ttQaHistory">Recent tests</caption><thead><tr><th data-i18n="ttItem">Trash</th><th data-i18n="ttQaWeight">Weight (g)</th><th data-i18n="ttAngle">Angle</th><th data-i18n="ttPower">Power</th><th data-i18n="ttQaWindShort">Wind</th><th data-i18n="ttQaRain">Rain</th><th data-i18n="ttQaCollision">Bins</th><th data-i18n="ttQaTime">Flight (s)</th><th data-i18n="ttQaRange">Range (px)</th><th data-i18n="ttQaDrift">Wind drift (px)</th></tr></thead><tbody id="tt-qa-history"></tbody></table></div></details>
+        </section>
+        <div class="control-row tt-actions"><span class="tt-rules-summary" data-i18n="ttPoints">Large 10 · Small 25 · Hit someone −5</span><span class="spacer"></span>
+            <button class="btn" id="pause-btn" type="button" disabled><span data-icon="pause" aria-hidden="true"></span><span data-role="pause-label" data-i18n="pause">Pause</span></button>
+            <button class="btn" id="restart-btn" type="button" disabled><span data-icon="rotate-ccw" aria-hidden="true"></span><span data-i18n="restart">Restart</span></button>
+        </div>
+        <section class="game-footer"><h4 data-i18n="howToPlay">How to play</h4><ul>
+            <li data-i18n="ttHelp1">Set an angle, hold to charge, release to throw. Power cycles 0 → 100 → 0, with each sweep taking 1.3 seconds.</li>
+            <li data-i18n="ttHelp2">Large bins score 10, small bins 25. Hit a moving obstacle for −5. Earlier trash stays and can block future throws.</li>
+            <li data-i18n="ttHelp3">Eight types of trash have visible weights. Weather changes between rounds; rain increases air resistance.</li>
+            <li data-i18n="ttHelp4">Practice has no clock. Matches have five rounds and 12 seconds to release. Both players get identical trash and weather per round. The field and moving obstacles continue through turns.</li>
+            <li data-i18n="ttHelp5">Ties add up to three extra rounds, then draw. Change settings and press New game to apply. P pauses, R returns to ready, M mutes.</li>
+        </ul></section>
+    </main>
+    <script src="../js/arcade.js"></script>
+    <script src="../js/firebase-config.js"></script>
+    <script type="module" src="../js/net/net.js"></script>
+    <script src="../js/cloud-sync.js"></script>
+    <script src="../js/games/trash-toss-rules.js"></script>
+    <script src="../js/games/trash-toss-view.js"></script>
+    <script src="../js/games/trash-toss-qa.js"></script>
+    <script src="../js/games/trash-toss.js"></script>
+</body>
+</html>

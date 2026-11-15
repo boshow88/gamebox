@@ -61,6 +61,73 @@ Chrome executable as the first argument if the Windows default path is unavailab
 Rules JSON is checked locally, but server-side authorization still requires the
 Firebase rule evaluator or a live-project check after publishing rules.
 
+## Trash Toss checks
+
+```text
+node tools/trash-toss-check.js
+node tools/trash-toss-session-check.js
+```
+
+The dependency-free check executes the actual rules: reproducible flight and CPU
+intent, fixed substeps, descending whole-object aperture crossings, rim/side
+rebounds (including retained trash), obstacle penalties, physical rain/wind,
+cycling charge, eight weighted items, unchanging actor phase across rounds,
+immutable score transitions, fixed AB order and bounded tied matches.
+QA traces are checked against the actual simulator, including absent actors,
+unclipped optional free-flight range, wind displacement, shared acceleration,
+bin counts and the normal bucket-collision option. A real bird ricochet followed
+by a basket verifies additive scoring. Rim-rest timing, internal bin support,
+fixed results after entry and occasional high/low bird passes have regressions.
+The session check runs the actual controller in a minimal DOM/shell fixture,
+advancing fixed ticks to verify the world clock survives turns and rounds,
+debris remains, handoff freezes only turn time, avatar counts follow the mode,
+charging/pause/cancellation are safe and only New game resets the world.
+It also loads the actual QA module, submits numeric shots, checks separate
+previous/reference traces, both collision modes, 19 in-field metric outputs,
+repeated tests and five wind-sweep experiments.
+
+Browser checks: open `games/trash-toss.html` through a local static server. Check
+both languages and 375px/960px widths. Start Practice with Space (that first press
+must not charge), adjust angle with arrows, hold/release Space or the throw button,
+and check last-throw feedback. Hold through 0–100–0–100; power must reverse at
+each endpoint (1.3 seconds per sweep) without firing until released.
+Pause while charging, release and resume: no throw may escape. Cancel a touch or
+switch tabs with the same expectation. Stage scene/mode changes; the current
+scene must stay intact until New game. Verify local handoff freezes the turn
+clock until Ready while actors and loose trash continue moving. Check that a
+bird never returns to its starting position on release or next throw, including
+round changes. Mixed practice must change trash, display grams and show next
+trash. Both competitors in a round must share identical weather/weight readouts.
+Rain must be visible and affect flight, with an umbrella on the walker. Verify
+two player avatars in matches, retained trash collisions, and that New game
+clears the field. CPU turns reject human input, and a complete match returns
+translated results and stores only the first human's five regulation rounds in
+a `-v2` record bucket. Earlier rules' records remain separate. Practice has no
+record submission. On a phone, verify release outside the button still throws
+and a page-scroll/pointer cancellation discards the charge without firing.
+
+Check an NPC overlapping a bin: its complete silhouette must render in front
+of both surfaces. Place several trash objects inside a bin and confirm they
+remain visible through the translucent front and update the item count. Check
+the in-field weight card, A/C label in the office and directional wind streaks.
+Observe drizzle before heavy rain and gradual particle/tint transitions.
+For QA select Physics QA, New game and Start. Enable Free flight, then set paper/8g/45 degrees/65 power/
++30 wind/no rain. The automatic no-wind comparison should show about +80.90px
+drift; book/280g with the other inputs unchanged shows about +2.40px. Inputs are
+game parameters, not real wind-speed units. Wind comparison must retain the
+selected controls and add five table rows. At 375px width only the results
+table may scroll horizontally; the page must not overflow. Verify no score
+record is submitted from QA, including after ten repeated numeric shots. With
+Free flight off, a numeric throw must collide/score at a bin rather than pass
+through it. Check orange previous actual trajectory stays after changing inputs
+or running a wind sweep; blue reference and green current remain distinct.
+In-field metrics and repeat button must work without scrolling below the field.
+Select each QA trash type and check native `checkValidity()` before firing. In
+particular, carton 45g (minimum 11.25g) and peel 55g (minimum 13.75g) must not
+report `stepMismatch`; the 0.01g step accepts their integer defaults and quarter
+weight boundaries. Check the symmetric apple-core sprite, gray launcher card
+and WIP badge before publication.
+
 ## Darts checks
 
 ```text

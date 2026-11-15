@@ -666,6 +666,103 @@ uses 600×760 portrait, capped/centred via a `.stage-wrap { max-width }`
 on its page) and scale the backing store by `devicePixelRatio` in a
 `fitCanvas()`.
 
+## Trash Toss implementation
+
+`games/trash-toss.html` uses the existing arcade shell, bilingual chrome, sound,
+preferences and generic CloudSync best-score descriptor. No packages or assets
+are required. `css/trash-toss.css` owns the responsive control panel.
+The launcher marks the game WIP and uses gray (`#92969e`), matching its page accent.
+Launcher sorting keeps coloured cards in hue order and groups neutral colours
+(HSV saturation below 12%) at the end, so gray cards do not interrupt the spectrum.
+
+- `js/games/trash-toss-rules.js`: DOM-free browser/CommonJS module owning world
+  geometry, seeded round conditions, object properties, fixed-step flight,
+  collisions, synthetic CPU controls and immutable match settlement.
+- `js/games/trash-toss-view.js`: Canvas 2D artwork. It consumes the rules' world
+  coordinates and obstacle bounds; it never decides collisions or scores.
+- `js/games/trash-toss.js`: staged configuration, shell lifecycle, keyboard/
+  captured pointer input, turn presentation, practice feedback and HUD.
+- `js/games/trash-toss-qa.js`: optional numeric lab, controlled wind comparisons,
+  no-wind reference trace, live diagnostics and a ten-experiment table.
+
+Angles are 15–80 degrees. Charge uses a triangle wave, 0–100–0, with 1.3 seconds
+per sweep. The shared 1/60-second update uses four 1/240-second physics substeps.
+Gravity and launch speeds are increased together for roughly 1.6x faster flight
+without simply flattening the arc; result presentation lasts 0.45 seconds.
+Eight item profiles define base grams, drag, wind response, speed and radius.
+Each seeded round supplies visible weight variation (about ±15%); launch speed
+also responds to that weight. Normal play always rotates trash; item selection
+exists only in the QA lab. The shuffled sequence visits all eight types before
+repeating. Outdoor weather follows calm/breeze/strong wind/drizzle/rain/storm/
+rain/drizzle, avoiding dry-to-heavy-rain jumps. Rain particles and tint approach
+the new intensity at 0.65 units/second; actual drag is fixed immediately for both
+players in that round. Rain increases physical drag as well as drawing rain.
+
+Aperture scoring requires descending across rim height with the whole circular
+collision envelope inside the opening. Side/rim and retained-trash collisions
+rebound. Actor contact also rebounds and records one five-point penalty per
+throw without ending flight; a later basket adds its 10/25 points. First entry
+locks the result: a full-bin bounce-out neither revokes nor duplicates points.
+The body then continues falling without further scoring and settles on
+the floor or earlier trash. The shared field retains the latest 40 bodies,
+including scored trash inside bins; settled bodies remain fixed colliders.
+Rotating artwork uses circular envelopes; this is not a general rigid-body solver.
+Bins have an eight-unit internal floor. Contained artwork clips at the inner
+sides and base, preventing rotated sprites from protruding under the frame.
+Supported slow motion ends a throw after 0.12 seconds, with a short contact grace
+to tolerate tiny rim bounces. An unsupported apex never triggers that shortcut.
+Bins use translucent surfaces with visible contents and current item counts.
+Actors render wholly in front of both bin surfaces, never between them. The NPC
+path is weighted away from the bins and has a slower 0.28-radian/second cycle.
+Short moving wind streaks vary direction, speed and density with the signed wind
+parameter. Weight is an in-field HUD; office wind is labeled as A/C airflow.
+
+`worldTime` belongs to the session and advances through flights, results and
+device handoff. Turn time resets independently. Actor phase depends on the session
+seed, never the round, so birds and people do not jump back. People walk near the
+bins to intersect descending arcs; the boss carries files and rainy park rounds
+add an umbrella. Both competitive players receive identical item weights and
+weather within a round, but the shared field and actor clock continue evolving.
+The shared field is not an identical-board duplicate challenge. The renderer
+shows two avatars in matches; the HUD distinguishes first/second throw within
+the round. Every round has the fixed order AB / AB, including extra rounds.
+Birds cross for eight seconds in each 24-second cycle, alternating low, medium
+and high passes; the remaining interval is clear of birds.
+
+Each player has 12 seconds to release; local handoff pauses only the turn clock.
+Five rounds have at most three tied extra rounds, then a draw. CPU plans use the
+current world clock and debris snapshot through a coarse search plus local
+refinement (277 candidates instead of 858), then apply
+seeded angle/power error once. There is no post-launch correction. Pausing, blur
+and pointer cancellation discard a charge. Settings apply on New game/Start/restart.
+
+Competitive bests count the first human's five regulation rounds and use
+`<cpu|local>-<office|park>-<easy|normal|hard|standard>-v2` buckets. The earlier rules'
+records remain separate and are labeled in the launcher. Practice never submits a
+record. Generic bests are personal records, not a public leaderboard. Network
+matches are outside this version. Checks live in [DEBUG.md](DEBUG.md#trash-toss-checks).
+
+Physics QA uses `qa:true`, removes actors/old debris and never submits scores.
+Bin collisions are on by default. The explicit Free flight checkbox sets
+`freeFlight:true` to measure unobstructed ground range beyond the canvas, with
+a 20-second safety bound. `traceFlight` accepts the selected collision mode;
+actual and no-wind reference traces therefore stop on the same collision rules.
+Previous actual flight is stored independently of the reference and wind sweep.
+Green is current, orange dashed is previous, blue dotted is no-wind reference.
+All 19 diagnostics have compact in-field outputs with full-label tooltips; the
+full panel and history are collapsed below. A form-associated in-field button
+repeats the numeric throw without scrolling. On narrow screens a collapsible
+118px band keeps the numbers above the canvas rather than covering trajectories.
+`acceleration` supplies the actual force terms to simulation and diagnostics.
+Inputs set exact angle, power,
+signed wind, item, weight, rain and the free-flight choice.
+Weight is restricted to 0.25–4x its item base.
+QA weight inputs use a 0.01g step: quarter-weight minima such as 11.25g and
+13.75g remain aligned with the default carton/peel weights of 45g and 55g.
+Measurements use logical px, seconds and game parameters, not real metres or m/s.
+The no-wind trace preserves all other inputs. A sweep records winds -60/-30/0/+30/+60 without altering the
+currently selected inputs or competitive state.
+
 ## Colour Ladder internals
 
 - **Tuning lives up top** in `CONFIG` (shared: `ballSpeed`, wave gap, …) +

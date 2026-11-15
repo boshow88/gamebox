@@ -35,6 +35,11 @@
     // ---------------------------------------------------------------
     var GAMES = [
         {
+            id: 'trash-toss', theme: 'arcade', icon: 'trash-2', color: '#92969e', wip: true,
+            href: './games/trash-toss.html',
+            tags: ['action', 'single', 'multi'],
+        },
+        {
             id: 'rune-stones', theme: 'arcade', icon: 'stone', color: '#86cfc6',
             href: './games/rune-stones.html',
             tags: ['puzzle', 'timeattack', 'single', 'multi'],
@@ -111,8 +116,8 @@
         },
     ];
 
-    // Default display order: a soft rainbow sorted by each game's theme-colour hue.
-    GAMES.sort(function (a, b) { return hexHue(a.color) - hexHue(b.color); });
+    // Keep the coloured spectrum together, followed by neutral grey cards.
+    GAMES.sort(function (a, b) { return colorOrder(a.color) - colorOrder(b.color); });
 
     // ---------------------------------------------------------------
     // i18n
@@ -208,6 +213,10 @@
             'bullet-storm_name': 'Bullet Storm',
             'bullet-storm_tagline': 'Dodge the bullets, outlast the storm.',
             'bullet-storm_body': 'Bullets pour in from every side. Fly your dot, weave through the gaps, and last as long as you can.',
+            'trash-toss_name': 'Trash Toss',
+            'trash-toss_tagline': 'Find your angle. Make the toss.',
+            'trash-toss_body': 'Set an angle, hold to charge, and toss past moving obstacles. Practise, challenge a CPU, or take turns with a friend.',
+            ttRecCpu: 'Vs CPU', ttRecLocal: 'Two players', ttRecOffice: 'Office', ttRecPark: 'Park', ttRecLegacy: 'Original rules',
             'beam_name': 'Beam',
             'beam_tagline': 'Memorise the mirrors, trace the laser.',
             'beam_body': 'Mirrors appear then vanish; a laser fires in and you tap where it exits in time.',
@@ -338,6 +347,10 @@
             'bullet-storm_name': '彈幕風暴',
             'bullet-storm_tagline': '閃避子彈，撐過風暴。',
             'bullet-storm_body': '子彈從四面八方湧入。在縫隙間穿梭閃避，盡量撐久一點。',
+            'trash-toss_name': '丟垃圾',
+            'trash-toss_tagline': '找準角度，蓄力入桶。',
+            'trash-toss_body': '調整角度，按住蓄力，避開人物與飛鳥，把垃圾丟進桶裡。自由練習、挑戰電腦，或和朋友輪流較量。',
+            ttRecCpu: '挑戰電腦', ttRecLocal: '同機雙人', ttRecOffice: '辦公室', ttRecPark: '公園', ttRecLegacy: '初版規則',
             'beam_name': '追光',
             'beam_tagline': '記住鏡子，追蹤雷射。',
             'beam_body': '鏡子出現後消失，雷射射入，在時間內點出它射出的邊界位置。',
@@ -384,6 +397,8 @@
     // Icons — inline Lucide subset (same glyphs the collections use).
     // ---------------------------------------------------------------
     var ICONS = {
+        // custom: open wastebasket; mirror of js/arcade.js.
+        'trash-2': '<path d="M4 7h16M9 3h6l1 4H8l1-4Zm-3 4 1 14h10l1-14M10 10v7m4-7v7"/>',
         // custom: two rounded links separating along a diagonal.
         unlink: '<path d="m9 15-2 2a3.5 3.5 0 0 1-5-5l4-4a3.5 3.5 0 0 1 5 0m2 8a3.5 3.5 0 0 0 5 0l4-4a3.5 3.5 0 0 0-5-5l-2 2M9 3v2m-6 0 2 2m14 10 2 2m-6 0v2"/>',
         ladder: '<path d="M8 3v18"/><path d="M16 3v18"/><path d="M8 8h8"/><path d="M8 13h8"/><path d="M8 18h8"/>',
@@ -407,13 +422,13 @@
         coins: '<circle cx="8" cy="8" r="6"/><path d="M18.09 10.37A6 6 0 1 1 10.34 18"/><path d="M6.3 7.1Q6.3 5.8 8 5.8 9.7 5.8 9.7 7.3 9.7 8.6 6.3 10.2L9.8 10.2"/><g transform="rotate(12 16.3 16)"><path d="M14.8 14.1Q16 13.3 17.2 14.3 18 15.2 16.2 16.1 18 17 17.1 18 15.9 18.8 14.7 17.9"/></g>',
     };
 
-    // Hue (0–360) of a #rrggbb colour — used to order the launcher as a soft rainbow.
-    function hexHue(hex) {
+    // Coloured hues occupy 0–360; low-saturation neutrals share the final bucket.
+    function colorOrder(hex) {
         var m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex || '');
-        if (!m) return 0;
+        if (!m) return 360;
         var r = parseInt(m[1], 16) / 255, g = parseInt(m[2], 16) / 255, b = parseInt(m[3], 16) / 255;
         var max = Math.max(r, g, b), min = Math.min(r, g, b), d = max - min;
-        if (d === 0) return 0;
+        if (max === 0 || d / max < 0.12) return 360;
         var h;
         if (max === r) h = ((g - b) / d) % 6;
         else if (max === g) h = (b - r) / d + 2;
@@ -828,6 +843,10 @@
     // Per-game record schema: ordered groups, each { title (i18n key), match(key)→bool,
     // label(key)→text, compact? }. The ONE place that describes a game's record layout.
     var REC_SCHEMA = {
+        'trash-toss': [
+            { title: 'ttRecCpu', match: function (k) { return k.indexOf('cpu-') === 0; }, label: function (k) { var p = k.split('-'); return t(p[1] === 'park' ? 'ttRecPark' : 'ttRecOffice') + ' · ' + diffLabel(p[2]) + (p[3] === 'v2' ? '' : ' · ' + t('ttRecLegacy')); } },
+            { title: 'ttRecLocal', match: function (k) { return k.indexOf('local-') === 0; }, label: function (k) { var p = k.split('-'); return t(p[1] === 'park' ? 'ttRecPark' : 'ttRecOffice') + (p[3] === 'v2' ? '' : ' · ' + t('ttRecLegacy')); } },
+        ],
         'prime-zuma': [
             { title: 'pzrec_levels', compact: true, match: function (k) { return k.charAt(0) === 'L'; }, label: function (k) { return k.slice(1); } },
             { title: 'pzrec_endless', match: function (k) { return k.indexOf('E-') === 0; }, label: function (k) { var p = k.split('-'); return tFb('pzrec_' + p[1]) + ' \u00b7 ' + tFb('pzrec_' + p[2]); } },

@@ -167,6 +167,10 @@
     // -----------------------------------------------------------------
 
     const ICONS = {
+        // custom: open wastebasket, shared with the launcher.
+        'trash-2': '<path d="M4 7h16M9 3h6l1 4H8l1-4Zm-3 4 1 14h10l1-14M10 10v7m4-7v7"/>',
+        // custom: diagonal launch arrow.
+        'arrow-up-right': '<path d="M5 19 19 5M7 5h12v12"/>',
         'arrow-left':
             '<path d="m12 19-7-7 7-7"/><path d="M19 12H5"/>',
         pause:

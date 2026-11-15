@@ -428,6 +428,67 @@ timings (`ANSWER_SEC`, `countSec`, memorise scaling), and the late-match speed-u
 
 ---
 
+## Trash Toss
+
+**Goal.** Toss eight kinds of trash into bins in a side-view office or park.
+Set an angle (15–80 degrees) with the slider, buttons or arrow keys, then hold
+Space or the throw button. Release to launch. Power cycles 0–100–0 continuously,
+with 1.3 seconds per sweep. The same angle, power, release time and scene
+conditions produce the same flight. A short aim line shows direction, not the
+predicted landing point. Previous angle and power remain visible.
+
+- Enter a bin **from above**, with the whole object fitting through the opening:
+  large scores **10**, small **25**. Rims and sides bounce. Missing scores zero.
+- Hit the boss/files in the office, or the walker, cart, umbrella or bird in the park: **−5**
+  once per throw, and the garbage continues flying. A later large/small basket
+  adds 10/25, for a net 5/20 after contact. Scores may go below zero. Obstacles follow predictable
+  paths on the same plane as the trash; wait for a gap or lob over them.
+- Weather and wind are shown inside the field and fixed within a round. Outdoor
+  rounds pass through drizzle and rain before heavy wind/rain, then ease back.
+  Rain visuals fade gradually; the displayed round conditions govern physics
+  for both players. Rain adds air resistance. Office wind is gentler and labeled
+  A/C airflow. Wind streaks show direction/strength. Weight is inside the field.
+- Paper, cans, bottles, cups, cartons, banana peels, apple cores and books rotate
+  in a seeded order; each round varies their weight slightly. Next trash is shown.
+- Thrown trash settles and stays on the shared field, blocking later throws.
+  Scored trash falls inside its bin. The latest 40 pieces remain; New game clears
+  them. Translucent bins show their contents and current item count. All trash
+  collision shapes are simplified circles.
+  First entry earns the points even if a full bin later bounces the trash out;
+  it can never score again. Trash rests on the bin's internal base.
+- **Practice:** unlimited throws, no clock. Trash rotates automatically. Weather also changes, and the
+  previous flight stays visible for reference. No best is saved.
+- **Vs CPU:** five rounds against an Easy, Normal or Hard CPU. Each player gets
+  one throw per round and 12 seconds to release, including charging time.
+  Timeout scores zero. Both receive identical trash weights and weather in a
+  round. The background clock and shared debris
+  keep evolving, including during handoff; obstacles never reset on a throw.
+  CPUs choose a target and execute imperfect angle/power
+  controls through the same physics as humans.
+  Every round, including extras, is A then B. Each player gets one throw.
+  The HUD labels first and second throw. Birds make occasional low/high passes
+  with quiet intervals, rather than occupying the throwing lane continuously.
+- **Two players:** the same rules on one device. Confirm Ready after handing
+  over; the next turn's clock does not run while waiting for confirmation.
+- Higher total wins after both players finish five rounds. Ties add complete
+  paired rounds, up to three; equal totals after round eight are a draw.
+  The first human's five-round regulation best (excluding extra rounds) is saved
+  per scene/mode and CPU strength, separately from the original version's rules.
+- Changes are staged until New game or a new start. P pauses, R returns to
+  ready, M mutes. Pausing or cancelling a pointer discards a held charge.
+- **Physics QA:** start the mode, enter exact angle/power/wind/weight/rain and
+  press Test throw, or repeat from the in-field button. No manual charging,
+  moving obstacles, old trash or scores. Bin collisions are enabled unless
+  Free flight is checked. Green is current flight, orange dashed is the previous
+  actual flight, blue dotted is the same inputs without wind. Diagnostics
+  include launch/live velocity, acceleration, drag, apex, ground range, time and
+  wind-induced drift, shown compactly inside the field. Full diagnostics and
+  history can be expanded below. Compare wind runs five controlled cases and
+  preserves the previous actual trajectory. All coordinates
+  are game px, not metres; the wind number is not a real m/s measurement.
+
+---
+
 ## Darts
 
 Gesture-based darts with one persistent lobby for Practice, Count-Up, 501 and
