@@ -10,6 +10,7 @@ body { --game-color: #92969e; }
 .tt-field-weather { position: absolute; left: 16px; top: 14px; display: grid; gap: 2px; padding: 10px 14px; background: #fbf7e8eb; border: 1px solid #819b8b55; border-radius: 9px; color: #31594c; font-size: .85rem; pointer-events: none; }
 .tt-field-weather #tt-wind { font: 700 1.1rem var(--font-mono); }
 .tt-field-weather small { font-size: .7rem; color: #627269; }
+#tt-previous-wind { color: #6d7e77; font-size: .65rem; opacity: .8; font-variant-numeric: tabular-nums; }
 .tt-wind-line { display: flex; align-items: center; gap: 7px; }
 #tt-wind-icon { width: 30px; height: 24px; flex-shrink: 0; color: #538d7c; }
 #tt-wind-icon.is-left { transform: scaleX(-1); }
@@ -51,8 +52,9 @@ body { --game-color: #92969e; }
 .tt-live-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--game-color); }
 #tt-material { color: var(--text-muted); }
 #tt-wind { font-variant-numeric: tabular-nums; white-space: nowrap; }
-.stage-wrap { border: 1px solid #57786f; border-radius: 14px; overflow: hidden; }
+.stage-wrap { margin-inline: auto; border: 1px solid #57786f; border-radius: 14px; overflow: hidden; }
 .stage-canvas { width: 100%; height: auto; display: block; }
+.is-camera .tt-field-debris, .is-camera .tt-field-cleaning { bottom: calc(var(--tt-map-height) + 6px); }
 .tt-status-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 46px; padding: 6px 2px; font-size: .85rem; }
 #tt-status { color: var(--game-color); }
 #tt-clock { color: var(--text-muted); font-family: var(--font-mono); white-space: nowrap; }
@@ -75,20 +77,28 @@ body { --game-color: #92969e; }
 button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--game-color); outline-offset: 3px; }
 @media (max-width: 620px) {
     .game-shell { padding: 14px 12px 30px; }
+    .game-topbar { margin-bottom: 12px; gap: 6px; }
     .game-title { font-size: 1.05rem; }
     .game-title .game-icon { width: 30px; height: 30px; }
     .tt-settings { gap: 8px; }
     .tt-settings label { flex-basis: 100px; }
     .tt-settings .btn { flex: 1 1 100px; min-height: 42px; }
-    .tt-console { grid-template-columns: 1fr 1fr; gap: 16px; padding: 16px; }
-    .tt-throw { grid-column: 1 / -1; height: 72px; display: grid; grid-template-columns: 24px auto; column-gap: 8px; align-content: center; }
+    .tt-console { grid-template-columns: 1fr 1fr; gap: 10px 12px; padding: 12px; }
+    .tt-control-title { margin-bottom: 5px; }
+    .tt-control-note { margin-top: 4px; min-height: 0; font-size: .65rem; line-height: 1.3; }
+    .tt-power-meter { height: 18px; margin: 5px 0; }
+    .tt-throw { grid-column: 1 / -1; height: 56px; display: grid; grid-template-columns: 24px auto; column-gap: 8px; align-content: center; }
     .tt-throw small { grid-column: 1 / -1; }
-    .tt-hud .hud-stat { padding: 10px; }
+    .tt-hud { gap: 6px; margin-bottom: 8px; }
+    .tt-hud .hud-stat { padding: 6px 8px; }
+    .tt-hud .hud-label { font-size: .6rem; }
     .tt-hud .hud-value { font-size: 1.1rem; }
-    .tt-scene-bar { font-size: .73rem; }
+    .tt-scene-bar { margin: 8px 0 6px; font-size: .73rem; }
+    .tt-status-row { min-height: 34px; font-size: .75rem; }
     .tt-scene-bar > div { gap: 6px; }
-    .tt-field-weather { top: 7px; left: 7px; gap: 0; padding: 5px 8px; font-size: .65rem; }
-    .tt-field-weather #tt-wind { font-size: .85rem; }
+    .tt-field-weather { top: 7px; left: 7px; gap: 0; max-width: 55%; padding: 5px 8px; font-size: .65rem; }
+    .tt-field-weather #tt-wind { font-size: .78rem; white-space: normal; min-width: 0; }
+    #tt-previous-wind { font-size: .6rem; white-space: normal; overflow-wrap: anywhere; }
     .tt-field-weather small { font-size: .58rem; }
     #tt-wind-icon { width: 22px; height: 18px; }
     .tt-wind-line { gap: 4px; }
@@ -101,7 +111,7 @@ button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px s
     #tt-qa-quick-fire { font-size: 9px; min-height: 20px; margin-top: 3px; }
     .tt-qa-legend { font-size: .53rem; }
     .tt-field-debris { bottom: 4px; right: 5px; font-size: .6rem; }
-    .tt-field-material { right: 7px; top: 7px; padding: 5px 8px; }
+    .tt-field-material { right: 7px; top: 7px; max-width: 38%; padding: 5px 8px; }
     .tt-field-material span { font-size: .55rem; }
     .tt-field-material #tt-material { font-size: .72rem; }
     .tt-qa { padding: 14px; }
@@ -113,4 +123,9 @@ button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px s
     .overlay-message { font-size: .8rem; margin-bottom: 10px; }
     .overlay-hint { display: none; }
     .tt-rules-summary { flex-basis: 100%; }
+}
+.is-camera .stage-canvas { touch-action: pan-y; cursor: grab; }
+.tt-field-cleaning { position: absolute; left: 8px; bottom: 6px; max-width: 64%; padding: 3px 6px; color: #365e6c; background: #e9f4e2e8; border-radius: 4px; font-size: .62rem; pointer-events: none; }
+@media (max-width: 360px) {
+    .game-topbar { gap: 4px; }
 }

@@ -689,23 +689,33 @@ Angles are 15–80 degrees. Charge uses a triangle wave, 0–100–0, with 1.3 s
 per sweep. The shared 1/60-second update uses four 1/240-second physics substeps.
 Gravity and launch speeds are increased together for roughly 1.6x faster flight
 without simply flattening the arc; result presentation lasts 0.45 seconds.
-Eight item profiles define base grams, drag, wind response, speed and radius.
+Forty item profiles define base grams, drag, wind response, speed and radius;
+each scene selects a disjoint shuffled pool of ten.
 Each seeded round supplies visible weight variation (about ±15%); launch speed
 also responds to that weight. Normal play always rotates trash; item selection
-exists only in the QA lab. The shuffled sequence visits all eight types before
+exists only in the QA lab. The shuffled sequence visits all ten types before
 repeating. Outdoor weather follows calm/breeze/strong wind/drizzle/rain/storm/
 rain/drizzle, avoiding dry-to-heavy-rain jumps. Rain particles and tint approach
 the new intensity at 0.65 units/second; actual drag is fixed immediately for both
 players in that round. Rain increases physical drag as well as drawing rain.
 
-Aperture scoring requires descending across rim height with the whole circular
-collision envelope inside the opening. Side/rim and retained-trash collisions
+Aperture scoring tracks a descending approach from above each rim, then requires
+the whole circular collision envelope to clear the opening after collision
+resolution. A rim graze can still score on a later step when it slides inside;
+leaving the bin or bouncing above the rim clears that pending approach. Each bin
+tracks its own approach, so rebounding from one rim into another bin scores the
+destination. Side/rim and retained-trash collisions
 rebound. Actor contact also rebounds and records one five-point penalty per
-throw without ending flight; a later basket adds its 10/25 points. First entry
+throw without ending flight; a later basket adds its labeled points. First entry
 locks the result: a full-bin bounce-out neither revokes nor duplicates points.
 The body then continues falling without further scoring and settles on
 the floor or earlier trash. The shared field retains the latest 40 bodies,
 including scored trash inside bins; settled bodies remain fixed colliders.
+Once per throw, first actor contact displays a separate -5 event and updates the
+live HUD deduction; a later basket displays its full positive points. `result.points`
+retains the net amount for immutable settlement, while `basketPoints` and
+`penalty` drive the separate feedback. The pending match never applies the live
+deduction a second time.
 Rotating artwork uses circular envelopes; this is not a general rigid-body solver.
 Bins have an eight-unit internal floor. Contained artwork clips at the inner
 sides and base, preventing rotated sprites from protruding under the frame.
@@ -716,6 +726,55 @@ Actors render wholly in front of both bin surfaces, never between them. The NPC
 path is weighted away from the bins and has a slower 0.28-radian/second cycle.
 Short moving wind streaks vary direction, speed and density with the signed wind
 parameter. Weight is an in-field HUD; office wind is labeled as A/C airflow.
+The weather HUD also shows a muted reference to the active player's previous
+released throw, including signed wind and outdoor weather. Each player owns
+their reference; it stays unchanged during the next flight, and a timeout does
+not replace it. QA snapshots the reference before each numeric throw. New game
+and Clear tests remove the corresponding references.
+
+`SCENES` owns map width, desktop/phone camera width, release height, thrower,
+indoor/outdoor climate, launch scale, bins and exclusive item pools. Every page
+opens on Office even if a different scene was previously selected; other settings
+retain their preferences. The living room is 600px wide and always fully visible.
+Office/park are 960px, viewed through 840px desktop / 720px phone windows.
+Construction is 2400px, with 960px desktop / 720px phone windows. Desktop fields
+are capped at their logical width. Narrow portraits are at most 620px wide.
+
+Living-room kids render at 0.72 scale and release at height 76; the employee,
+grandma and foreman release at 102. Living-room launch speed is scaled by 0.72;
+construction uses 1.72, with the same multiplier on both velocity components.
+The room has a crawling baby, walking mother with laundry and a fast wall rat.
+Indoor scenes use fan/A/C wind and never random rain. Both outdoor scenes share
+the gradual weather cycle. Construction has five wider metal barrels:
+x=880/1220/1600/1970/2240, widths 190/160/135/110/90, points 5/10/15/20/30.
+All ten tools can reach all five targets at +15% weight in strong headwind/rain.
+CPU target selection supports any number of bins; easy favors the widest and
+stronger CPUs usually aim at the highest score. Flight bounds remain five seconds
+normally and six on construction.
+
+Draggable maps append a compact 68-unit overview beneath the 540-unit field.
+It has markers, numeric distance ticks and a viewport rectangle, without a heading
+or legend sentence. Field drags move the scene under the hand. Overview drags move
+the viewport in the same direction as the hand, preserving the grab offset;
+tapping outside the viewport selects that location. Manual inspection persists
+until the next release, which resets to the thrower before horizontal/vertical
+tracking. `touch-action: pan-y` preserves vertical page scrolling. World and
+overview transforms remain isolated; simulation is independent of the camera.
+Green marks launch, orange current flight, blue the cleaner and gray actors/debris.
+Distance ticks use game px from launch, at 200px normally / 400px on construction.
+The room has no overview or horizontal panning. Portrait starts scroll the field
+into view; QA retains a full-field canvas and diagnostics band. Its object options
+are built from the applied scene’s pool and retain custom weight during language
+changes. Scene changes reset incompatible object choices and weight limits.
+
+Session-owned cleaning state survives turns and handoffs. At least three resting
+pieces must reach 72% of a bin's height, or ten resting pieces must accumulate.
+After a one-second warning, a cleaner walks from the nearest field edge at
+220px/s, works for 1.3 seconds, removes only that bin's contents, then carries a
+bag back offscreen. Accepted scores remain intact. A three-second cooldown avoids
+back-to-back dispatch; other full bins can dispatch afterward. The cleaner uses
+the same physical obstacle collision/penalty as other actors, including CPU
+simulations. QA disables dispatch and all actors. New game resets cleaning state.
 
 `worldTime` belongs to the session and advances through flights, results and
 device handoff. Turn time resets independently. Actor phase depends on the session
@@ -737,13 +796,16 @@ seeded angle/power error once. There is no post-launch correction. Pausing, blur
 and pointer cancellation discard a charge. Settings apply on New game/Start/restart.
 
 Competitive bests count the first human's five regulation rounds and use
-`<cpu|local>-<office|park>-<easy|normal|hard|standard>-v2` buckets. The earlier rules'
+`<cpu|local>-<office|living|park|construction>-<easy|normal|hard|standard>-v4` buckets. The earlier rules'
 records remain separate and are labeled in the launcher. Practice never submits a
 record. Generic bests are personal records, not a public leaderboard. Network
 matches are outside this version. Checks live in [DEBUG.md](DEBUG.md#trash-toss-checks).
 
 Physics QA uses `qa:true`, removes actors/old debris and never submits scores.
-Bin collisions are on by default. The explicit Free flight checkbox sets
+Bin collisions are on by default. The HUD shows only the current test's points,
+and the result text distinguishes a basket, a miss and scoring disabled by free
+flight; none of these test points accumulate or enter saved records.
+The explicit Free flight checkbox sets
 `freeFlight:true` to measure unobstructed ground range beyond the canvas, with
 a 20-second safety bound. `traceFlight` accepts the selected collision mode;
 actual and no-wind reference traces therefore stop on the same collision rules.

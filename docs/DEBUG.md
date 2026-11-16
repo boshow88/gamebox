@@ -66,25 +66,46 @@ Firebase rule evaluator or a live-project check after publishing rules.
 ```text
 node tools/trash-toss-check.js
 node tools/trash-toss-session-check.js
+node tools/trash-toss-view-check.js
 ```
 
 The dependency-free check executes the actual rules: reproducible flight and CPU
 intent, fixed substeps, descending whole-object aperture crossings, rim/side
 rebounds (including retained trash), obstacle penalties, physical rain/wind,
-cycling charge, eight weighted items, unchanging actor phase across rounds,
+cycling charge, forty weighted items in four disjoint pools, unchanging actor phase across rounds,
 immutable score transitions, fixed AB order and bounded tied matches.
 QA traces are checked against the actual simulator, including absent actors,
 unclipped optional free-flight range, wind displacement, shared acceleration,
 bin counts and the normal bucket-collision option. A real bird ricochet followed
 by a basket verifies additive scoring. Rim-rest timing, internal bin support,
 fixed results after entry and occasional high/low bird passes have regressions.
+All items graze both inner rims of both bins before falling inside; each
+must score even when it initially overlaps the rim. A large-rim rebound into
+the small bin must score 25, while an object starting below the opening cannot
+score without first approaching from above.
+Cleaning regressions cover settled-only dispatch, warning/walk/collect/exit,
+physical cleaner contact followed by a basket, clearing only the targeted bin,
+and preserving already earned scores. Construction checks cover worker geometry,
+map bounds, its item cycle, and all five targets being reachable for all ten tools at
+maximum round weight with -60 headwind and heavy rain.
 The session check runs the actual controller in a minimal DOM/shell fixture,
 advancing fixed ticks to verify the world clock survives turns and rounds,
 debris remains, handoff freezes only turn time, avatar counts follow the mode,
 charging/pause/cancellation are safe and only New game resets the world.
 It also loads the actual QA module, submits numeric shots, checks separate
 previous/reference traces, both collision modes, 19 in-field metric outputs,
-repeated tests and five wind-sweep experiments.
+repeated tests and five wind-sweep experiments. QA test points reset per throw,
+baskets report their real judgement, and free-flight results explain that bin
+scoring is disabled; test points never submit a record.
+Previous-wind checks cover per-player references across AB handoffs and weather
+changes, no reference on the first throw, stable references during a new flight,
+and clearing on New game / Clear tests.
+The controller also runs a collection through completion and checks separate
+live -5 and subsequent +10 feedback with one final immutable settlement.
+The view check drives the real renderer with real low/normal/high-angle flights
+for all items, checking camera bounds, object visibility, manual inspection,
+release reset, high construction arcs, balanced canvas transforms, immutable
+game models and restoration of the desktop canvas.
 
 Browser checks: open `games/trash-toss.html` through a local static server. Check
 both languages and 375px/960px widths. Start Practice with Space (that first press
@@ -102,18 +123,31 @@ Rain must be visible and affect flight, with an umbrella on the walker. Verify
 two player avatars in matches, retained trash collisions, and that New game
 clears the field. CPU turns reject human input, and a complete match returns
 translated results and stores only the first human's five regulation rounds in
-a `-v2` record bucket. Earlier rules' records remain separate. Practice has no
+a `-v4` record bucket. Earlier rules' records remain separate. Practice has no
 record submission. On a phone, verify release outside the button still throws
 and a page-scroll/pointer cancellation discards the charge without firing.
+At 320x568 / 375x812 portrait, start normal play and verify the enlarged field,
+overview and throw button remain visible together. Drag the field or overview before
+release, then throw: the camera returns to the thrower and follows the object;
+the overview keeps the targets visible. Confirm next-turn camera movement never
+resets actors or debris. Check both languages, QA with diagnostics open/closed,
+and desktop/landscape resize restoration. There must be no focus-mode button or
+rotation prompt; previous wind and scoring still behave the same.
+Check that vertical touch movement still scrolls the page, while horizontal drag
+holds the inspected camera position; releasing a throw always resets it. On the
+construction map test near/far barrels, all ten scene-specific native QA weights and high arcs.
+Fill a bin with settled trash: check the warning, cleaner collision (-5), collection,
+bag on departure, removed contents, and unchanged accepted scores. A subsequent
+basket must display +10/+25 independently of the earlier collision deduction.
 
 Check an NPC overlapping a bin: its complete silhouette must render in front
 of both surfaces. Place several trash objects inside a bin and confirm they
 remain visible through the translucent front and update the item count. Check
 the in-field weight card, A/C label in the office and directional wind streaks.
 Observe drizzle before heavy rain and gradual particle/tint transitions.
-For QA select Physics QA, New game and Start. Enable Free flight, then set paper/8g/45 degrees/65 power/
+For QA select Office, Physics QA, New game and Start. Enable Free flight, then set paper/8g/45 degrees/65 power/
 +30 wind/no rain. The automatic no-wind comparison should show about +80.90px
-drift; book/280g with the other inputs unchanged shows about +2.40px. Inputs are
+drift; retired laptop/1400g with the other inputs unchanged shows about +0.53px. Inputs are
 game parameters, not real wind-speed units. Wind comparison must retain the
 selected controls and add five table rows. At 375px width only the results
 table may scroll horizontally; the page must not overflow. Verify no score
@@ -127,6 +161,18 @@ particular, carton 45g (minimum 11.25g) and peel 55g (minimum 13.75g) must not
 report `stepMismatch`; the 0.01g step accepts their integer defaults and quarter
 weight boundaries. Check the symmetric apple-core sprite, gray launcher card
 and WIP badge before publication.
+
+Four-scene checks also assert ten-item cycles without cross-scene duplication,
+indoor dry weather, child release height, physical baby/mother/rat blockers and
+monotonic barrel width/score ordering. View checks cover the fixed living room,
+small medium-map pan ranges, five-target construction, opposite drag direction
+for field/overview, overview tap selection and preserving the grab offset.
+Browser checks: reload after choosing a different map and confirm Office is the
+default; verify the four throwers, ten scene-specific QA options, all forty native
+weight defaults, and no overview heading text. Drag the preview right while the
+world is moving: the camera must go right; dragging the field right goes left.
+Both return to the thrower on release. On a phone the whole living room must fit
+without dragging, including both bins, mother, crawling baby and wall rat.
 
 ## Darts checks
 

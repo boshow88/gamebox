@@ -40,7 +40,7 @@
     function create(options) {
         const $ = id => document.getElementById(id), t = AC.i18n.t;
         const metrics = new Map(), rows = [], panel = $('tt-qa-metrics');
-        let comparison = null, current = null, baseline = null;
+        let comparison = null, current = null, baseline = null, currentScene = 'office';
         const metricKeys = ['ttQaSpeed', 'ttQaVx', 'ttQaVy', 'ttQaGravity', 'ttQaDrag', 'ttQaWindAx', 'ttQaPeak',
             'ttQaGround', 'ttQaBaselineX', 'ttQaTime', 'ttQaRange', 'ttQaDrift', 'ttQaLiveTime', 'ttQaX', 'ttQaY', 'ttQaLiveVx', 'ttQaLiveVy', 'ttQaAx', 'ttQaAy'];
         const shortLabels = ['v0', 'vx0', 'vy0', 'g', 'k', 'aWind', 'hMax', 'xEnd', 'xW0', 'T', 'range', 'drift', 't', 'x', 'y', 'vx', 'vy', 'ax', 'ay'];
@@ -105,10 +105,19 @@
             rows.length = 0; current = null; comparison = null; baseline = null; renderRows();
             for (const key of metricKeys) set(key, NaN);
         }
-        $('tt-qa-item').addEventListener('input', () => {
+        function weightForItem() {
             const grams = R.ITEMS[$('tt-qa-item').value].grams;
             $('tt-qa-weight').value = grams; $('tt-qa-weight').min = grams / 4; $('tt-qa-weight').max = grams * 4;
-        });
+        }
+        function configureScene(scene) {
+            currentScene = scene.scene;
+            const pool = R.SCENES[currentScene].items, previous = $('tt-qa-item').value;
+            const nodes = pool.map(key => { const node = document.createElement('option'); node.value = key; node.textContent = t('tt' + key[0].toUpperCase() + key.slice(1)); return node; });
+            $('tt-qa-item').replaceChildren(...nodes);
+            $('tt-qa-item').value = pool.includes(previous) ? previous : pool[0];
+            if ($('tt-qa-item').value !== previous) weightForItem();
+        }
+        $('tt-qa-item').addEventListener('input', weightForItem);
         $('tt-qa-form').addEventListener('submit', e => { e.preventDefault(); if ($('tt-qa-form').reportValidity()) options.onThrow(read()); });
         $('tt-qa-sweep').addEventListener('click', () => {
             if (!$('tt-qa-form').reportValidity() || $('tt-qa-fire').disabled) return;
@@ -119,8 +128,8 @@
             record(environment(base, input), input, false);
         });
         $('tt-qa-clear').addEventListener('click', () => { clear(); options.onClear(); });
-        AC.i18n.subscribe(() => { for (const [key, item] of metrics) { item.label.textContent = t(key); item.hudCell.title = t(key); } renderRows(); });
-        return { read, environment, record, live, clear, baseline: () => baseline,
+        AC.i18n.subscribe(() => { for (const [key, item] of metrics) { item.label.textContent = t(key); item.hudCell.title = t(key); } configureScene({ scene: currentScene }); renderRows(); });
+        return { read, environment, record, live, clear, configureScene, baseline: () => baseline,
             ready(value) { $('tt-qa-fire').disabled = !value; $('tt-qa-quick-fire').disabled = !value; $('tt-qa-sweep').disabled = !value; } };
     }
     root.TrashTossQA = { create };

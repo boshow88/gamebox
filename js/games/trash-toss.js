@@ -5,22 +5,33 @@
     const strings = {
         en: {
             ttName: 'Trash Toss', ttSettings: 'Game settings', ttMode: 'Mode', ttPractice: 'Practice', ttCpu: 'Vs CPU', ttLocal: 'Two players',
-            ttScene: 'Scene', ttOffice: 'Office', ttPark: 'Park', ttItem: 'Trash', ttPaper: 'Paper', ttCan: 'Can', ttBook: 'Book',
-            ttMixed: 'Mixed trash', ttBottle: 'Bottle', ttCup: 'Paper cup', ttCarton: 'Carton', ttPeel: 'Banana peel', ttApple: 'Apple core',
+            ttScene: 'Scene', ttOffice: 'Office · medium', ttLiving: 'Living room · short', ttPark: 'Park · medium', ttItem: 'Object', ttPaper: 'Scrunched memo', ttCan: 'Crushed soda can', ttBook: 'Outdated comic',
+            ttMixed: 'Mixed objects', ttBottle: 'Empty bottle', ttCup: 'Yesterday’s coffee cup', ttCarton: 'Empty cookie box', ttPeel: 'Banana peel', ttApple: 'Apple core',
+            ttLaptop: 'Retired laptop', ttMouse: 'Striking mouse', ttFolder: 'Rejected folder', ttVoodoo: 'Boss curse doll', ttKeyboard: 'Keyless keyboard', ttBadge: 'Expired work badge', ttStapler: 'Jammed stapler', ttOvertime: 'Overtime alarm',
+            ttSock: 'Lonely stinky sock', ttRemote: 'Broken remote', ttBlock: 'Foot-trap brick', ttDuck: 'Deflated rubber duck', ttPacifier: 'Spare pacifier', ttPlush: 'Unstitched dinosaur', ttSlipper: 'Flying slipper', ttRobot: 'Powerless robot',
+            ttLeaf: 'Giant fallen leaf', ttFrisbee: 'Cracked frisbee', ttShuttlecock: 'Bald shuttlecock', ttDogbag: 'Tied pet bag', ttSeedbag: 'Pigeon snack bag', ttGnome: 'Retired garden gnome', ttHelmet: 'Cracked hard hat', ttBrick: 'Retired red brick',
             ttCurrentTrash: 'Current trash', ttDrizzleWeather: 'Drizzle', ttAcWind: (arrow, n) => arrow + ' A/C airflow ' + n,
-            ttFirstThrow: 'First throw', ttSecondThrow: 'Second throw', ttQaComplete: 'Test complete. See range and wind drift below.',
-            ttBasketAfterHit: (base, total) => 'In! +' + base + ' · collision −5 · total +' + total,
+            ttPreviousWind: value => 'Last throw: ' + value,
+            ttConstruction: 'Construction · long', ttFanWind: (arrow, n) => arrow + ' Fan ' + n,
+            ttScrewdriver: 'Screwdriver', ttScrew: 'Screw', ttWrench: 'Wrench', ttNut: 'Nut', ttWasher: 'Washer', ttBolt: 'Bolt', ttOffcut: 'Wood offcut', ttTape: 'Tape roll',
+            ttCleaner: 'the cleaner', ttWorker: 'a worker', ttPlanks: 'the planks', ttWheelbarrow: 'the wheelbarrow',
+            ttMother: 'Mom', ttBaby: 'the crawling baby', ttRat: 'the wall rat', ttLaundry: 'the laundry basket',
+            ttCleaning: n => n + '-point bin: cleaner on the way', ttCleaningWork: n => n + '-point bin: collecting trash', ttCleaned: n => n + '-point bin cleared; cleaner leaving',
+            ttFirstThrow: 'First throw', ttSecondThrow: 'Second throw', ttQaScore: 'Test points',
+            ttQaComplete: 'Test: no basket, 0 points. No score is saved.', ttQaBasket: points => 'Test: basket, +' + points + ' points. No score is saved.',
+            ttQaFreeComplete: 'Free-flight test complete. Bin collisions and scoring are off.',
+            ttBasketAfterHit: base => 'Collision −5 · Basket +' + base,
             ttHitContinue: 'Collision −5. Still in flight — a basket can still score.',
             ttMaterial: (name, grams) => name + ' · ' + grams + 'g', ttNext: label => 'Next: ' + label,
             ttCalmWeather: 'Calm', ttBreezeWeather: 'Breeze', ttStrongWeather: 'Strong wind', ttRainWeather: 'Rain', ttStormWeather: 'Wind & rain',
             ttWeather: 'Weather and wind', ttRainEffect: 'Rain increases air resistance', ttDebris: n => n + (n === 1 ? ' piece' : ' pieces') + ' on the field',
             ttFiles: 'the files', ttUmbrella: 'the umbrella', ttBlocked: 'Blocked by earlier trash. Try a higher arc.',
             ttStrength: 'CPU strength', ttEasy: 'Easy', ttNormal: 'Normal', ttHard: 'Hard', ttNew: 'New game', ttRound: 'Round', ttBestFive: 'Best five rounds',
-            ttYou: 'You', ttPlayer: n => 'Player ' + n, ttComputer: 'CPU', ttControls: 'Throwing controls', ttCanvas: 'Side-view field: throw from the left into either bin, avoiding the moving obstacles.',
+            ttYou: 'You', ttPlayer: n => 'Player ' + n, ttComputer: 'CPU', ttControls: 'Throwing controls', ttCanvas: 'Throwing field. Drag sideways to inspect the field or overview; release a throw to return to the thrower and follow the trash.',
             ttAngle: 'Angle', ttPower: 'Power', ttLower: 'Lower angle', ttRaise: 'Raise angle', ttAngleHint: '← / → to adjust',
             ttHold: 'Hold to charge', ttRelease: 'Release to throw · Space', ttCharging: 'Release to throw', ttWait: 'Watch the throw',
             ttNoLast: 'Your last throw appears here', ttLast: (a, p) => 'Last: ' + a + '° / ' + p + ' power',
-            ttPoints: 'Large 10 · Small 25 · Hit an obstacle −5', ttReady: "I'm ready", ttHandoff: name => 'Pass the device to ' + name + '.',
+            ttPoints: values => 'Bins ' + values.join(' / ') + ' · Contact −5', ttReady: "I'm ready", ttHandoff: name => 'Pass the device to ' + name + '.',
             ttAim: 'Choose an angle. Hold, then release.', ttCpuAim: 'CPU is lining up a throw…', ttFlying: 'In flight…',
             ttBasket: points => 'In! +' + points, ttRim: 'Off the rim. Try a little more height.', ttShort: 'Too short. Try more power.',
             ttLong: 'Too far. Try less power.', ttGap: 'Between the bins. Adjust angle or power.', ttTimeout: 'Time up. No points.',
@@ -29,30 +40,41 @@
             ttTurn: name => name + ' to throw', ttReadyTitle: 'Find your angle.', ttIntro: 'Set an angle. Hold to charge. Release to land it.',
             ttStart: 'Start throwing', ttAgain: 'Play again', ttWinner: name => name + ' wins!', ttDraw: 'A draw!',
             ttFinal: (a, b) => a + ' : ' + b, ttExtra: n => 'Extra ' + n, ttPending: (a, b) => a + ' → ' + b + ' · Apply with New game',
-            ttHelp1: 'Set the angle, hold Space or the throw button, then release. Power cycles 0 → 100 → 0; each sweep takes 1.3 seconds.',
-            ttHelp2: 'Large bins score 10, small bins 25. Actor contact costs 5 once and rebounds without ending flight: a later basket still adds points. First entry counts even if the trash bounces out. The newest 40 pieces stay on the field.',
-            ttHelp3: 'Eight trash types rotate automatically with visible weights. Wind affects light trash most; rain increases air resistance. Weather passes through drizzle before heavier rain. Physics QA supports exact numeric throws without blockers.',
+            ttHelp1: 'Set the angle, hold Space or the throw button, then release. Power cycles 0 → 100 → 0; each sweep takes 1.3 seconds. Drag the scene to pan; drag or tap the overview to view that location. Every release returns to the thrower, then follows the trash.',
+            ttHelp2: 'Each bin shows its points: wider openings award fewer points. Contact with people, animals or cleaners deducts 5 once per throw, separately from a later basket. First entry counts even if trash bounces out. Full bins summon a cleaner without revoking earned points.',
+            ttHelp3: 'Each scene has ten exclusive objects and its own thrower. The living room fits on screen; office/park need a little panning; construction is long and has five barrels. Indoor air comes from a fan or A/C; outdoor weather transitions through drizzle. QA lists only the applied scene’s objects.',
             ttHelp4: 'Practice has no clock. Matches have five rounds, one throw each, and 12 seconds to release. Every round is P1 then P2/CPU. Both receive identical trash weights and weather. The shared field keeps moving through throws and handoffs.',
             ttHelp5: 'Ties add up to three extra rounds, then draw. Change settings and press New game to apply. P pauses, R returns to ready, M mutes.',
         },
         zh: {
             ttName: '丟垃圾', ttSettings: '遊戲設定', ttMode: '模式', ttPractice: '自由練習', ttCpu: '挑戰電腦', ttLocal: '同機雙人',
-            ttScene: '場景', ttOffice: '辦公室', ttPark: '公園', ttItem: '垃圾', ttPaper: '紙團', ttCan: '鋁罐', ttBook: '舊書',
-            ttMixed: '輪換垃圾', ttBottle: '空寶特瓶', ttCup: '紙杯', ttCarton: '紙盒', ttPeel: '香蕉皮', ttApple: '蘋果核',
+            ttScene: '場景', ttOffice: '辦公室・中距離', ttLiving: '客廳・短距離', ttPark: '公園・中距離', ttItem: '投擲物', ttPaper: '廢紙團', ttCan: '喝扁的汽水罐', ttBook: '過期漫畫',
+            ttMixed: '輪換物件', ttBottle: '空寶特瓶', ttCup: '隔夜咖啡杯', ttCarton: '空餅乾盒', ttPeel: '香蕉皮', ttApple: '蘋果核',
+            ttLaptop: '退休筆電', ttMouse: '罷工滑鼠', ttFolder: '退件文件夾', ttVoodoo: '老闆詛咒娃娃', ttKeyboard: '掉鍵鍵盤', ttBadge: '失效識別證', ttStapler: '卡針訂書機', ttOvertime: '加班鬧鐘',
+            ttSock: '孤單臭襪子', ttRemote: '失靈遙控器', ttBlock: '踩了會尖叫積木', ttDuck: '漏氣橡皮鴨', ttPacifier: '備用奶嘴', ttPlush: '開線恐龍玩偶', ttSlipper: '飛天拖鞋', ttRobot: '沒電機器人',
+            ttLeaf: '超大落葉', ttFrisbee: '裂開飛盤', ttShuttlecock: '禿毛羽球', ttDogbag: '打結寵物便袋', ttSeedbag: '鴿飼料袋', ttGnome: '退休花園小矮人', ttHelmet: '裂痕安全帽', ttBrick: '退休紅磚',
             ttCurrentTrash: '本投垃圾與重量', ttDrizzleWeather: '毛毛雨', ttAcWind: (arrow, n) => arrow + '冷氣風量' + n,
-            ttFirstThrow: '本回合先手', ttSecondThrow: '本回合後手', ttQaComplete: '測試完成，可查看下方落地與風致偏移數值。',
-            ttBasketAfterHit: (base, total) => '進桶＋' + base + '分・碰撞扣５分・本投＋' + total + '分',
+            ttPreviousWind: value => '上一投：' + value,
+            ttConstruction: '工地・長距離', ttFanWind: (arrow, n) => arrow + '電扇風量' + n,
+            ttScrewdriver: '螺絲起子', ttScrew: '螺絲', ttWrench: '板手', ttNut: '螺帽', ttWasher: '墊圈', ttBolt: '螺栓', ttOffcut: '木料', ttTape: '膠帶捲',
+            ttCleaner: '清潔人員', ttWorker: '工人', ttPlanks: '木板', ttWheelbarrow: '推車',
+            ttMother: '媽媽', ttBaby: '爬行寶寶', ttRat: '牆上老鼠', ttLaundry: '洗衣籃',
+            ttCleaning: n => n + '分桶：清潔人員前往清運', ttCleaningWork: n => n + '分桶：清運中', ttCleaned: n => n + '分桶已清空，清潔人員離場中',
+            ttFirstThrow: '本回合先手', ttSecondThrow: '本回合後手', ttQaScore: '本投測試分數',
+            ttQaComplete: '測試判定：未入桶，０分；不寫入遊戲成績。', ttQaBasket: points => '測試判定：進桶，加' + points + '分；不寫入遊戲成績。',
+            ttQaFreeComplete: '自由飛行測試完成；目前已關閉垃圾桶碰撞與計分。',
+            ttBasketAfterHit: base => '碰撞 −5分 · 入桶 ＋' + base + '分',
             ttHitContinue: '碰撞扣５分，仍在飛行，入桶還能得分。',
             ttMaterial: (name, grams) => name + '・' + grams + 'g', ttNext: label => '下一投：' + label,
             ttCalmWeather: '微風', ttBreezeWeather: '和風', ttStrongWeather: '強風', ttRainWeather: '下雨', ttStormWeather: '風雨',
             ttWeather: '天氣與風力', ttRainEffect: '雨天增加空氣阻力', ttDebris: n => '場上垃圾：' + n + '件',
             ttFiles: '文件堆', ttUmbrella: '雨傘', ttBlocked: '被之前的垃圾擋住了，試著提高拋物線。',
             ttStrength: '電腦強度', ttEasy: '簡單', ttNormal: '普通', ttHard: '困難', ttNew: '新遊戲', ttRound: '回合', ttBestFive: '五回合最佳',
-            ttYou: '你', ttPlayer: n => '玩家' + n, ttComputer: '電腦', ttControls: '投擲控制', ttCanvas: '側視投擲場地：從左方將垃圾丟入任一垃圾桶，避開移動中的障礙。',
+            ttYou: '你', ttPlayer: n => '玩家' + n, ttComputer: '電腦', ttControls: '投擲控制', ttCanvas: '投擲場地：可左右拖曳場景或全場小圖查看，出手時切回投擲者並跟隨垃圾。',
             ttAngle: '角度', ttPower: '力度', ttLower: '降低角度', ttRaise: '提高角度', ttAngleHint: '←／→調整角度',
             ttHold: '按住蓄力', ttRelease: '放開投擲・空白鍵', ttCharging: '放開投擲', ttWait: '觀看投擲',
             ttNoLast: '上一投的角度與力度會留在這裡', ttLast: (a, p) => '上一投：' + a + '°／力度' + p,
-            ttPoints: '大桶１０分・小桶２５分・撞到障礙扣５分', ttReady: '準備好了', ttHandoff: name => '請把裝置交給' + name + '。',
+            ttPoints: values => '桶分：' + values.join('／') + '・碰撞扣５分', ttReady: '準備好了', ttHandoff: name => '請把裝置交給' + name + '。',
             ttAim: '調整角度，按住蓄力後放開。', ttCpuAim: '電腦正在瞄準…', ttFlying: '飛行中…',
             ttBasket: points => '進桶！加' + points + '分', ttRim: '碰到桶緣了，試著再拋高一點。', ttShort: '太短了，試著增加力度。',
             ttLong: '太遠了，試著減少力度。', ttGap: '落在兩桶之間，調整角度或力度再試。', ttTimeout: '時間到，本投不計分。',
@@ -61,9 +83,9 @@
             ttTurn: name => '輪到' + name, ttReadyTitle: '找準角度，丟進去。', ttIntro: '調整角度，按住蓄力，放開投擲。',
             ttStart: '開始投擲', ttAgain: '再來一場', ttWinner: name => name + '獲勝！', ttDraw: '平手！',
             ttFinal: (a, b) => a + '：' + b, ttExtra: n => '加賽' + n, ttPending: (a, b) => a + ' → ' + b + '；按「新遊戲」套用',
-            ttHelp1: '調整角度後，按住空白鍵或投擲按鈕蓄力，放開出手。力度會從０升到１００，再降到０，持續來回；每趟約１．３秒。',
-            ttHelp2: '大桶１０分，小桶２５分。碰撞人物或鳥每投最多扣５分，投擲仍會繼續，之後入桶照樣加分。首次入桶即計分，彈出不扣回。場上保留最新４０件垃圾。',
-            ttHelp3: '八種垃圾自動輪換，重量顯示在畫面內。輕垃圾較受風影響，雨天增加空氣阻力；天氣會先經過毛毛雨再轉大雨。物理QA可直接輸入投擲數值，排除障礙測試。',
+            ttHelp1: '調整角度後，按住空白鍵或投擲按鈕蓄力，放開出手。力度０～１００來回，每趟約１．３秒。拖場景可移動畫面；拖曳或點小圖則查看該位置。每次出手先切回投擲者，再跟隨物件。',
+            ttHelp2: '各桶標示分數，寬口低分、窄口高分。撞到人物、動物或清潔人員每投最多扣５分，之後入桶獨立加分。首次入桶即計分，彈出不扣回。滿桶會請清潔人員清運，保留既有分數。',
+            ttHelp3: '各場景有十種獨立物件與專屬投擲角色。客廳整間可見；辦公室、公園小幅拖曳；工地是長地圖，設有五個鐵桶。室內有電扇或冷氣，戶外天氣先經毛毛雨再轉大雨。QA只列出目前套用場景的物件。',
             ttHelp4: '練習不限時。比賽共五回合，每人每回合一投，需在十二秒內出手。每回合固定玩家１先投，再換玩家２或電腦。同回合垃圾、重量與天氣相同，場景持續移動。',
             ttHelp5: '平手最多加賽三回合，仍同分則和局。修改設定後，按「新遊戲」套用。P暫停，R回到準備畫面，M靜音。',
         },
@@ -72,26 +94,30 @@
     const t = AC.i18n.t, $ = id => document.getElementById(id);
     const fields = { mode: $('tt-mode'), scene: $('tt-scene'), difficulty: $('tt-difficulty') };
     const prefs = AC.prefs.get('trash-toss');
-    const saved = R.config(Object.assign({}, prefs, prefs.version === 2 ? {} : { item: 'mixed' }));
+    const saved = R.config(Object.assign({}, prefs, { scene: 'office', item: 'mixed' }));
     Object.keys(fields).forEach(key => { fields[key].value = saved[key]; });
     const view = window.TrashTossView.create($('stage'));
     let shell, match, scene, pendingMatch, phase = 'aim', time = 0, power = 0, angle = 45;
     let ball = null, trail = [], ghost = [], result = null, resultTime = 0, plan = null;
     let charging = null, pointerId = null, chargeStart = 0, last = [null, null], angleCarry = 0;
     let worldTime = 0, debris = [], resultPosition = null;
-    let visualRain = 0;
+    let visualRain = 0, previousThrow = null, cleaning = R.createCleaning(), feedback = [], drag = null;
     const qa = window.TrashTossQA.create({ onThrow: startQaThrow, onClear: clearQa, getScene: () => scene });
     function isQa() { return match && match.config.mode === 'qa'; }
     function isFree() { return match.config.mode === 'practice' || isQa(); }
     function material(s) { return t('ttMaterial', t('tt' + s.item[0].toUpperCase() + s.item.slice(1)), s.grams); }
+    function windLabel(s) {
+        return !R.SCENES[s.scene].outdoor ? t(s.scene === 'living' ? 'ttFanWind' : 'ttAcWind', s.wind < 0 ? '←' : '→', Math.abs(s.wind)) :
+            s.wind === 0 ? t('ttCalm') : t('ttWind', s.wind > 0 ? '→' : '←', Math.abs(s.wind));
+    }
     function chosen() { return R.config(Object.fromEntries(Object.entries(fields).map(([key, node]) => [key, node.value]))); }
     function playerName(index) {
         return match.config.mode === 'local' ? t('ttPlayer', index + 1) : index === 0 ? t('ttYou') : t('ttComputer');
     }
     function isCpu() { return match.config.mode === 'cpu' && match.active === 1; }
     function canInput() { return shell && shell.isPlaying() && !isCpu() && !isQa() && ['aim', 'charge'].includes(phase); }
-    function modeKey() { const c = match ? match.config : chosen(); return [c.mode, c.scene, c.mode === 'cpu' ? c.difficulty : 'standard', 'v2'].join('-'); }
-    function setupLabel(c) { return t({ practice: 'ttPractice', cpu: 'ttCpu', local: 'ttLocal', qa: 'ttQaName' }[c.mode]) + ' · ' + t(c.scene === 'park' ? 'ttPark' : 'ttOffice') +
+    function modeKey() { const c = match ? match.config : chosen(); return [c.mode, c.scene, c.mode === 'cpu' ? c.difficulty : 'standard', 'v4'].join('-'); }
+    function setupLabel(c) { return t({ practice: 'ttPractice', cpu: 'ttCpu', local: 'ttLocal', qa: 'ttQaName' }[c.mode]) + ' · ' + t('tt' + c.scene[0].toUpperCase() + c.scene.slice(1)) +
         (c.mode === 'cpu' ? ' · ' + t('tt' + c.difficulty[0].toUpperCase() + c.difficulty.slice(1)) : ''); }
     function syncSettings() {
         const c = chosen();
@@ -107,8 +133,10 @@
     }
     function beginTurn(handoff) {
         cancelCharge(); time = 0; ball = null; trail = []; result = null; pendingMatch = null;
+        previousThrow = last[match.active];
         scene = R.scenario(match.config, match.round, match.seed);
-        if (isQa()) scene = qa.environment(scene);
+        scene.cleaning = cleaning;
+        if (isQa()) { qa.configureScene(scene); scene = qa.environment(scene); }
         if (worldTime === 0 || isQa()) visualRain = scene.rain;
         angle = last[match.active] ? last[match.active].angle : 45;
         phase = handoff ? 'handoff' : 'aim';
@@ -117,6 +145,8 @@
     }
     function reset() {
         match = R.createMatch(chosen(), Date.now()); last = [null, null]; ghost = []; debris = []; worldTime = 0;
+        cleaning = R.createCleaning(); feedback = []; drag = null;
+        view.follow();
         qa.clear();
         resultPosition = null; beginTurn(false); syncSettings();
         if (shell) shell.refreshBest();
@@ -128,11 +158,14 @@
     function release() {
         if (!shell.isPlaying() || phase !== 'charge') return;
         charging = null; pointerId = null;
+        drag = null; view.follow();
         ball = R.launch(scene, angle, power, worldTime); trail = [{ x: ball.x, y: ball.y }];
-        last[match.active] = { angle, power, item: scene.item, grams: scene.grams }; phase = 'flight'; AC.audio.play('click'); sync();
+        last[match.active] = { angle, power, item: scene.item, grams: scene.grams,
+            scene: scene.scene, wind: scene.wind, weather: scene.weather }; phase = 'flight'; AC.audio.play('click'); sync();
     }
     function startQaThrow(input) {
         if (!isQa() || !shell.isPlaying() || phase !== 'aim') return;
+        previousThrow = last[match.active];
         scene = qa.environment(scene, input); visualRain = scene.rain;
         ghost = trail.slice(); debris = []; trail = []; result = null; resultPosition = null;
         angle = input.angle; power = input.power; phase = 'charge';
@@ -141,6 +174,7 @@
     function clearQa() {
         if (!isQa()) return;
         cancelCharge(); phase = 'aim'; ball = null; debris = []; trail = []; ghost = []; result = null; pendingMatch = null;
+        previousThrow = null; last[match.active] = null;
         scene = qa.environment(scene); visualRain = scene.rain; sync(); render();
     }
     function finish(value) {
@@ -157,26 +191,28 @@
     }
     function resultText() {
         if (!result) return '';
-        if (isQa()) return t('ttQaComplete');
-        if (result.kind === 'basket') return result.penalty ? t('ttBasketAfterHit', result.basketPoints, result.points) : t('ttBasket', result.points);
+        if (isQa()) return scene.freeFlight ? t('ttQaFreeComplete') : result.kind === 'basket' ? t('ttQaBasket', result.points) : t('ttQaComplete');
+        if (result.kind === 'basket') return result.penalty ? t('ttBasketAfterHit', result.basketPoints) : t('ttBasket', result.points);
         if (result.kind === 'timeout') return t('ttTimeout');
-        if (result.kind === 'obstacle') return t('ttObstacle', t({ boss: 'ttBoss', walker: 'ttWalker', cart: 'ttCart', bird: 'ttBird', files: 'ttFiles', umbrella: 'ttUmbrella' }[result.obstacle]));
+        if (result.kind === 'obstacle') return t('ttObstacle', t({ boss: 'ttBoss', walker: 'ttWalker', cart: 'ttCart', bird: 'ttBird', files: 'ttFiles', umbrella: 'ttUmbrella', cleaner: 'ttCleaner', worker: 'ttWorker', 'worker-far': 'ttWorker', planks: 'ttPlanks', wheelbarrow: 'ttWheelbarrow', mother: 'ttMother', baby: 'ttBaby', rat: 'ttRat', laundry: 'ttLaundry' }[result.obstacle]));
         if (result.blocked) return t('ttBlocked');
         if (result.rim) return t('ttRim');
-        return t(resultPosition.x < scene.bins[0].x ? 'ttShort' : resultPosition.x > scene.bins[1].x ? 'ttLong' : 'ttGap');
+        return t(resultPosition.x < scene.bins[0].x ? 'ttShort' : resultPosition.x > scene.bins[scene.bins.length - 1].x ? 'ttLong' : 'ttGap');
     }
     function sync() {
         if (!match) return;
-        const practice = isFree(), scores = pendingMatch ? pendingMatch.scores : match.scores;
+        const practice = isFree(), scores = (pendingMatch ? pendingMatch.scores : match.scores).slice();
+        if (phase === 'flight' && ball.hits.length) scores[match.active] -= 5;
         $('tt-round').textContent = practice ? '∞' : match.round > 5 ? t('ttExtra', match.round - 5) : match.round + ' / 5';
-        $('tt-score-a').textContent = scores[0]; $('tt-score-b').textContent = scores[1];
-        $('tt-player-label').textContent = playerName(0); $('tt-rival-label').textContent = playerName(1);
+        $('tt-score-a').textContent = isQa() ? result ? result.points : 0 : scores[0]; $('tt-score-b').textContent = scores[1];
+        $('tt-player-label').textContent = isQa() ? t('ttQaScore') : playerName(0); $('tt-rival-label').textContent = playerName(1);
         $('tt-rival-stat').hidden = practice; $('tt-best-stat').hidden = practice;
         $('tt-score-a').parentElement.classList.toggle('is-active', match.active === 0);
         $('tt-rival-stat').classList.toggle('is-active', match.active === 1);
         $('tt-turn').textContent = isQa() ? t('ttQaName') : practice ? t('ttPractice') : t('ttTurn', playerName(match.active));
         $('tt-turn-order').textContent = practice ? '' : t(match.turn === 0 ? 'ttFirstThrow' : 'ttSecondThrow');
         $('tt-material').textContent = material(scene);
+        $('tt-points').textContent = t('ttPoints', scene.bins.map(bin => bin.points));
         const nextRound = practice || match.turn === 1 ? match.round + 1 : match.round;
         $('tt-next').textContent = t('ttNext', material(R.scenario(match.config, nextRound, match.seed)));
         $('tt-next').hidden = isQa(); $('tt-qa-panel').hidden = !isQa(); $('tt-qa-hud').hidden = !isQa(); $('tt-qa-legend').hidden = !isQa(); $('tt-normal-controls').hidden = isQa();
@@ -184,10 +220,15 @@
         $('tt-qa-hud-title').textContent = t(scene.freeFlight ? 'ttQaHudFree' : 'ttQaHudBins');
         qa.ready(isQa() && shell && shell.isPlaying() && phase === 'aim');
         $('tt-debris').textContent = t('ttDebris', debris.length);
+        const job = cleaning.active;
+        $('tt-cleaning').hidden = !job || isQa();
+        $('tt-cleaning').textContent = job ? t(job.cleared ? 'ttCleaned' : worldTime >= job.arriveAt ? 'ttCleaningWork' : 'ttCleaning', job.points) : '';
         $('tt-weather-name').textContent = t('tt' + scene.weather[0].toUpperCase() + scene.weather.slice(1) + 'Weather');
         $('tt-rain-effect').hidden = !scene.rain;
-        $('tt-wind').textContent = scene.scene === 'office' ? t('ttAcWind', scene.wind < 0 ? '←' : '→', Math.abs(scene.wind)) :
-            scene.wind === 0 ? t('ttCalm') : t('ttWind', scene.wind > 0 ? '→' : '←', Math.abs(scene.wind));
+        $('tt-wind').textContent = windLabel(scene);
+        $('tt-previous-wind').hidden = !previousThrow;
+        $('tt-previous-wind').textContent = previousThrow ? t('ttPreviousWind', windLabel(previousThrow) +
+            (R.SCENES[previousThrow.scene].outdoor ? ' · ' + t('tt' + previousThrow.weather[0].toUpperCase() + previousThrow.weather.slice(1) + 'Weather') : '')) : '';
         $('tt-wind-icon').classList.toggle('is-left', scene.wind < 0);
         $('tt-angle').value = Math.round(angle); $('tt-angle-value').textContent = Math.round(angle) + '°';
         const input = canInput();
@@ -209,7 +250,9 @@
         const rainStep = dt * .65;
         visualRain += R.clamp(scene.rain - visualRain, -rainStep, rainStep);
         for (const scrap of debris) if (!scrap.resting) R.advance(scene, scrap, dt, debris, true);
+        R.advanceCleaning(scene, cleaning, debris, worldTime);
         debris = debris.filter(scrap => !scrap.removed);
+        feedback = feedback.filter(event => worldTime - event.time < 1.5);
         if (phase === 'handoff') { sync(); return; }
         if (phase === 'result') {
             resultTime += dt;
@@ -229,7 +272,9 @@
         }
         time += dt;
         if (phase === 'flight') {
+            const hadHit = ball.hits.length > 0;
             R.advance(scene, ball, dt, debris);
+            if (!hadHit && ball.hits.length) feedback.push({ x: ball.x, y: ball.y, time: worldTime });
             if (isQa()) qa.live(scene, ball);
             trail.push({ x: ball.x, y: ball.y });
             if (ball.result) finish(ball.result);
@@ -258,7 +303,7 @@
     }
     function render() {
         if (shell && !shell.isPlaying()) sync();
-        view.render({ scene, time: worldTime, visualRain, angle, ball, trail, ghost, reference: isQa() ? qa.baseline() : null, result: isQa() ? null : result, debris, resultPosition,
+        view.render({ scene, time: worldTime, visualRain, angle, ball, trail, ghost, reference: isQa() ? qa.baseline() : null, result: isQa() ? null : result, debris, resultPosition, feedback,
             binContents: R.binContents(scene, debris), players: isFree() ? 1 : 2, active: match.active,
             playerLabels: ['P1', match.config.mode === 'cpu' ? 'CPU' : 'P2'],
             practice: isFree(), qa: isQa(), countLabel: n => AC.i18n.locale === 'zh' ? n + '件' : n + (n === 1 ? ' item' : ' items'),
@@ -285,7 +330,10 @@
     }, true);
     shell = AC.shell.create({ gameId: 'trash-toss', mode: modeKey, step: 1 / 60, restartToReady: true,
         preventKeys: [], update, render, reset,
-        onStart() { if (JSON.stringify(chosen()) !== JSON.stringify(match.config)) reset(); sync(); },
+        onStart() {
+            if (JSON.stringify(chosen()) !== JSON.stringify(match.config)) reset(); sync();
+            if (view.isPortrait() && !isQa()) $('stage').parentElement.scrollIntoView({ block: 'start', behavior: 'smooth' });
+        },
         onPause() { cancelCharge(); sync(); }, onResume: sync,
         overlayContent(state) {
             if (state === 'idle') return { title: t(chosen().mode === 'qa' ? 'ttQaName' : 'ttReadyTitle'),
@@ -301,6 +349,20 @@
     Object.values(fields).forEach(field => field.addEventListener('input', () => { syncSettings(); shell.refreshOverlay(); }));
     $('tt-apply').addEventListener('click', () => { shell.goIdle(); sync(); });
     $('tt-ready').addEventListener('click', () => { if (shell.isPlaying()) { phase = 'aim'; sync(); } });
+    $('stage').addEventListener('pointerdown', e => {
+        if (!view.canPan() || e.button !== 0 || e.isPrimary === false) return;
+        const overview = view.beginPan(e.clientX, e.clientY);
+        drag = { id: e.pointerId, startX: e.clientX, startY: e.clientY, lastX: e.clientX, moving: overview };
+        $('stage').setPointerCapture(e.pointerId);
+        if (overview) render();
+    });
+    $('stage').addEventListener('pointermove', e => {
+        if (!drag || drag.id !== e.pointerId) return;
+        if (!drag.moving && Math.abs(e.clientX - drag.startX) > 6 && Math.abs(e.clientX - drag.startX) > Math.abs(e.clientY - drag.startY)) drag.moving = true;
+        if (drag.moving) { e.preventDefault(); view.panBy(e.clientX - drag.lastX, drag.startY, e.clientX); render(); }
+        drag.lastX = e.clientX;
+    });
+    for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) $('stage').addEventListener(type, () => { drag = null; });
     $('tt-angle').addEventListener('input', e => { if (canInput() && phase === 'aim') { angle = Number(e.target.value); sync(); } });
     for (const [id, delta] of [['tt-angle-down', -1], ['tt-angle-up', 1]]) $(id).addEventListener('click', () => {
         if (canInput() && phase === 'aim') { angle = R.clamp(angle + delta, 15, 80); sync(); }
@@ -314,7 +376,7 @@
     window.addEventListener('pointercancel', e => { if (e.pointerId === pointerId) { cancelCharge(); sync(); } });
     $('tt-throw').addEventListener('lostpointercapture', () => { if (charging === 'pointer') { cancelCharge(); sync(); } });
     $('tt-throw').addEventListener('contextmenu', e => e.preventDefault());
-    window.addEventListener('blur', () => { cancelCharge(); if (shell.isPlaying()) shell.pause(); });
+    window.addEventListener('blur', () => { drag = null; cancelCharge(); if (shell.isPlaying()) shell.pause(); });
     window.addEventListener('resize', () => { view.fit(); render(); });
     AC.i18n.subscribe(() => { syncSettings(); sync(); render(); });
 })();

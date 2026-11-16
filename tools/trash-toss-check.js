@@ -13,7 +13,28 @@ assert.equal(drop(bin.x).result.kind, 'basket');
 assert.equal(drop(bin.x).result.points, 10);
 assert.equal(drop(bin.x, 'paper', 80).result, null, 'Rising through rim height does not score');
 assert.equal(drop(bin.x + 33, 'paper').result.kind, 'basket');
-assert.notEqual(drop(bin.x + 33, 'book').result?.kind, 'basket', 'The whole object must fit');
+const wideBook = R.launch({ ...scene, item: 'book', grams: 280, qa: true }, 45, 50, 0);
+Object.assign(wideBook, { x: bin.x + 33, y: bin.height + wideBook.radius + .2, vx: 0, vy: -60 });
+R.advance({ ...scene, qa: true }, wideBook, 1 / 240);
+assert.equal(wideBook.result, null, 'An oversized entry must clear the rim before it can score');
+const clearScene = { ...scene, item: 'paper', grams: 8, wind: 0, rain: 0, qa: true, freeFlight: false };
+for (const item of Object.keys(R.ITEMS)) for (const target of clearScene.bins) for (const side of [-1, 1]) for (const overlap of [0, .05, .5, 1, 2]) {
+    const environment = { ...clearScene, item, grams: R.ITEMS[item].grams };
+    const grazed = R.launch(environment, 45, 60, 0);
+    Object.assign(grazed, { x: target.x + side * (target.width / 2 - 6 - grazed.radius + overlap),
+        y: target.height + grazed.radius + 4, vx: 0, vy: -60 });
+    while (!grazed.result) R.advance(environment, grazed, 1 / 240);
+    assert.equal(grazed.result.kind, 'basket', 'A rim graze that subsequently falls inside must score');
+    assert.equal(grazed.result.bin, target.id); assert.equal(grazed.result.points, target.points);
+}
+const belowRim = R.launch(clearScene, 45, 60, 0);
+Object.assign(belowRim, { x: bin.x, y: 50, vx: 0, vy: -60 });
+while (!belowRim.result) R.advance(clearScene, belowRim, 1 / 240);
+assert.equal(belowRim.result.kind, 'miss', 'Being inside without a top approach must not manufacture a basket');
+const crossBin = R.launch(clearScene, 45, 60, 0);
+Object.assign(crossBin, { x: 667, y: 94, vx: 180, vy: -800 });
+while (!crossBin.result) R.advance(clearScene, crossBin, 1 / 240);
+assert.ok(crossBin.rim); assert.equal(crossBin.result.bin, 'small'); assert.equal(crossBin.result.points, 25, 'Large-rim to small-bin ricochet scores the actual destination');
 const rim = R.launch(scene, 45, 50, 0);
 Object.assign(rim, { x: bin.x + bin.width / 2 - 3, y: bin.height + rim.radius + 2, vx: 0, vy: -60 });
 while (!rim.rim) R.advance(scene, rim, 1 / 240);
@@ -80,14 +101,14 @@ assert.deepEqual(longFrame, shortFrames, 'Shell frames use identical physics sub
 for (const [seconds, expected] of [[0, 0], [.65, 50], [1.3, 100], [1.95, 50], [2.6, 0], [3.25, 50], [5.2, 0]]) {
     assert.ok(Math.abs(R.chargePower(seconds) - expected) < 1e-8, 'Charge bounces at both ends');
 }
-const rounds = Array.from({ length: 8 }, (_, i) => R.scenario({ mode: 'cpu', scene: 'park' }, i + 1, 42));
+const rounds = Array.from({ length: 10 }, (_, i) => R.scenario({ mode: 'cpu', scene: 'park' }, i + 1, 42));
 const heights = [], sightings = [];
 for (let t = 0; t < 72; t += .1) {
     const b = R.obstacles(birdScene, t).find(o => o.id === 'bird'); sightings.push(!!b); if (b) heights.push(b.y);
 }
 assert.ok(sightings.filter(Boolean).length < sightings.length / 2, 'Bird leaves quiet intervals between passes');
 assert.ok(Math.max(...heights) - Math.min(...heights) > 200, 'Bird alternates high and low flight');
-assert.equal(new Set(rounds.map(s => s.item)).size, 8, 'All eight items rotate before repetition');
+assert.equal(new Set(rounds.map(s => s.item)).size, 10, 'All ten scene items rotate before repetition');
 assert.equal(new Set(rounds.map(s => s.weather)).size, 6, 'Outdoor cycle visits all weather profiles');
 for (let i = 0; i < rounds.length; i++) {
     const a = rounds[i].rain, b = rounds[(i + 1) % rounds.length].rain;
@@ -136,6 +157,66 @@ assert.deepEqual(traced.ball, direct, 'QA reference uses the same bin collision 
 assert.deepEqual(R.binContents(scene, [{ x: 620, y: 8, radius: 8 }, { x: 824, y: 12, radius: 12 }, { x: 300, y: 8, radius: 8 }]),
     { large: { count: 1, fill: 16 / 82 }, small: { count: 1, fill: 24 / 110 } });
 const score = points => ({ kind: points > 0 ? 'basket' : 'miss', points });
+const cleaningScene = { ...scene, wind: 0, phase: -Math.PI / 2, cleaning: R.createCleaning() };
+const pile = [20, 44, 68].map(y => ({ x: bin.x, y, radius: 12, item: 'book', grams: 280, resting: true, result: { kind: 'basket', points: 10 } }));
+const otherBin = { x: 824, y: 16, radius: 8, resting: true }, groundTrash = { x: 300, y: 8, radius: 8, resting: true };
+R.advanceCleaning(cleaningScene, cleaningScene.cleaning, pile.map(b => ({ ...b, resting: false })), 0);
+assert.equal(cleaningScene.cleaning.active, null, 'Airborne trash never dispatches cleaning');
+R.advanceCleaning(cleaningScene, cleaningScene.cleaning, [...pile, otherBin, groundTrash], 0);
+const job = cleaningScene.cleaning.active;
+assert.ok(job && job.bin === 'large');
+assert.equal(R.cleaner(cleaningScene, job.startAt - .01), null, 'A one-second warning precedes arrival');
+assert.ok(R.obstacles(cleaningScene, job.arriveAt).some(b => b.id === 'cleaner'));
+const cleanerHit = R.launch(cleaningScene, 45, 50, job.arriveAt);
+Object.assign(cleanerHit, { x: R.cleaner(cleaningScene, job.arriveAt).x, y: 80, vx: 0, vy: 0 });
+R.advance(cleaningScene, cleanerHit, 1 / 240);
+assert.ok(cleanerHit.hits.includes('cleaner'), 'Cleaner contact uses the ordinary collision penalty');
+Object.assign(cleanerHit, { x: bin.x, y: bin.height + cleanerHit.radius + 2, vx: 0, vy: -60 });
+while (!cleanerHit.result) R.advance(cleaningScene, cleanerHit, 1 / 240);
+assert.equal(cleanerHit.result.basketPoints, 10); assert.equal(cleanerHit.result.penalty, -5); assert.equal(cleanerHit.result.points, 5);
+const storedScores = JSON.stringify(pile.map(b => b.result));
+R.advanceCleaning(cleaningScene, cleaningScene.cleaning, [...pile, otherBin, groundTrash], job.clearAt);
+assert.ok(pile.every(b => b.removed)); assert.ok(!otherBin.removed && !groundTrash.removed, 'Cleaning only removes the selected bin contents');
+assert.equal(JSON.stringify(pile.map(b => b.result)), storedScores, 'Collection never revokes accepted points');
+R.advanceCleaning(cleaningScene, cleaningScene.cleaning, pile, job.endAt);
+assert.equal(cleaningScene.cleaning.active, null); assert.equal(R.cleaner(cleaningScene, job.endAt), null);
+const construction = R.scenario({ scene: 'construction' }, 1, 42);
+const allSceneItems = Object.values(R.SCENES).flatMap(s => s.items);
+assert.equal(allSceneItems.length, 40); assert.equal(new Set(allSceneItems).size, 40, 'All four ten-item pools are disjoint');
+assert.equal(Object.keys(R.ITEMS).length, 40);
+for (const [name, layout] of Object.entries(R.SCENES)) {
+    const cycle = Array.from({ length: 10 }, (_, i) => R.scenario({ scene: name }, i + 1, 42));
+    assert.equal(layout.items.length, 10);
+    assert.equal(new Set(cycle.map(s => s.item)).size, 10, name + ' visits all ten items before repeating');
+    assert.ok(cycle.every(s => layout.items.includes(s.item)));
+    if (!layout.outdoor) assert.ok(cycle.every(s => s.rain === 0), name + ' stays indoors');
+}
+const living = R.scenario({ scene: 'living' }, 1, 42);
+assert.equal(living.width, 600); assert.equal(R.launch(living, 45, 50, 0).y, 76);
+for (const id of ['baby', 'mother', 'rat']) {
+    const box = R.obstacles(living, 0).find(b => b.id === id), hit = R.launch(living, 45, 50, 0);
+    Object.assign(hit, { x: box.x, y: box.y + box.height / 2, vx: 0, vy: 0 }); R.advance(living, hit, 1 / 240);
+    assert.ok(hit.hits.includes(id), id + ' is a physical blocker');
+}
+assert.ok(R.obstacles(living, 1).find(b => b.id === 'rat').y !== R.obstacles(living, 0).find(b => b.id === 'rat').y);
+assert.equal(construction.bins.length, 5);
+for (let i = 1; i < construction.bins.length; i++) {
+    assert.ok(construction.bins[i].width < construction.bins[i - 1].width);
+    assert.ok(construction.bins[i].points > construction.bins[i - 1].points, 'Narrower barrels award more points');
+}
+assert.equal(R.fieldWidth(construction), 2400);
+assert.equal(new Set(Array.from({ length: 10 }, (_, i) => R.scenario({ scene: 'construction' }, i + 1, 42).item)).size, 10);
+assert.ok(R.obstacles(construction, 0).some(o => o.id === 'worker'));
+for (const item of R.SCENES.construction.items) {
+    const lab = { ...construction, qa: true, item, grams: R.ITEMS[item].grams * 1.15, wind: -60, rain: 1.6 };
+    for (const target of lab.bins) {
+        let reachable = false;
+        for (let angle = 24; angle <= 66 && !reachable; angle += 2) for (let power = 50; power <= 100; power++) {
+            if (R.simulate(lab, angle, power, 0).result.bin === target.id) { reachable = true; break; }
+        }
+        assert.ok(reachable, item + ' can reach ' + target.id + ' even at maximum round weight in strong headwind and rain');
+    }
+}
 let match = R.createMatch({ mode: 'local', scene: 'park' }, 123);
 const original = JSON.stringify(match);
 const firstTurn = R.settle(match, score(25), { angle: 45, power: 70 });
@@ -155,4 +236,4 @@ assert.equal(tie.over, true); assert.equal(tie.winner, null); assert.equal(tie.r
 let practice = R.createMatch({ mode: 'practice' }, 1);
 for (let i = 0; i < 30; i++) practice = R.settle(practice, { kind: 'obstacle', points: -5 }, {});
 assert.equal(practice.over, false); assert.equal(practice.scores[0], -150);
-console.log('PASS: deterministic physics, ricochet scoring, full-bin bounce-out credit, rim-rest timing, bin floor, occasional high/low birds, QA collision modes, fixed AB order and match rules.');
+console.log('PASS: four exclusive ten-item pools, living-room blockers, five construction targets, collection lifecycle, deterministic physics, rim/ricochet scoring, QA collision modes and match rules.');
