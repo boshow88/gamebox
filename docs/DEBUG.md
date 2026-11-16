@@ -110,8 +110,10 @@ game models and restoration of the desktop canvas.
 
 The room check runs two clients of the actual shared room service and RTDB
 adapter against the native JSON-tree fixture. It verifies ready/start ownership,
-same-account tab seats, duplicate-release guards, frame-by-frame replay versus
-background catch-up, persistent debris, AB turns, timeout races, forfeits,
+same-account tab seats, host-only lobby scene changes, cleared readiness after
+map changes, rejected live-match changes, same-code rematches, duplicate-release guards, frame-by-frame replay versus
+background catch-up, future launch scheduling, an exact initial launch point
+after a 250 ms simulated delivery delay, persistent debris, AB turns, timeout races, forfeits,
 rematch isolation and heartbeat-based release. This fixture does not evaluate
 Firebase security rules or verify production access.
 
@@ -120,12 +122,16 @@ headless Chrome with `--remote-debugging-port=9377`, then:
 
 ```text
 node tools/trash-toss-online-browser-check.js 9377 http://127.0.0.1:8000
+# Optional guest-lobby screenshot at /tmp/trash-toss-lobby-preview.png:
+node tools/trash-toss-online-browser-check.js 9377 http://127.0.0.1:8000 --lobby-preview
 ```
 
 This opens and closes its own test target containing two real game pages. It
 injects only an in-memory room store into the actual shared room service, checks
-create/join/ready/start, scene and score synchronization, active-seat controls,
-charged release, forfeit results and return to lobby. It never signs into or
+create/join/ready/start, in-room host scene selection and guest synchronization,
+same-code post-match map selection, scene and score synchronization, active-seat controls,
+charged release with 200 ms delayed snapshot delivery, first visible opponent
+flight age, dominant Ready/Start versus Leave geometry, forfeit results and return to lobby. It never signs into or
 writes to production Firebase. For a live two-device check, first publish
 `database.rules.json` as documented in [ROOMS.md](ROOMS.md#trash-toss-rooms).
 
@@ -195,6 +201,14 @@ weight defaults, and no overview heading text. Drag the preview right while the
 world is moving: the camera must go right; dragging the field right goes left.
 Both return to the thrower on release. On a phone the whole living room must fit
 without dragging, including both bins, mother, crawling baby and wall rat.
+
+Performance checks: the session fixture drives a 120 Hz mobile render schedule
+while retaining 60 Hz simulation; paints must stay at 30 FPS and charge must still
+reach 100 after 1.3 seconds. The view fixture verifies backing pixels fit CSS size
+at up to 2x density, scenery layers are reused between frames, and resize/scene
+changes rebuild the cached layer. Verify on an actual iPhone Safari: sustained
+play, temperature, charge smoothness, rain, retained trash, camera drags and QA.
+Headless mobile dimensions cannot establish real phone thermal behavior.
 
 Trash Toss additions: check arena heights and under-bin passes, including large
 objects at narrow openings; all eight targets are reachable for every street item

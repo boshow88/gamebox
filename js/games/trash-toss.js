@@ -4,7 +4,7 @@
     const AC = window.ArcadeCommon, R = window.TrashTossRules;
     const strings = {
         en: {
-            ttName: 'Trash Toss', ttOnline: 'Online duel', ttRoom: 'Online room', ttArena: 'Street arena · medium', ttParrot: 'the pet parrot',
+            ttLaunching: 'Releasing…', ttName: 'Trash Toss', ttOnline: 'Online duel', ttRoom: 'Online room', ttArena: 'Street arena · medium', ttParrot: 'the pet parrot',
             ttReceipt: 'Lottery receipt', ttSpraycap: 'Spray paint cap', ttCassette: 'Tangled mixtape', ttBottlecap: 'Soda bottle cap', ttWristband: 'Expired gig wristband', ttPadlock: 'Keyless padlock', ttSkatewheel: 'Worn skate wheel', ttNoodlebox: 'Empty noodle box', ttVinyl: 'Scratched vinyl', ttSneaker: 'Retired sneaker', ttSettings: 'Game settings', ttMode: 'Mode', ttPractice: 'Practice', ttCpu: 'Vs CPU', ttLocal: 'Two players',
             ttScene: 'Scene', ttOffice: 'Office · medium', ttLiving: 'Living room · short', ttPark: 'Park · medium', ttItem: 'Object', ttPaper: 'Scrunched memo', ttCan: 'Crushed soda can', ttBook: 'Outdated comic',
             ttMixed: 'Mixed objects', ttBottle: 'Empty bottle', ttCup: 'Yesterday’s coffee cup', ttCarton: 'Empty cookie box', ttPeel: 'Banana peel', ttApple: 'Apple core',
@@ -48,7 +48,7 @@
             ttHelp5: 'Ties add up to three extra rounds, then draw. Change settings and press New game to apply. P pauses, R returns to ready, M mutes.',
         },
         zh: {
-            ttName: '丟垃圾', ttOnline: '連線對戰', ttRoom: '連線房間', ttArena: '街頭競技場・中距離', ttParrot: '寵物鸚鵡',
+            ttLaunching: '準備出手…', ttName: '丟垃圾', ttOnline: '連線對戰', ttRoom: '連線房間', ttArena: '街頭競技場・中距離', ttParrot: '寵物鸚鵡',
             ttReceipt: '沒中的發票', ttSpraycap: '噴漆罐蓋', ttCassette: '卡帶混音帶', ttBottlecap: '汽水瓶蓋', ttWristband: '過期演唱會手環', ttPadlock: '沒鑰匙的掛鎖', ttSkatewheel: '磨平滑板輪', ttNoodlebox: '空炒麵盒', ttVinyl: '刮花黑膠唱片', ttSneaker: '退休球鞋', ttSettings: '遊戲設定', ttMode: '模式', ttPractice: '自由練習', ttCpu: '挑戰電腦', ttLocal: '同機雙人',
             ttScene: '場景', ttOffice: '辦公室・中距離', ttLiving: '客廳・短距離', ttPark: '公園・中距離', ttItem: '投擲物', ttPaper: '廢紙團', ttCan: '喝扁的汽水罐', ttBook: '過期漫畫',
             ttMixed: '輪換物件', ttBottle: '空寶特瓶', ttCup: '隔夜咖啡杯', ttCarton: '空餅乾盒', ttPeel: '香蕉皮', ttApple: '蘋果核',
@@ -93,12 +93,16 @@
         },
     };
     Object.assign(AC.i18n.STRINGS.en, strings.en); Object.assign(AC.i18n.STRINGS.zh, strings.zh);
-    const t = AC.i18n.t, $ = id => document.getElementById(id);
+    const t = AC.i18n.t, nodes = new Map(), $ = id => {
+        if (!nodes.has(id)) nodes.set(id, document.getElementById(id));
+        return nodes.get(id);
+    };
     const fields = { mode: $('tt-mode'), scene: $('tt-scene'), difficulty: $('tt-difficulty') };
     const prefs = AC.prefs.get('trash-toss');
     const saved = R.config(Object.assign({}, prefs, { scene: 'office', item: 'mixed' }));
     Object.keys(fields).forEach(key => { fields[key].value = saved[key]; });
     const view = window.TrashTossView.create($('stage'));
+    let hudAt = -Infinity, paintAt = -Infinity, nextScenario = null, nextScenarioKey = '';
     let online = null, netCache = null, netKey = '', netFinished = '', sending = false;
     let shell, match, scene, pendingMatch, phase = 'aim', time = 0, power = 0, angle = 45;
     let ball = null, trail = [], ghost = [], result = null, resultTime = 0, plan = null;
@@ -153,6 +157,7 @@
         sync();
     }
     function reset() {
+        hudAt = -Infinity; paintAt = -Infinity;
         if (isOnline()) { applyOnline(); return; }
         match = R.createMatch(chosen(), Date.now()); last = [null, null]; ghost = []; debris = []; worldTime = 0;
         cleaning = R.createCleaning(); feedback = []; drag = null;
@@ -217,53 +222,61 @@
         if (result.rim) return t('ttRim');
         return t(resultPosition.x < scene.bins[0].x ? 'ttShort' : resultPosition.x > scene.bins[scene.bins.length - 1].x ? 'ttLong' : 'ttGap');
     }
-    function sync() {
+    function putText(id, value) {
+        const node = $(id);
+        if (String(node.textContent) !== String(value)) node.textContent = value;
+    }
+    function sync(force = true) {
         if (!match) return;
+        if (!force && (document.hidden || online && online.isOpen() || worldTime >= hudAt && worldTime - hudAt < 1 / 30 - .0001)) return;
+        hudAt = worldTime;
         const practice = isFree(), scores = (pendingMatch ? pendingMatch.scores : match.scores).slice();
         if (phase === 'flight' && ball.hits.length) scores[match.active] -= 5;
-        $('tt-round').textContent = practice ? '∞' : match.round > 5 ? t('ttExtra', match.round - 5) : match.round + ' / 5';
-        $('tt-score-a').textContent = isQa() ? result ? result.points : 0 : scores[0]; $('tt-score-b').textContent = scores[1];
-        $('tt-player-label').textContent = isQa() ? t('ttQaScore') : playerName(0); $('tt-rival-label').textContent = playerName(1);
+        putText('tt-round', practice ? '∞' : match.round > 5 ? t('ttExtra', match.round - 5) : match.round + ' / 5');
+        putText('tt-score-a', isQa() ? result ? result.points : 0 : scores[0]); putText('tt-score-b', scores[1]);
+        putText('tt-player-label', isQa() ? t('ttQaScore') : playerName(0)); putText('tt-rival-label', playerName(1));
         $('tt-rival-stat').hidden = practice; $('tt-best-stat').hidden = practice;
         $('tt-score-a').parentElement.classList.toggle('is-active', match.active === 0);
         $('tt-rival-stat').classList.toggle('is-active', match.active === 1);
-        $('tt-turn').textContent = isQa() ? t('ttQaName') : practice ? t('ttPractice') : t('ttTurn', playerName(match.active));
-        $('tt-turn-order').textContent = practice ? '' : t(match.turn === 0 ? 'ttFirstThrow' : 'ttSecondThrow');
-        $('tt-material').textContent = material(scene);
+        putText('tt-turn', isQa() ? t('ttQaName') : practice ? t('ttPractice') : t('ttTurn', playerName(match.active)));
+        putText('tt-turn-order', practice ? '' : t(match.turn === 0 ? 'ttFirstThrow' : 'ttSecondThrow'));
+        putText('tt-material', material(scene));
         $('tt-previous-material').hidden = !previousThrow;
-        $('tt-previous-material').textContent = previousThrow ? t('ttPreviousWind', material(previousThrow)) : '';
-        $('tt-points').textContent = t('ttPoints', scene.bins.map(bin => bin.points));
+        putText('tt-previous-material', previousThrow ? t('ttPreviousWind', material(previousThrow)) : '');
+        putText('tt-points', t('ttPoints', scene.bins.map(bin => bin.points)));
         const nextRound = practice || match.turn === 1 ? match.round + 1 : match.round;
-        $('tt-next').textContent = t('ttNext', material(R.scenario(match.config, nextRound, match.seed)));
+        const nextKey = [match.seed, match.config.mode, match.config.scene, match.config.item, nextRound].join(':');
+        if (nextKey !== nextScenarioKey) { nextScenarioKey = nextKey; nextScenario = R.scenario(match.config, nextRound, match.seed); }
+        putText('tt-next', t('ttNext', material(nextScenario)));
         $('tt-next').hidden = isQa(); $('tt-qa-panel').hidden = !isQa(); $('tt-qa-hud').hidden = !isQa(); $('tt-qa-legend').hidden = !isQa(); $('tt-normal-controls').hidden = isQa();
         $('stage').parentElement.classList.toggle('is-qa', isQa());
-        $('tt-qa-hud-title').textContent = t(scene.freeFlight ? 'ttQaHudFree' : 'ttQaHudBins');
+        putText('tt-qa-hud-title', t(scene.freeFlight ? 'ttQaHudFree' : 'ttQaHudBins'));
         qa.ready(isQa() && shell && shell.isPlaying() && phase === 'aim');
-        $('tt-debris').textContent = t('ttDebris', debris.length);
+        putText('tt-debris', t('ttDebris', debris.length));
         const job = cleaning.active;
         $('tt-cleaning').hidden = !job || isQa();
-        $('tt-cleaning').textContent = job ? t(job.cleared ? 'ttCleaned' : worldTime >= job.arriveAt ? 'ttCleaningWork' : 'ttCleaning', job.points) : '';
-        $('tt-weather-name').textContent = t('tt' + scene.weather[0].toUpperCase() + scene.weather.slice(1) + 'Weather');
+        putText('tt-cleaning', job ? t(job.cleared ? 'ttCleaned' : worldTime >= job.arriveAt ? 'ttCleaningWork' : 'ttCleaning', job.points) : '');
+        putText('tt-weather-name', t('tt' + scene.weather[0].toUpperCase() + scene.weather.slice(1) + 'Weather'));
         $('tt-rain-effect').hidden = !scene.rain;
-        $('tt-wind').textContent = windLabel(scene);
+        putText('tt-wind', windLabel(scene));
         $('tt-previous-wind').hidden = !previousThrow;
-        $('tt-previous-wind').textContent = previousThrow ? t('ttPreviousWind', windLabel(previousThrow) +
-            (R.SCENES[previousThrow.scene].outdoor ? ' · ' + t('tt' + previousThrow.weather[0].toUpperCase() + previousThrow.weather.slice(1) + 'Weather') : '')) : '';
+        putText('tt-previous-wind', previousThrow ? t('ttPreviousWind', windLabel(previousThrow) +
+            (R.SCENES[previousThrow.scene].outdoor ? ' · ' + t('tt' + previousThrow.weather[0].toUpperCase() + previousThrow.weather.slice(1) + 'Weather') : '')) : '');
         $('tt-wind-icon').classList.toggle('is-left', scene.wind < 0);
-        $('tt-angle').value = Math.round(angle); $('tt-angle-value').textContent = Math.round(angle) + '°';
+        $('tt-angle').value = Math.round(angle); putText('tt-angle-value', Math.round(angle) + '°');
         const input = canInput();
         for (const id of ['tt-angle', 'tt-angle-down', 'tt-angle-up', 'tt-throw']) $(id).disabled = !input || (phase === 'charge' && id !== 'tt-throw');
         $('tt-throw').classList.toggle('is-charging', phase === 'charge');
-        $('tt-throw-label').textContent = t(phase === 'charge' ? 'ttCharging' : input ? 'ttHold' : 'ttWait');
-        $('tt-power-value').textContent = Math.round(power);
+        putText('tt-throw-label', t(phase === 'charge' ? 'ttCharging' : input ? 'ttHold' : 'ttWait'));
+        putText('tt-power-value', Math.round(power));
         $('tt-power-fill').style.width = power + '%'; $('tt-power-meter').setAttribute('aria-valuenow', Math.round(power));
         const previous = last[match.active];
-        $('tt-last').textContent = previous ? material(previous) + ' · ' + t('ttLast', Math.round(previous.angle), Math.round(previous.power)) : t('ttNoLast');
+        putText('tt-last', previous ? material(previous) + ' · ' + t('ttLast', Math.round(previous.angle), Math.round(previous.power)) : t('ttNoLast'));
         $('tt-last-mark').hidden = !previous; if (previous) $('tt-last-mark').style.left = previous.power + '%';
-        const status = sending ? t('ttNetSending') : isOnline() && !online.canControl() && phase === 'aim' ? t('ttNetTurn') : result ? resultText() : phase === 'handoff' ? t('ttHandoff', playerName(match.active)) : phase === 'flight' ? t(ball && ball.hits.length ? 'ttHitContinue' : 'ttFlying') : isCpu() ? t('ttCpuAim') : t('ttAim');
-        if ($('tt-status').textContent !== status) $('tt-status').textContent = status;
+        const status = sending ? t('ttNetSending') : isOnline() && !online.canControl() && phase === 'aim' ? t('ttNetTurn') : result ? resultText() : phase === 'handoff' ? t('ttHandoff', playerName(match.active)) : phase === 'launch' ? t('ttLaunching') : phase === 'flight' ? t(ball && ball.hits.length ? 'ttHitContinue' : 'ttFlying') : isCpu() ? t('ttCpuAim') : t('ttAim');
+        if ($('tt-status').textContent !== status) putText('tt-status', status);
         $('tt-ready').hidden = phase !== 'handoff'; $('tt-ready').disabled = !shell || !shell.isPlaying();
-        $('tt-clock').textContent = !practice && ['aim', 'charge'].includes(phase) && shell && shell.isPlaying() ? t('ttTime', Math.max(0, Math.ceil(R.WORLD.turnSeconds - time))) : '';
+        putText('tt-clock', !practice && ['aim', 'charge'].includes(phase) && shell && shell.isPlaying() ? t('ttTime', Math.max(0, Math.ceil(R.WORLD.turnSeconds - time))) : '');
     }
     function applyOnline() {
         const g = online && online.game();
@@ -275,7 +288,9 @@
             if (g.status === 'flight') { drag = null; view.follow(); AC.audio.play('click'); }
         }
         const now = online.now();
+        const wasLaunched = netCache && netCache.launched;
         netCache = window.TrashTossRoom.project(g, now, netCache);
+        if (netCache.launched && !wasLaunched) paintAt = -Infinity;
         match = g.match; last = g.last; previousThrow = last[match.active];
         scene = netCache.scene; cleaning = netCache.world.cleaning; worldTime = netCache.world.tick / 60;
         visualRain += R.clamp(scene.rain - visualRain, -.011, .011);
@@ -283,11 +298,11 @@
         result = netCache.result; resultPosition = g.outcome && g.outcome.position;
         pendingMatch = result && g.outcome ? g.outcome.match : null;
         time = Math.max(0, (now - g.turnStartedAt) / 1000);
-        if (g.status === 'flight') { angle = g.shot.angle; power = g.shot.power; phase = result ? 'result' : 'flight'; }
+        if (g.status === 'flight') { angle = g.shot.angle; power = g.shot.power; phase = result ? 'result' : netCache.launched ? 'flight' : 'launch'; }
         else if (g.status === 'over') phase = 'over';
         else if (changed || !['aim', 'charge', 'sending'].includes(phase)) { phase = 'aim'; angle = previousThrow ? previousThrow.angle : 45; }
         if (phase === 'charge') power = R.chargePower(time - chargeStart);
-        Object.keys(fields).forEach(key => { fields[key].value = match.config[key]; });
+        if (changed) Object.keys(fields).forEach(key => { if (fields[key].value !== match.config[key]) fields[key].value = match.config[key]; });
         if (g.status === 'over' && netFinished !== g.matchId) {
             netFinished = g.matchId;
             const seat = online.seat();
@@ -306,7 +321,7 @@
         } else angleCarry = 0;
     }
     function update(dt) {
-        if (isOnline()) { applyOnline(); adjustAngle(dt); sync(); return; }
+        if (isOnline()) { applyOnline(); adjustAngle(dt); sync(false); return; }
         worldTime += dt;
         const rainStep = dt * .65;
         visualRain += R.clamp(scene.rain - visualRain, -rainStep, rainStep);
@@ -314,10 +329,10 @@
         R.advanceCleaning(scene, cleaning, debris, worldTime);
         debris = debris.filter(scrap => !scrap.removed);
         feedback = feedback.filter(event => worldTime - event.time < 1.5);
-        if (phase === 'handoff') { sync(); return; }
+        if (phase === 'handoff') { sync(false); return; }
         if (phase === 'result') {
             resultTime += dt;
-            if (isQa()) { if (resultTime >= R.WORLD.resultSeconds) { phase = 'aim'; sync(); } return; }
+            if (isQa()) { if (resultTime >= R.WORLD.resultSeconds) { phase = 'aim'; sync(false); } return; }
             if (resultTime >= R.WORLD.resultSeconds) {
                 const previousPlayer = match.active;
                 if (match.config.mode === 'practice') ghost = trail.slice();
@@ -325,7 +340,7 @@
                 if (match.over) {
                     const regulationScore = match.history.filter(entry => entry.player === 0 && entry.round <= 5).reduce((total, entry) => total + entry.result.points, 0);
                     phase = 'over'; shell.gameOver({ score: regulationScore, win: match.winner === 0,
-                        meta: { scene: match.config.scene, rounds: match.round } }); sync(); return;
+                        meta: { scene: match.config.scene, rounds: match.round } }); sync(false); return;
                 }
                 beginTurn(match.config.mode === 'local' && previousPlayer !== match.active);
             }
@@ -354,15 +369,21 @@
             }
             if (['aim', 'charge'].includes(phase) && !isFree() && time >= R.WORLD.turnSeconds) finish({ kind: 'timeout', points: 0 });
         }
-        sync();
+        sync(false);
     }
-    function render() {
+    function render(force) {
+        if (document.hidden || online && online.isOpen()) return;
+        const now = window.performance ? window.performance.now() : worldTime * 1000;
+        const mobile = window.innerWidth <= 620 || window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+        const interval = 1000 / (mobile ? 30 : 60);
+        if (force !== true && now >= paintAt && now - paintAt < interval - .5) return;
+        paintAt = now;
         if (shell && !shell.isPlaying()) sync();
         view.render({ scene, time: worldTime, visualRain, angle, ball, trail, ghost, reference: isQa() ? qa.baseline() : null, result: isQa() ? null : result, debris, resultPosition, feedback,
             binContents: R.binContents(scene, debris), players: isFree() ? 1 : 2, active: match.active,
             playerLabels: ['P1', match.config.mode === 'cpu' ? 'CPU' : 'P2'],
             practice: isFree(), qa: isQa(), countLabel: n => AC.i18n.locale === 'zh' ? n + '件' : n + (n === 1 ? ' item' : ' items'),
-            charging: phase === 'charge', aiming: ['aim', 'charge', 'handoff'].includes(phase) });
+            charging: phase === 'charge', aiming: ['aim', 'charge', 'handoff', 'launch'].includes(phase) });
     }
     // Capture before the shared shell: the Space that starts a game must not also charge it.
     window.addEventListener('keydown', e => {
@@ -416,12 +437,12 @@
         const overview = view.beginPan(e.clientX, e.clientY);
         drag = { id: e.pointerId, startX: e.clientX, startY: e.clientY, lastX: e.clientX, moving: overview };
         $('stage').setPointerCapture(e.pointerId);
-        if (overview) render();
+        if (overview) render(true);
     });
     $('stage').addEventListener('pointermove', e => {
         if (!drag || drag.id !== e.pointerId) return;
         if (!drag.moving && Math.abs(e.clientX - drag.startX) > 6 && Math.abs(e.clientX - drag.startX) > Math.abs(e.clientY - drag.startY)) drag.moving = true;
-        if (drag.moving) { e.preventDefault(); view.panBy(e.clientX - drag.lastX, drag.startY, e.clientX); render(); }
+        if (drag.moving) { e.preventDefault(); view.panBy(e.clientX - drag.lastX, drag.startY, e.clientX); render(true); }
         drag.lastX = e.clientX;
     });
     for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) $('stage').addEventListener(type, () => { drag = null; });
@@ -449,12 +470,12 @@
     $('tt-throw').addEventListener('lostpointercapture', () => { if (charging === 'pointer') { cancelCharge(); sync(); } });
     $('tt-throw').addEventListener('contextmenu', e => e.preventDefault());
     window.addEventListener('blur', () => { drag = null; cancelCharge(); if (shell.isPlaying()) shell.pause(); });
-    window.addEventListener('resize', () => { view.fit(); render(); });
+    window.addEventListener('resize', () => { view.fit(); render(true); });
     if (window.createTrashTossOnline) {
         online = window.createTrashTossOnline({ settings: chosen,
             message: text => { $('tt-status').textContent = text; },
             onOpen() { cancelCharge(); if (!isOnline() && shell.isPlaying()) shell.pause(); },
-            onClose() { shell.refreshOverlay(); },
+            onClose() { shell.refreshOverlay(); sync(); render(true); },
             onError() { cancelCharge(); sync(); },
             onChange(data) {
                 const g = data && data.game;
@@ -468,9 +489,12 @@
                     }
                     sync(); render(); shell.syncButtons();
                 } else {
+                    const waitingScene = data && data.options && data.options.scene;
+                    const changedScene = waitingScene && waitingScene !== match.config.scene;
+                    if (waitingScene) fields.scene.value = waitingScene;
                     const wasOnline = !!netKey;
                     netKey = ''; netCache = null; netFinished = ''; sending = false;
-                    if (wasOnline) { fields.mode.value = 'online'; shell.goIdle(); }
+                    if (wasOnline || changedScene) { fields.mode.value = 'online'; shell.goIdle(); }
                     syncSettings(); shell.syncButtons();
                 }
             },
@@ -481,5 +505,5 @@
             e.preventDefault(); e.stopImmediatePropagation(); online.open();
         }, true);
     }
-    AC.i18n.subscribe(() => { syncSettings(); sync(); render(); });
+    AC.i18n.subscribe(() => { syncSettings(); sync(); render(true); });
 })();

@@ -132,3 +132,14 @@ button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px s
 
 .tt-field-material small { display: block; font-size: .65rem; font-weight: 400; opacity: .6; line-height: 1.4; }
 #tt-angle-down, #tt-angle-up { touch-action: none; user-select: none; -webkit-user-select: none; }
+
+.tt-room-scene { display: grid; gap: 6px; margin: 12px 0; color: var(--text-secondary); text-align: left; font-size: .85rem; }
+.tt-room-scene select { width: 100%; min-height: 42px; padding: 8px 12px; border: 1px solid var(--border-strong); border-radius: 8px; background: var(--bg-tertiary); color: var(--text-primary); font: inherit; }
+.tt-room-scene small { font-size: .75rem; line-height: 1.5; }
+
+.tt-room-lobby [data-lobby-row="main"] { flex-direction: column; gap: 10px; }
+.tt-room-lobby [data-lobby-action="primary"] { width: 100%; min-height: 56px; padding: 13px 18px; font-size: 1.05rem; font-weight: 700; }
+.tt-room-lobby [data-lobby-row="main"] [data-lobby-action="copy"] { flex: none; align-self: center; min-height: 44px; padding: 7px 14px; font-size: .8rem; color: var(--text-secondary); background: transparent; border-color: transparent; }
+.tt-room-lobby [data-lobby-row="leave"] { justify-content: center; margin-top: 2px; }
+.tt-room-lobby [data-lobby-row="leave"] [data-lobby-action="leave"] { flex: 0 1 auto; min-height: 44px; padding: 7px 16px; font-size: .8rem; color: var(--text-secondary); background: transparent; }
+.tt-room-lobby .lobby-close { min-height: 44px; font-size: .85rem; }

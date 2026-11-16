@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 const R = require('../js/games/trash-toss-rules.js');
-function fixture() {
+function fixture(mobile = false) {
     class Node {
         constructor(id) {
             this.id = id; this.value = ''; this.textContent = ''; this.hidden = false; this.disabled = false;
@@ -34,11 +34,11 @@ function fixture() {
         return nodes.get(id);
     };
     const events = {}, prefs = { mode: 'local', scene: 'park', item: 'mixed', difficulty: 'normal', version: 2 };
-    let options, shell, model, result;
+    let options, shell, model, result, wallMs = 0, renders = 0;
     const i18n = { STRINGS: { en: {}, zh: {} }, subscribe() {}, t(key, ...args) {
         const value = i18n.STRINGS.en[key]; return typeof value === 'function' ? value(...args) : value || key;
     } };
-    const window = { TrashTossRules: R, TrashTossView: { create: () => ({ fit() {}, follow() {}, beginPan() { return false; }, panBy() {}, canPan: () => false, isPortrait: () => false, render(value) { model = value; } }) },
+    const window = { innerWidth: mobile ? 375 : 960, performance: { now: () => wallMs }, TrashTossRules: R, TrashTossView: { create: () => ({ fit() {}, follow() {}, beginPan() { return false; }, panBy() {}, canPan: () => false, isPortrait: () => false, render(value) { model = value; renders++; } }) },
         addEventListener(type, fn) { (events[type] ||= []).push(fn); }, ArcadeCommon: {
             i18n, prefs: { get: () => prefs, set: (id, value) => Object.assign(prefs, value) }, audio: { unlock() {}, play() {}, tone() {} },
             shell: { create(opts) {
@@ -59,10 +59,19 @@ function fixture() {
     vm.runInContext(fs.readFileSync(require.resolve('../js/games/trash-toss-qa.js'), 'utf8'), context);
     vm.runInContext(fs.readFileSync(require.resolve('../js/games/trash-toss.js'), 'utf8'), context);
     return { get, shell, model: () => model, result: () => result,
-        tick(seconds) { for (let i = 0; i < Math.round(seconds * 60); i++) { if (shell.isPlaying()) options.update(1 / 60); options.render(); } },
+        tick(seconds) { for (let i = 0; i < Math.round(seconds * 60); i++) { if (shell.isPlaying()) options.update(1 / 60); wallMs += 1000 / 60; options.render(); } },
+        renders: () => renders,
+        highRefresh(seconds) { for (let i = 0; i < Math.round(seconds * 120); i++) { if (i % 2 === 0 && shell.isPlaying()) options.update(1 / 60); wallMs += 1000 / 120; options.render(); } },
         pointer(type) { if (type === 'pointerdown') get('tt-throw').fire(type); else for (const fn of events[type] || []) fn({ pointerId: 1 }); },
     };
 }
+const phone = fixture(true);
+phone.get('tt-mode').value = 'practice'; phone.get('tt-apply').fire('click'); phone.shell.start();
+const beforePaint = phone.renders(); phone.pointer('pointerdown'); phone.highRefresh(1.3);
+assert.ok(phone.renders() - beforePaint <= 40, 'A 120 Hz mobile screen paints at most 30 frames per second');
+assert.ok(phone.renders() - beforePaint >= 38, 'Mobile animation still advances regularly');
+assert.equal(phone.get('tt-power-value').textContent, 100, 'Charge keeps 60 Hz timing despite reduced painting');
+phone.pointer('pointerup'); phone.tick(1 / 30); assert.ok(phone.model().ball, 'Mobile release still launches normally');
 const f = fixture();
 assert.equal(f.get('tt-scene').value, 'office', 'Each page starts at the office despite old scene preferences');
 f.get('tt-scene').value = 'park'; f.get('tt-apply').fire('click'); f.shell.start();

@@ -4,9 +4,11 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 const R = require('../js/games/trash-toss-rules.js');
-let translations = [], depth = 0;
+let translations = [], depth = 0, blits = 0;
+const layers = [];
 const ctx = new Proxy({
     save() { depth++; }, restore() { depth--; },
+    drawImage() { blits++; },
     translate(x, y) { translations.push([x, y]); },
     createLinearGradient() { return { addColorStop() {} }; },
 }, { get: (target, key) => key in target ? target[key] : () => {} });
@@ -14,11 +16,16 @@ const classes = new Set();
 const canvas = { getContext: () => ctx, getBoundingClientRect: () => ({ width: 349, height: 295, top: 0, left: 0 }), parentElement: { clientWidth: 351, style: { setProperty() {} }, classList: {
     toggle(key, on) { if (on) classes.add(key); else classes.delete(key); },
 } } };
-const window = { TrashTossRules: R, innerWidth: 375, innerHeight: 812, devicePixelRatio: 2 };
+const window = { TrashTossRules: R, innerWidth: 375, innerHeight: 812, devicePixelRatio: 2,
+    document: { createElement() {
+        const layer = { width: 0, height: 0, getContext: () => new Proxy({ createLinearGradient: () => ({ addColorStop() {} }) }, { get: (target, key) => key in target ? target[key] : () => {} }) };
+        layers.push(layer); return layer;
+    } },
+};
 vm.runInNewContext(fs.readFileSync(require.resolve('../js/games/trash-toss-view.js'), 'utf8'), { window });
 const view = window.TrashTossView.create(canvas);
 assert.equal(view.isPortrait(), true); assert.ok(classes.has('is-portrait'));
-assert.equal(canvas.width, 1440); assert.equal(canvas.height, 1216);
+assert.equal(canvas.width, 698); assert.equal(canvas.height, 589);
 const scene = { ...R.scenario({ scene: 'office' }, 1, 42), qa: true, wind: 0, rain: 0, item: 'paper', grams: 8 };
 const model = { scene, time: 0, angle: 45, ball: null, trail: [], ghost: [], debris: [],
     binContents: R.binContents(scene, []), players: 2, active: 0, playerLabels: ['P1', 'P2'],
@@ -31,7 +38,12 @@ function render() {
     assert.equal(depth, 0, 'World and overview transforms remain isolated');
     return -translations[0][0];
 }
-render(); view.panBy(-5000, 100);
+render();
+assert.equal(layers.length, 1); const firstBackdrop = layers[0];
+render(); assert.equal(layers.length, 1, 'A second frame reuses static scenery');
+assert.ok(blits >= 2, 'Cached scenery is blitted into each rendered frame');
+assert.ok(canvas.width <= canvas.parentElement.clientWidth * 2, 'Mobile backing pixels follow the displayed CSS width');
+view.panBy(-5000, 100);
 const targetCamera = render();
 assert.ok(scene.bins.every(b => b.x - b.width / 2 >= targetCamera && b.x + b.width / 2 <= targetCamera + 720), 'Inspecting targets includes both bins');
 for (const item of Object.keys(R.ITEMS)) for (const angle of [15, 45, 80]) {
@@ -47,11 +59,12 @@ for (const item of Object.keys(R.ITEMS)) for (const angle of [15, 45, 80]) {
     model.ball = null; model.aiming = true; render();
 }
 model.qa = true; render();
-assert.equal(view.isPortrait(), false); assert.equal(canvas.width, 1920);
-assert.equal(canvas.height, 1080, 'QA retains the whole field for trajectory comparisons');
+assert.notEqual(layers[layers.length - 1], firstBackdrop, 'Changing resolution rebuilds the backdrop');
+assert.equal(view.isPortrait(), false); assert.equal(canvas.width, 698);
+assert.equal(canvas.height, 393, 'QA retains the whole field for trajectory comparisons');
 model.qa = false; render();
 assert.equal(view.isPortrait(), true, 'Normal play restores the enlarged portrait field');
-window.innerWidth = 960; window.innerHeight = 800; view.fit();
+window.innerWidth = 960; window.innerHeight = 800; canvas.parentElement.clientWidth = 842; view.fit();
 assert.equal(view.isPortrait(), false); assert.equal(classes.has('is-portrait'), false);
 assert.equal(canvas.width, 1680); assert.equal(canvas.height, 1216);
 assert.ok(view.canPan(), 'Medium desktop maps retain a small inspection range');

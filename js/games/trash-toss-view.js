@@ -3,7 +3,8 @@
     'use strict';
     const R = root.TrashTossRules, W = R.WORLD;
     function create(canvas) {
-        const ctx = canvas.getContext('2d');
+        let ctx = canvas.getContext('2d');
+        let backdrop = null, backdropScene = '', pixelScale = 1;
         let portrait = false, qa = false, cameraX = 0, cameraY = 0, manual = false, lastTime = null, wasFlying = false;
         let worldWidth = W.width, layout = R.SCENES.office, overviewGrab = null;
         const overviewHeight = 68;
@@ -18,9 +19,13 @@
             canvas.parentElement.style.maxWidth = !qa && !portrait ? frameWidth() + 'px' : '';
             canvas.parentElement.style.setProperty('--tt-map-height', ((canvas.parentElement.clientWidth - 2) * overviewHeight / frameWidth()) + 'px');
             if (!cameraEnabled()) { manual = false; cameraX = 0; cameraY = 0; }
-            canvas.width = frameWidth() * dpr;
-            canvas.height = (frameHeight() + (cameraEnabled() ? overviewHeight : 0)) * dpr;
-            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            // Match backing pixels to the displayed size, rather than the whole logical map.
+            const displayWidth = Math.min(frameWidth(), Math.max(1, canvas.parentElement.clientWidth - 2));
+            pixelScale = dpr * displayWidth / frameWidth();
+            canvas.width = Math.round(frameWidth() * pixelScale);
+            canvas.height = Math.round((frameHeight() + (cameraEnabled() ? overviewHeight : 0)) * pixelScale);
+            ctx.setTransform(pixelScale, 0, 0, pixelScale, 0, 0);
+            backdrop = null; backdropScene = '';
             lastTime = null;
         }
         function follow() {
@@ -171,6 +176,18 @@
             line([[0, W.floor], [field, W.floor]], park ? '#a5ac87' : '#b89c7b', 3);
             for (let x = -100; x < field + 100; x += 120) line([[x, 466], [x + 55, 540]], '#ffffff1e', 2);
             line([[0, 508], [field, 508]], '#ffffff20', 2);
+        }
+        function drawBackground(scene) {
+            if (!root.document) { background(scene); return; }
+            if (!backdrop || backdropScene !== scene.scene) {
+                const layer = root.document.createElement('canvas');
+                layer.width = Math.ceil(worldWidth * pixelScale); layer.height = Math.ceil(W.height * pixelScale);
+                const main = ctx;
+                ctx = layer.getContext('2d'); ctx.setTransform(pixelScale, 0, 0, pixelScale, 0, 0);
+                try { background(scene); } finally { ctx = main; }
+                backdrop = layer; backdropScene = scene.scene;
+            }
+            ctx.drawImage(backdrop, 0, 0, backdrop.width, backdrop.height, 0, 0, worldWidth, W.height);
         }
         function person(box, time, thrower, charging) {
             const x = box.x, y = W.floor, boss = box.id === 'boss';
@@ -472,7 +489,7 @@
             const height = frameHeight();
             ctx.save(); ctx.beginPath(); ctx.rect(0, 0, width, height); ctx.clip(); ctx.translate(-cameraX, -cameraY);
             rect(cameraX, cameraY, width, height, !layout.outdoor ? '#efe6d9' : '#d7e9e5');
-            background(scene);
+            drawBackground(scene);
             const rain = model.visualRain == null ? scene.rain : model.visualRain;
             if (rain) { ctx.fillStyle = '#6c8d9e22'; ctx.globalAlpha = rain / 1.6; ctx.fillRect(cameraX, cameraY, width, height); ctx.globalAlpha = 1; }
             if (Math.abs(scene.wind) > 1) {

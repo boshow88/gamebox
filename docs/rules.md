@@ -505,7 +505,9 @@ predicted landing point. Previous angle and power remain visible.
   over; the next turn's clock does not run while waiting for confirmation.
 - **Online duel:** open Online room, sign in with Google or as a guest, create
   a four-character code and invite one friend. The guest readies up; the host
-  starts. Both see the same persistent field and accepted flight. There is no
+  starts. The host chooses the map inside the room lobby; changing maps clears
+  readiness. After a match, return to the same lobby to choose another map and
+  ready again, retaining the room code and players. Both see the same persistent field and accepted flight. There is no
   device handoff or shared pause; deadlines continue while the lobby is open or
   a tab is hidden. Leaving or exceeding the 15-second presence grace forfeits
   the match. Results return to the same room; host resets, guest readies again.

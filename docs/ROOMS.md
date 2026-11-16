@@ -559,12 +559,22 @@ Trash Toss reuses the Darts/shared room stack: Google/anonymous auth, four-code
 entry, one tab identity per connection, captured session listeners, presence
 counters, host-controlled start and explicit return to lobby. Its own collection
 is `trash_toss_rooms`, capacity is two humans, spectators are disabled. The guest
-must ready up before the host starts; the creation scene is fixed for that room.
-Leave and create another room to change scenes. The UI keeps offline settings
+must ready up before the host starts. The room lobby has a host-controlled map
+selector; the initial map may come from the offline selection but is editable
+after room creation. Returning to the lobby retains both players and the room
+code, so another map does not require a new room. Scene changes clear readiness
+and use a guarded room revision; guests must ready again. Mid-match map changes
+are rejected. The UI keeps offline settings
 locked while a room is attached. Results retain membership; host returns to lobby,
 the guest readies again and the next start gets a fresh `matchId` and field.
 
-`trash-toss-room.js` is DOM-free; `trash-toss-online.js` uses the shared lobby.
+`trash-toss-room.js` is DOM-free; `trash-toss-online.js` uses the shared lobby,
+adds its scene selector, and rebuilds visible lobby UI only when displayed
+configuration/readiness/availability changes. Hidden lobby heartbeat snapshots
+do not rebuild DOM. Trash Toss scopes its room styles with `tt-room-lobby`:
+Ready/Start is a full-width primary action at least 56px high and first in DOM
+and visual order; copy and leave are secondary, with at least 44px touch targets.
+A disabled host action explicitly says it is waiting for opponent readiness.
 The room `game` contains the accepted `match`, `seats`, `names`, `last[2]`,
 `originAt`, `turnStartedAt`, `world`, `active`, `round`, `status` and `seq`.
 `world` has an integer 60 Hz tick, debris and cleaning state. Statuses are `aim`,
@@ -574,8 +584,19 @@ Only finite angles 15–80 and power 0–100 are accepted before the 12 s deadli
 The game remains a client-authoritative casual room, with the same trust limits
 as existing games; this is not server-side anti-cheat.
 
-On release, the transaction advances the shared world to release time, runs the
-actual physics, and publishes the accepted input plus outcome and resulting world.
+On input release, the transaction takes a fresh shared clock reading and schedules
+physical launch 400 ms ahead (quantized to the 60 Hz clock). This lead starts at
+the current transaction calculation, rather than the original click timestamp,
+so transaction retries do not consume the entire delivery allowance. It advances
+the world/cleaning to that launch tick, runs the actual physics, and publishes the
+accepted input, future launch time, outcome and resulting world. Projection keeps
+actors and debris moving during the lead while the object remains in the hand;
+launch occurs when the shared clock reaches `shot.at`. The controller invalidates
+its paint budget on the first launched frame. This avoids skipping early flight
+when event delivery fits within the lead. A reconnect or event delayed beyond the
+lead still catches up to the common timeline rather than replaying an obsolete
+turn or changing the score/deadline. This is a bounded synchronization allowance,
+not an arbitrary-latency guarantee.
 Both clients replay the accepted input from that same initial world at fixed
 1/60 s steps with 1/240 s physics substeps. No frame stream or client-submitted
 score is used. Cached projection catches a hidden tab up using the same steps.

@@ -687,6 +687,28 @@ Launcher sorting keeps coloured cards in hue order and groups neutral colours
 
 Angles are 15–80 degrees. Charge uses a triangle wave, 0–100–0, with 1.3 seconds
 per sweep. The shared 1/60-second update uses four 1/240-second physics substeps.
+Rendering is independently capped at 30 FPS for narrow/coarse-pointer devices
+and 60 FPS otherwise, including high-refresh displays. Physics and charge still
+update at 60 Hz; canvas rendering, HUD refresh and simulation clocks are separate.
+Canvas backing dimensions follow its displayed CSS width at up to 2x density,
+rather than logical map width times device density. This also bounds long-map QA
+backing pixels on phones. Static scene art is cached in one offscreen canvas and
+rebuilt on scene/resolution changes; camera, actors, bins/contents, weather and
+throws remain dynamic. The capped renderer avoids model/bin-content work on
+skipped frames and suppresses painting while the room dialog covers the field or
+the document is hidden. HUD updates are capped at 30 Hz, unchanged text is not
+rewritten, element references are cached, and next-round scenarios are cached.
+Input events still update controls immediately and manual camera pans force a
+paint. No shared arcade-loop or physics tuning is changed.
+
+A 375x812, DPR=3 headless Chromium check measured a displayed 335px office field
+at 670x566 backing pixels versus 1440x1216 previously (about 78% fewer backing
+pixels), with approximately 30 paints/s. Warm 120-frame main-canvas fill/stroke/
+text/blit calls fell from 19,440 to 12,360 for the sampled scene. These measure
+render workload in a desktop browser with mobile dimensions, not iPhone power
+consumption, Safari performance or temperature. Physical-device thermal checks
+remain necessary.
+
 Gravity and launch speeds are increased together for roughly 1.6x faster flight
 without simply flattening the arc; result presentation lasts 0.45 seconds.
 Fifty item profiles define base grams, drag, wind response, speed and radius;
@@ -814,6 +836,11 @@ records remain separate and are labeled in the launcher. Practice never submits 
 record. Generic bests are personal records, not a public leaderboard. Online matches use the existing shared RTDB service and lobby:
 `trash-toss-room.js` owns DOM-free room policy, accepted turn inputs and replay;
 `trash-toss-online.js` owns lazy room setup, auth, lobby presentation and polling.
+Network inputs reserve a shared launch about 400 ms in the future so peers have
+time to receive the event before flight begins. During the `launch` presentation
+phase controls are locked and the object stays at the hand while the world clock
+continues. The first launched frame forces a paint; normal mobile rendering then
+returns to 30 FPS. Offline release and physics constants are unchanged.
 See [ROOMS.md](ROOMS.md#trash-toss-rooms) for protocol and deployment requirements. Checks live in [DEBUG.md](DEBUG.md#trash-toss-checks).
 
 Physics QA uses `qa:true`, removes actors/old debris and never submits scores.
