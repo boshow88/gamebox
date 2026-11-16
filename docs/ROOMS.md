@@ -476,7 +476,7 @@ of [`database.rules.json`](../database.rules.json) in **Realtime Database > Rule
 This is separate from **Firestore Database > Rules**.
 
 The supplied rules allow authenticated users, including existing anonymous guest
-accounts, to use `/rooms/beam_rooms`, `/rooms/duel_rooms` and `/rooms/darts_rooms`. Publish
+accounts, to use `/rooms/beam_rooms`, `/rooms/duel_rooms`, `/rooms/darts_rooms` and `/rooms/trash_toss_rooms`. Publish
 the current RTDB rules before using online rooms; see [Darts room and match protocol](#darts-room-and-match-protocol).
 They validate basic
 room metadata and index `lastActionAt` for cleanup. The project's existing
@@ -552,3 +552,54 @@ Official references: [setup](https://firebase.google.com/docs/database/web/start
 [presence](https://firebase.google.com/docs/database/web/offline-capabilities),
 [RTDB rules](https://firebase.google.com/docs/database/security),
 [Firestore rules](https://firebase.google.com/docs/firestore/security/get-started).
+
+## Trash Toss rooms
+
+Trash Toss reuses the Darts/shared room stack: Google/anonymous auth, four-code
+entry, one tab identity per connection, captured session listeners, presence
+counters, host-controlled start and explicit return to lobby. Its own collection
+is `trash_toss_rooms`, capacity is two humans, spectators are disabled. The guest
+must ready up before the host starts; the creation scene is fixed for that room.
+Leave and create another room to change scenes. The UI keeps offline settings
+locked while a room is attached. Results retain membership; host returns to lobby,
+the guest readies again and the next start gets a fresh `matchId` and field.
+
+`trash-toss-room.js` is DOM-free; `trash-toss-online.js` uses the shared lobby.
+The room `game` contains the accepted `match`, `seats`, `names`, `last[2]`,
+`originAt`, `turnStartedAt`, `world`, `active`, `round`, `status` and `seq`.
+`world` has an integer 60 Hz tick, debris and cleaning state. Statuses are `aim`,
+`flight`, `over`. Authenticated membership and exact `matchId/round/status/seq`
+transaction guards reject another seat, duplicate release, old match or old turn.
+Only finite angles 15–80 and power 0–100 are accepted before the 12 s deadline.
+The game remains a client-authoritative casual room, with the same trust limits
+as existing games; this is not server-side anti-cheat.
+
+On release, the transaction advances the shared world to release time, runs the
+actual physics, and publishes the accepted input plus outcome and resulting world.
+Both clients replay the accepted input from that same initial world at fixed
+1/60 s steps with 1/240 s physics substeps. No frame stream or client-submitted
+score is used. Cached projection catches a hidden tab up using the same steps.
+The outcome boundary plus 0.45 s result pause advances to the next turn once;
+any connected participant can commit that guarded boundary or a timeout. The
+world and moving actors continue through aims/throws/results, without resetting
+on A/B handoff. Both players share the round item/weight/weather. Last released
+weight/wind references belong to each seat. Online bests use the owned seat's
+first five regulation rounds in `online-<scene>-standard-v5`.
+
+The shared network layer exposes `rooms.now()` using RTDB's
+`.info/serverTimeOffset`; online release, deadline and replay use that clock.
+Presence remains based on locally observed changing counters rather than remote
+wall-clock timestamps. Polling every 250 ms performs only due boundary writes;
+heartbeats keep the shared 3 s write throttle. After 15 s without a changed
+counter, a live member transactionally rechecks/releases the missing peer. A
+mid-match departure forfeits to the remaining seat; host migration follows the
+shared service. Session detach invalidates old callbacks and page exit closes
+owned listeners. Online play cannot be paused/restarted via the offline shell.
+
+**Deployment:** `database.rules.json` adds `trash_toss_rooms` to the existing
+RTDB collection allowlist. Publish this updated file in Firebase Console's
+Realtime Database Rules tab before live creation/join tests. Shipping HTML/JS
+or pushing Git does not publish these rules; `firebase.json` currently configures
+Firestore only. The UI reports permission denial explicitly. This change does
+not publish rules or alter the configured production project. Local native RTDB
+fixture tests and real-page in-memory tests do not prove deployed authorization.

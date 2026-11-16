@@ -105,9 +105,10 @@ function fail(err) {
         }
         const roomSessionId = crypto.getRandomValues(new Uint32Array(4)).join('-');
         const roomSettings = window.FIREBASE_ROOMS || {};
-        let rtdbSdk = null, rtdb = null, roomLoad = null, roomModule, lobbyModule, transportModule;
+        let rtdbSdk = null, rtdb = null, roomLoad = null, roomModule, lobbyModule, transportModule, roomClockOffset = 0;
         const rooms = {
             ok: null, backend: 'rtdb', error: null,
+            now: () => Date.now() + roomClockOffset,
             // Download only for a game that actually uses rooms; account UI never waits.
             ready() {
                 if (!roomLoad) roomLoad = (async () => {
@@ -119,6 +120,9 @@ function fail(err) {
                         import('./room-lobby.mjs'), import('./rtdb-rooms.mjs'),
                     ]);
                     rtdb = rtdbSdk.getDatabase(app, roomSettings.databaseURL);
+                    rtdbSdk.onValue(rtdbSdk.ref(rtdb, '.info/serverTimeOffset'), snapshot => {
+                        const offset = snapshot.val(); if (Number.isFinite(offset)) roomClockOffset = offset;
+                    });
                     rooms.ok = true; rooms.error = null;
                 })().catch(error => {
                     rooms.ok = false; rooms.error = error; roomLoad = null;

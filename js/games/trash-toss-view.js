@@ -84,11 +84,25 @@
             rect(x - 18, y - 2, 36, 34, '#c7896f', 4);
         }
         function background(scene) {
-            const park = scene.scene === 'park', living = scene.scene === 'living', construction = scene.scene === 'construction', field = R.fieldWidth(scene);
+            const arena = scene.scene === 'arena', park = scene.scene === 'park', living = scene.scene === 'living', construction = scene.scene === 'construction', field = R.fieldWidth(scene);
             const sky = ctx.createLinearGradient(0, 0, 0, W.floor);
             sky.addColorStop(0, park || construction ? '#d7e9e5' : '#efe6d9'); sky.addColorStop(1, park || construction ? '#f3eedb' : '#e8dcca');
             ctx.fillStyle = sky; ctx.fillRect(0, 0, field, W.height);
-            if (construction) {
+            if (arena) {
+                rect(0, 92, field, 374, '#a7aaa1');
+                for (let y = 105; y < 458; y += 28) for (let x = (y % 56 ? -35 : 0); x < field; x += 72) {
+                    rect(x + 2, y, 68, 24, ['#a4a69d', '#b1b0a4', '#999e98'][(Math.abs(x) + y) % 3], 1);
+                }
+                rect(0, 86, field, 8, '#798e88');
+                line([[240, 278], [315, 214], [393, 275], [466, 203]], '#c07d8790', 14);
+                line([[260, 299], [324, 255], [401, 308], [480, 237]], '#73a6a590', 8);
+                text('THROW / REPEAT', 280, 153, 23, '#f3dfb9', 'center');
+                line([[45, 60], [915, 65]], '#6d7a75', 2);
+                for (let x = 75; x < 950; x += 96) circle(x, 63 + Math.sin(x) * 3, 5, '#efd5a0');
+                rect(180, 374, 97, 55, '#6b8381', 3);
+                for (let x = 190; x < 270; x += 12) line([[x, 382], [x, 420]], '#91a29a', 3);
+                line([[185, 440], [255, 440]], '#ba8d70', 6); circle(196, 449, 5, '#657976'); circle(246, 449, 5, '#657976');
+            } else if (construction) {
                 rect(0, 296, field, 170, '#ddcfb4');
                 for (let x = 220; x < field; x += 360) {
                     rect(x, 90, 170, 276, '#a9b4ad', 3);
@@ -153,7 +167,7 @@
                 rect(181, 394, 7, 72, '#a38f77'); rect(292, 394, 7, 72, '#a38f77');
                 rect(212, 340, 56, 40, '#6d8580', 4); rect(216, 344, 48, 31, '#bad0c5', 2); rect(236, 380, 8, 5, '#6d8580');
             }
-            rect(0, W.floor, field, 74, construction ? '#bca88a' : park ? '#c8baa0' : '#c8ad8d');
+            rect(0, W.floor, field, 74, arena ? '#8f9892' : construction ? '#bca88a' : park ? '#c8baa0' : '#c8ad8d');
             line([[0, W.floor], [field, W.floor]], park ? '#a5ac87' : '#b89c7b', 3);
             for (let x = -100; x < field + 100; x += 120) line([[x, 466], [x + 55, 540]], '#ffffff1e', 2);
             line([[0, 508], [field, 508]], '#ffffff20', 2);
@@ -186,7 +200,7 @@
             }
             if (box.id === 'cleaner') {
                 const sway = box.working ? Math.sin(time * 8) * 9 : 0;
-                line([[x + 25, y - 70], [x + 42 + sway, y - 4]], '#987b55', 4);
+                line([[x + 25, y - 70], [x + 42 + sway, y - 4 - (box.working ? box.reach || 0 : 0)]], '#987b55', 4);
                 rect(x + 29 + sway, y - 7, 29, 7, '#a5b58a', 3);
                 if (box.carrying) { ctx.fillStyle = '#718878'; ctx.beginPath(); ctx.ellipse(x - 32, y - 31, 18, 25, -.15, 0, Math.PI * 2); ctx.fill(); }
             }
@@ -196,9 +210,13 @@
             } else if (role === 'grandma') {
                 ctx.fillStyle = '#d4d4c8'; ctx.beginPath(); ctx.arc(x, y - 107, 17, Math.PI, Math.PI * 2); ctx.fill();
                 circle(x - 16, y - 113, 8, '#c6cac0');
-                for (const dx of [-5, 7]) { ctx.strokeStyle = '#7f7772'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(x + dx, y - 103, 5, 0, Math.PI * 2); ctx.stroke(); }
-                line([[x - 1, y - 103], [x + 3, y - 103]], '#7f7772', 1);
+                ctx.strokeStyle = '#7f7772'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.ellipse(x + 7, y - 103, 4, 5, 0, 0, Math.PI * 2); ctx.stroke();
+                line([[x - 9, y - 105], [x + 3, y - 103]], '#7f7772', 1.4);
+                line([[x + 13, y - 103], [x + 17, y - 99]], '#c99a79', 2);
                 for (const dx of [-8, 5]) circle(x + dx, y - 65, 2, '#d6b8ca');
+            } else if (role === 'skater') {
+                rect(x - 18, y - 120, 34, 12, '#9a7f99', 4); rect(x + 7, y - 112, 17, 4, '#7f6d83', 2);
+                line([[x - 10, y - 72], [x + 7, y - 61]], '#dcc78e', 3);
             } else if (role === 'mother') {
                 circle(x - 15, y - 112, 10, '#655c52');
                 ctx.fillStyle = '#655c52'; ctx.beginPath(); ctx.arc(x, y - 107, 17, Math.PI, Math.PI * 2); ctx.fill();
@@ -212,17 +230,21 @@
         function obstacle(box, time) {
             const x = box.x, y = W.floor - box.y;
             if (box.id === 'baby') {
+                ctx.save(); ctx.translate(x, y); ctx.scale(box.direction || 1, 1); ctx.translate(-x, -y);
                 const crawl = Math.sin(time * 7) * 5;
                 ctx.fillStyle = '#617b6a24'; ctx.beginPath(); ctx.ellipse(x, y - 1, 25, 5, 0, 0, Math.PI * 2); ctx.fill();
                 line([[x - 11, y - 17], [x - 20 - crawl, y - 3]], '#d8ad8b', 7); line([[x + 7, y - 17], [x + 17 + crawl, y - 3]], '#d8ad8b', 7);
                 rect(x - 15, y - 25, 30, 18, '#e2daca', 8); circle(x + 16, y - 28, 10, '#deb58e');
                 line([[x + 15, y - 37], [x + 18, y - 40]], '#8c795e', 2); circle(x + 21, y - 29, 1.5, '#586354');
-            } else if (box.id === 'rat') {
-                const run = Math.sin(time * 18) * 3;
-                ctx.fillStyle = '#8a9183'; ctx.beginPath(); ctx.ellipse(x, y - 9, 15, 8, 0, 0, Math.PI * 2); ctx.fill();
-                circle(x + 5, y - 17, 4, '#a3a18e'); circle(x + 13, y - 10, 6, '#8a9183'); circle(x + 16, y - 11, 1.4, '#435b4c');
-                line([[x - 13, y - 9], [x - 26, y - 14], [x - 30, y - 8]], '#99927a', 2);
-                line([[x - 8, y - 3], [x - 12 + run, y + 1]], '#717e6c', 2); line([[x + 6, y - 3], [x + 10 - run, y + 1]], '#717e6c', 2);
+                ctx.restore();
+            } else if (box.id === 'parrot') {
+                ctx.save(); ctx.translate(x, y); ctx.scale(box.direction || 1, 1);
+                const flap = Math.sin(time * 12) * 12;
+                line([[-5, -8], [-27, -12]], '#3c8d94', 6);
+                ctx.fillStyle = '#83a96e'; ctx.beginPath(); ctx.ellipse(0, -10, 15, 9, -.2, 0, Math.PI * 2); ctx.fill();
+                line([[-1, -10], [-13, -25 - flap]], '#6a9d85', 9);
+                circle(11, -17, 8, '#b4bd73'); circle(14, -19, 2, '#445c54');
+                line([[17, -16], [23, -13], [18, -11]], '#c58f65', 3); ctx.restore();
             } else if (box.id === 'laundry') {
                 for (const dx of [-12, 0, 12]) circle(x + dx, y - 30, 9, dx === 0 ? '#cba9a0' : '#acbf9f');
                 rect(x - box.width / 2, y - 28, box.width, 28, '#cfb281', 5);
@@ -249,9 +271,13 @@
             } else person(box, time, false, false);
         }
         function bin(bin, front, contents, countLabel) {
-            const x = bin.x, y = W.floor - bin.height, width = bin.width;
+            const x = bin.x, base = W.floor - (bin.y || 0), y = base - bin.height, width = bin.width;
             const color = bin.metal ? bin.id === 'large' ? '#718d8e' : '#9c8464' : bin.id === 'large' ? '#3c8f7d' : '#bf7955';
             if (!front) {
+                if (bin.y) {
+                    rect(x - width / 2 - 8, base, width + 16, 8, '#6a7d78', 2);
+                    line([[x - width / 2, base + 8], [x - width / 2 + 22, base + 34], [x - width / 2 + 22, base + 8]], '#7d8c83', 3);
+                }
                 ctx.fillStyle = '#314d3d24'; ctx.beginPath(); ctx.ellipse(x + 4, W.floor + 7, width * .57, 9, 0, 0, Math.PI * 2); ctx.fill();
                 ctx.save(); ctx.globalAlpha = .12;
                 rect(x - width / 2, y, width, bin.height, color, [5, 5, 12, 12]);
@@ -259,13 +285,13 @@
             } else {
                 ctx.save(); ctx.globalAlpha = .16;
                 rect(x - width / 2 + 6, y + 6, width - 12, bin.height - 6, color, [0, 0, 8, 8]); ctx.restore();
-                line([[x - width / 2 + 3, y + 3], [x - width / 2 + 3, W.floor - 6], [x + width / 2 - 3, W.floor - 6], [x + width / 2 - 3, y + 3]], color + 'b0', 3);
+                line([[x - width / 2 + 3, y + 3], [x - width / 2 + 3, base - 6], [x + width / 2 - 3, base - 6], [x + width / 2 - 3, y + 3]], color + 'b0', 3);
                 for (let i = 1; i < 4; i++) line([[x + width / 2 - 10, y + bin.height * i / 4], [x + width / 2 - 4, y + bin.height * i / 4]], color + '90', 1.5);
                 rect(x - width / 2 - 2, y - 3, width + 4, 6, bin.metal ? '#8eaaa5' : bin.id === 'large' ? '#5ea994' : '#d69974', 3);
                 if (bin.metal) for (const row of [.3, .7]) rect(x - width / 2 + 3, y + bin.height * row, width - 6, 4, color + 'b0', 2);
                 if (bin.metal) { ctx.strokeStyle = '#829b96'; ctx.lineWidth = 3; ctx.beginPath(); ctx.ellipse(x, y, width / 2, 5, 0, 0, Math.PI * 2); ctx.stroke(); }
                 text(String(bin.points), x, y - 12, 22, color, 'center');
-                text(countLabel(contents.count), x, W.floor + 25, 16, '#45685b', 'center');
+                text(countLabel(contents.count), x, base + 25, 16, '#45685b', 'center');
             }
         }
         function trash(item, x, y, rotation) {
@@ -380,14 +406,34 @@
                 ctx.fillStyle = '#ddbd62'; ctx.beginPath(); ctx.arc(0, 3, 14, Math.PI, Math.PI * 2); ctx.fill(); rect(-18, 2, 36, 5, '#ceb066', 3); line([[-2, -10], [2, -5], [-2, -1]], '#9b865b', 1.5);
             } else if (item === 'brick') {
                 rect(-17, -10, 34, 20, '#b47e64', 2); rect(-14, -8, 28, 5, '#cf9b7a', 1); for (const x of [-9, 0, 9]) rect(x - 2, -6, 4, 3, '#926c58', 1);
+            } else if (item === 'receipt') {
+                rect(-7, -13, 14, 26, '#eee6ce', 1); for (let y = -8; y < 11; y += 5) line([[-4, y], [4, y]], '#9d9e8a', 1);
+            } else if (item === 'spraycap') {
+                rect(-8, -9, 16, 19, '#a783a0', 3); rect(-5, -11, 10, 4, '#c8aac0', 2); line([[-5, 8], [5, 8]], '#786b83', 2);
+            } else if (item === 'cassette') {
+                rect(-14, -9, 28, 18, '#677a7e', 3); rect(-11, -6, 22, 9, '#c9c3a3', 1); circle(-6, -1, 3, '#64736e'); circle(6, -1, 3, '#64736e'); line([[-6, 12], [-13, 18], [5, 18], [8, 11]], '#75675b', 1);
+            } else if (item === 'bottlecap') {
+                circle(0, 0, 7, '#c99276'); circle(0, 0, 4, '#e5bf94'); for (let a = 0; a < 6.2; a += .8) line([[Math.cos(a) * 6, Math.sin(a) * 6], [Math.cos(a) * 8, Math.sin(a) * 8]], '#a87565', 2);
+            } else if (item === 'wristband') {
+                ctx.strokeStyle = '#b78aa4'; ctx.lineWidth = 6; ctx.beginPath(); ctx.ellipse(0, 0, 10, 7, .3, 0, Math.PI * 2); ctx.stroke(); rect(-4, -8, 10, 7, '#dcc291', 2);
+            } else if (item === 'padlock') {
+                ctx.strokeStyle = '#94a6a1'; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(0, -6, 7, Math.PI, Math.PI * 2); ctx.stroke(); rect(-10, -5, 20, 18, '#baa46e', 3); circle(0, 2, 2, '#727b6d'); line([[0, 3], [0, 7]], '#727b6d', 2);
+            } else if (item === 'skatewheel') {
+                circle(0, 0, 12, '#d4ba83'); circle(0, 0, 7, '#8c9f97'); circle(0, 0, 3, '#d7dfcc');
+            } else if (item === 'noodlebox') {
+                rect(-11, -9, 22, 21, '#d7c7a3', 2); line([[-11, -9], [-15, -16], [0, -12], [14, -16], [11, -9]], '#b7a888', 2); line([[-4, -4], [5, 6], [-4, 6], [5, -4]], '#ba8271', 2);
+            } else if (item === 'vinyl') {
+                circle(0, 0, 15, '#526467'); ctx.strokeStyle = '#81908a'; ctx.lineWidth = 1; for (const r of [9, 12]) { ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.stroke(); } circle(0, 0, 5, '#ba8d9b'); circle(0, 0, 1.5, '#dfddc4');
+            } else if (item === 'sneaker') {
+                rect(-15, -5, 29, 15, '#98a5b4', 5); rect(-16, 7, 33, 5, '#ddd7bd', 3); rect(-13, -10, 11, 12, '#8c8ca4', 2); for (let x = -3; x < 9; x += 4) line([[x, -4], [x + 2, 1]], '#efdfba', 2);
             } else { rect(-11, -8, 22, 16, '#9a6e61', 2); rect(-7, -6, 18, 12, '#eee4c9', 1); rect(-11, -8, 4, 16, '#7f594e', 1); }
             ctx.restore();
         }
         function body(scene, item) {
-            const inside = !scene.freeFlight && scene.bins.find(bin => Math.abs(item.x - bin.x) <= bin.width / 2 - 6 && item.y <= bin.height);
+            const inside = !scene.freeFlight && scene.bins.find(bin => Math.abs(item.x - bin.x) <= bin.width / 2 - 6 && item.y >= (bin.y || 0) && item.y <= (bin.y || 0) + bin.height);
             ctx.save();
             if (inside) {
-                ctx.beginPath(); ctx.rect(inside.x - inside.width / 2 + 6, 0, inside.width - 12, W.floor - W.binFloor); ctx.clip();
+                ctx.beginPath(); ctx.rect(inside.x - inside.width / 2 + 6, 0, inside.width - 12, W.floor - (inside.y || 0) - W.binFloor); ctx.clip();
             }
             trash(item.item, item.x, W.floor - item.y, item.rotation); ctx.restore();
         }
@@ -412,8 +458,9 @@
             }
             for (const b of model.scene.bins) {
                 const bx = b.x * scale, color = b.id === 'large' ? '#3c8f7d' : '#bf7955';
-                rect(bx - b.width * scale / 2, y + 23, b.width * scale, 15, color + '55', 3);
-                text(String(b.points), bx, y + 19, 19, color, 'center');
+                const by = y + 23 - (b.y || 0) * .06;
+                rect(bx - b.width * scale / 2, by, b.width * scale, 15, color + '55', 3);
+                text(String(b.points), bx, by - 4, 19, color, 'center');
             }
             if (model.ball) circle(R.clamp(model.ball.x * scale, 5, width - 5), y + 37 - R.clamp(model.ball.y * .05, 0, 24), 5, '#f4b24a');
         }

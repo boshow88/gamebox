@@ -681,7 +681,7 @@ Launcher sorting keeps coloured cards in hue order and groups neutral colours
 - `js/games/trash-toss-view.js`: Canvas 2D artwork. It consumes the rules' world
   coordinates and obstacle bounds; it never decides collisions or scores.
 - `js/games/trash-toss.js`: staged configuration, shell lifecycle, keyboard/
-  captured pointer input, turn presentation, practice feedback and HUD.
+  captured pointer input (including continuous ±32°/s angle-button holds), turn presentation, practice feedback and HUD.
 - `js/games/trash-toss-qa.js`: optional numeric lab, controlled wind comparisons,
   no-wind reference trace, live diagnostics and a ten-experiment table.
 
@@ -689,7 +689,7 @@ Angles are 15–80 degrees. Charge uses a triangle wave, 0–100–0, with 1.3 s
 per sweep. The shared 1/60-second update uses four 1/240-second physics substeps.
 Gravity and launch speeds are increased together for roughly 1.6x faster flight
 without simply flattening the arc; result presentation lasts 0.45 seconds.
-Forty item profiles define base grams, drag, wind response, speed and radius;
+Fifty item profiles define base grams, drag, wind response, speed and radius;
 each scene selects a disjoint shuffled pool of ten.
 Each seeded round supplies visible weight variation (about ±15%); launch speed
 also responds to that weight. Normal play always rotates trash; item selection
@@ -700,8 +700,9 @@ the new intensity at 0.65 units/second; actual drag is fixed immediately for bot
 players in that round. Rain increases physical drag as well as drawing rain.
 
 Aperture scoring tracks a descending approach from above each rim, then requires
-the whole circular collision envelope to clear the opening after collision
-resolution. A rim graze can still score on a later step when it slides inside;
+the whole circular collision envelope to fit horizontally and its top to pass
+below the rim after collision resolution. A shallow inside-rim bounce is not a
+basket. A rim graze can still score on a later step when it slides inside;
 leaving the bin or bouncing above the rim clears that pending approach. Each bin
 tracks its own approach, so rebounding from one rim into another bin scores the
 destination. Side/rim and retained-trash collisions
@@ -727,7 +728,8 @@ path is weighted away from the bins and has a slower 0.28-radian/second cycle.
 Short moving wind streaks vary direction, speed and density with the signed wind
 parameter. Weight is an in-field HUD; office wind is labeled as A/C airflow.
 The weather HUD also shows a muted reference to the active player's previous
-released throw, including signed wind and outdoor weather. Each player owns
+released throw, including signed wind and outdoor weather. The material HUD also shows the
+previous object and grams in muted small text. Each player owns
 their reference; it stays unchanged during the next flight, and a timeout does
 not replace it. QA snapshots the reference before each numeric throw. New game
 and Clear tests remove the corresponding references.
@@ -736,18 +738,29 @@ and Clear tests remove the corresponding references.
 indoor/outdoor climate, launch scale, bins and exclusive item pools. Every page
 opens on Office even if a different scene was previously selected; other settings
 retain their preferences. The living room is 600px wide and always fully visible.
-Office/park are 960px, viewed through 840px desktop / 720px phone windows.
+Office/park/arena are 960px, viewed through 840px desktop / 720px phone windows.
 Construction is 2400px, with 960px desktop / 720px phone windows. Desktop fields
 are capped at their logical width. Narrow portraits are at most 620px wide.
 
 Living-room kids render at 0.72 scale and release at height 76; the employee,
-grandma and foreman release at 102. Living-room launch speed is scaled by 0.72;
+grandma, street skater and foreman release at 102. Living-room launch speed is scaled by 0.72;
 construction uses 1.72, with the same multiplier on both velocity components.
-The room has a crawling baby, walking mother with laundry and a fast wall rat.
-Indoor scenes use fan/A/C wind and never random rain. Both outdoor scenes share
+The room has a crawling baby, walking mother with laundry and a pet parrot. Baby and parrot facing comes from the analytic horizontal
+velocity, including reversals; grandma uses profile glasses.
+Indoor scenes use fan/A/C wind and never random rain. All outdoor scenes share
 the gradual weather cycle. Construction has five wider metal barrels:
 x=880/1220/1600/1970/2240, widths 190/160/135/110/90, points 5/10/15/20/30.
 All ten tools can reach all five targets at +15% weight in strong headwind/rain.
+Office/park have three bins at x=480/660/840, scoring 10/15/25.
+Street arena has eight bins, scoring 5/15/10/35/25/20/50/40, with base heights
+0/100/0/220/105/0/270/145. Optional `bin.y` is the physical base; bin height remains
+the container's own height. Side walls, solid bottom, entry plane, internal floor,
+contents, cleaning and clipping all include that base. Throws can pass underneath
+raised bins; hitting their underside does not teleport trash inside. Decorative
+wall brackets do not add invisible collision boxes. Cleaners use an extended
+collection pole for elevated bins. The exclusive street objects are receipts,
+spray caps, mixtapes, bottle caps, gig wristbands, padlocks, skate wheels, noodle
+boxes, scratched vinyl and old sneakers.
 CPU target selection supports any number of bins; easy favors the widest and
 stronger CPUs usually aim at the highest score. Flight bounds remain five seconds
 normally and six on construction.
@@ -795,11 +808,13 @@ refinement (277 candidates instead of 858), then apply
 seeded angle/power error once. There is no post-launch correction. Pausing, blur
 and pointer cancellation discard a charge. Settings apply on New game/Start/restart.
 
-Competitive bests count the first human's five regulation rounds and use
-`<cpu|local>-<office|living|park|construction>-<easy|normal|hard|standard>-v4` buckets. The earlier rules'
+Competitive bests count the local human's five regulation rounds (P1 offline, the owned seat online) and use
+`<cpu|local|online>-<office|living|park|construction|arena>-<easy|normal|hard|standard>-v5` buckets. The earlier rules'
 records remain separate and are labeled in the launcher. Practice never submits a
-record. Generic bests are personal records, not a public leaderboard. Network
-matches are outside this version. Checks live in [DEBUG.md](DEBUG.md#trash-toss-checks).
+record. Generic bests are personal records, not a public leaderboard. Online matches use the existing shared RTDB service and lobby:
+`trash-toss-room.js` owns DOM-free room policy, accepted turn inputs and replay;
+`trash-toss-online.js` owns lazy room setup, auth, lobby presentation and polling.
+See [ROOMS.md](ROOMS.md#trash-toss-rooms) for protocol and deployment requirements. Checks live in [DEBUG.md](DEBUG.md#trash-toss-checks).
 
 Physics QA uses `qa:true`, removes actors/old debris and never submits scores.
 Bin collisions are on by default. The HUD shows only the current test's points,

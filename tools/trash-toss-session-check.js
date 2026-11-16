@@ -43,7 +43,7 @@ function fixture() {
             i18n, prefs: { get: () => prefs, set: (id, value) => Object.assign(prefs, value) }, audio: { unlock() {}, play() {}, tone() {} },
             shell: { create(opts) {
                 options = opts;
-                assert.ok(opts.mode().endsWith('-v4'), 'Record mode must be available during shell construction');
+                assert.ok(opts.mode().endsWith('-v5'), 'Record mode must be available during shell construction');
                 shell = { state: 'idle', keyboard: { isDown: () => false }, isPlaying: () => shell.state === 'playing', refreshBest() {}, refreshOverlay() {},
                     start() { shell.state = 'playing'; opts.onStart(); opts.render(); },
                     pause() { shell.state = 'paused'; opts.onPause(); opts.render(); },
@@ -68,7 +68,14 @@ assert.equal(f.get('tt-scene').value, 'office', 'Each page starts at the office 
 f.get('tt-scene').value = 'park'; f.get('tt-apply').fire('click'); f.shell.start();
 assert.equal(f.model().players, 2);
 assert.equal(f.get('tt-previous-wind').hidden, true, 'A first throw has no invented wind reference');
+assert.equal(f.get('tt-previous-material').hidden, true);
 const first = [f.get('tt-material').textContent, f.get('tt-wind').textContent, f.get('tt-weather-name').textContent];
+const angleBefore = Number(f.get('tt-angle').value);
+f.get('tt-angle-up').fire('pointerdown'); f.tick(.5); f.get('tt-angle-up').fire('pointerup');
+assert.ok(Number(f.get('tt-angle').value) >= angleBefore + 16, 'Holding plus continuously raises angle');
+const heldAngle = f.get('tt-angle').value; f.tick(.2); assert.equal(f.get('tt-angle').value, heldAngle, 'Release stops angle repeat');
+f.get('tt-angle-down').fire('pointerdown'); f.tick(.2); f.get('tt-angle-down').fire('pointercancel');
+const cancelledAngle = f.get('tt-angle').value; f.tick(.2); assert.equal(f.get('tt-angle').value, cancelledAngle, 'Pointer cancellation stops repeat');
 f.pointer('pointerdown'); f.tick(1.3); assert.equal(f.get('tt-power-value').textContent, 100);
 f.tick(1.3); assert.equal(f.get('tt-power-value').textContent, 0);
 f.tick(.5); f.pointer('pointerup');
@@ -110,7 +117,7 @@ f.pointer('pointerdown'); f.tick(.5); f.pointer('pointerup'); f.tick(6);
 assert.notEqual(f.get('tt-material').textContent, oldItem, 'Mixed practice advances item/weight');
 assert.equal(f.result(), undefined, 'Practice never ends or submits a score');
 const retained = f.model().debris.length;
-for (const y of [20, 44, 68]) f.model().debris.push({ x: 620, y, radius: 12, item: 'book', grams: 280, resting: true, result: { kind: 'basket', points: 10 } });
+for (const y of [20, 44, 68]) f.model().debris.push({ x: f.model().scene.bins[0].x, y, radius: 12, item: 'book', grams: 280, resting: true, result: { kind: 'basket', points: 10 } });
 f.tick(1 / 60);
 assert.equal(f.get('tt-cleaning').hidden, false, 'The real controller announces a full-bin collection');
 const collection = f.model().scene.cleaning.active;
@@ -140,6 +147,7 @@ assert.equal(f.get('tt-qa-fire').disabled, false, 'QA can repeat numeric throws 
 assert.equal(f.get('tt-qa-history').children.length, 1);
 const previousTrail = JSON.stringify(f.model().trail);
 f.get('tt-qa-power').value = '70'; f.get('tt-qa-wind').value = '-30'; f.get('tt-qa-form').fire('submit'); f.tick(1 / 60);
+assert.match(f.get('tt-previous-material').textContent, /8g/, 'Previous weight stays beside the current weight');
 assert.match(f.get('tt-previous-wind').textContent, /→ A\/C airflow 30/, 'QA keeps the previous throw wind while the next throw uses a different wind');
 assert.equal(JSON.stringify(f.model().ghost), previousTrail, 'QA preserves the actual previous trajectory on the next throw');
 f.tick(6);
@@ -151,7 +159,7 @@ f.tick(6);
 assert.match(f.get('tt-status').textContent, /Bin collisions and scoring are off/, 'Free-flight results explain why buckets do not score');
 f.get('tt-qa-sweep').fire('click');
 assert.equal(f.get('tt-qa-history').children.length, 8, 'Wind comparison records five controlled experiments');
-f.get('tt-qa-freeflight').checked = false; f.get('tt-qa-wind').value = '0'; f.get('tt-qa-power').value = '80.5';
+f.get('tt-qa-freeflight').checked = false; f.get('tt-qa-wind').value = '0'; f.get('tt-qa-power').value = '81.5';
 for (let i = 0; i < 2; i++) {
     f.get('tt-qa-form').fire('submit');
     assert.equal(f.get('tt-score-a').textContent, 0, 'Each QA throw starts with its own test score');

@@ -67,19 +67,20 @@ Firebase rule evaluator or a live-project check after publishing rules.
 node tools/trash-toss-check.js
 node tools/trash-toss-session-check.js
 node tools/trash-toss-view-check.js
+node tools/trash-toss-room-check.js
 ```
 
 The dependency-free check executes the actual rules: reproducible flight and CPU
 intent, fixed substeps, descending whole-object aperture crossings, rim/side
 rebounds (including retained trash), obstacle penalties, physical rain/wind,
-cycling charge, forty weighted items in four disjoint pools, unchanging actor phase across rounds,
+cycling charge, fifty weighted items in five disjoint pools, unchanging actor phase across rounds,
 immutable score transitions, fixed AB order and bounded tied matches.
 QA traces are checked against the actual simulator, including absent actors,
 unclipped optional free-flight range, wind displacement, shared acceleration,
 bin counts and the normal bucket-collision option. A real bird ricochet followed
 by a basket verifies additive scoring. Rim-rest timing, internal bin support,
 fixed results after entry and occasional high/low bird passes have regressions.
-All items graze both inner rims of both bins before falling inside; each
+All items graze both inner rims of the three medium bins before falling inside; each
 must score even when it initially overlaps the rim. A large-rim rebound into
 the small bin must score 25, while an object starting below the opening cannot
 score without first approaching from above.
@@ -107,6 +108,27 @@ for all items, checking camera bounds, object visibility, manual inspection,
 release reset, high construction arcs, balanced canvas transforms, immutable
 game models and restoration of the desktop canvas.
 
+The room check runs two clients of the actual shared room service and RTDB
+adapter against the native JSON-tree fixture. It verifies ready/start ownership,
+same-account tab seats, duplicate-release guards, frame-by-frame replay versus
+background catch-up, persistent debris, AB turns, timeout races, forfeits,
+rematch isolation and heartbeat-based release. This fixture does not evaluate
+Firebase security rules or verify production access.
+
+For real page/lobby/controller integration, run a static server on 8000 and a
+headless Chrome with `--remote-debugging-port=9377`, then:
+
+```text
+node tools/trash-toss-online-browser-check.js 9377 http://127.0.0.1:8000
+```
+
+This opens and closes its own test target containing two real game pages. It
+injects only an in-memory room store into the actual shared room service, checks
+create/join/ready/start, scene and score synchronization, active-seat controls,
+charged release, forfeit results and return to lobby. It never signs into or
+writes to production Firebase. For a live two-device check, first publish
+`database.rules.json` as documented in [ROOMS.md](ROOMS.md#trash-toss-rooms).
+
 Browser checks: open `games/trash-toss.html` through a local static server. Check
 both languages and 375px/960px widths. Start Practice with Space (that first press
 must not charge), adjust angle with arrows, hold/release Space or the throw button,
@@ -123,7 +145,7 @@ Rain must be visible and affect flight, with an umbrella on the walker. Verify
 two player avatars in matches, retained trash collisions, and that New game
 clears the field. CPU turns reject human input, and a complete match returns
 translated results and stores only the first human's five regulation rounds in
-a `-v4` record bucket. Earlier rules' records remain separate. Practice has no
+a `-v5` record bucket. Earlier rules' records remain separate. Practice has no
 record submission. On a phone, verify release outside the button still throws
 and a page-scroll/pointer cancellation discards the charge without firing.
 At 320x568 / 375x812 portrait, start normal play and verify the enlarged field,
@@ -173,6 +195,15 @@ weight defaults, and no overview heading text. Drag the preview right while the
 world is moving: the camera must go right; dragging the field right goes left.
 Both return to the thrower on release. On a phone the whole living room must fit
 without dragging, including both bins, mother, crawling baby and wall rat.
+
+Trash Toss additions: check arena heights and under-bin passes, including large
+objects at narrow openings; all eight targets are reachable for every street item
+in calm base-weight QA, sometimes requiring fractional power. A partial rim dip
+must not score, but a whole-object entry followed by a later full-bin rebound
+keeps its points. Hold/release/cancel ± on touch and mouse; repeating must stop on
+release, blur or charge. Previous weight must belong to the active player's last
+released throw. Verify baby reversals, parrot wing/facing animation, profile
+glasses and raised-bin contents/cleaning.
 
 ## Darts checks
 

@@ -47,8 +47,18 @@
         gnome: Object.freeze({ grams: 650, drag: .07, wind: 1, speed: .90, radius: 15 }),
         helmet: Object.freeze({ grams: 320, drag: .09, wind: 1, speed: .95, radius: 16 }),
         brick: Object.freeze({ grams: 1800, drag: .05, wind: .7, speed: .85, radius: 17 }),
+        receipt: Object.freeze({ grams: 4, drag: .025, wind: 1.1, speed: 1.08, radius: 8 }),
+        spraycap: Object.freeze({ grams: 10, drag: .08, wind: .7, speed: 1.02, radius: 8 }),
+        cassette: Object.freeze({ grams: 65, drag: .09, wind: .9, speed: .97, radius: 12 }),
+        bottlecap: Object.freeze({ grams: 3, drag: .02, wind: .6, speed: 1.1, radius: 6 }),
+        wristband: Object.freeze({ grams: 20, drag: .11, wind: 1.1, speed: 1, radius: 9 }),
+        padlock: Object.freeze({ grams: 220, drag: .06, wind: .6, speed: .92, radius: 11 }),
+        skatewheel: Object.freeze({ grams: 70, drag: .07, wind: .6, speed: .98, radius: 11 }),
+        noodlebox: Object.freeze({ grams: 40, drag: .12, wind: 1.2, speed: .97, radius: 12 }),
+        vinyl: Object.freeze({ grams: 150, drag: .11, wind: 1.3, speed: .94, radius: 14 }),
+        sneaker: Object.freeze({ grams: 300, drag: .10, wind: .9, speed: .91, radius: 15 }),
     });
-    const STANDARD_BINS = Object.freeze([{ id: 'large', x: 620, width: 100, height: 82, points: 10 }, { id: 'small', x: 824, width: 62, height: 110, points: 25 }]);
+    const STANDARD_BINS = Object.freeze([{ id: 'large', x: 480, width: 100, height: 82, points: 10 }, { id: 'medium', x: 660, width: 82, height: 96, points: 15 }, { id: 'small', x: 840, width: 62, height: 110, points: 25 }]);
     const SCENES = Object.freeze({
         office: Object.freeze({ width: 960, viewWidth: 840, phoneWidth: 720, launchScale: 1, launchY: 102, outdoor: false, windScale: .65, thrower: 'employee', bins: STANDARD_BINS,
             items: Object.freeze(['paper', 'cup', 'laptop', 'mouse', 'folder', 'voodoo', 'keyboard', 'badge', 'stapler', 'overtime']) }),
@@ -57,6 +67,16 @@
             items: Object.freeze(['carton', 'book', 'sock', 'remote', 'block', 'duck', 'pacifier', 'plush', 'slipper', 'robot']) }),
         park: Object.freeze({ width: 960, viewWidth: 840, phoneWidth: 720, launchScale: 1, launchY: 102, outdoor: true, windScale: 1, thrower: 'grandma', bins: STANDARD_BINS,
             items: Object.freeze(['can', 'bottle', 'peel', 'apple', 'leaf', 'frisbee', 'shuttlecock', 'dogbag', 'seedbag', 'gnome']) }),
+        arena: Object.freeze({ width: 960, viewWidth: 840, phoneWidth: 720, launchScale: 1, launchY: 102, outdoor: true, windScale: .7, thrower: 'skater',
+            bins: Object.freeze([{ id: 'large', x: 350, width: 96, height: 66, points: 5, metal: true },
+                { id: 'shelf-15', x: 475, y: 100, width: 86, height: 68, points: 15, metal: true },
+                { id: 'floor-10', x: 585, width: 90, height: 72, points: 10, metal: true },
+                { id: 'high-35', x: 650, y: 220, width: 70, height: 70, points: 35, metal: true },
+                { id: 'shelf-25', x: 735, y: 105, width: 74, height: 76, points: 25, metal: true },
+                { id: 'floor-20', x: 820, width: 66, height: 84, points: 20, metal: true },
+                { id: 'high-50', x: 850, y: 270, width: 60, height: 66, points: 50, metal: true },
+                { id: 'small', x: 920, y: 145, width: 56, height: 70, points: 40, metal: true }]),
+            items: Object.freeze(['receipt', 'spraycap', 'cassette', 'bottlecap', 'wristband', 'padlock', 'skatewheel', 'noodlebox', 'vinyl', 'sneaker']) }),
         construction: Object.freeze({ width: 2400, viewWidth: 960, phoneWidth: 720, launchScale: 1.72, launchY: 102, outdoor: true, windScale: 1, thrower: 'foreman',
             bins: Object.freeze([{ id: 'large', x: 880, width: 190, height: 100, points: 5, metal: true },
                 { id: 'drum-10', x: 1220, width: 160, height: 106, points: 10, metal: true },
@@ -80,7 +100,7 @@
     }
     function config(input) {
         const c = input || {};
-        return { mode: ['practice', 'cpu', 'local', 'qa'].includes(c.mode) ? c.mode : 'practice',
+        return { mode: ['practice', 'cpu', 'local', 'online', 'qa'].includes(c.mode) ? c.mode : 'practice',
             scene: Object.hasOwn(SCENES, c.scene) ? c.scene : 'office',
             difficulty: ['easy', 'normal', 'hard'].includes(c.difficulty) ? c.difficulty : 'normal',
             item: ITEMS[c.item] ? c.item : 'mixed' };
@@ -113,10 +133,11 @@
         const phase = scene.phase;
         if (scene.scene === 'living') {
             const mother = { id: 'mother', x: 330 + Math.sin(time * .38 + phase) * 170, y: 0, width: 38, height: 130 };
-            return [...extra, mother, { id: 'baby', x: 205 + Math.sin(time * .52 + phase) * 145, y: 0, width: 46, height: 38 },
-                { id: 'rat', x: 320 + Math.sin(time * .95 + phase) * 205, y: 195 + Math.sin(time * 1.4 + phase) * 54, width: 37, height: 20 },
+            return [...extra, mother, { id: 'baby', x: 205 + Math.sin(time * .52 + phase) * 145, direction: Math.cos(time * .52 + phase) >= 0 ? 1 : -1, y: 0, width: 46, height: 38 },
+                { id: 'parrot', x: 320 + Math.sin(time * .95 + phase) * 205, direction: Math.cos(time * .95 + phase) >= 0 ? 1 : -1, y: 195 + Math.sin(time * 1.4 + phase) * 54, width: 37, height: 28 },
                 { id: 'laundry', x: mother.x + 38, y: 83, width: 46, height: 44 }];
         }
+        if (scene.scene === 'arena') return extra;
         if (scene.scene === 'construction') {
             const worker = { id: 'worker', x: 610 + Math.pow((Math.sin(time * .22 + phase) + 1) / 2, 2) * 740, y: 0, width: 36, height: 130 };
             const far = { id: 'worker-far', x: 1620 + Math.sin(time * .18 + phase) * 360, y: 0, width: 36, height: 130 };
@@ -173,7 +194,7 @@
         const toward = ball.vx * nx + ball.vy * ny;
         const bounce = 1 + (restitution == null ? .42 : restitution);
         if (toward < 0) { ball.vx -= bounce * toward * nx; ball.vy -= bounce * toward * ny; }
-        if (ny > .5 && rim !== false) ball.supported = true;
+        if (ny > .5 && (rim !== false || box.support)) ball.supported = true;
         if (rim !== false) ball.rim = true;
         return true;
     }
@@ -203,7 +224,7 @@
         // Remember an approach from above even when the object first touches the rim.
         // Collision correction can move it through the opening on a later step.
         if (!aftermath) for (const bin of bins) {
-            const level = bin.height + ball.radius;
+            const level = (bin.y || 0) + bin.height + ball.radius;
             if (ball.vy < 0 && previous.y >= level && ball.y < level) {
                 const ratio = (previous.y - level) / (previous.y - ball.y);
                 const x = previous.x + (ball.x - previous.x) * ratio;
@@ -216,20 +237,21 @@
         }
         collideDebris(ball, debris);
         for (const bin of bins) {
-            for (const side of [-1, 1]) wall(ball, { x: bin.x + side * (bin.width / 2 - 3), y: 0, width: 6, height: bin.height });
+            for (const side of [-1, 1]) wall(ball, { x: bin.x + side * (bin.width / 2 - 3), y: bin.y || 0, width: 6, height: bin.height });
+            if (bin.y) wall(ball, { x: bin.x, y: bin.y, width: bin.width, height: WORLD.binFloor, support: true }, .2, false);
         }
         if (!aftermath) for (const bin of bins) {
-            const level = bin.height + ball.radius;
+            const level = (bin.y || 0) + bin.height + ball.radius;
             if (ball.entries[bin.id]) {
-                if (ball.vy < 0 && ball.y <= level && Math.abs(ball.x - bin.x) <= bin.width / 2 - 6 - ball.radius) {
+                if (ball.vy < 0 && ball.y + ball.radius <= (bin.y || 0) + bin.height && Math.abs(ball.x - bin.x) <= bin.width / 2 - 6 - ball.radius) {
                     const penalty = ball.hits.length ? -5 : 0;
                     ball.result = { kind: 'basket', bin: bin.id, points: bin.points + penalty, basketPoints: bin.points, penalty }; return;
                 }
                 if (Math.abs(ball.x - bin.x) > bin.width / 2 + ball.radius || ball.y > level) delete ball.entries[bin.id];
             }
         }
-        const containingBin = !scene.freeFlight && scene.bins.find(bin => Math.abs(ball.x - bin.x) <= bin.width / 2 - 6 - ball.radius && ball.y < bin.height);
-        const floor = (containingBin ? WORLD.binFloor : 0) + ball.radius;
+        const containingBin = !scene.freeFlight && scene.bins.find(bin => Math.abs(ball.x - bin.x) <= bin.width / 2 - 6 - ball.radius && ball.y >= (bin.y || 0) && ball.y < (bin.y || 0) + bin.height);
+        const floor = (containingBin ? (containingBin.y || 0) + WORLD.binFloor : 0) + ball.radius;
         if (ball.y <= floor) {
             ball.y = floor; ball.supported = true;
             if (ball.vy < 0) { ball.vy = Math.abs(ball.vy) < 45 ? 0 : -ball.vy * .2; ball.vx *= .65; }
@@ -273,8 +295,8 @@
     }
     function binContents(scene, debris) {
         return Object.fromEntries(scene.bins.map(bin => {
-            const inside = debris.filter(b => !b.removed && Math.abs(b.x - bin.x) <= bin.width / 2 - 6 && b.y <= bin.height);
-            return [bin.id, { count: inside.length, fill: Math.min(1, inside.reduce((top, b) => Math.max(top, b.y + b.radius), 0) / bin.height) }];
+            const inside = debris.filter(b => !b.removed && Math.abs(b.x - bin.x) <= bin.width / 2 - 6 && b.y >= (bin.y || 0) && b.y <= (bin.y || 0) + bin.height);
+            return [bin.id, { count: inside.length, fill: Math.min(1, inside.reduce((top, b) => Math.max(top, b.y + b.radius - (bin.y || 0)), 0) / bin.height) }];
         }));
     }
     function createCleaning() { return { active: null, readyAt: 0 }; }
@@ -284,7 +306,7 @@
         const progress = time < job.arriveAt ? (time - job.startAt) / job.travel :
             time > job.leaveAt ? 1 - (time - job.leaveAt) / job.travel : 1;
         return { id: 'cleaner', x: job.from + (job.to - job.from) * clamp(progress, 0, 1),
-            y: 0, width: 36, height: 130, working: time >= job.arriveAt && time < job.leaveAt, carrying: time >= job.clearAt };
+            y: 0, width: 36, height: 130, working: time >= job.arriveAt && time < job.leaveAt, reach: job.height || 0, carrying: time >= job.clearAt };
     }
     function advanceCleaning(scene, state, debris, time) {
         if (scene.qa) return;
@@ -292,7 +314,7 @@
         if (job) {
             if (!job.cleared && time >= job.clearAt) {
                 const bin = scene.bins.find(b => b.id === job.bin);
-                for (const scrap of debris) if (Math.abs(scrap.x - bin.x) <= bin.width / 2 - 6 && scrap.y <= bin.height) scrap.removed = true;
+                for (const scrap of debris) if (Math.abs(scrap.x - bin.x) <= bin.width / 2 - 6 && scrap.y >= (bin.y || 0) && scrap.y <= (bin.y || 0) + bin.height) scrap.removed = true;
                 job.cleared = true;
             }
             if (time >= job.endAt) { state.active = null; state.readyAt = time + 3; }
@@ -305,10 +327,10 @@
         const from = full.x < fieldWidth(scene) / 2 ? -50 : fieldWidth(scene) + 50;
         const to = full.x + (from < 0 ? -1 : 1) * (full.width / 2 + 30), travel = Math.abs(to - from) / 220;
         const startAt = time + 1, arriveAt = startAt + travel, clearAt = arriveAt + 1.3, leaveAt = clearAt + .8;
-        state.active = { bin: full.id, points: full.points, from, to, travel, startAt, arriveAt, clearAt, leaveAt, endAt: leaveAt + travel, cleared: false };
+        state.active = { height: full.y || 0, bin: full.id, points: full.points, from, to, travel, startAt, arriveAt, clearAt, leaveAt, endAt: leaveAt + travel, cleared: false };
     }
     function cpuPlan(scene, difficulty, seed, worldTime, debris) {
-        const rng = random(seed), target = difficulty === 'easy' ? scene.bins[0] : rng() < .25 ? scene.bins[Math.floor(rng() * scene.bins.length)] : scene.bins[scene.bins.length - 1];
+        const rng = random(seed), target = difficulty === 'easy' ? scene.bins[0] : rng() < .25 ? scene.bins[Math.floor(rng() * scene.bins.length)] : scene.bins.reduce((best, bin) => bin.points > best.points ? bin : best);
         let best = null;
         function evaluate(angle, power, releaseAt) {
                 const shot = simulate(scene, angle, power, (worldTime || 0) + releaseAt, debris);

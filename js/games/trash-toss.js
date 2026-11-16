@@ -4,7 +4,8 @@
     const AC = window.ArcadeCommon, R = window.TrashTossRules;
     const strings = {
         en: {
-            ttName: 'Trash Toss', ttSettings: 'Game settings', ttMode: 'Mode', ttPractice: 'Practice', ttCpu: 'Vs CPU', ttLocal: 'Two players',
+            ttName: 'Trash Toss', ttOnline: 'Online duel', ttRoom: 'Online room', ttArena: 'Street arena · medium', ttParrot: 'the pet parrot',
+            ttReceipt: 'Lottery receipt', ttSpraycap: 'Spray paint cap', ttCassette: 'Tangled mixtape', ttBottlecap: 'Soda bottle cap', ttWristband: 'Expired gig wristband', ttPadlock: 'Keyless padlock', ttSkatewheel: 'Worn skate wheel', ttNoodlebox: 'Empty noodle box', ttVinyl: 'Scratched vinyl', ttSneaker: 'Retired sneaker', ttSettings: 'Game settings', ttMode: 'Mode', ttPractice: 'Practice', ttCpu: 'Vs CPU', ttLocal: 'Two players',
             ttScene: 'Scene', ttOffice: 'Office · medium', ttLiving: 'Living room · short', ttPark: 'Park · medium', ttItem: 'Object', ttPaper: 'Scrunched memo', ttCan: 'Crushed soda can', ttBook: 'Outdated comic',
             ttMixed: 'Mixed objects', ttBottle: 'Empty bottle', ttCup: 'Yesterday’s coffee cup', ttCarton: 'Empty cookie box', ttPeel: 'Banana peel', ttApple: 'Apple core',
             ttLaptop: 'Retired laptop', ttMouse: 'Striking mouse', ttFolder: 'Rejected folder', ttVoodoo: 'Boss curse doll', ttKeyboard: 'Keyless keyboard', ttBadge: 'Expired work badge', ttStapler: 'Jammed stapler', ttOvertime: 'Overtime alarm',
@@ -15,7 +16,7 @@
             ttConstruction: 'Construction · long', ttFanWind: (arrow, n) => arrow + ' Fan ' + n,
             ttScrewdriver: 'Screwdriver', ttScrew: 'Screw', ttWrench: 'Wrench', ttNut: 'Nut', ttWasher: 'Washer', ttBolt: 'Bolt', ttOffcut: 'Wood offcut', ttTape: 'Tape roll',
             ttCleaner: 'the cleaner', ttWorker: 'a worker', ttPlanks: 'the planks', ttWheelbarrow: 'the wheelbarrow',
-            ttMother: 'Mom', ttBaby: 'the crawling baby', ttRat: 'the wall rat', ttLaundry: 'the laundry basket',
+            ttMother: 'Mom', ttBaby: 'the crawling baby', ttRat: 'the pet parrot', ttLaundry: 'the laundry basket',
             ttCleaning: n => n + '-point bin: cleaner on the way', ttCleaningWork: n => n + '-point bin: collecting trash', ttCleaned: n => n + '-point bin cleared; cleaner leaving',
             ttFirstThrow: 'First throw', ttSecondThrow: 'Second throw', ttQaScore: 'Test points',
             ttQaComplete: 'Test: no basket, 0 points. No score is saved.', ttQaBasket: points => 'Test: basket, +' + points + ' points. No score is saved.',
@@ -41,13 +42,14 @@
             ttStart: 'Start throwing', ttAgain: 'Play again', ttWinner: name => name + ' wins!', ttDraw: 'A draw!',
             ttFinal: (a, b) => a + ' : ' + b, ttExtra: n => 'Extra ' + n, ttPending: (a, b) => a + ' → ' + b + ' · Apply with New game',
             ttHelp1: 'Set the angle, hold Space or the throw button, then release. Power cycles 0 → 100 → 0; each sweep takes 1.3 seconds. Drag the scene to pan; drag or tap the overview to view that location. Every release returns to the thrower, then follows the trash.',
-            ttHelp2: 'Each bin shows its points: wider openings award fewer points. Contact with people, animals or cleaners deducts 5 once per throw, separately from a later basket. First entry counts even if trash bounces out. Full bins summon a cleaner without revoking earned points.',
-            ttHelp3: 'Each scene has ten exclusive objects and its own thrower. The living room fits on screen; office/park need a little panning; construction is long and has five barrels. Indoor air comes from a fan or A/C; outdoor weather transitions through drizzle. QA lists only the applied scene’s objects.',
+            ttHelp2: 'Each bin shows its points: wider openings award fewer points. Contact with people, animals or cleaners deducts 5 once per throw, separately from a later basket. A basket counts only after the whole object passes below the opening; a later bounce out keeps those points. Full bins summon a cleaner without revoking earned points.',
+            ttHelp3: 'Each scene has ten exclusive objects and its own thrower. The living room fits on screen; office/park need a little panning; construction is long and has five barrels; the street arena has eight bins at different heights. Indoor air comes from a fan or A/C; outdoor weather transitions through drizzle. QA lists only the applied scene’s objects.',
             ttHelp4: 'Practice has no clock. Matches have five rounds, one throw each, and 12 seconds to release. Every round is P1 then P2/CPU. Both receive identical trash weights and weather. The shared field keeps moving through throws and handoffs.',
             ttHelp5: 'Ties add up to three extra rounds, then draw. Change settings and press New game to apply. P pauses, R returns to ready, M mutes.',
         },
         zh: {
-            ttName: '丟垃圾', ttSettings: '遊戲設定', ttMode: '模式', ttPractice: '自由練習', ttCpu: '挑戰電腦', ttLocal: '同機雙人',
+            ttName: '丟垃圾', ttOnline: '連線對戰', ttRoom: '連線房間', ttArena: '街頭競技場・中距離', ttParrot: '寵物鸚鵡',
+            ttReceipt: '沒中的發票', ttSpraycap: '噴漆罐蓋', ttCassette: '卡帶混音帶', ttBottlecap: '汽水瓶蓋', ttWristband: '過期演唱會手環', ttPadlock: '沒鑰匙的掛鎖', ttSkatewheel: '磨平滑板輪', ttNoodlebox: '空炒麵盒', ttVinyl: '刮花黑膠唱片', ttSneaker: '退休球鞋', ttSettings: '遊戲設定', ttMode: '模式', ttPractice: '自由練習', ttCpu: '挑戰電腦', ttLocal: '同機雙人',
             ttScene: '場景', ttOffice: '辦公室・中距離', ttLiving: '客廳・短距離', ttPark: '公園・中距離', ttItem: '投擲物', ttPaper: '廢紙團', ttCan: '喝扁的汽水罐', ttBook: '過期漫畫',
             ttMixed: '輪換物件', ttBottle: '空寶特瓶', ttCup: '隔夜咖啡杯', ttCarton: '空餅乾盒', ttPeel: '香蕉皮', ttApple: '蘋果核',
             ttLaptop: '退休筆電', ttMouse: '罷工滑鼠', ttFolder: '退件文件夾', ttVoodoo: '老闆詛咒娃娃', ttKeyboard: '掉鍵鍵盤', ttBadge: '失效識別證', ttStapler: '卡針訂書機', ttOvertime: '加班鬧鐘',
@@ -58,7 +60,7 @@
             ttConstruction: '工地・長距離', ttFanWind: (arrow, n) => arrow + '電扇風量' + n,
             ttScrewdriver: '螺絲起子', ttScrew: '螺絲', ttWrench: '板手', ttNut: '螺帽', ttWasher: '墊圈', ttBolt: '螺栓', ttOffcut: '木料', ttTape: '膠帶捲',
             ttCleaner: '清潔人員', ttWorker: '工人', ttPlanks: '木板', ttWheelbarrow: '推車',
-            ttMother: '媽媽', ttBaby: '爬行寶寶', ttRat: '牆上老鼠', ttLaundry: '洗衣籃',
+            ttMother: '媽媽', ttBaby: '爬行寶寶', ttRat: '寵物鸚鵡', ttLaundry: '洗衣籃',
             ttCleaning: n => n + '分桶：清潔人員前往清運', ttCleaningWork: n => n + '分桶：清運中', ttCleaned: n => n + '分桶已清空，清潔人員離場中',
             ttFirstThrow: '本回合先手', ttSecondThrow: '本回合後手', ttQaScore: '本投測試分數',
             ttQaComplete: '測試判定：未入桶，０分；不寫入遊戲成績。', ttQaBasket: points => '測試判定：進桶，加' + points + '分；不寫入遊戲成績。',
@@ -84,8 +86,8 @@
             ttStart: '開始投擲', ttAgain: '再來一場', ttWinner: name => name + '獲勝！', ttDraw: '平手！',
             ttFinal: (a, b) => a + '：' + b, ttExtra: n => '加賽' + n, ttPending: (a, b) => a + ' → ' + b + '；按「新遊戲」套用',
             ttHelp1: '調整角度後，按住空白鍵或投擲按鈕蓄力，放開出手。力度０～１００來回，每趟約１．３秒。拖場景可移動畫面；拖曳或點小圖則查看該位置。每次出手先切回投擲者，再跟隨物件。',
-            ttHelp2: '各桶標示分數，寬口低分、窄口高分。撞到人物、動物或清潔人員每投最多扣５分，之後入桶獨立加分。首次入桶即計分，彈出不扣回。滿桶會請清潔人員清運，保留既有分數。',
-            ttHelp3: '各場景有十種獨立物件與專屬投擲角色。客廳整間可見；辦公室、公園小幅拖曳；工地是長地圖，設有五個鐵桶。室內有電扇或冷氣，戶外天氣先經毛毛雨再轉大雨。QA只列出目前套用場景的物件。',
+            ttHelp2: '各桶標示分數，寬口低分、窄口高分。撞到人物、動物或清潔人員每投最多扣５分，之後入桶獨立加分。整個物件通過桶口才加分；只碰內緣又彈出不算，真正入桶後彈出不扣回。滿桶會請清潔人員清運，保留既有分數。',
+            ttHelp3: '各場景有十種獨立物件與專屬投擲角色。客廳整間可見；辦公室、公園小幅拖曳；工地是長地圖，設有五個鐵桶；街頭競技場設有八個高低不同的桶。室內有電扇或冷氣，戶外天氣先經毛毛雨再轉大雨。QA只列出目前套用場景的物件。',
             ttHelp4: '練習不限時。比賽共五回合，每人每回合一投，需在十二秒內出手。每回合固定玩家１先投，再換玩家２或電腦。同回合垃圾、重量與天氣相同，場景持續移動。',
             ttHelp5: '平手最多加賽三回合，仍同分則和局。修改設定後，按「新遊戲」套用。P暫停，R回到準備畫面，M靜音。',
         },
@@ -97,12 +99,15 @@
     const saved = R.config(Object.assign({}, prefs, { scene: 'office', item: 'mixed' }));
     Object.keys(fields).forEach(key => { fields[key].value = saved[key]; });
     const view = window.TrashTossView.create($('stage'));
+    let online = null, netCache = null, netKey = '', netFinished = '', sending = false;
     let shell, match, scene, pendingMatch, phase = 'aim', time = 0, power = 0, angle = 45;
     let ball = null, trail = [], ghost = [], result = null, resultTime = 0, plan = null;
     let charging = null, pointerId = null, chargeStart = 0, last = [null, null], angleCarry = 0;
+    let angleHold = null;
     let worldTime = 0, debris = [], resultPosition = null;
     let visualRain = 0, previousThrow = null, cleaning = R.createCleaning(), feedback = [], drag = null;
     const qa = window.TrashTossQA.create({ onThrow: startQaThrow, onClear: clearQa, getScene: () => scene });
+    function isOnline() { return !!(online && online.game()); }
     function isQa() { return match && match.config.mode === 'qa'; }
     function isFree() { return match.config.mode === 'practice' || isQa(); }
     function material(s) { return t('ttMaterial', t('tt' + s.item[0].toUpperCase() + s.item.slice(1)), s.grams); }
@@ -112,15 +117,19 @@
     }
     function chosen() { return R.config(Object.fromEntries(Object.entries(fields).map(([key, node]) => [key, node.value]))); }
     function playerName(index) {
-        return match.config.mode === 'local' ? t('ttPlayer', index + 1) : index === 0 ? t('ttYou') : t('ttComputer');
+        if (isOnline()) return online.game().names[index];
+        return ['local', 'online'].includes(match.config.mode) ? t('ttPlayer', index + 1) : index === 0 ? t('ttYou') : t('ttComputer');
     }
     function isCpu() { return match.config.mode === 'cpu' && match.active === 1; }
-    function canInput() { return shell && shell.isPlaying() && !isCpu() && !isQa() && ['aim', 'charge'].includes(phase); }
-    function modeKey() { const c = match ? match.config : chosen(); return [c.mode, c.scene, c.mode === 'cpu' ? c.difficulty : 'standard', 'v4'].join('-'); }
-    function setupLabel(c) { return t({ practice: 'ttPractice', cpu: 'ttCpu', local: 'ttLocal', qa: 'ttQaName' }[c.mode]) + ' · ' + t('tt' + c.scene[0].toUpperCase() + c.scene.slice(1)) +
+    function canInput() { return shell && shell.isPlaying() && !isCpu() && !isQa() && !sending && !(online && online.isOpen()) && (match.config.mode !== 'online' || isOnline() && online.canControl()) && ['aim', 'charge'].includes(phase); }
+    function modeKey() { const c = match ? match.config : chosen(); return [c.mode, c.scene, c.mode === 'cpu' ? c.difficulty : 'standard', 'v5'].join('-'); }
+    function setupLabel(c) { return t({ practice: 'ttPractice', cpu: 'ttCpu', local: 'ttLocal', qa: 'ttQaName', online: 'ttOnline' }[c.mode]) + ' · ' + t('tt' + c.scene[0].toUpperCase() + c.scene.slice(1)) +
         (c.mode === 'cpu' ? ' · ' + t('tt' + c.difficulty[0].toUpperCase() + c.difficulty.slice(1)) : ''); }
     function syncSettings() {
         const c = chosen();
+        const locked = !!(online && online.inRoom());
+        Object.values(fields).forEach(field => { field.disabled = locked; });
+        $('tt-apply').disabled = locked;
         $('tt-difficulty-field').hidden = c.mode !== 'cpu';
         const different = JSON.stringify(c) !== JSON.stringify(match.config);
         $('tt-pending').hidden = !different;
@@ -128,7 +137,7 @@
         AC.prefs.set('trash-toss', Object.assign({ version: 2 }, c));
     }
     function cancelCharge() {
-        charging = null; pointerId = null; power = 0;
+        angleHold = null; angleCarry = 0; charging = null; pointerId = null; power = 0;
         if (phase === 'charge') phase = 'aim';
     }
     function beginTurn(handoff) {
@@ -144,6 +153,7 @@
         sync();
     }
     function reset() {
+        if (isOnline()) { applyOnline(); return; }
         match = R.createMatch(chosen(), Date.now()); last = [null, null]; ghost = []; debris = []; worldTime = 0;
         cleaning = R.createCleaning(); feedback = []; drag = null;
         view.follow();
@@ -153,11 +163,19 @@
     }
     function beginCharge(source) {
         if (!canInput() || phase !== 'aim') return;
-        AC.audio.unlock(); charging = source; chargeStart = time; power = 0; phase = 'charge'; sync();
+        angleHold = null; AC.audio.unlock(); charging = source; chargeStart = time; power = 0; phase = 'charge'; sync();
     }
     function release() {
         if (!shell.isPlaying() || phase !== 'charge') return;
         charging = null; pointerId = null;
+        if (isOnline()) {
+            const submittedAngle = angle, submittedPower = power;
+            phase = 'sending'; sending = true; sync();
+            online.submit(submittedAngle, submittedPower).finally(() => {
+                sending = false; if (phase === 'sending') phase = 'aim'; applyOnline(); sync();
+            });
+            return;
+        }
         drag = null; view.follow();
         ball = R.launch(scene, angle, power, worldTime); trail = [{ x: ball.x, y: ball.y }];
         last[match.active] = { angle, power, item: scene.item, grams: scene.grams,
@@ -194,7 +212,7 @@
         if (isQa()) return scene.freeFlight ? t('ttQaFreeComplete') : result.kind === 'basket' ? t('ttQaBasket', result.points) : t('ttQaComplete');
         if (result.kind === 'basket') return result.penalty ? t('ttBasketAfterHit', result.basketPoints) : t('ttBasket', result.points);
         if (result.kind === 'timeout') return t('ttTimeout');
-        if (result.kind === 'obstacle') return t('ttObstacle', t({ boss: 'ttBoss', walker: 'ttWalker', cart: 'ttCart', bird: 'ttBird', files: 'ttFiles', umbrella: 'ttUmbrella', cleaner: 'ttCleaner', worker: 'ttWorker', 'worker-far': 'ttWorker', planks: 'ttPlanks', wheelbarrow: 'ttWheelbarrow', mother: 'ttMother', baby: 'ttBaby', rat: 'ttRat', laundry: 'ttLaundry' }[result.obstacle]));
+        if (result.kind === 'obstacle') return t('ttObstacle', t({ boss: 'ttBoss', walker: 'ttWalker', cart: 'ttCart', bird: 'ttBird', files: 'ttFiles', umbrella: 'ttUmbrella', cleaner: 'ttCleaner', worker: 'ttWorker', 'worker-far': 'ttWorker', planks: 'ttPlanks', wheelbarrow: 'ttWheelbarrow', mother: 'ttMother', baby: 'ttBaby', parrot: 'ttParrot', laundry: 'ttLaundry' }[result.obstacle]));
         if (result.blocked) return t('ttBlocked');
         if (result.rim) return t('ttRim');
         return t(resultPosition.x < scene.bins[0].x ? 'ttShort' : resultPosition.x > scene.bins[scene.bins.length - 1].x ? 'ttLong' : 'ttGap');
@@ -212,6 +230,8 @@
         $('tt-turn').textContent = isQa() ? t('ttQaName') : practice ? t('ttPractice') : t('ttTurn', playerName(match.active));
         $('tt-turn-order').textContent = practice ? '' : t(match.turn === 0 ? 'ttFirstThrow' : 'ttSecondThrow');
         $('tt-material').textContent = material(scene);
+        $('tt-previous-material').hidden = !previousThrow;
+        $('tt-previous-material').textContent = previousThrow ? t('ttPreviousWind', material(previousThrow)) : '';
         $('tt-points').textContent = t('ttPoints', scene.bins.map(bin => bin.points));
         const nextRound = practice || match.turn === 1 ? match.round + 1 : match.round;
         $('tt-next').textContent = t('ttNext', material(R.scenario(match.config, nextRound, match.seed)));
@@ -240,12 +260,53 @@
         const previous = last[match.active];
         $('tt-last').textContent = previous ? material(previous) + ' · ' + t('ttLast', Math.round(previous.angle), Math.round(previous.power)) : t('ttNoLast');
         $('tt-last-mark').hidden = !previous; if (previous) $('tt-last-mark').style.left = previous.power + '%';
-        const status = result ? resultText() : phase === 'handoff' ? t('ttHandoff', playerName(match.active)) : phase === 'flight' ? t(ball && ball.hits.length ? 'ttHitContinue' : 'ttFlying') : isCpu() ? t('ttCpuAim') : t('ttAim');
+        const status = sending ? t('ttNetSending') : isOnline() && !online.canControl() && phase === 'aim' ? t('ttNetTurn') : result ? resultText() : phase === 'handoff' ? t('ttHandoff', playerName(match.active)) : phase === 'flight' ? t(ball && ball.hits.length ? 'ttHitContinue' : 'ttFlying') : isCpu() ? t('ttCpuAim') : t('ttAim');
         if ($('tt-status').textContent !== status) $('tt-status').textContent = status;
         $('tt-ready').hidden = phase !== 'handoff'; $('tt-ready').disabled = !shell || !shell.isPlaying();
         $('tt-clock').textContent = !practice && ['aim', 'charge'].includes(phase) && shell && shell.isPlaying() ? t('ttTime', Math.max(0, Math.ceil(R.WORLD.turnSeconds - time))) : '';
     }
+    function applyOnline() {
+        const g = online && online.game();
+        if (!g) return;
+        const key = g.matchId + ':' + g.seq;
+        const changed = key !== netKey;
+        if (changed) {
+            cancelCharge(); netKey = key; netCache = null; result = null; trail = []; feedback = [];
+            if (g.status === 'flight') { drag = null; view.follow(); AC.audio.play('click'); }
+        }
+        const now = online.now();
+        netCache = window.TrashTossRoom.project(g, now, netCache);
+        match = g.match; last = g.last; previousThrow = last[match.active];
+        scene = netCache.scene; cleaning = netCache.world.cleaning; worldTime = netCache.world.tick / 60;
+        visualRain += R.clamp(scene.rain - visualRain, -.011, .011);
+        debris = netCache.world.debris; ball = netCache.ball; trail = netCache.trail; feedback = netCache.feedback;
+        result = netCache.result; resultPosition = g.outcome && g.outcome.position;
+        pendingMatch = result && g.outcome ? g.outcome.match : null;
+        time = Math.max(0, (now - g.turnStartedAt) / 1000);
+        if (g.status === 'flight') { angle = g.shot.angle; power = g.shot.power; phase = result ? 'result' : 'flight'; }
+        else if (g.status === 'over') phase = 'over';
+        else if (changed || !['aim', 'charge', 'sending'].includes(phase)) { phase = 'aim'; angle = previousThrow ? previousThrow.angle : 45; }
+        if (phase === 'charge') power = R.chargePower(time - chargeStart);
+        Object.keys(fields).forEach(key => { fields[key].value = match.config[key]; });
+        if (g.status === 'over' && netFinished !== g.matchId) {
+            netFinished = g.matchId;
+            const seat = online.seat();
+            const score = match.history.filter(entry => entry.player === seat && entry.round <= 5).reduce((total, entry) => total + entry.result.points, 0);
+            shell.gameOver({ score, win: match.winner === seat, meta: { scene: match.config.scene, rounds: match.round, online: true, endReason: g.endReason || 'score' } });
+        }
+    }
+    function adjustAngle(dt) {
+        if (!canInput() || phase !== 'aim') return;
+        const keys = shell.keyboard;
+        const editing = document.activeElement && document.activeElement.matches('select, input, button:not(#tt-throw)');
+        const direction = angleHold ? angleHold.delta : editing ? 0 : (keys.isDown('ArrowRight', 'ArrowUp') ? 1 : 0) - (keys.isDown('ArrowLeft', 'ArrowDown') ? 1 : 0);
+        if (direction) {
+            angleCarry += direction * dt * 32;
+            if (Math.abs(angleCarry) >= 1) { const delta = Math.trunc(angleCarry); angle = R.clamp(angle + delta, 15, 80); angleCarry -= delta; }
+        } else angleCarry = 0;
+    }
     function update(dt) {
+        if (isOnline()) { applyOnline(); adjustAngle(dt); sync(); return; }
         worldTime += dt;
         const rainStep = dt * .65;
         visualRain += R.clamp(scene.rain - visualRain, -rainStep, rainStep);
@@ -285,13 +346,7 @@
                     phase = 'charge'; chargeStart = plan.releaseAt - plan.power / 100 * R.WORLD.chargeSeconds;
                 }
             } else if (phase === 'aim') {
-                const keys = shell.keyboard;
-                const editing = document.activeElement && document.activeElement.matches('select, input, button:not(#tt-throw)');
-                const direction = editing ? 0 : (keys.isDown('ArrowRight', 'ArrowUp') ? 1 : 0) - (keys.isDown('ArrowLeft', 'ArrowDown') ? 1 : 0);
-                if (direction) {
-                    angleCarry += direction * dt * 32;
-                    if (Math.abs(angleCarry) >= 1) { const delta = Math.trunc(angleCarry); angle = R.clamp(angle + delta, 15, 80); angleCarry -= delta; }
-                } else angleCarry = 0;
+                adjustAngle(dt);
             }
             if (phase === 'charge') {
                 power = R.chargePower(time - chargeStart);
@@ -312,8 +367,11 @@
     // Capture before the shared shell: the Space that starts a game must not also charge it.
     window.addEventListener('keydown', e => {
         if (!shell) return;
+        if (isOnline() && phase === 'over' && ['Space', 'Enter'].includes(e.code)) { e.preventDefault(); e.stopImmediatePropagation(); online.open(); return; }
         const editing = e.target instanceof Element && e.target.closest('select, input, button') && e.target !== $('tt-throw');
         if (editing) { e.stopImmediatePropagation(); return; }
+        if (online && online.isOpen()) { e.stopImmediatePropagation(); return; }
+        if (online && !isOnline() && chosen().mode === 'online' && ['Space', 'Enter'].includes(e.code)) { e.preventDefault(); e.stopImmediatePropagation(); online.open(); return; }
         if (!shell.isPlaying()) { if (e.code === 'Space') e.preventDefault(); return; }
         if (e.key.startsWith('Arrow') && canInput()) {
             e.preventDefault();
@@ -329,8 +387,9 @@
         if (charging === 'key:' + e.code) { e.preventDefault(); release(); }
     }, true);
     shell = AC.shell.create({ gameId: 'trash-toss', mode: modeKey, step: 1 / 60, restartToReady: true,
-        preventKeys: [], update, render, reset,
+        preventKeys: [], update, render, reset, canPause: () => !isOnline(), canRestart: () => !(online && online.inRoom()),
         onStart() {
+            if (isOnline()) { applyOnline(); sync(); return; }
             if (JSON.stringify(chosen()) !== JSON.stringify(match.config)) reset(); sync();
             if (view.isPortrait() && !isQa()) $('stage').parentElement.scrollIntoView({ block: 'start', behavior: 'smooth' });
         },
@@ -340,14 +399,17 @@
                 message: t(chosen().mode === 'qa' ? 'ttQaIntro' : 'ttIntro'), button: t('ttStart'), hint: setupLabel(chosen()) };
             if (state === 'over') return { badge: match.winner == null ? 'gamepad-2' : 'trophy',
                 title: match.winner == null ? t('ttDraw') : t('ttWinner', playerName(match.winner)),
-                message: t('ttFinal', match.scores[0], match.scores[1]), button: t('ttAgain'), hint: setupLabel(match.config) };
+                message: t('ttFinal', match.scores[0], match.scores[1]) + (isOnline() && online.game().endReason ? ' · ' + t('ttNetLost') : ''), button: t('ttAgain'), hint: setupLabel(match.config) };
             return {};
         },
     });
     // The shell does not call reset during construction.
     reset(); render();
     Object.values(fields).forEach(field => field.addEventListener('input', () => { syncSettings(); shell.refreshOverlay(); }));
-    $('tt-apply').addEventListener('click', () => { shell.goIdle(); sync(); });
+    $('tt-apply').addEventListener('click', () => {
+        if (online && online.inRoom()) return;
+        shell.goIdle(); sync(); if (chosen().mode === 'online' && online) online.open();
+    });
     $('tt-ready').addEventListener('click', () => { if (shell.isPlaying()) { phase = 'aim'; sync(); } });
     $('stage').addEventListener('pointerdown', e => {
         if (!view.canPan() || e.button !== 0 || e.isPrimary === false) return;
@@ -364,9 +426,19 @@
     });
     for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) $('stage').addEventListener(type, () => { drag = null; });
     $('tt-angle').addEventListener('input', e => { if (canInput() && phase === 'aim') { angle = Number(e.target.value); sync(); } });
-    for (const [id, delta] of [['tt-angle-down', -1], ['tt-angle-up', 1]]) $(id).addEventListener('click', () => {
-        if (canInput() && phase === 'aim') { angle = R.clamp(angle + delta, 15, 80); sync(); }
-    });
+    for (const [id, delta] of [['tt-angle-down', -1], ['tt-angle-up', 1]]) {
+        const button = $(id);
+        button.addEventListener('pointerdown', e => {
+            if (e.button !== 0 || e.isPrimary === false || !canInput() || phase !== 'aim') return;
+            e.preventDefault(); angle = R.clamp(angle + delta, 15, 80); angleCarry = 0;
+            angleHold = { id: e.pointerId, delta }; button.setPointerCapture(e.pointerId); sync();
+        });
+        for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) button.addEventListener(type, () => { angleHold = null; angleCarry = 0; });
+        button.addEventListener('click', e => {
+            if (e.detail === 0 && canInput() && phase === 'aim') { angle = R.clamp(angle + delta, 15, 80); sync(); }
+        });
+        button.addEventListener('contextmenu', e => e.preventDefault());
+    }
     $('tt-throw').addEventListener('pointerdown', e => {
         if (e.button !== 0 || e.isPrimary === false || !canInput() || phase !== 'aim') return;
         e.preventDefault(); beginCharge('pointer'); pointerId = e.pointerId;
@@ -378,5 +450,36 @@
     $('tt-throw').addEventListener('contextmenu', e => e.preventDefault());
     window.addEventListener('blur', () => { drag = null; cancelCharge(); if (shell.isPlaying()) shell.pause(); });
     window.addEventListener('resize', () => { view.fit(); render(); });
+    if (window.createTrashTossOnline) {
+        online = window.createTrashTossOnline({ settings: chosen,
+            message: text => { $('tt-status').textContent = text; },
+            onOpen() { cancelCharge(); if (!isOnline() && shell.isPlaying()) shell.pause(); },
+            onClose() { shell.refreshOverlay(); },
+            onError() { cancelCharge(); sync(); },
+            onChange(data) {
+                const g = data && data.game;
+                if (g && g.matchId) {
+                    const fresh = !netKey.startsWith(g.matchId + ':');
+                    applyOnline(); syncSettings();
+                    if (g.status !== 'over' && !shell.isPlaying()) {
+                        if (fresh) view.follow();
+                        if (shell.state !== 'idle') shell.goIdle();
+                        shell.start();
+                    }
+                    sync(); render(); shell.syncButtons();
+                } else {
+                    const wasOnline = !!netKey;
+                    netKey = ''; netCache = null; netFinished = ''; sending = false;
+                    if (wasOnline) { fields.mode.value = 'online'; shell.goIdle(); }
+                    syncSettings(); shell.syncButtons();
+                }
+            },
+        });
+        $('tt-online-room').addEventListener('click', () => online.open());
+        $('overlay-btn').addEventListener('click', e => {
+            if (chosen().mode !== 'online' && !isOnline()) return;
+            e.preventDefault(); e.stopImmediatePropagation(); online.open();
+        }, true);
+    }
     AC.i18n.subscribe(() => { syncSettings(); sync(); render(); });
 })();

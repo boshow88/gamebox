@@ -129,3 +129,6 @@ button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px s
 @media (max-width: 360px) {
     .game-topbar { gap: 4px; }
 }
+
+.tt-field-material small { display: block; font-size: .65rem; font-weight: 400; opacity: .6; line-height: 1.4; }
+#tt-angle-down, #tt-angle-up { touch-action: none; user-select: none; -webkit-user-select: none; }

@@ -430,29 +430,31 @@ timings (`ANSWER_SEC`, `countSec`, memorise scaling), and the late-match speed-u
 
 ## Trash Toss
 
-**Goal.** Toss objects into bins in an office, living room, park or construction
-site. Each scene has ten exclusive objects and its own thrower. Pages open on the
+**Goal.** Toss objects into bins in an office, living room, park, construction
+site or street arena. Each scene has ten exclusive objects and its own thrower. Pages open on the
 office by default.
-Set an angle (15–80 degrees) with the slider, buttons or arrow keys, then hold
+Set an angle (15–80 degrees) with the slider, buttons (hold to repeat) or arrow keys, then hold
 Space or the throw button. Release to launch. Power cycles 0–100–0 continuously,
 with 1.3 seconds per sweep. The same angle, power, release time and scene
 conditions produce the same flight. A short aim line shows direction, not the
 predicted landing point. Previous angle and power remain visible.
 
 - Enter a bin **from above**, with the whole object fitting through the opening:
-  normal bins score **10/25**. Construction barrels score **5/10/15/20/30**;
-  wider openings award fewer points. Rims and sides bounce. Missing scores zero.
+  Office/park bins score **10/15/25**; living-room bins score **10/25**. Construction barrels score **5/10/15/20/30**;
+  wider openings award fewer points. The entire collision circle must descend below the rim; merely dipping into
+  the opening and bouncing out is not a basket. Rims and sides bounce. Missing scores zero.
 - Hit the boss/files in the office, or the walker, cart, umbrella or bird in the park: **−5**
   once per throw, and the garbage continues flying. A later large/small basket
   adds the full labeled points. The deduction and basket are shown as separate events.
-  Mom, the crawling baby, wall rat, construction workers, carried objects and cleaners use the same
+  Mom, the crawling baby, pet parrot, construction workers, carried objects and cleaners use the same
   once-per-throw deduction. Scores may go below zero. Obstacles follow predictable
   paths on the same plane as the trash; wait for a gap or lob over them.
 - Weather and wind are shown inside the field and fixed within a round. Outdoor
   rounds pass through drizzle and rain before heavy wind/rain, then ease back.
   Rain visuals fade gradually; the displayed round conditions govern physics
   for both players. Rain adds air resistance. Office wind is gentler and labeled
-  A/C airflow; the living room uses a fan. Wind streaks show direction/strength. Weight is inside the field.
+  A/C airflow; the living room uses a fan. Wind streaks show direction/strength. Weight is inside the field, with the active player’s previous object/grams shown
+  faintly alongside it, just like previous wind.
 - Objects rotate in a seeded ten-item order with slight round weight variation.
   Each scene has its own item pool; next object and actual grams remain visible.
 
@@ -461,12 +463,16 @@ predicted landing point. Previous angle and power remain visible.
 | Living room | Short, fully visible / child | Cookie box, comic, stinky sock, remote, foot-trap brick, rubber duck, pacifier, dinosaur plush, slipper, toy robot |
 | Office | Medium, small camera range / employee | Memo, coffee cup, laptop, mouse, rejected folder, boss curse doll, keyboard, badge, stapler, overtime alarm |
 | Park | Medium, small camera range / grandma | Soda can, bottle, banana peel, apple core, giant leaf, frisbee, shuttlecock, pet bag, pigeon snack bag, garden gnome |
+| Street arena | Medium, eight bins at ground and raised levels / street skater | Receipt, spray cap, mixtape, bottle cap, gig wristband, padlock, skate wheel, noodle box, scratched vinyl, sneaker |
 | Construction | Long, substantial camera range / foreman | Screwdriver, screw, wrench, nut, washer, bolt, offcut, tape roll, hard hat, red brick |
 
 - Living-room blockers are a crawling baby, walking mother with a laundry basket
-  and a rat racing along the wall. Both indoor scenes stay dry.
+  and a flying pet parrot. Baby and parrot turn to face their movement. Both indoor scenes stay dry.
 - Construction has five enlarged metal barrels with decreasing widths and
   increasing points, and stronger long-range throws. Outdoor wind/rain applies.
+- Street arena uses eight metal bins on the ground and wall brackets, scoring
+  **5/10/15/20/25/35/40/50**. Size and height both matter. Raised bins have real
+  bottoms; underneath them remains open space.
 - Dragging the field moves the scene under the hand. Dragging the overview moves
   the preview window in the same direction as the hand; tapping selects that
   location. The overview preserves the grab offset and has no heading sentence.
@@ -497,11 +503,17 @@ predicted landing point. Previous angle and power remain visible.
   with quiet intervals, rather than occupying the throwing lane continuously.
 - **Two players:** the same rules on one device. Confirm Ready after handing
   over; the next turn's clock does not run while waiting for confirmation.
+- **Online duel:** open Online room, sign in with Google or as a guest, create
+  a four-character code and invite one friend. The guest readies up; the host
+  starts. Both see the same persistent field and accepted flight. There is no
+  device handoff or shared pause; deadlines continue while the lobby is open or
+  a tab is hidden. Leaving or exceeding the 15-second presence grace forfeits
+  the match. Results return to the same room; host resets, guest readies again.
 - Higher total wins after both players finish five rounds. Ties add complete
   paired rounds, up to three; equal totals after round eight are a draw.
-  The first human's five-round regulation best (excluding extra rounds) is saved
-  per scene/mode and CPU strength in v4, separately from earlier versions' rules.
-- Changes are staged until New game or a new start. P pauses, R returns to
+  The local human's five-round regulation best (excluding extra rounds) is saved
+  per scene/mode and CPU strength in v5, separately from earlier versions' rules.
+- Changes are staged until New game or a new start. Offline P pauses, R returns to
   ready, M mutes. Pausing or cancelling a pointer discards a held charge.
 - **Physics QA:** start the mode, enter exact angle/power/wind/weight/rain and
   choose one of the applied scene’s ten objects and press Test throw, or repeat from the in-field button. No manual charging,

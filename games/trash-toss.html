@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="../css/common.css">
     <link rel="stylesheet" href="../css/arcade.css">
     <link rel="stylesheet" href="../css/trash-toss.css">
+    <link rel="stylesheet" href="../css/room-lobby.css">
 </head>
 <body>
     <main class="game-shell">
@@ -20,10 +21,11 @@
             </div>
         </header>
         <section class="tt-settings" data-i18n-aria-label="ttSettings" aria-label="Game settings">
-            <label><span data-i18n="ttMode">Mode</span><select id="tt-mode"><option value="practice" data-i18n="ttPractice">Practice</option><option value="cpu" data-i18n="ttCpu">Vs CPU</option><option value="local" data-i18n="ttLocal">Two players</option><option value="qa" data-i18n="ttQaName">Physics QA</option></select></label>
-            <label><span data-i18n="ttScene">Scene</span><select id="tt-scene"><option value="office" data-i18n="ttOffice">Office</option><option value="living" data-i18n="ttLiving">Living room · short</option><option value="park" data-i18n="ttPark">Park</option><option value="construction" data-i18n="ttConstruction">Construction · long range</option></select></label>
+            <label><span data-i18n="ttMode">Mode</span><select id="tt-mode"><option value="practice" data-i18n="ttPractice">Practice</option><option value="cpu" data-i18n="ttCpu">Vs CPU</option><option value="local" data-i18n="ttLocal">Two players</option><option value="online" data-i18n="ttOnline">Online duel</option><option value="qa" data-i18n="ttQaName">Physics QA</option></select></label>
+            <label><span data-i18n="ttScene">Scene</span><select id="tt-scene"><option value="office" data-i18n="ttOffice">Office</option><option value="living" data-i18n="ttLiving">Living room · short</option><option value="park" data-i18n="ttPark">Park</option><option value="arena" data-i18n="ttArena">Street arena · medium</option><option value="construction" data-i18n="ttConstruction">Construction · long range</option></select></label>
             <label id="tt-difficulty-field" hidden><span data-i18n="ttStrength">CPU strength</span><select id="tt-difficulty"><option value="easy" data-i18n="ttEasy">Easy</option><option value="normal" data-i18n="ttNormal">Normal</option><option value="hard" data-i18n="ttHard">Hard</option></select></label>
             <button class="btn" type="button" id="tt-apply" data-i18n="ttNew">New game</button>
+            <button class="btn" type="button" id="tt-online-room" data-i18n="ttRoom">Online room</button>
             <p id="tt-pending" class="tt-pending" hidden></p>
         </section>
         <div class="hud tt-hud">
@@ -36,7 +38,7 @@
         <div class="stage-wrap">
             <canvas class="stage-canvas" id="stage" width="960" height="540" role="img" data-i18n-aria-label="ttCanvas" aria-label="Side-view throwing field"></canvas>
             <div class="tt-field-weather" role="group" data-i18n-aria-label="ttWeather" aria-label="Weather and wind"><strong id="tt-weather-name"></strong><div class="tt-wind-line"><svg id="tt-wind-icon" viewBox="0 0 32 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><!-- custom: flowing wind curls --><path d="M2 8h17c7 0 7-7 2-7-3 0-4 2-4 3M1 13h24c7 0 7 9 1 9-3 0-4-2-4-3M5 18h8c5 0 5 5 1 5"/></svg><span id="tt-wind"></span></div><small id="tt-previous-wind" hidden></small><small id="tt-rain-effect" data-i18n="ttRainEffect" hidden>Rain increases air resistance</small></div>
-            <div class="tt-field-material"><span data-i18n="ttCurrentTrash">Current trash</span><strong id="tt-material"></strong></div>
+            <div class="tt-field-material"><span data-i18n="ttCurrentTrash">Current trash</span><strong id="tt-material"></strong><small id="tt-previous-material" hidden></small></div>
             <details class="tt-qa-hud" id="tt-qa-hud" open hidden><summary id="tt-qa-hud-title">QA data · px / s</summary><div id="tt-qa-hud-metrics"></div><button class="btn" id="tt-qa-quick-fire" type="submit" form="tt-qa-form" data-i18n="ttQaRepeat">Repeat numeric throw</button></details>
             <div id="tt-qa-legend" class="tt-qa-legend" data-i18n="ttQaLegend" hidden>Green: current · Orange: previous · Blue: no wind</div>
             <span class="tt-field-debris" id="tt-debris"></span>
@@ -95,6 +97,8 @@
     <script src="../js/games/trash-toss-rules.js"></script>
     <script src="../js/games/trash-toss-view.js"></script>
     <script src="../js/games/trash-toss-qa.js"></script>
+    <script src="../js/games/trash-toss-room.js"></script>
+    <script src="../js/games/trash-toss-online.js"></script>
     <script src="../js/games/trash-toss.js"></script>
 </body>
 </html>
