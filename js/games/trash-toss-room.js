@@ -115,14 +115,14 @@
             isAvailable: uid => presence.isAvailable(uid), isPlaying: data => ['aim', 'flight'].includes((data.game || {}).status),
             onCreate: input => ({ options: { scene: R.config(input).scene }, revision: 0 }),
             onJoin: data => {
-                if (data.game && data.game.matchId) throw Object.assign(new Error('Return to lobby before joining'), { code: 'room/started' });
+                if (data.game && data.game.matchId) throw Object.assign(new Error('Wait for the next match before joining'), { code: 'room/started' });
                 return { ready: {} };
             },
-            onLeave: (data, player, remaining) => {
+            onLeave: (data, player, remaining, reason) => {
                 const game = data.game;
                 if (!game || !['aim', 'flight'].includes(game.status)) return { ready: {} };
                 const match = Object.assign({}, game.match, { over: true, winner: game.seats.indexOf(remaining[0]) });
-                return { status: 'results', ready: {}, game: Object.assign({}, game, { status: 'over', seq: game.seq + 1, match, endReason: 'left' }) };
+                return { status: 'results', ready: {}, game: Object.assign({}, game, { status: 'over', seq: game.seq + 1, match, endReason: reason || 'left' }) };
             },
             startPatch: (data, seats) => {
                 const match = R.createMatch({ mode: 'online', scene: data.options.scene }, Math.floor(Math.random() * 0x100000000));

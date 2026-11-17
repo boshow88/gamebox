@@ -557,16 +557,18 @@ Official references: [setup](https://firebase.google.com/docs/database/web/start
 
 Trash Toss reuses the Darts/shared room stack: Google/anonymous auth, four-code
 entry, one tab identity per connection, captured session listeners, presence
-counters, host-controlled start and explicit return to lobby. Its own collection
+counters, host-controlled start and preparation of the next match. Its own collection
 is `trash_toss_rooms`, capacity is two humans, spectators are disabled. The guest
 must ready up before the host starts. The room lobby has a host-controlled map
 selector; the initial map may come from the offline selection but is editable
-after room creation. Returning to the lobby retains both players and the room
+after room creation. Preparing the next match retains both players and the room
 code, so another map does not require a new room. Scene changes clear readiness
 and use a guarded room revision; guests must ready again. Mid-match map changes
 are rejected. The UI keeps offline settings
-locked while a room is attached. Results retain membership; host returns to lobby,
-the guest readies again and the next start gets a fresh `matchId` and field.
+locked while a room is attached. Results retain membership; the host presses Play
+again to prepare the same room and open scene selection directly. The guest
+readies again and the next start gets a fresh `matchId` and field. Player-facing
+Trash Toss text uses Room rather than Lobby.
 
 `trash-toss-room.js` is DOM-free; `trash-toss-online.js` uses the shared lobby,
 adds its scene selector, and rebuilds visible lobby UI only when displayed
@@ -591,7 +593,9 @@ so transaction retries do not consume the entire delivery allowance. It advances
 the world/cleaning to that launch tick, runs the actual physics, and publishes the
 accepted input, future launch time, outcome and resulting world. Projection keeps
 actors and debris moving during the lead while the object remains in the hand;
-launch occurs when the shared clock reaches `shot.at`. The controller invalidates
+launch occurs when the shared clock reaches `shot.at`. The object also stays
+visible while the transaction is pending. A success acknowledgment does not unlock
+another throw before the authoritative room sequence arrives. The controller invalidates
 its paint budget on the first launched frame. This avoids skipping early flight
 when event delivery fits within the lead. A reconnect or event delayed beyond the
 lead still catches up to the common timeline rather than replaying an obsolete
@@ -613,9 +617,13 @@ Presence remains based on locally observed changing counters rather than remote
 wall-clock timestamps. Polling every 250 ms performs only due boundary writes;
 heartbeats keep the shared 3 s write throttle. After 15 s without a changed
 counter, a live member transactionally rechecks/releases the missing peer. A
-mid-match departure forfeits to the remaining seat; host migration follows the
+mid-match departure forfeits to the remaining seat, recording `left` for intentional
+departure or `disconnected` for presence expiry; host migration follows the
 shared service. Session detach invalidates old callbacks and page exit closes
 owned listeners. Online play cannot be paused/restarted via the offline shell.
+Transient watch/poll/throw errors show an inline message and permit reconnect or
+retry, without opening the create/join panel. A deleted room and permission errors
+open recovery with specific messages. See [the regression checks](TRASH-TOSS-ROOM-FIXES.md).
 
 **Deployment:** `database.rules.json` adds `trash_toss_rooms` to the existing
 RTDB collection allowlist. Publish this updated file in Firebase Console's

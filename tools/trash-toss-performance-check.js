@@ -10,9 +10,8 @@ const revision = option('revision', '');
 const roomRevision = option('room-revision', '');
 const chrome = option('chrome', '/usr/bin/google-chrome'), throttle = Number(option('throttle', '4'));
 const dpr = Number(option('dpr', '2'));
-const quality = option('quality', 'smooth');
 const boot = `<script>
-window.__ttPerf = { quality:${JSON.stringify(quality)}, stats:{}, events:{}, frames:[], mutations:0,
+window.__ttPerf = { stats:{}, events:{}, frames:[], mutations:0,
  wrap(name, fn) { return function(...args) { const start = performance.now(); try { return fn.apply(this,args); } finally { const stat = __ttPerf.stats[name] ||= {calls:0,ms:0,max:0}; const dt=performance.now()-start; stat.calls++; stat.ms+=dt; stat.max=Math.max(stat.max,dt); if(name==='view') __ttPerf.frames.push(performance.now()); } }; },
  clear() { this.stats={}; this.events={}; this.frames=[]; this.mutations=0; },
 };
@@ -30,7 +29,6 @@ function instrument(file, body) {
         .replace('    shell = AC.shell.create', `    sync=__ttPerf.wrap('hud',sync); update=__ttPerf.wrap('update',update); render=__ttPerf.wrap('render',render);\n    shell = AC.shell.create`)
         .replace('    reset(); render();', `
     window.__ttPerf.setup = function(id, mode) {
-        const motion=document.getElementById('tt-motion'); if(motion) { motion.value=__ttPerf.quality; motion.dispatchEvent(new Event('change')); }
         fields.scene.value=id; fields.mode.value='practice'; shell.goIdle();
         scene=R.scenario(match.config,1,42); scene.cleaning=cleaning; visualRain=scene.rain;
         if(mode==='debris') for(let i=0;i<40;i++) { const b=R.launch(scene,45,30,0); b.x=120+i*(R.fieldWidth(scene)-200)/40; b.y=b.radius; b.resting=true; debris.push(b); }
@@ -78,7 +76,7 @@ function instrument(file, body) {
         if(args.includes('--online')) {
             const child=spawn(process.execPath,[path.join(root,'tools/trash-toss-online-browser-check.js'),port,
                 'http://127.0.0.1:'+server.address().port,'--perf','--throttle='+throttle,'--output='+output,
-                ...(!roomRevision?['--expect-optimized']:[])],{stdio:'inherit'});
+                ...(!roomRevision?['--expect-optimized']:['--legacy-room-flow'])],{stdio:'inherit'});
             const code=await new Promise((resolve,reject)=>{child.once('error',reject);child.once('exit',resolve);});
             if(code)throw Error('Online browser check failed: '+code);
             const report=JSON.parse(fs.readFileSync(output,'utf8'));
@@ -116,7 +114,7 @@ function instrument(file, body) {
             return {scene:id,ms:performance.now()-start,candidates:277,frequency:'once per CPU turn, not per frame'};
         })`);
         console.log('CPU planning:',JSON.stringify(cpuPlanning));
-        const report={baseline:revision||baseline||'working tree',environment:{browser:'headless Chrome',viewport:'390x844 @'+dpr+'x',quality,cpuThrottle:throttle,sampleMs:2000,notes:'Nested timings overlap. Canvas timings measure command submission, not GPU energy or iPhone temperature. Fixed scenario seed 42. Debris cases place 40 resting items across the map. Historical versions retain their own FPS policy.'},rows,cpuPlanning};
+        const report={baseline:revision||baseline||'working tree',environment:{browser:'headless Chrome',viewport:'390x844 @'+dpr+'x',targetFPS:60,cpuThrottle:throttle,sampleMs:2000,notes:'Nested timings overlap. Canvas timings measure command submission, not GPU energy or iPhone temperature. Fixed scenario seed 42. Debris cases place 40 resting items across the map. Historical versions retain their own FPS policy.'},rows,cpuPlanning};
         fs.writeFileSync(output,JSON.stringify(report,null,2)+'\n'); console.log('Report:',output);
     } finally {
         socket?.close();

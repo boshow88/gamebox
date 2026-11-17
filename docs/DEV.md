@@ -705,12 +705,9 @@ Launcher sorting keeps coloured cards in hue order and groups neutral colours
 
 Angles are 15–80 degrees. Charge uses a triangle wave, 0–100–0, with 1.3 seconds
 per sweep. The shared 1/60-second update uses four 1/240-second physics substeps.
-Rendering is independently capped by the device-local Animation preference:
-Battery saver at 30 FPS or Smooth at 60 FPS, including high-refresh displays.
-All devices default to Smooth; Battery saver remains an explicit local choice.
-The preference is saved with local game prefs, takes effect immediately without
-resetting a match, stays editable during online play, and is excluded from room
-settings and score keys. Physics and charge still update at 60 Hz; canvas rendering,
+Rendering is independently capped at 60 FPS, including high-refresh displays.
+The former 30 FPS option is removed; saving local preferences drops its obsolete
+`motion` field. Physics and charge still update at 60 Hz; canvas rendering,
 HUD refresh and simulation clocks are separate. Frame deadlines are accumulated
 to avoid losing an entire frame to small RAF timing jitter.
 Canvas backing dimensions follow its displayed CSS width at up to 2x density,
@@ -741,7 +738,7 @@ render workload in a desktop browser with mobile dimensions, not iPhone power
 consumption, Safari performance or temperature. Physical-device thermal checks
 remain necessary.
 See [the subsequent 2026-11-17 measurements](TRASH-TOSS-PERFORMANCE.md) for current
-results, the 30/60 FPS tradeoff, image equivalence checks and reproducible tools.
+results, historical 30/60 FPS comparisons, image equivalence checks and reproducible tools.
 
 Gravity and launch speeds are increased together for roughly 1.6x faster flight
 without simply flattening the arc; result presentation lasts 0.45 seconds.
@@ -871,10 +868,15 @@ record. Generic bests are personal records, not a public leaderboard. Online mat
 `trash-toss-room.js` owns DOM-free room policy, accepted turn inputs and replay;
 `trash-toss-online.js` owns lazy room setup, auth, lobby presentation and polling.
 Network inputs reserve a shared launch about 400 ms in the future so peers have
-time to receive the event before flight begins. During the `launch` presentation
-phase controls are locked and the object stays at the hand while the world clock
-continues. The first launched frame forces a paint; normal rendering then follows
-the device-local 30/60 FPS preference. Offline release and physics constants are unchanged.
+time to receive the event before flight begins. During both `sending` and `launch`
+presentation phases controls are locked and the object stays at the hand while
+the world clock continues. A transaction acknowledgment does not unlock input:
+the controller waits for the authoritative room sequence, preventing a duplicate
+release before the delayed subscription arrives. The first launched frame forces
+a paint; normal rendering then follows the 60 FPS cap. Offline release and physics
+constants are unchanged. Window pointerup is captured; touchend provides an
+idempotent fallback. Capture loss alone does not cancel charging; pointercancel
+and blur still cancel and explain the interrupted gesture.
 Online replay skips stable-world ticks until the next exact cleaning event when
 there is no flying ball or moving debris. Every collision step remains intact;
 shared launch ticks and cleanup timing match the pre-optimization policy. Quiet
@@ -884,6 +886,13 @@ and HUD callbacks. The 250 ms deadline checks and 3-second heartbeat interval ar
 unchanged. A hidden/covered online field suspends only its local replay; room
 presence/deadlines stay active, and closing the room dialog projects the current
 authoritative state before drawing.
+After results, the host's Play again action prepares the same room and immediately
+opens scene selection; the guest readies and the host starts. Player-facing text
+uses Room. Transient submit/watch/poll failures remain inline, connection recovery
+does not reset a match, and a removed room explicitly offers create/join recovery.
+The existing 15-second presence grace remains; result reasons distinguish leaving
+from presence expiry. See [the room fixes](TRASH-TOSS-ROOM-FIXES.md) for regression
+coverage and the unchanged scene-dependent range calculation.
 See [ROOMS.md](ROOMS.md#trash-toss-rooms) for protocol and deployment requirements. Checks live in [DEBUG.md](DEBUG.md#trash-toss-checks).
 
 Physics QA uses `qa:true`, removes actors/old debris and never submits scores.

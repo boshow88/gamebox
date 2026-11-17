@@ -33,7 +33,7 @@ function fixture(mobile = false) {
         if (!nodes.has(id)) { const node = new Node(id); node.parentElement = { classList: node.classList }; nodes.set(id, node); }
         return nodes.get(id);
     };
-    const events = {}, prefs = { mode: 'local', scene: 'park', item: 'mixed', difficulty: 'normal', version: 2 };
+    const events = {}, prefs = { mode: 'local', scene: 'park', item: 'mixed', difficulty: 'normal', version: 2, motion: 'efficient' };
     let options, shell, model, result, wallMs = 0, renders = 0;
     const i18n = { STRINGS: { en: {}, zh: {} }, subscribe() {}, t(key, ...args) {
         const value = i18n.STRINGS.en[key]; return typeof value === 'function' ? value(...args) : value || key;
@@ -62,25 +62,33 @@ function fixture(mobile = false) {
         tick(seconds) { for (let i = 0; i < Math.round(seconds * 60); i++) { if (shell.isPlaying()) options.update(1 / 60); wallMs += 1000 / 60; options.render(); } },
         renders: () => renders,
         highRefresh(seconds) { for (let i = 0; i < Math.round(seconds * 120); i++) { if (i % 2 === 0 && shell.isPlaying()) options.update(1 / 60); wallMs += 1000 / 120; options.render(); } },
-        pointer(type) { if (type === 'pointerdown') get('tt-throw').fire(type); else for (const fn of events[type] || []) fn({ pointerId: 1 }); },
+        pointer(type, props = {}) { if (type === 'pointerdown') get('tt-throw').fire(type, props); else for (const fn of events[type] || []) fn(Object.assign({ pointerId: 1 }, props)); },
+        touchEnd() { for (const fn of events.touchend || []) fn({ touches: [] }); },
     };
 }
 const phone = fixture(true);
-assert.equal(phone.get('tt-motion').value, 'smooth', 'Phones default to the optimized 60 FPS path');
-phone.get('tt-motion').value = 'smooth'; phone.get('tt-motion').fire('change');
 phone.get('tt-mode').value = 'practice'; phone.get('tt-apply').fire('click'); phone.shell.start();
 const beforePaint = phone.renders(); phone.pointer('pointerdown'); phone.highRefresh(1.3);
 assert.ok(phone.renders() - beforePaint <= 79, 'A 120 Hz mobile screen paints at most 60 frames per second');
 assert.ok(phone.renders() - beforePaint >= 77, 'Mobile animation keeps a 60 FPS target');
 assert.equal(phone.get('tt-power-value').textContent, 100, 'Charge keeps fixed 60 Hz simulation timing');
 phone.pointer('pointerup'); phone.tick(1 / 30); assert.ok(phone.model().ball, 'Mobile release still launches normally');
-const flyingAt = phone.model().time, roundAt = phone.get('tt-round').textContent;
-phone.get('tt-motion').value = 'efficient'; phone.get('tt-motion').fire('change');
-const beforeEfficient = phone.renders(); phone.highRefresh(.5);
-assert.ok(phone.renders() - beforeEfficient <= 16, 'Battery saver caps high-refresh painting at 30 FPS');
-assert.ok(phone.renders() - beforeEfficient >= 14);
-assert.ok(phone.model().time > flyingAt, 'Changing animation mode preserves the running physics clock');
-assert.equal(phone.get('tt-round').textContent, roundAt, 'Animation preference does not reset the match');
+const touch = fixture(true);
+touch.get('tt-mode').value = 'practice'; touch.get('tt-apply').fire('click'); touch.shell.start();
+touch.pointer('pointerdown'); touch.tick(.2);
+touch.get('tt-throw').fire('lostpointercapture', { pointerId: 9 });
+assert.ok(touch.model().charging, 'A stale capture-loss event must not cancel the active finger');
+touch.get('tt-throw').fire('lostpointercapture', { pointerId: 1 });touch.tick(1 / 60);
+assert.ok(touch.model().charging, 'Loss of capture alone is not cancellation');
+touch.touchEnd(); touch.tick(1 / 60);
+const touchBall = touch.model().ball; assert.ok(touchBall, 'Touchend launches if Safari omits pointerup');
+touch.pointer('pointerup'); touch.tick(1 / 60);
+assert.equal(touch.model().ball, touchBall, 'Touchend plus pointerup must never launch twice');
+const interrupted = fixture(true);
+interrupted.get('tt-mode').value = 'practice'; interrupted.get('tt-apply').fire('click'); interrupted.shell.start();
+interrupted.pointer('pointerdown'); interrupted.tick(.2); interrupted.pointer('pointercancel'); interrupted.touchEnd(); interrupted.tick(1 / 60);
+assert.equal(interrupted.model().ball, null, 'A cancelled gesture must not become an unintended throw');
+assert.ok(interrupted.get('tt-status').textContent.includes('interrupted'), 'Gesture cancellation must be explained');
 const f = fixture();
 assert.equal(f.get('tt-scene').value, 'office', 'Each page starts at the office despite old scene preferences');
 f.get('tt-scene').value = 'park'; f.get('tt-apply').fire('click'); f.shell.start();

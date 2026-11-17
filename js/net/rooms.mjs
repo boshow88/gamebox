@@ -147,7 +147,7 @@ export function createRoomService({ store, getUser, sessionId, generateCode = ra
         return { [config.layout]: config.layout === 'slots'
             ? Array.from({ length: config.maxPlayers }, (_, i) => ids[i] || null) : ids };
     }
-    function departure(data, uid) {
+    function departure(data, uid, reason = 'left') {
         const players = Object.assign({}, data.players), player = players[uid]; delete players[uid];
         const ids = playerIds(data).filter(id => id !== uid);
         if (!ids.length) return { kind: 'delete' };
@@ -156,7 +156,7 @@ export function createRoomService({ store, getUser, sessionId, generateCode = ra
         const hostUid = players[data.hostUid] ? data.hostUid : ids[0];
         if (config.layout === 'slots') ids.forEach((id, slot) => { players[id] = Object.assign({}, players[id], { slot }); });
         return { kind: 'update', data: Object.assign({ players, ready, presence, hostUid }, seating(ids),
-            config.onLeave(data, player, ids)) };
+            config.onLeave(data, player, ids, reason)) };
     }
     function canStart(data, uid = (currentPlayer() || {}).uid) {
         if (!data || config.isPlaying(data) || !uid || host(data) !== uid) return false;
@@ -236,7 +236,7 @@ export function createRoomService({ store, getUser, sessionId, generateCode = ra
             const candidate = candidates.find(item => item.uid !== player.uid && (data.players || {})[item.uid]
                 && !config.isAvailable(item.uid, data) && ((data.presence || {})[item.uid] === item.beat));
             if (!candidate) return { result: false };
-            return Object.assign(departure(data, candidate.uid), { result: true });
+            return Object.assign(departure(data, candidate.uid, 'disconnected'), { result: true });
         });
     }
     async function setReady(value, ready = true) {

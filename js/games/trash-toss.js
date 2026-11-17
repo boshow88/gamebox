@@ -5,7 +5,7 @@
     const strings = {
         en: {
             ttLaunching: 'Releasing…', ttName: 'Trash Toss', ttOnline: 'Online duel', ttRoom: 'Online room', ttArena: 'Street arena · medium', ttParrot: 'the pet parrot',
-            ttMotion: 'Animation', ttMotionEfficient: 'Battery saver · 30 FPS', ttMotionSmooth: 'Smooth · 60 FPS',
+            ttInputInterrupted: 'The gesture was interrupted. Hold and release to try again.',
             ttReceipt: 'Lottery receipt', ttSpraycap: 'Spray paint cap', ttCassette: 'Tangled mixtape', ttBottlecap: 'Soda bottle cap', ttWristband: 'Expired gig wristband', ttPadlock: 'Keyless padlock', ttSkatewheel: 'Worn skate wheel', ttNoodlebox: 'Empty noodle box', ttVinyl: 'Scratched vinyl', ttSneaker: 'Retired sneaker', ttSettings: 'Game settings', ttMode: 'Mode', ttPractice: 'Practice', ttCpu: 'Vs CPU', ttLocal: 'Two players',
             ttScene: 'Scene', ttOffice: 'Office · medium', ttLiving: 'Living room · short', ttPark: 'Park · medium', ttItem: 'Object', ttPaper: 'Scrunched memo', ttCan: 'Crushed soda can', ttBook: 'Outdated comic',
             ttMixed: 'Mixed objects', ttBottle: 'Empty bottle', ttCup: 'Yesterday’s coffee cup', ttCarton: 'Empty cookie box', ttPeel: 'Banana peel', ttApple: 'Apple core',
@@ -50,7 +50,7 @@
         },
         zh: {
             ttLaunching: '準備出手…', ttName: '丟垃圾', ttOnline: '連線對戰', ttRoom: '連線房間', ttArena: '街頭競技場・中距離', ttParrot: '寵物鸚鵡',
-            ttMotion: '畫面', ttMotionEfficient: '省電・30 FPS', ttMotionSmooth: '流暢・60 FPS',
+            ttInputInterrupted: '手勢已被系統中斷，請重新按住並放開投擲。',
             ttReceipt: '沒中的發票', ttSpraycap: '噴漆罐蓋', ttCassette: '卡帶混音帶', ttBottlecap: '汽水瓶蓋', ttWristband: '過期演唱會手環', ttPadlock: '沒鑰匙的掛鎖', ttSkatewheel: '磨平滑板輪', ttNoodlebox: '空炒麵盒', ttVinyl: '刮花黑膠唱片', ttSneaker: '退休球鞋', ttSettings: '遊戲設定', ttMode: '模式', ttPractice: '自由練習', ttCpu: '挑戰電腦', ttLocal: '同機雙人',
             ttScene: '場景', ttOffice: '辦公室・中距離', ttLiving: '客廳・短距離', ttPark: '公園・中距離', ttItem: '投擲物', ttPaper: '廢紙團', ttCan: '喝扁的汽水罐', ttBook: '過期漫畫',
             ttMixed: '輪換物件', ttBottle: '空寶特瓶', ttCup: '隔夜咖啡杯', ttCarton: '空餅乾盒', ttPeel: '香蕉皮', ttApple: '蘋果核',
@@ -101,14 +101,12 @@
     };
     const fields = { mode: $('tt-mode'), scene: $('tt-scene'), difficulty: $('tt-difficulty') };
     const prefs = AC.prefs.get('trash-toss');
-    const motion = $('tt-motion');
-    motion.value = ['efficient', 'smooth'].includes(prefs.motion) ? prefs.motion : 'smooth';
     const saved = R.config(Object.assign({}, prefs, { scene: 'office', item: 'mixed' }));
     Object.keys(fields).forEach(key => { fields[key].value = saved[key]; });
     const view = window.TrashTossView.create($('stage'));
     let hudAt = -Infinity, paintAt = -Infinity, nextScenario = null, nextScenarioKey = '';
     let hudState = [], hudAngle = null, hudPower = null;
-    let online = null, netCache = null, netKey = '', netFinished = '', sending = false;
+    let online = null, netCache = null, netKey = '', netFinished = '', sending = false, pendingRelease = null, inputMessage = '';
     let shell, match, scene, pendingMatch, phase = 'aim', time = 0, power = 0, angle = 45;
     let ball = null, trail = [], ghost = [], result = null, resultTime = 0, plan = null;
     let charging = null, pointerId = null, chargeStart = 0, last = [null, null], angleCarry = 0;
@@ -143,11 +141,16 @@
         const different = JSON.stringify(c) !== JSON.stringify(match.config);
         $('tt-pending').hidden = !different;
         $('tt-pending').textContent = different ? t('ttPending', setupLabel(match.config), setupLabel(c)) : '';
-        AC.prefs.set('trash-toss', Object.assign({ version: 2, motion: motion.value }, c));
+        // Drop the retired frame-rate preference when preferences are serialized.
+        AC.prefs.set('trash-toss', Object.assign({ version: 3, motion: undefined }, c));
     }
     function cancelCharge() {
         angleHold = null; angleCarry = 0; charging = null; pointerId = null; power = 0;
         if (phase === 'charge') phase = 'aim';
+    }
+    function interruptCharge() {
+        if (phase !== 'charge') return;
+        cancelCharge(); inputMessage = t('ttInputInterrupted'); sync(); render(true);
     }
     function beginTurn(handoff) {
         cancelCharge(); time = 0; ball = null; trail = []; result = null; pendingMatch = null;
@@ -163,6 +166,7 @@
     }
     function reset() {
         hudAt = -Infinity; paintAt = -Infinity;
+        pendingRelease = null; sending = false; inputMessage = '';
         if (isOnline()) { applyOnline(); return; }
         match = R.createMatch(chosen(), Date.now()); last = [null, null]; ghost = []; debris = []; worldTime = 0;
         cleaning = R.createCleaning(); feedback = []; drag = null;
@@ -173,16 +177,27 @@
     }
     function beginCharge(source) {
         if (!canInput() || phase !== 'aim') return;
-        angleHold = null; AC.audio.unlock(); charging = source; chargeStart = time; power = 0; phase = 'charge'; sync();
+        inputMessage = ''; angleHold = null; AC.audio.unlock(); charging = source; chargeStart = time; power = 0; phase = 'charge'; sync();
     }
     function release() {
         if (!shell.isPlaying() || phase !== 'charge') return;
         charging = null; pointerId = null;
         if (isOnline()) {
+            drag = null; view.follow();
             const submittedAngle = angle, submittedPower = power;
+            const attempt = { key: netKey };
+            pendingRelease = attempt; inputMessage = '';
             phase = 'sending'; sending = true; sync();
-            online.submit(submittedAngle, submittedPower).finally(() => {
-                sending = false; if (phase === 'sending') phase = 'aim'; applyOnline(); sync();
+            online.submit(submittedAngle, submittedPower).then(accepted => {
+                if (pendingRelease !== attempt) return;
+                // The transaction ack can precede the room subscription. Keep the
+                // held item and lock this throw until the new sequence is observed.
+                if (!accepted) { pendingRelease = null; sending = false; if (phase === 'sending') phase = 'aim'; }
+                applyOnline(); sync(); render(true);
+            }).catch(() => {
+                if (pendingRelease !== attempt) return;
+                pendingRelease = null; sending = false; phase = 'aim';
+                inputMessage = t('ttNetRetry'); sync(); render(true);
             });
             return;
         }
@@ -249,7 +264,7 @@
         // need to be written again on every HUD tick.
         const state = [scene, match, pendingMatch, result, phase, match.active, match.round, match.turn,
             match.scores[0], match.scores[1], previousThrow, last[match.active], debris.length,
-            !!(ball && ball.hits.length), sending, canInput(),
+            !!(ball && ball.hits.length), sending, inputMessage, canInput(),
             shell && shell.isPlaying(), isOnline() && online.canControl(), AC.i18n.locale,
             !isFree() && ['aim', 'charge'].includes(phase) ? Math.max(0, Math.ceil(R.WORLD.turnSeconds - time)) : 0,
             cleaning.active, cleaning.active && cleaning.active.cleared,
@@ -296,7 +311,7 @@
         const previous = last[match.active];
         putText('tt-last', previous ? material(previous) + ' · ' + t('ttLast', Math.round(previous.angle), Math.round(previous.power)) : t('ttNoLast'));
         $('tt-last-mark').hidden = !previous; if (previous) $('tt-last-mark').style.left = previous.power + '%';
-        const status = sending ? t('ttNetSending') : isOnline() && !online.canControl() && phase === 'aim' ? t('ttNetTurn') : result ? resultText() : phase === 'handoff' ? t('ttHandoff', playerName(match.active)) : phase === 'launch' ? t('ttLaunching') : phase === 'flight' ? t(ball && ball.hits.length ? 'ttHitContinue' : 'ttFlying') : isCpu() ? t('ttCpuAim') : t('ttAim');
+        const status = inputMessage || (sending ? t('ttNetSending') : isOnline() && !online.canControl() && phase === 'aim' ? t('ttNetTurn') : result ? resultText() : phase === 'handoff' ? t('ttHandoff', playerName(match.active)) : phase === 'launch' ? t('ttLaunching') : phase === 'flight' ? t(ball && ball.hits.length ? 'ttHitContinue' : 'ttFlying') : isCpu() ? t('ttCpuAim') : t('ttAim'));
         if ($('tt-status').textContent !== status) putText('tt-status', status);
         $('tt-ready').hidden = phase !== 'handoff'; $('tt-ready').disabled = !shell || !shell.isPlaying();
         putText('tt-clock', !practice && ['aim', 'charge'].includes(phase) && shell && shell.isPlaying() ? t('ttTime', Math.max(0, Math.ceil(R.WORLD.turnSeconds - time))) : '');
@@ -307,6 +322,7 @@
         const key = g.matchId + ':' + g.seq;
         const changed = key !== netKey;
         if (changed) {
+            pendingRelease = null; sending = false; inputMessage = '';
             cancelCharge(); netKey = key; netCache = null; result = null; trail = []; feedback = [];
             if (g.status === 'flight') { drag = null; view.follow(); AC.audio.play('click'); }
         }
@@ -402,7 +418,7 @@
     function render(force) {
         if (document.hidden || online && online.isOpen()) return;
         const now = window.performance ? window.performance.now() : worldTime * 1000;
-        const interval = 1000 / (motion.value === 'smooth' ? 60 : 30);
+        const interval = 1000 / 60;
         if (force !== true && now >= paintAt && now - paintAt < interval - .5) return;
         // Anchor the schedule instead of losing a whole frame to small RAF jitter.
         paintAt = force !== true && now >= paintAt && now - paintAt < interval * 2 ? paintAt + interval : now;
@@ -411,12 +427,12 @@
             binContents: R.binContents(scene, debris), players: isFree() ? 1 : 2, active: match.active,
             playerLabels: ['P1', match.config.mode === 'cpu' ? 'CPU' : 'P2'],
             practice: isFree(), qa: isQa(), countLabel: n => AC.i18n.locale === 'zh' ? n + '件' : n + (n === 1 ? ' item' : ' items'),
-            charging: phase === 'charge', aiming: ['aim', 'charge', 'handoff', 'launch'].includes(phase) });
+            charging: phase === 'charge', aiming: ['aim', 'charge', 'handoff', 'sending', 'launch'].includes(phase) });
     }
     // Capture before the shared shell: the Space that starts a game must not also charge it.
     window.addEventListener('keydown', e => {
         if (!shell) return;
-        if (isOnline() && phase === 'over' && ['Space', 'Enter'].includes(e.code)) { e.preventDefault(); e.stopImmediatePropagation(); online.open(); return; }
+        if (isOnline() && phase === 'over' && ['Space', 'Enter'].includes(e.code)) { e.preventDefault(); e.stopImmediatePropagation(); online.playAgain(); return; }
         const editing = e.target instanceof Element && e.target.closest('select, input, button') && e.target !== $('tt-throw');
         if (editing) { e.stopImmediatePropagation(); return; }
         if (online && online.isOpen()) { e.stopImmediatePropagation(); return; }
@@ -448,13 +464,12 @@
                 message: t(chosen().mode === 'qa' ? 'ttQaIntro' : 'ttIntro'), button: t('ttStart'), hint: setupLabel(chosen()) };
             if (state === 'over') return { badge: match.winner == null ? 'gamepad-2' : 'trophy',
                 title: match.winner == null ? t('ttDraw') : t('ttWinner', playerName(match.winner)),
-                message: t('ttFinal', match.scores[0], match.scores[1]) + (isOnline() && online.game().endReason ? ' · ' + t('ttNetLost') : ''), button: t('ttAgain'), hint: setupLabel(match.config) };
+                message: t('ttFinal', match.scores[0], match.scores[1]) + (isOnline() && online.game().endReason ? ' · ' + t(online.game().endReason === 'disconnected' ? 'ttNetExpired' : online.game().endReason === 'left' ? 'ttNetLeft' : 'ttNetLost') : ''), button: t('ttAgain'), hint: setupLabel(match.config) };
             return {};
         },
     });
     // The shell does not call reset during construction.
     reset(); render();
-    motion.addEventListener('change', () => { syncSettings(); paintAt = -Infinity; render(true); });
     Object.values(fields).forEach(field => field.addEventListener('input', () => { syncSettings(); shell.refreshOverlay(); }));
     $('tt-apply').addEventListener('click', () => {
         if (online && online.inRoom()) return;
@@ -492,20 +507,31 @@
     $('tt-throw').addEventListener('pointerdown', e => {
         if (e.button !== 0 || e.isPrimary === false || !canInput() || phase !== 'aim') return;
         e.preventDefault(); beginCharge('pointer'); pointerId = e.pointerId;
-        $('tt-throw').setPointerCapture(e.pointerId);
+        try { $('tt-throw').setPointerCapture(e.pointerId); } catch (_) { /* Window/touch release still works without capture. */ }
     });
-    window.addEventListener('pointerup', e => { if (charging === 'pointer' && e.pointerId === pointerId) release(); });
-    window.addEventListener('pointercancel', e => { if (e.pointerId === pointerId) { cancelCharge(); sync(); } });
-    $('tt-throw').addEventListener('lostpointercapture', () => { if (charging === 'pointer') { cancelCharge(); sync(); } });
+    window.addEventListener('pointerup', e => { if (charging === 'pointer' && e.pointerId === pointerId) release(); }, true);
+    window.addEventListener('touchend', e => { if (!e.touches.length && charging === 'pointer') release(); }, { capture: true, passive: true });
+    window.addEventListener('pointercancel', e => { if (e.pointerId === pointerId) interruptCharge(); }, true);
+    // Losing capture alone is not a cancelled gesture. Window pointerup/touchend
+    // still releases the throw; pointercancel or blur explicitly cancels it.
     $('tt-throw').addEventListener('contextmenu', e => e.preventDefault());
-    window.addEventListener('blur', () => { drag = null; cancelCharge(); if (shell.isPlaying()) shell.pause(); });
+    window.addEventListener('blur', () => { drag = null; if (phase === 'charge') interruptCharge(); else cancelCharge(); if (shell.isPlaying()) shell.pause(); });
     window.addEventListener('resize', () => { view.fit(); render(true); });
     if (window.createTrashTossOnline) {
         online = window.createTrashTossOnline({ settings: chosen,
-            message: text => { $('tt-status').textContent = text; },
+            message: text => { inputMessage = text; sync(); },
             onOpen() { cancelCharge(); if (!isOnline() && shell.isPlaying()) shell.pause(); },
-            onClose() { if (isOnline()) applyOnline(); shell.refreshOverlay(); sync(); render(true); },
-            onError() { cancelCharge(); sync(); },
+            onClose() { inputMessage = ''; if (isOnline()) applyOnline(); shell.refreshOverlay(); sync(); render(true); },
+            onError(text) { cancelCharge(); inputMessage = text; sync(); },
+            onConnection(connected, text) {
+                if (!online.inRoom()) return;
+                if (!connected) { cancelCharge(); inputMessage = text; }
+                else {
+                    if (inputMessage === t('ttNetReconnecting')) inputMessage = '';
+                    if (isOnline()) applyOnline();
+                }
+                sync();
+            },
             onChange(data) {
                 const g = data && data.game;
                 if (g && g.matchId) {
@@ -531,7 +557,7 @@
         $('tt-online-room').addEventListener('click', () => online.open());
         $('overlay-btn').addEventListener('click', e => {
             if (chosen().mode !== 'online' && !isOnline()) return;
-            e.preventDefault(); e.stopImmediatePropagation(); online.open();
+            e.preventDefault(); e.stopImmediatePropagation(); if (isOnline() && phase === 'over') online.playAgain(); else online.open();
         }, true);
     }
     AC.i18n.subscribe(() => { syncSettings(); sync(); render(true); });

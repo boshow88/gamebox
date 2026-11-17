@@ -69,7 +69,7 @@ node tools/trash-toss-session-check.js
 node tools/trash-toss-view-check.js
 node tools/trash-toss-room-check.js
 node tools/trash-toss-render-browser-check.js /usr/bin/google-chrome
-node tools/trash-toss-performance-check.js --quality=smooth --output=/tmp/trash-performance.json
+node tools/trash-toss-performance-check.js --output=/tmp/trash-performance.json
 node tools/trash-toss-network-performance-check.js
 node tools/trash-toss-performance-check.js --online --throttle=1 --output=/tmp/trash-online.json
 ```
@@ -77,6 +77,11 @@ node tools/trash-toss-performance-check.js --online --throttle=1 --output=/tmp/t
 For measured hotspots, comparisons with the former 60 FPS and 30 FPS versions,
 and limits of desktop measurements, see [Trash Toss performance](TRASH-TOSS-PERFORMANCE.md).
 The real-canvas check compares cached artwork with direct vector rendering.
+It also checks capture-loss/touchend release and removal of the former FPS setting.
+The two-page online fixture adds 200 ms snapshot delay, ack-before-snapshot input
+locking, continuous held-object rendering, temporary disconnect/submit retry,
+one-click rematch scene selection and explicit removed-room recovery; see
+[the room and input fixes](TRASH-TOSS-ROOM-FIXES.md).
 
 The dependency-free check executes the actual rules: reproducible flight and CPU
 intent, fixed substeps, descending whole-object aperture crossings, rim/side
@@ -211,7 +216,7 @@ Both return to the thrower on release. On a phone the whole living room must fit
 without dragging, including both bins, mother, crawling baby and wall rat.
 
 Performance checks: the session fixture drives a 120 Hz mobile render schedule
-while retaining 60 Hz simulation; paints must stay at 30 FPS and charge must still
+while retaining 60 Hz simulation; paints must stay at 60 FPS and charge must still
 reach 100 after 1.3 seconds. The view fixture verifies backing pixels fit CSS size
 at up to 2x density, scenery layers are reused between frames, and resize/scene
 changes rebuild the cached layer. Verify on an actual iPhone Safari: sustained
