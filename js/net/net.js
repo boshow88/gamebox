@@ -1,5 +1,7 @@
 import { createFeedbackService } from './feedback.mjs';
 import { createAnnouncementService } from './announcements.mjs';
+// TEMPORARY AUTH A/B TEST: docs/AUTH-AB-TEST.md
+import { authABTest } from './auth-ab-test.mjs';
 
 /*
  * ArcadeNet — thin Firebase layer for online play (ES module, no build step).
@@ -37,14 +39,15 @@ function fail(err) {
             import(`${BASE}/firebase-app.js`), import(`${BASE}/firebase-auth.js`),
         ]);
         const {
-            initializeAuth, indexedDBLocalPersistence, browserLocalPersistence, browserSessionPersistence,
+            getAuth, initializeAuth, indexedDBLocalPersistence, browserLocalPersistence, browserSessionPersistence,
             onAuthStateChanged, signInAnonymously, signOut,
             GoogleAuthProvider, signInWithPopup, browserPopupRedirectResolver,
         } = authMod;
         const app = initializeApp(window.FIREBASE_CONFIG);
         // Preserve the usual storage fallbacks. Popup support is supplied only when
         // requested, avoiding an eager cross-origin auth iframe during restoration.
-        const auth = initializeAuth(app, {
+        // TEMPORARY AUTH A/B TEST: B restores the pre-6897781 SDK defaults.
+        const auth = authABTest.mode === 'B' ? getAuth(app) : initializeAuth(app, {
             persistence: [indexedDBLocalPersistence, browserLocalPersistence, browserSessionPersistence],
         });
         let user; // undefined = restoring, null = confirmed signed out
@@ -58,7 +61,7 @@ function fail(err) {
                 return () => authCbs.delete(fn);
             },
             currentUser() { return user || null; },
-            signInGoogle() { return signInWithPopup(auth, new GoogleAuthProvider(), browserPopupRedirectResolver); },
+            signInGoogle() { return authABTest.signIn(() => signInWithPopup(auth, new GoogleAuthProvider(), browserPopupRedirectResolver)); },
             async signInGuest() {
                 // A fast online/feedback action must not replace a still-restoring
                 // Google session with an anonymous account.
@@ -82,6 +85,8 @@ function fail(err) {
         });
         window.ArcadeAuth = account;
         window.dispatchEvent(new CustomEvent('arcade-auth-ready'));
+
+        authABTest.connect(account); // TEMPORARY AUTH A/B TEST
 
         const loaded = await firestoreLoad;
         if (loaded.error) throw loaded.error;

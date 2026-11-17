@@ -1,5 +1,13 @@
 # Debug & dev affordances
 
+## Temporary Google login A/B test
+
+The homepage account menu currently includes **登入 A/B 測試（暫時）** for the
+iOS Home Screen login regression. See [test steps, exact changes and clean removal](AUTH-AB-TEST.md).
+Default behavior remains A until a device explicitly selects B.
+Run `node tools/auth-startup-audit.js` and
+`node tools/auth-ab-browser-check.js /usr/bin/google-chrome` for local checks.
+
 A running list of the non-shipping dev surface in the project.
 
 The per-game debug / demo **URL flags** (`?hashi_debug`, `?sudoku_demo`,
