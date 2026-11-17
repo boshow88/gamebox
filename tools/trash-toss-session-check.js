@@ -66,12 +66,21 @@ function fixture(mobile = false) {
     };
 }
 const phone = fixture(true);
+assert.equal(phone.get('tt-motion').value, 'smooth', 'Phones default to the optimized 60 FPS path');
+phone.get('tt-motion').value = 'smooth'; phone.get('tt-motion').fire('change');
 phone.get('tt-mode').value = 'practice'; phone.get('tt-apply').fire('click'); phone.shell.start();
 const beforePaint = phone.renders(); phone.pointer('pointerdown'); phone.highRefresh(1.3);
-assert.ok(phone.renders() - beforePaint <= 40, 'A 120 Hz mobile screen paints at most 30 frames per second');
-assert.ok(phone.renders() - beforePaint >= 38, 'Mobile animation still advances regularly');
-assert.equal(phone.get('tt-power-value').textContent, 100, 'Charge keeps 60 Hz timing despite reduced painting');
+assert.ok(phone.renders() - beforePaint <= 79, 'A 120 Hz mobile screen paints at most 60 frames per second');
+assert.ok(phone.renders() - beforePaint >= 77, 'Mobile animation keeps a 60 FPS target');
+assert.equal(phone.get('tt-power-value').textContent, 100, 'Charge keeps fixed 60 Hz simulation timing');
 phone.pointer('pointerup'); phone.tick(1 / 30); assert.ok(phone.model().ball, 'Mobile release still launches normally');
+const flyingAt = phone.model().time, roundAt = phone.get('tt-round').textContent;
+phone.get('tt-motion').value = 'efficient'; phone.get('tt-motion').fire('change');
+const beforeEfficient = phone.renders(); phone.highRefresh(.5);
+assert.ok(phone.renders() - beforeEfficient <= 16, 'Battery saver caps high-refresh painting at 30 FPS');
+assert.ok(phone.renders() - beforeEfficient >= 14);
+assert.ok(phone.model().time > flyingAt, 'Changing animation mode preserves the running physics clock');
+assert.equal(phone.get('tt-round').textContent, roundAt, 'Animation preference does not reset the match');
 const f = fixture();
 assert.equal(f.get('tt-scene').value, 'office', 'Each page starts at the office despite old scene preferences');
 f.get('tt-scene').value = 'park'; f.get('tt-apply').fire('click'); f.shell.start();

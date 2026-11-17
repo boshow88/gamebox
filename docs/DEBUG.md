@@ -68,7 +68,15 @@ node tools/trash-toss-check.js
 node tools/trash-toss-session-check.js
 node tools/trash-toss-view-check.js
 node tools/trash-toss-room-check.js
+node tools/trash-toss-render-browser-check.js /usr/bin/google-chrome
+node tools/trash-toss-performance-check.js --quality=smooth --output=/tmp/trash-performance.json
+node tools/trash-toss-network-performance-check.js
+node tools/trash-toss-performance-check.js --online --throttle=1 --output=/tmp/trash-online.json
 ```
+
+For measured hotspots, comparisons with the former 60 FPS and 30 FPS versions,
+and limits of desktop measurements, see [Trash Toss performance](TRASH-TOSS-PERFORMANCE.md).
+The real-canvas check compares cached artwork with direct vector rendering.
 
 The dependency-free check executes the actual rules: reproducible flight and CPU
 intent, fixed substeps, descending whole-object aperture crossings, rim/side

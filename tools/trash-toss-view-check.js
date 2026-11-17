@@ -39,8 +39,8 @@ function render() {
     return -translations[0][0];
 }
 render();
-assert.equal(layers.length, 1); const firstBackdrop = layers[0];
-render(); assert.equal(layers.length, 1, 'A second frame reuses static scenery');
+assert.ok(layers.length > 1); const firstBackdrop = layers[0], initialLayers = layers.length;
+render(); assert.equal(layers.length, initialLayers, 'A second frame reuses scenery, bin artwork and the overview ruler');
 assert.ok(blits >= 2, 'Cached scenery is blitted into each rendered frame');
 assert.ok(canvas.width <= canvas.parentElement.clientWidth * 2, 'Mobile backing pixels follow the displayed CSS width');
 view.panBy(-5000, 100);

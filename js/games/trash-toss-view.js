@@ -3,8 +3,10 @@
     'use strict';
     const R = root.TrashTossRules, W = R.WORLD;
     function create(canvas) {
-        let ctx = canvas.getContext('2d');
+        // The stage is fully painted; an opaque canvas avoids an alpha compositing layer.
+        let ctx = canvas.getContext('2d', { alpha: false });
         let backdrop = null, backdropScene = '', pixelScale = 1;
+        let binLayers = new WeakMap(), personLayers = new Map(), restingLayers = new WeakMap(), ruler = null;
         let portrait = false, qa = false, cameraX = 0, cameraY = 0, manual = false, lastTime = null, wasFlying = false;
         let worldWidth = W.width, layout = R.SCENES.office, overviewGrab = null;
         const overviewHeight = 68;
@@ -26,6 +28,7 @@
             canvas.height = Math.round((frameHeight() + (cameraEnabled() ? overviewHeight : 0)) * pixelScale);
             ctx.setTransform(pixelScale, 0, 0, pixelScale, 0, 0);
             backdrop = null; backdropScene = '';
+            binLayers = new WeakMap(); personLayers = new Map(); restingLayers = new WeakMap(); ruler = null;
             lastTime = null;
         }
         function follow() {
@@ -79,6 +82,18 @@
         function text(value, x, y, size, color, align) {
             ctx.font = '600 ' + size + 'px system-ui, sans-serif'; ctx.fillStyle = color;
             ctx.textAlign = align || 'left'; ctx.fillText(value, x, y);
+        }
+        function visible(x, radius) { return x + radius >= cameraX && x - radius <= cameraX + frameWidth(); }
+        function layer(left, top, width, height, paint) {
+            const canvas = root.document.createElement('canvas');
+            canvas.width = Math.ceil(width * pixelScale); canvas.height = Math.ceil(height * pixelScale);
+            const main = ctx;
+            ctx = canvas.getContext('2d'); ctx.setTransform(pixelScale, 0, 0, pixelScale, -left * pixelScale, -top * pixelScale);
+            try { paint(); } finally { ctx = main; }
+            return { canvas, left, top, width: canvas.width / pixelScale, height: canvas.height / pixelScale };
+        }
+        function blit(sprite, x = sprite.left, y = sprite.top) {
+            ctx.drawImage(sprite.canvas, x, y, sprite.width, sprite.height);
         }
         function plant(x, y) {
             line([[x, y], [x - 4, y - 64]], '#63816c', 5);
@@ -244,6 +259,17 @@
             }
             ctx.restore();
         }
+        function drawPlayer(box, time, thrower, charging) {
+            if (!root.document) { person(box, time, thrower, charging); return; }
+            // Throwers and waiting players have a fixed pose (no walking stride).
+            const key = [box.role, box.player, thrower, charging].join(':');
+            let sprite = personLayers.get(key);
+            if (!sprite) {
+                sprite = layer(-32, W.floor - 136, 80, 148, () => person({ ...box, x: 0 }, time, thrower, charging));
+                personLayers.set(key, sprite);
+            }
+            blit(sprite, box.x - 32, W.floor - 136);
+        }
         function obstacle(box, time) {
             const x = box.x, y = W.floor - box.y;
             if (box.id === 'baby') {
@@ -308,8 +334,19 @@
                 if (bin.metal) for (const row of [.3, .7]) rect(x - width / 2 + 3, y + bin.height * row, width - 6, 4, color + 'b0', 2);
                 if (bin.metal) { ctx.strokeStyle = '#829b96'; ctx.lineWidth = 3; ctx.beginPath(); ctx.ellipse(x, y, width / 2, 5, 0, 0, Math.PI * 2); ctx.stroke(); }
                 text(String(bin.points), x, y - 12, 22, color, 'center');
-                text(countLabel(contents.count), x, base + 25, 16, '#45685b', 'center');
+                if (contents) text(countLabel(contents.count), x, base + 25, 16, '#45685b', 'center');
             }
+        }
+        function drawBin(b, front, contents, countLabel) {
+            if (!visible(b.x, b.width / 2 + 40)) return;
+            if (!root.document) { bin(b, front, contents, countLabel); return; }
+            let layers = binLayers.get(b);
+            if (!layers) { layers = {}; binLayers.set(b, layers); }
+            const key = front ? 'front' : 'back';
+            if (!layers[key]) layers[key] = layer(b.x - b.width / 2 - (front ? 8 : 24), W.floor - (b.y || 0) - b.height - 42,
+                b.width + (front ? 16 : 48), b.height + (front ? 52 : (b.y || 0) + 84), () => bin(b, front));
+            blit(layers[key]);
+            if (front) text(countLabel(contents.count), b.x, W.floor - (b.y || 0) + 25, 16, '#45685b', 'center');
         }
         function trash(item, x, y, rotation) {
             ctx.save(); ctx.translate(x, y); ctx.rotate(rotation || 0);
@@ -447,30 +484,45 @@
             ctx.restore();
         }
         function body(scene, item) {
+            if (!visible(item.x, 48)) return;
             const inside = !scene.freeFlight && scene.bins.find(bin => Math.abs(item.x - bin.x) <= bin.width / 2 - 6 && item.y >= (bin.y || 0) && item.y <= (bin.y || 0) + bin.height);
             ctx.save();
             if (inside) {
                 ctx.beginPath(); ctx.rect(inside.x - inside.width / 2 + 6, 0, inside.width - 12, W.floor - (inside.y || 0) - W.binFloor); ctx.clip();
             }
-            trash(item.item, item.x, W.floor - item.y, item.rotation); ctx.restore();
+            if (item.resting && root.document) {
+                let cached = restingLayers.get(item);
+                if (!cached || cached.item !== item.item || cached.rotation !== item.rotation) {
+                    cached = { item: item.item, rotation: item.rotation, sprite: layer(-32, -32, 64, 64, () => trash(item.item, 0, 0, item.rotation)) };
+                    restingLayers.set(item, cached);
+                }
+                blit(cached.sprite, item.x - 32, W.floor - item.y - 32);
+            } else trash(item.item, item.x, W.floor - item.y, item.rotation);
+            ctx.restore();
         }
-        function overview(model) {
+        function overview(model, boxes) {
             const y = W.height, width = frameWidth(), scale = width / worldWidth;
             rect(0, y, width, overviewHeight, '#e7e9da');
             const x = cameraX * scale;
             rect(x + 1, y + 5, width * scale - 2, 40, '#9fbdae35', 5);
             ctx.strokeStyle = '#688f7f88'; ctx.lineWidth = 1;
             ctx.strokeRect(x + 1, y + 5, width * scale - 2, 40);
-            line([[12, y + 38], [width - 12, y + 38]], '#93a697', 2);
-            for (let distance = 0; distance <= worldWidth - 96; distance += worldWidth > W.width ? 400 : 200) {
-                const tick = (96 + distance) * scale;
-                line([[tick, y + 44], [tick, y + 49]], '#95a899', 1);
-                text(String(distance), tick, y + 63, 14, '#71877a', 'center');
-            }
+            const drawRuler = () => {
+                line([[12, y + 38], [width - 12, y + 38]], '#93a697', 2);
+                for (let distance = 0; distance <= worldWidth - 96; distance += worldWidth > W.width ? 400 : 200) {
+                    const tick = (96 + distance) * scale;
+                    line([[tick, y + 44], [tick, y + 49]], '#95a899', 1);
+                    text(String(distance), tick, y + 63, 14, '#71877a', 'center');
+                }
+            };
+            if (root.document) {
+                if (!ruler) ruler = layer(0, y + 36, width, overviewHeight - 36, drawRuler);
+                blit(ruler);
+            } else drawRuler();
             for (const p of model.debris) circle(p.x * scale, y + 37 - Math.min(24, p.y * .05), 2.5, '#8a9280');
             if (model.trail && model.trail.length) line(model.trail.map(p => [p.x * scale, y + 37 - R.clamp(p.y * .05, 0, 24)]), '#4b8b7790', 2);
             circle(96 * scale, y + 37, 5, '#3e8c7b');
-            for (const box of R.obstacles(model.scene, model.time)) {
+            for (const box of boxes) {
                 if (['boss', 'walker', 'worker', 'worker-far', 'cleaner', 'bird'].includes(box.id)) circle(box.x * scale, y + (box.id === 'bird' ? 12 : 33), box.id === 'cleaner' ? 5 : 4, box.id === 'cleaner' ? '#478aa0' : '#8e9b9b');
             }
             for (const b of model.scene.bins) {
@@ -487,6 +539,7 @@
             if (qa !== !!model.qa || worldWidth !== R.fieldWidth(scene) || layout !== R.SCENES[scene.scene]) { qa = !!model.qa; worldWidth = R.fieldWidth(scene); layout = R.SCENES[scene.scene]; fit(); }
             const width = track(model);
             const height = frameHeight();
+            const boxes = R.obstacles(scene, model.time);
             ctx.save(); ctx.beginPath(); ctx.rect(0, 0, width, height); ctx.clip(); ctx.translate(-cameraX, -cameraY);
             rect(cameraX, cameraY, width, height, !layout.outdoor ? '#efe6d9' : '#d7e9e5');
             drawBackground(scene);
@@ -512,15 +565,17 @@
             if (model.reference) {
                 ctx.setLineDash([2, 7]); line(model.reference.map(p => [p.x, W.floor - p.y]), '#467eafb0', 2); ctx.setLineDash([]);
             }
-            scene.bins.forEach(b => bin(b, false));
-            if (model.players === 2) {
+            scene.bins.forEach(b => drawBin(b, false));
+            if (model.players === 2 && visible(22, 80)) {
                 ctx.save(); ctx.translate(22, W.floor); ctx.scale(.78, .78); ctx.translate(-22, -W.floor);
-                person({ x: 22, player: 1 - model.active, waiting: true, role: scene.thrower }, model.time, false, false); ctx.restore();
+                drawPlayer({ x: 22, player: 1 - model.active, waiting: true, role: scene.thrower }, model.time, false, false); ctx.restore();
                 text(model.playerLabels[1 - model.active], 23, W.floor + 27, 14, '#38564d', 'center');
             }
-            person({ x: scene.thrower === 'child' ? 69 : 59, player: model.active, role: scene.thrower }, model.time, true, model.charging);
-            text(model.playerLabels[model.active], 73, W.floor + 27, 15, model.active ? '#47638b' : '#2e6657', 'center');
-            if (model.aiming) {
+            if (visible(73, 100)) {
+                drawPlayer({ x: scene.thrower === 'child' ? 69 : 59, player: model.active, role: scene.thrower }, model.time, true, model.charging);
+                text(model.playerLabels[model.active], 73, W.floor + 27, 15, model.active ? '#47638b' : '#2e6657', 'center');
+            }
+            if (model.aiming && visible(96, 80)) {
                 const angle = model.angle * Math.PI / 180;
                 const launchY = scene.launchY || layout.launchY;
                 ctx.setLineDash([5, 7]); line([[96, W.floor - launchY], [96 + Math.cos(angle) * 72, W.floor - launchY - Math.sin(angle) * 72]], '#315d51', 2); ctx.setLineDash([]);
@@ -539,9 +594,10 @@
                     trash(b.item, x, cameraY + 40, b.rotation);
                 }
             }
-            scene.bins.forEach(b => bin(b, true, model.binContents[b.id], model.countLabel));
+            scene.bins.forEach(b => drawBin(b, true, model.binContents[b.id], model.countLabel));
             // Actors occupy one foreground layer, never between the bin's back and front.
-            R.obstacles(scene, model.time).forEach(box => {
+            boxes.forEach(box => {
+                if (!visible(box.x, box.width / 2 + 80)) return;
                 ctx.save(); if (box.id === 'umbrella') ctx.globalAlpha = Math.min(1, rain / .22);
                 obstacle(box, model.time); ctx.restore();
             });
@@ -563,7 +619,7 @@
                 }
             }
             ctx.restore();
-            if (cameraEnabled()) overview(model);
+            if (cameraEnabled()) overview(model, boxes);
         }
         fit(); return { fit, render, follow, beginPan, panBy, canPan: cameraEnabled, isPortrait: () => portrait };
     }

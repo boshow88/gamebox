@@ -1,0 +1,140 @@
+# 丟垃圾：單機效能量測與優化（2026-11-17）
+
+本次涵蓋單機及多人，測量實際 Canvas 繪製、控制器更新、DOM 變更與瀏覽器工作時間。
+「畫面」預設為 **流暢・60 FPS**，需要省電時可手動改成 **省電・30 FPS**。
+選擇會保存在此裝置，不必重開對局，也不影響分數、房間設定、CPU 難度或物理速度。
+兩種模式都套用本次優化，畫布像素密度上限保持 2x。
+
+## 找到的工作與處理方式
+
+| 工作 | 是否需要 | 本次處理 |
+| --- | --- | --- |
+| 物理、碰撞、回合與清潔判定 | 需要 | 維持每秒 60 次更新，每次四個物理小步；規則檔未修改 |
+| 角色移動、飛行、鏡頭、風雨 | 需要 | 依所選畫面頻率更新繪圖，保留實際遊戲狀態 |
+| 沒變的 HUD 標籤及 hidden/disabled 屬性 | 不必重寫 | 狀態改變才同步；蓄力與角度只更新自己的控制項 |
+| 桶身、刻度、固定姿勢的玩家、靜止垃圾 | 不必每幀重算向量圖形 | 快取小型圖片，場景、解析度、姿勢或旋轉變更時重建 |
+| 鏡頭外的完整角色、垃圾、桶 | 不必繪製 | 先檢查範圍再畫；碰撞與全場小圖仍包含它們 |
+| 全場小圖再次計算同一幀障礙物 | 不必 | 與主畫面共用該幀的幾何資料 |
+| 每次蓄力變更進度條寬度 | 不必引發寬度布局變更 | 固定寬度，使用 scaleX 顯示蓄力比例 |
+| 大面積透明快取邊界 | 不必 | 縮小圖片範圍，降低透明像素拷貝與記憶體成本 |
+
+Canvas 的靜態圖形快取、適當畫布尺寸與不需要透明時使用不透明繪圖表面，
+也是 [MDN 的 Canvas 效能建議](https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API/Tutorial/Optimizing_canvas)。
+這裡使用標準 Canvas，不需要額外套件。
+桶與垃圾的快取使用 WeakMap，避免長時間自由練習時把舊回合的圖片一直留在記憶體。
+
+未開始或暫停時，原本的遊戲迴圈已經停止；這不是本次新增的省電效果。
+單機未開啟連線房間時，房間服務的輪詢尚未啟動。測試以本地替身停用 Firebase，
+避免把帳號／網路變動混進單機畫面量測。
+
+## 如何重跑
+
+需要 Node.js 與 Chrome；不需要真實帳號，不會存取正式 Firebase。
+
+```bash
+# 發燙問題優化前：原先目標 60 FPS、畫布過大且每幀畫完整場景
+node tools/trash-toss-performance-check.js --revision=df0f60a --output=/tmp/trash-original60.json
+# 昨天的手機限速版本：30 FPS
+node tools/trash-toss-performance-check.js --revision=7f094e8 --output=/tmp/trash-before30.json
+# 本次版本：分別測試流暢與省電
+node tools/trash-toss-performance-check.js --quality=smooth --output=/tmp/trash-smooth60.json
+node tools/trash-toss-performance-check.js --quality=efficient --output=/tmp/trash-efficient30.json
+# 遊戲行為及實際像素比較
+node tools/trash-toss-session-check.js
+node tools/trash-toss-view-check.js
+node tools/trash-toss-render-browser-check.js /usr/bin/google-chrome
+node tools/trash-toss-room-check.js
+```
+
+Chrome 路徑可用 `--chrome=/path/to/chrome`，CPU 倍率可用 `--throttle=4`，
+裝置 DPR 可用 `--dpr=2`。歷史比較只替換丟垃圾的控制器、繪圖器、規則和 CSS，
+其餘測試頁與測試儀器相同。測試插樁只存在於本地測試伺服器，不會加入正式遊戲。
+應依序執行效能量測，避免其他壓力測試或瀏覽器同時搶 CPU。
+
+## 本次結果
+
+使用桌面 headless Chrome、390×844、DPR 2、CPU 四倍降速、固定場景種子 42。
+每項先暖機約 350 ms，再測兩秒。街頭與工地壓力測試放置 40 件靜止垃圾。
+CPU 降速是[瀏覽器的效能測試工具](https://developer.chrome.com/docs/devtools/performance/overview/)，
+不能當成某款 iPhone 的硬體或 Safari 模擬。
+
+| 場景／狀態 | 原始 60 目標版 | 昨天限 30 版 | 新省電模式 | 新流暢模式 |
+| --- | ---: | ---: | ---: | ---: |
+| 辦公室／未開始 | 0.0 FPS | 0.0 FPS | 0.0 FPS | 0.0 FPS |
+| 辦公室／瞄準 | 47.4 FPS | 27.9 FPS | 30.0 FPS | 60.0 FPS |
+| 辦公室／蓄力 | 47.6 FPS | 27.5 FPS | 30.0 FPS | 60.0 FPS |
+| 辦公室／飛行 | 53.0 FPS | 27.0 FPS | 30.0 FPS | 59.5 FPS |
+| 街頭／40 件垃圾 | 38.0 FPS | 27.5 FPS | 30.0 FPS | 59.5 FPS |
+| 工地／40 件垃圾 | 47.4 FPS | 29.0 FPS | 30.0 FPS | 60.0 FPS |
+
+下面是同一段兩秒測試的瀏覽器主執行緒工作時間（毫秒）；不是溫度或耗電量。
+
+| 場景／狀態 | 原始 60 目標版 | 昨天限 30 版 | 新省電模式 | 新流暢模式 |
+| --- | ---: | ---: | ---: | ---: |
+| 辦公室／瞄準 | 2024 | 466 | 475 | 887 |
+| 辦公室／蓄力 | 2026 | 586 | 608 | 1039 |
+| 辦公室／飛行 | 2015 | 440 | 469 | 810 |
+| 街頭／40 件垃圾 | 2056 | 719 | 708 | 1352 |
+| 工地／40 件垃圾 | 2025 | 569 | 498 | 924 |
+
+狀態列 DOM 變更（每兩秒）：昨天的瞄準狀態約 900 次 → 0 次；蓄力約 1,200 次 → 180 次。
+這是單次短測，時間數字有執行環境波動，應用來定位成本與比較方向。
+
+原始數據在 [trash-toss-performance-results.json](trash-toss-performance-results.json)。
+FPS 是 Canvas 實際繪圖呼叫頻率，不是實體螢幕呈現率。每幀成本是 JavaScript
+提交繪圖指令的時間；巢狀計時不可全部相加。瀏覽器 TaskDuration 也包含其他主執行緒工作，
+但不等於整支手機 CPU/GPU、瓦數或溫度。
+
+重要取捨：優化後 60 FPS 比原始 60 FPS 版本有效率，但增加刷新次數仍有成本，
+不能聲稱它比限速 30 FPS 版更省電。依使用者偏好以 60 FPS 為主要目標，30 FPS 僅保留為手動省電選項。
+畫布清晰度沒有為了提高數字而繼續降低。
+
+固定像素比較跑過五個場景、50 種靜止物件、快取重用／失效、玩家姿勢、平移與 QA 尺寸切換，
+共 30 組。快取與直接向量繪圖的最大平均色差為 0.721/255；色差超過 32 的像素最多 0.59%，
+主要是小幅反鋸齒差異。控制器測試確認 120 Hz 螢幕分別遵守 60／30 FPS 上限，
+切換時物理時間繼續、回合不重置，原有計分與雙方同步測試也通過。
+
+## 另一個一次性重工作：電腦思考
+
+`cpuPlan()` 每個電腦回合模擬 277 個候選投擲，測得辦公室約 0.42 秒、工地約 0.76 秒
+（同樣為四倍 CPU 降速環境）。它不是每幀執行，但仍可能造成電腦換手時的短暫停頓。
+本次保留其既有策略及物理結果；這項成本獨立列在 JSON 的 `cpuPlanning`，
+沒有用平均 FPS 掩蓋，也沒有把它誤當成持續繪圖的熱源。
+
+## 真機確認
+
+用同一台 iPhone、相同亮度、充電狀態、場景和操作順序，各遊玩省電／流暢模式數分鐘，
+比較流暢度、發燙感與電量下降。需要在開始溫度相近時比較，先測自由練習，再測挑戰電腦。
+本地結果支持減少重複工作，尚未證明手機溫度下降多少。
+
+## 多人連線的追加優化與驗證
+
+共用的繪圖快取、鏡頭範圍裁切、HUD 差異更新與 60 FPS 排程，同樣套用到真人連線。
+此外針對連線流程處理了：
+
+- 全場沒有飛行物／移動垃圾時，直接把世界時間推進到下一個清潔事件或顯示時間，
+  跳過不會改變狀態的物理重播。清除、離場、下次清潔的觸發 tick 保持一致。
+- 在線心跳等內容未變的快照仍更新大廳連線狀態，但不再重跑遊戲設定、寫入偏好或強制同步 HUD。
+- 房間視窗蓋住場地時，停止當地畫面的重播；關閉視窗時先重建當前狀態再畫。
+  期限檢查、在線心跳與對手遊戲持續進行。
+
+這些改動沒有降低碰撞頻率、延長心跳間隔或省略同步資料。物理移動時仍逐格模擬。
+
+```bash
+node tools/trash-toss-network-performance-check.js --output=/tmp/trash-network.json
+node tools/trash-toss-performance-check.js --online --room-revision=7f094e8 --throttle=1 --output=/tmp/trash-online-before.json
+node tools/trash-toss-performance-check.js --online --throttle=1 --output=/tmp/trash-online-after.json
+```
+
+固定資料的差異測試涵蓋五個場景、靜止與移動垃圾、桶滿清潔、浮點時間邊界與飛行，
+275 組快照／軌跡與舊版完全一致。辦公室靜止世界補播 60 秒時，清潔判斷由 3,600 次降為 1 次；
+有移動物體時的碰撞更新次數相同。
+
+兩個實際遊戲頁面以本地 RTDB 替身連線，加入 200 ms 快照延遲。兩頁在瞄準與飛行階段均約
+60 FPS；20 次重複快照原本造成每頁 20 次遊戲回呼及 20 次偏好寫入，現在皆為 0。
+房主開啟房間視窗的採樣期間，其場地繪圖與當地重播皆為 0；對手仍約 60 FPS。
+開房、加入、準備、出手、回合／分數一致、離開判勝與回大廳換圖都通過；首次可見出手位置為 x=96、age=0。
+
+多人數據在 [trash-toss-network-performance-results.json](trash-toss-network-performance-results.json)。
+這是同一桌面 Chrome 裡的兩個 375×812 頁面、DPR 2，沒有 CPU 降速；不能當成兩台 iPhone 的實測。
+單機表格的四倍降速數字應獨立解讀。

@@ -705,27 +705,43 @@ Launcher sorting keeps coloured cards in hue order and groups neutral colours
 
 Angles are 15–80 degrees. Charge uses a triangle wave, 0–100–0, with 1.3 seconds
 per sweep. The shared 1/60-second update uses four 1/240-second physics substeps.
-Rendering is independently capped at 30 FPS for narrow/coarse-pointer devices
-and 60 FPS otherwise, including high-refresh displays. Physics and charge still
-update at 60 Hz; canvas rendering, HUD refresh and simulation clocks are separate.
+Rendering is independently capped by the device-local Animation preference:
+Battery saver at 30 FPS or Smooth at 60 FPS, including high-refresh displays.
+All devices default to Smooth; Battery saver remains an explicit local choice.
+The preference is saved with local game prefs, takes effect immediately without
+resetting a match, stays editable during online play, and is excluded from room
+settings and score keys. Physics and charge still update at 60 Hz; canvas rendering,
+HUD refresh and simulation clocks are separate. Frame deadlines are accumulated
+to avoid losing an entire frame to small RAF timing jitter.
 Canvas backing dimensions follow its displayed CSS width at up to 2x density,
 rather than logical map width times device density. This also bounds long-map QA
-backing pixels on phones. Static scene art is cached in one offscreen canvas and
-rebuilt on scene/resolution changes; camera, actors, bins/contents, weather and
-throws remain dynamic. The capped renderer avoids model/bin-content work on
+backing pixels on phones. The fully painted stage uses an opaque context. Static
+scene art, bin artwork, fixed player poses, the overview ruler and resting trash
+use bounded offscreen image caches. Scene/resolution changes clear the caches;
+resting-item pose changes invalidate that item's weakly held cache. Bin and debris
+objects use WeakMap keys so old rounds cannot accumulate retained sprites. Compact sprite
+bounds avoid copying large transparent areas. Counts and moving actors remain
+dynamic; main and overview views share each frame's obstacle geometry. Objects
+outside the camera are skipped by the artwork renderer, never by physics or the
+overview. The capped renderer avoids model/bin-content work on
 skipped frames and suppresses painting while the room dialog covers the field or
 the document is hidden. HUD updates are capped at 30 Hz, unchanged text is not
-rewritten, element references are cached, and next-round scenarios are cached.
+rewritten, and a state comparison skips unchanged attributes and controls too.
+Angle/charge changes update only their controls, with a transform for the power
+bar rather than changing its width. Element references and next-round scenarios
+are cached.
 Input events still update controls immediately and manual camera pans force a
 paint. No shared arcade-loop or physics tuning is changed.
 
-A 375x812, DPR=3 headless Chromium check measured a displayed 335px office field
+The initial 2026-11-16 optimization's 375x812, DPR=3 headless Chromium check measured a displayed 335px office field
 at 670x566 backing pixels versus 1440x1216 previously (about 78% fewer backing
 pixels), with approximately 30 paints/s. Warm 120-frame main-canvas fill/stroke/
 text/blit calls fell from 19,440 to 12,360 for the sampled scene. These measure
 render workload in a desktop browser with mobile dimensions, not iPhone power
 consumption, Safari performance or temperature. Physical-device thermal checks
 remain necessary.
+See [the subsequent 2026-11-17 measurements](TRASH-TOSS-PERFORMANCE.md) for current
+results, the 30/60 FPS tradeoff, image equivalence checks and reproducible tools.
 
 Gravity and launch speeds are increased together for roughly 1.6x faster flight
 without simply flattening the arc; result presentation lasts 0.45 seconds.
@@ -857,8 +873,17 @@ record. Generic bests are personal records, not a public leaderboard. Online mat
 Network inputs reserve a shared launch about 400 ms in the future so peers have
 time to receive the event before flight begins. During the `launch` presentation
 phase controls are locked and the object stays at the hand while the world clock
-continues. The first launched frame forces a paint; normal mobile rendering then
-returns to 30 FPS. Offline release and physics constants are unchanged.
+continues. The first launched frame forces a paint; normal rendering then follows
+the device-local 30/60 FPS preference. Offline release and physics constants are unchanged.
+Online replay skips stable-world ticks until the next exact cleaning event when
+there is no flying ball or moving debris. Every collision step remains intact;
+shared launch ticks and cleanup timing match the pre-optimization policy. Quiet
+world proofs use WeakMap storage and are invalidated by scene/body/state changes.
+Presence-only room snapshots update the lobby without invoking the game's settings
+and HUD callbacks. The 250 ms deadline checks and 3-second heartbeat interval are
+unchanged. A hidden/covered online field suspends only its local replay; room
+presence/deadlines stay active, and closing the room dialog projects the current
+authoritative state before drawing.
 See [ROOMS.md](ROOMS.md#trash-toss-rooms) for protocol and deployment requirements. Checks live in [DEBUG.md](DEBUG.md#trash-toss-checks).
 
 Physics QA uses `qa:true`, removes actors/old debris and never submits scores.

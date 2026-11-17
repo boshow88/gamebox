@@ -66,7 +66,7 @@ body { --game-color: #92969e; }
 #tt-angle { width: 100%; min-width: 0; height: 32px; accent-color: var(--game-color); }
 .tt-control-note { color: var(--text-muted); font-size: .72rem; margin-top: 9px; min-height: 18px; }
 .tt-power-meter { position: relative; height: 22px; margin: 7px 0; border-radius: 5px; background: repeating-linear-gradient(90deg, transparent 0, transparent calc(10% - 1px), #ffffff18 calc(10% - 1px), #ffffff18 10%), var(--bg-tertiary); }
-#tt-power-fill { display: block; height: 100%; width: 0; border-radius: inherit; background: linear-gradient(90deg, #59c6ad, #e9c371); }
+#tt-power-fill { display: block; height: 100%; width: 100%; transform: scaleX(0); transform-origin: left; border-radius: inherit; background: linear-gradient(90deg, #59c6ad, #e9c371); }
 #tt-last-mark { position: absolute; top: -4px; bottom: -4px; width: 2px; background: #fff; opacity: .65; }
 .tt-throw { display: flex; flex-direction: column; justify-content: center; gap: 4px; height: 92px; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
 .tt-throw .icon { width: 22px; height: 22px; }

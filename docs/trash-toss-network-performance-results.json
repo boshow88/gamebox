@@ -1,0 +1,1366 @@
+{
+  "date": "2026-11-17",
+  "replayDifferential": {
+    "reference": "7f094e8",
+    "environment": "Node.js, same-process VM policies; timings are diagnostic, not phone power",
+    "comparisons": 275,
+    "rows": [
+      {
+        "scene": "office",
+        "kind": "empty",
+        "before": {
+          "ms": 1.973002000000001,
+          "cleaningCalls": 3600,
+          "physicsCalls": 0
+        },
+        "after": {
+          "ms": 0.11260000000000048,
+          "cleaningCalls": 1,
+          "physicsCalls": 0
+        }
+      },
+      {
+        "scene": "office",
+        "kind": "resting",
+        "before": {
+          "ms": 9.185009000000008,
+          "cleaningCalls": 3600,
+          "physicsCalls": 0
+        },
+        "after": {
+          "ms": 0.14449999999999363,
+          "cleaningCalls": 1,
+          "physicsCalls": 0
+        }
+      },
+      {
+        "scene": "office",
+        "kind": "full",
+        "before": {
+          "ms": 3.1445030000000003,
+          "cleaningCalls": 3600,
+          "physicsCalls": 0
+        },
+        "after": {
+          "ms": 0.12470100000000173,
+          "cleaningCalls": 7,
+          "physicsCalls": 0
+        }
+      },
+      {
+        "scene": "office",
+        "kind": "moving",
+        "before": {
+          "ms": 21.76842099999999,
+          "cleaningCalls": 3600,
+          "physicsCalls": 84
+        },
+        "after": {
+          "ms": 2.8605029999999942,
+          "cleaningCalls": 85,
+          "physicsCalls": 84
+        }
+      },
+      {
+        "scene": "office",
+        "kind": "boundary",
+        "before": {
+          "ms": 1.809601999999984,
+          "cleaningCalls": 3600,
+          "physicsCalls": 0
+        },
+        "after": {
+          "ms": 0.16439999999997212,
+          "cleaningCalls": 7,
+          "physicsCalls": 0
+        }
+      },
+      {
+        "scene": "living",
+        "kind": "empty",
+        "before": {
+          "ms": 1.6618019999999945,
+          "cleaningCalls": 3600,
+          "physicsCalls": 0
+        },
+        "after": {
+          "ms": 0.037299999999987676,
+          "cleaningCalls": 1,
+          "physicsCalls": 0
+        }
+      },
+      {
+        "scene": "living",
+        "kind": "resting",
+        "before": {
+          "ms": 13.14631300000002,
+          "cleaningCalls": 3600,
+          "physicsCalls": 0
+        },
+        "after": {
+          "ms": 0.1453999999999951,
+          "cleaningCalls": 1,
+          "physicsCalls": 0
+        }
+      },
+      {
+        "scene": "living",
+        "kind": "full",
+        "before": {
+          "ms": 0.9869010000000173,
+          "cleaningCalls": 3600,
+          "physicsCalls": 0
+        },
+        "after": {
+          "ms": 0.11760000000001014,
+          "cleaningCalls": 7,
+          "physicsCalls": 0
+        }
+      },
+      {
+        "scene": "living",
+        "kind": "moving",
+        "before": {
+          "ms": 16.32771599999998,
+          "cleaningCalls": 3600,
+          "physicsCalls": 78
+        },
+        "after": {
+          "ms": 3.1483029999999985,
+          "cleaningCalls": 79,
+          "physicsCalls": 78
+        }
+      },
+      {
+        "scene": "living",
+        "kind": "boundary",
+        "before": {
+          "ms": 0.6274009999999919,
+          "cleaningCalls": 3600,
+          "physicsCalls": 0
+        },
+        "after": {
+          "ms": 0.07169999999999277,
+          "cleaningCalls": 7,
+          "physicsCalls": 0
+        }
+      },
+      {
+        "scene": "park",
+        "kind": "empty",
+        "before": {
+          "ms": 1.312201000000016,
+          "cleaningCalls": 3600,
+          "physicsCalls": 0
+        },
+        "after": {
+          "ms": 0.025500000000022283,
+          "cleaningCalls": 1,
+          "physicsCalls": 0
+        }
+      },
+      {
+        "scene": "park",
+        "kind": "resting",
+        "before": {
+          "ms": 12.141211999999996,
+          "cleaningCalls": 3600,
+          "physicsCalls": 0
+        },
+        "after": {
+          "ms": 0.12169999999997572,
+          "cleaningCalls": 1,
+          "physicsCalls": 0
+        }
+      },
+      {
+        "scene": "park",
+        "kind": "full",
+        "before": {
+          "ms": 0.9616009999999733,
+          "cleaningCalls": 3600,
+          "physicsCalls": 0
+        },
+        "after": {
+          "ms": 0.07440000000002556,
+          "cleaningCalls": 7,
+          "physicsCalls": 0
+        }
+      },
+      {
+        "scene": "park",
+        "kind": "moving",
+        "before": {
+          "ms": 14.743313999999998,
+          "cleaningCalls": 3600,
+          "physicsCalls": 75
+        },
+        "after": {
+          "ms": 1.9151020000000472,
+          "cleaningCalls": 76,
+          "physicsCalls": 75
+        }
+      },
+      {
+        "scene": "park",
+        "kind": "boundary",
+        "before": {
+          "ms": 1.039400999999998,
+          "cleaningCalls": 3600,
+          "physicsCalls": 0
+        },
+        "after": {
+          "ms": 0.14779999999996107,
+          "cleaningCalls": 7,
+          "physicsCalls": 0
+        }
+      },
+      {
+        "scene": "arena",
+        "kind": "empty",
+        "before": {
+          "ms": 3.373804000000007,
+          "cleaningCalls": 3600,
+          "physicsCalls": 0
+        },
+        "after": {
+          "ms": 0.06770000000000209,
+          "cleaningCalls": 1,
+          "physicsCalls": 0
+        }
+      },
+      {
+        "scene": "arena",
+        "kind": "resting",
+        "before": {
+          "ms": 31.368630999999993,
+          "cleaningCalls": 3600,
+          "physicsCalls": 0
+        },
+        "after": {
+          "ms": 0.1602999999999497,
+          "cleaningCalls": 1,
+          "physicsCalls": 0
+        }
+      },
+      {
+        "scene": "arena",
+        "kind": "full",
+        "before": {
+          "ms": 10.404610999999989,
+          "cleaningCalls": 3600,
+          "physicsCalls": 0
+        },
+        "after": {
+          "ms": 0.17580000000003793,
+          "cleaningCalls": 4,
+          "physicsCalls": 0
+        }
+      },
+      {
+        "scene": "arena",
+        "kind": "moving",
+        "before": {
+          "ms": 36.490035999999975,
+          "cleaningCalls": 3600,
+          "physicsCalls": 75
+        },
+        "after": {
+          "ms": 4.626705000000015,
+          "cleaningCalls": 76,
+          "physicsCalls": 75
+        }
+      },
+      {
+        "scene": "arena",
+        "kind": "boundary",
+        "before": {
+          "ms": 4.383503999999959,
+          "cleaningCalls": 3600,
+          "physicsCalls": 0
+        },
+        "after": {
+          "ms": 0.1711999999999989,
+          "cleaningCalls": 4,
+          "physicsCalls": 0
+        }
+      },
+      {
+        "scene": "construction",
+        "kind": "empty",
+        "before": {
+          "ms": 3.3124030000000175,
+          "cleaningCalls": 3600,
+          "physicsCalls": 0
+        },
+        "after": {
+          "ms": 0.06569999999999254,
+          "cleaningCalls": 1,
+          "physicsCalls": 0
+        }
+      },
+      {
+        "scene": "construction",
+        "kind": "resting",
+        "before": {
+          "ms": 21.924320999999964,
+          "cleaningCalls": 3600,
+          "physicsCalls": 0
+        },
+        "after": {
+          "ms": 0.14180099999998674,
+          "cleaningCalls": 1,
+          "physicsCalls": 0
+        }
+      },
+      {
+        "scene": "construction",
+        "kind": "full",
+        "before": {
+          "ms": 1.3724010000000817,
+          "cleaningCalls": 3600,
+          "physicsCalls": 0
+        },
+        "after": {
+          "ms": 0.0844000000000733,
+          "cleaningCalls": 7,
+          "physicsCalls": 0
+        }
+      },
+      {
+        "scene": "construction",
+        "kind": "moving",
+        "before": {
+          "ms": 20.16572000000008,
+          "cleaningCalls": 3600,
+          "physicsCalls": 79
+        },
+        "after": {
+          "ms": 1.7827020000000857,
+          "cleaningCalls": 80,
+          "physicsCalls": 79
+        }
+      },
+      {
+        "scene": "construction",
+        "kind": "boundary",
+        "before": {
+          "ms": 0.43219999999996617,
+          "cleaningCalls": 3600,
+          "physicsCalls": 0
+        },
+        "after": {
+          "ms": 0.06520000000000437,
+          "cleaningCalls": 7,
+          "physicsCalls": 0
+        }
+      }
+    ]
+  },
+  "browserBefore": {
+    "environment": {
+      "browser": "headless Chrome, two same-process 375x812 frames @2x",
+      "cpuThrottle": 1,
+      "network": "local fake RTDB, 200ms snapshot delay",
+      "roomRevision": "7f094e8"
+    },
+    "firstVisible": {
+      "x": 96,
+      "age": 0
+    },
+    "readySize": {
+      "width": 283,
+      "height": 56
+    },
+    "leaveSize": {
+      "width": 118.1875,
+      "height": 44
+    },
+    "shot": {
+      "angle": 45,
+      "power": 30.538461538461558,
+      "at": 1794880090622.3333,
+      "timeout": false
+    },
+    "scene": "park",
+    "errors": [],
+    "guest": "park",
+    "roomPlayers": 1,
+    "samples": [
+      {
+        "label": "aim",
+        "ms": 1002.8000000007451,
+        "clients": [
+          {
+            "fps": 60.829676904621735,
+            "stats": {
+              "advanceCleaning": {
+                "calls": 61,
+                "ms": 0.599999999627471,
+                "max": 0.10000000055879354
+              },
+              "project": {
+                "calls": 61,
+                "ms": 1.6000000014901161,
+                "max": 0.20000000018626451
+              },
+              "hud": {
+                "calls": 61,
+                "ms": 0.8000000016763806,
+                "max": 0.2999999998137355
+              },
+              "update": {
+                "calls": 61,
+                "ms": 3.7000000029802322,
+                "max": 0.40000000037252903
+              },
+              "binContents": {
+                "calls": 61,
+                "ms": 0.19999999925494194,
+                "max": 0.19999999925494194
+              },
+              "obstacles": {
+                "calls": 61,
+                "ms": 0.20000000018626451,
+                "max": 0.10000000055879354
+              },
+              "drawBackground": {
+                "calls": 61,
+                "ms": 0.39999999944120646,
+                "max": 0.10000000055879354
+              },
+              "overview": {
+                "calls": 61,
+                "ms": 2.6000000005587935,
+                "max": 0.20000000018626451
+              },
+              "view": {
+                "calls": 61,
+                "ms": 13.499999998137355,
+                "max": 0.40000000037252903
+              },
+              "render": {
+                "calls": 61,
+                "ms": 14.19999999832362,
+                "max": 0.5
+              }
+            },
+            "events": {},
+            "mutations": 12
+          },
+          {
+            "fps": 60.829676904621735,
+            "stats": {
+              "advanceCleaning": {
+                "calls": 61,
+                "ms": 0.5000000018626451,
+                "max": 0.10000000055879354
+              },
+              "project": {
+                "calls": 61,
+                "ms": 0.6000000024214387,
+                "max": 0.10000000055879354
+              },
+              "hud": {
+                "calls": 61,
+                "ms": 0.30000000074505806,
+                "max": 0.10000000055879354
+              },
+              "update": {
+                "calls": 61,
+                "ms": 2.3000000016763806,
+                "max": 0.20000000018626451
+              },
+              "binContents": {
+                "calls": 61,
+                "ms": 0.09999999962747097,
+                "max": 0.09999999962747097
+              },
+              "obstacles": {
+                "calls": 61,
+                "ms": 0,
+                "max": 0
+              },
+              "drawBackground": {
+                "calls": 61,
+                "ms": 0.2999999988824129,
+                "max": 0.09999999962747097
+              },
+              "overview": {
+                "calls": 61,
+                "ms": 2.599999999627471,
+                "max": 0.19999999925494194
+              },
+              "view": {
+                "calls": 61,
+                "ms": 10.79999999795109,
+                "max": 0.30000000074505806
+              },
+              "render": {
+                "calls": 61,
+                "ms": 11.399999997578561,
+                "max": 0.30000000074505806
+              }
+            },
+            "events": {},
+            "mutations": 16
+          }
+        ]
+      },
+      {
+        "label": "unchanged snapshots",
+        "ms": 1100.5,
+        "clients": [
+          {
+            "fps": 59.972739663789184,
+            "stats": {
+              "project": {
+                "calls": 86,
+                "ms": 0.6999999992549419,
+                "max": 0.10000000055879354
+              },
+              "hud": {
+                "calls": 86,
+                "ms": 1.4000000013038516,
+                "max": 0.20000000018626451
+              },
+              "binContents": {
+                "calls": 66,
+                "ms": 0.5,
+                "max": 0.10000000055879354
+              },
+              "obstacles": {
+                "calls": 66,
+                "ms": 0.09999999962747097,
+                "max": 0.09999999962747097
+              },
+              "drawBackground": {
+                "calls": 66,
+                "ms": 0.39999999944120646,
+                "max": 0.10000000055879354
+              },
+              "overview": {
+                "calls": 66,
+                "ms": 2.799999996088445,
+                "max": 0.20000000018626451
+              },
+              "view": {
+                "calls": 66,
+                "ms": 13.099999997764826,
+                "max": 0.30000000074505806
+              },
+              "render": {
+                "calls": 86,
+                "ms": 14.600000000558794,
+                "max": 0.40000000037252903
+              },
+              "advanceCleaning": {
+                "calls": 66,
+                "ms": 0.39999999944120646,
+                "max": 0.10000000055879354
+              },
+              "update": {
+                "calls": 66,
+                "ms": 2.199999997392297,
+                "max": 0.10000000055879354
+              }
+            },
+            "events": {
+              "gameChanges": 20,
+              "storageWrites": 20
+            },
+            "mutations": 432
+          },
+          {
+            "fps": 59.972739663789184,
+            "stats": {
+              "project": {
+                "calls": 86,
+                "ms": 0.39999999944120646,
+                "max": 0.10000000055879354
+              },
+              "hud": {
+                "calls": 86,
+                "ms": 1.7999999979510903,
+                "max": 0.20000000018626451
+              },
+              "binContents": {
+                "calls": 66,
+                "ms": 0.10000000055879354,
+                "max": 0.10000000055879354
+              },
+              "obstacles": {
+                "calls": 66,
+                "ms": 0.10000000055879354,
+                "max": 0.10000000055879354
+              },
+              "drawBackground": {
+                "calls": 66,
+                "ms": 0.19999999925494194,
+                "max": 0.09999999962747097
+              },
+              "overview": {
+                "calls": 66,
+                "ms": 2.599999999627471,
+                "max": 0.10000000055879354
+              },
+              "view": {
+                "calls": 66,
+                "ms": 9.600000003352761,
+                "max": 0.30000000074505806
+              },
+              "render": {
+                "calls": 86,
+                "ms": 10.100000003352761,
+                "max": 0.30000000074505806
+              },
+              "advanceCleaning": {
+                "calls": 66,
+                "ms": 0.2999999988824129,
+                "max": 0.09999999962747097
+              },
+              "update": {
+                "calls": 66,
+                "ms": 1.9000000022351742,
+                "max": 0.20000000018626451
+              }
+            },
+            "events": {
+              "gameChanges": 20,
+              "storageWrites": 20
+            },
+            "mutations": 516
+          }
+        ]
+      },
+      {
+        "label": "room dialog covers host field",
+        "ms": 1000.5999999996275,
+        "clients": [
+          {
+            "fps": 0,
+            "stats": {
+              "update": {
+                "calls": 60,
+                "ms": 0.19999999925494194,
+                "max": 0.09999999962747097
+              },
+              "render": {
+                "calls": 62,
+                "ms": 0.09999999962747097,
+                "max": 0.09999999962747097
+              },
+              "advanceCleaning": {
+                "calls": 61,
+                "ms": 0.20000000018626451,
+                "max": 0.10000000055879354
+              },
+              "project": {
+                "calls": 2,
+                "ms": 0.2999999998137355,
+                "max": 0.20000000018626451
+              },
+              "hud": {
+                "calls": 2,
+                "ms": 0.19999999925494194,
+                "max": 0.09999999962747097
+              }
+            },
+            "events": {
+              "gameChanges": 2,
+              "storageWrites": 2
+            },
+            "mutations": 53
+          },
+          {
+            "fps": 59.96402158707009,
+            "stats": {
+              "advanceCleaning": {
+                "calls": 60,
+                "ms": 0.2999999998137355,
+                "max": 0.10000000055879354
+              },
+              "project": {
+                "calls": 62,
+                "ms": 0.5,
+                "max": 0.10000000055879354
+              },
+              "hud": {
+                "calls": 62,
+                "ms": 0.7000000011175871,
+                "max": 0.20000000018626451
+              },
+              "update": {
+                "calls": 60,
+                "ms": 2.2999999979510903,
+                "max": 0.20000000018626451
+              },
+              "binContents": {
+                "calls": 60,
+                "ms": 0.19999999925494194,
+                "max": 0.09999999962747097
+              },
+              "obstacles": {
+                "calls": 60,
+                "ms": 0,
+                "max": 0
+              },
+              "drawBackground": {
+                "calls": 60,
+                "ms": 1,
+                "max": 0.10000000055879354
+              },
+              "overview": {
+                "calls": 60,
+                "ms": 3.0999999959021807,
+                "max": 0.20000000018626451
+              },
+              "view": {
+                "calls": 60,
+                "ms": 13.800000000745058,
+                "max": 1.099999999627471
+              },
+              "render": {
+                "calls": 62,
+                "ms": 14.200000000186265,
+                "max": 1.099999999627471
+              }
+            },
+            "events": {
+              "gameChanges": 2,
+              "storageWrites": 2
+            },
+            "mutations": 66
+          }
+        ]
+      },
+      {
+        "label": "flight",
+        "ms": 1000.1000000005588,
+        "clients": [
+          {
+            "fps": 59.994000599906485,
+            "stats": {
+              "advanceCleaning": {
+                "calls": 60,
+                "ms": 0.2999999988824129,
+                "max": 0.09999999962747097
+              },
+              "advance": {
+                "calls": 60,
+                "ms": 1.5000000018626451,
+                "max": 0.10000000055879354
+              },
+              "project": {
+                "calls": 60,
+                "ms": 2.400000000372529,
+                "max": 0.10000000055879354
+              },
+              "hud": {
+                "calls": 60,
+                "ms": 0.20000000018626451,
+                "max": 0.10000000055879354
+              },
+              "update": {
+                "calls": 60,
+                "ms": 3.800000002607703,
+                "max": 0.20000000018626451
+              },
+              "binContents": {
+                "calls": 60,
+                "ms": 0.2000000011175871,
+                "max": 0.10000000055879354
+              },
+              "obstacles": {
+                "calls": 60,
+                "ms": 0,
+                "max": 0
+              },
+              "drawBackground": {
+                "calls": 60,
+                "ms": 0.5,
+                "max": 0.10000000055879354
+              },
+              "body": {
+                "calls": 60,
+                "ms": 0.9999999990686774,
+                "max": 0.10000000055879354
+              },
+              "overview": {
+                "calls": 60,
+                "ms": 2.1000000005587935,
+                "max": 0.10000000055879354
+              },
+              "view": {
+                "calls": 60,
+                "ms": 14.69999999832362,
+                "max": 0.7000000001862645
+              },
+              "render": {
+                "calls": 60,
+                "ms": 15.200000000186265,
+                "max": 0.7000000001862645
+              },
+              "bin": {
+                "calls": 2,
+                "ms": 0,
+                "max": 0
+              }
+            },
+            "events": {},
+            "mutations": 0
+          },
+          {
+            "fps": 58.994100589908044,
+            "stats": {
+              "advanceCleaning": {
+                "calls": 60,
+                "ms": 0.20000000018626451,
+                "max": 0.10000000055879354
+              },
+              "advance": {
+                "calls": 60,
+                "ms": 1.9999999981373549,
+                "max": 0.10000000055879354
+              },
+              "project": {
+                "calls": 60,
+                "ms": 2.499999998137355,
+                "max": 0.10000000055879354
+              },
+              "hud": {
+                "calls": 60,
+                "ms": 0.19999999925494194,
+                "max": 0.09999999962747097
+              },
+              "update": {
+                "calls": 60,
+                "ms": 3.199999996460974,
+                "max": 0.20000000018626451
+              },
+              "render": {
+                "calls": 60,
+                "ms": 13.800000003539026,
+                "max": 0.7000000001862645
+              },
+              "binContents": {
+                "calls": 59,
+                "ms": 0.09999999962747097,
+                "max": 0.09999999962747097
+              },
+              "obstacles": {
+                "calls": 59,
+                "ms": 0,
+                "max": 0
+              },
+              "drawBackground": {
+                "calls": 59,
+                "ms": 0.40000000037252903,
+                "max": 0.10000000055879354
+              },
+              "body": {
+                "calls": 59,
+                "ms": 0.8000000007450581,
+                "max": 0.10000000055879354
+              },
+              "overview": {
+                "calls": 59,
+                "ms": 2.5999999986961484,
+                "max": 0.19999999925494194
+              },
+              "view": {
+                "calls": 59,
+                "ms": 12.600000004284084,
+                "max": 0.6000000005587935
+              },
+              "bin": {
+                "calls": 2,
+                "ms": 0.19999999925494194,
+                "max": 0.09999999962747097
+              }
+            },
+            "events": {},
+            "mutations": 0
+          }
+        ]
+      }
+    ]
+  },
+  "browserAfter": {
+    "environment": {
+      "browser": "headless Chrome, two same-process 375x812 frames @2x",
+      "cpuThrottle": 1,
+      "network": "local fake RTDB, 200ms snapshot delay",
+      "roomRevision": "working tree"
+    },
+    "firstVisible": {
+      "x": 96,
+      "age": 0
+    },
+    "readySize": {
+      "width": 283,
+      "height": 56
+    },
+    "leaveSize": {
+      "width": 118.1875,
+      "height": 44
+    },
+    "shot": {
+      "angle": 45,
+      "power": 30.538461538461558,
+      "at": 1794880383692.3333,
+      "timeout": false
+    },
+    "scene": "park",
+    "errors": [],
+    "guest": "park",
+    "roomPlayers": 1,
+    "samples": [
+      {
+        "label": "aim",
+        "ms": 1000.1999999992549,
+        "clients": [
+          {
+            "fps": 59.988002399564785,
+            "stats": {
+              "project": {
+                "calls": 60,
+                "ms": 0.6999999992549419,
+                "max": 0.10000000055879354
+              },
+              "hud": {
+                "calls": 60,
+                "ms": 0.6999999992549419,
+                "max": 0.30000000074505806
+              },
+              "update": {
+                "calls": 60,
+                "ms": 3.299999996088445,
+                "max": 0.30000000074505806
+              },
+              "binContents": {
+                "calls": 60,
+                "ms": 0.599999999627471,
+                "max": 0.10000000055879354
+              },
+              "obstacles": {
+                "calls": 60,
+                "ms": 0.5,
+                "max": 0.10000000055879354
+              },
+              "drawBackground": {
+                "calls": 60,
+                "ms": 0.9000000031664968,
+                "max": 0.20000000018626451
+              },
+              "overview": {
+                "calls": 60,
+                "ms": 2.6999999983236194,
+                "max": 0.20000000018626451
+              },
+              "view": {
+                "calls": 60,
+                "ms": 13.699999999254942,
+                "max": 0.40000000037252903
+              },
+              "render": {
+                "calls": 60,
+                "ms": 14.899999998509884,
+                "max": 0.40000000037252903
+              }
+            },
+            "events": {},
+            "mutations": 12
+          },
+          {
+            "fps": 59.988002399564785,
+            "stats": {
+              "project": {
+                "calls": 60,
+                "ms": 0.5,
+                "max": 0.10000000055879354
+              },
+              "hud": {
+                "calls": 60,
+                "ms": 0.7000000001862645,
+                "max": 0.20000000018626451
+              },
+              "update": {
+                "calls": 60,
+                "ms": 2.300000002607703,
+                "max": 0.20000000018626451
+              },
+              "binContents": {
+                "calls": 60,
+                "ms": 0.5000000009313226,
+                "max": 0.10000000055879354
+              },
+              "obstacles": {
+                "calls": 60,
+                "ms": 0,
+                "max": 0
+              },
+              "drawBackground": {
+                "calls": 60,
+                "ms": 0.4000000013038516,
+                "max": 0.10000000055879354
+              },
+              "overview": {
+                "calls": 60,
+                "ms": 2.4999999972060323,
+                "max": 0.20000000018626451
+              },
+              "view": {
+                "calls": 60,
+                "ms": 9.699999996460974,
+                "max": 0.30000000074505806
+              },
+              "render": {
+                "calls": 60,
+                "ms": 10.399999997578561,
+                "max": 0.30000000074505806
+              }
+            },
+            "events": {},
+            "mutations": 16
+          }
+        ]
+      },
+      {
+        "label": "unchanged snapshots",
+        "ms": 1100.5999999996275,
+        "clients": [
+          {
+            "fps": 59.96729056880096,
+            "stats": {
+              "project": {
+                "calls": 66,
+                "ms": 0.30000000074505806,
+                "max": 0.10000000055879354
+              },
+              "hud": {
+                "calls": 66,
+                "ms": 0.8000000007450581,
+                "max": 0.20000000018626451
+              },
+              "update": {
+                "calls": 66,
+                "ms": 2.6000000024214387,
+                "max": 0.20000000018626451
+              },
+              "binContents": {
+                "calls": 66,
+                "ms": 0.09999999962747097,
+                "max": 0.09999999962747097
+              },
+              "obstacles": {
+                "calls": 66,
+                "ms": 0.19999999925494194,
+                "max": 0.09999999962747097
+              },
+              "drawBackground": {
+                "calls": 66,
+                "ms": 0.39999999944120646,
+                "max": 0.10000000055879354
+              },
+              "overview": {
+                "calls": 66,
+                "ms": 3.1999999955296516,
+                "max": 0.19999999925494194
+              },
+              "view": {
+                "calls": 66,
+                "ms": 12.599999993108213,
+                "max": 0.39999999944120646
+              },
+              "render": {
+                "calls": 66,
+                "ms": 12.99999999254942,
+                "max": 0.39999999944120646
+              }
+            },
+            "events": {},
+            "mutations": 23
+          },
+          {
+            "fps": 59.96729056880096,
+            "stats": {
+              "project": {
+                "calls": 66,
+                "ms": 0,
+                "max": 0
+              },
+              "hud": {
+                "calls": 66,
+                "ms": 0.5,
+                "max": 0.10000000055879354
+              },
+              "update": {
+                "calls": 66,
+                "ms": 2.099999999627471,
+                "max": 0.10000000055879354
+              },
+              "binContents": {
+                "calls": 66,
+                "ms": 0.2999999988824129,
+                "max": 0.09999999962747097
+              },
+              "obstacles": {
+                "calls": 66,
+                "ms": 0.10000000055879354,
+                "max": 0.10000000055879354
+              },
+              "drawBackground": {
+                "calls": 66,
+                "ms": 0.20000000018626451,
+                "max": 0.10000000055879354
+              },
+              "overview": {
+                "calls": 66,
+                "ms": 2.100000001490116,
+                "max": 0.10000000055879354
+              },
+              "view": {
+                "calls": 66,
+                "ms": 8.800000002607703,
+                "max": 0.2999999998137355
+              },
+              "render": {
+                "calls": 66,
+                "ms": 10.600000002421439,
+                "max": 0.40000000037252903
+              }
+            },
+            "events": {},
+            "mutations": 31
+          }
+        ]
+      },
+      {
+        "label": "room dialog covers host field",
+        "ms": 1000.0999999996275,
+        "clients": [
+          {
+            "fps": 0,
+            "stats": {
+              "update": {
+                "calls": 60,
+                "ms": 0.2999999988824129,
+                "max": 0.09999999962747097
+              },
+              "render": {
+                "calls": 60,
+                "ms": 0.09999999962747097,
+                "max": 0.09999999962747097
+              }
+            },
+            "events": {},
+            "mutations": 0
+          },
+          {
+            "fps": 59.994000599962355,
+            "stats": {
+              "project": {
+                "calls": 60,
+                "ms": 0.09999999962747097,
+                "max": 0.09999999962747097
+              },
+              "hud": {
+                "calls": 60,
+                "ms": 0.5000000009313226,
+                "max": 0.10000000055879354
+              },
+              "update": {
+                "calls": 60,
+                "ms": 1.8000000035390258,
+                "max": 0.20000000018626451
+              },
+              "binContents": {
+                "calls": 60,
+                "ms": 0.10000000055879354,
+                "max": 0.10000000055879354
+              },
+              "obstacles": {
+                "calls": 60,
+                "ms": 0,
+                "max": 0
+              },
+              "drawBackground": {
+                "calls": 60,
+                "ms": 0.8000000007450581,
+                "max": 0.10000000055879354
+              },
+              "overview": {
+                "calls": 60,
+                "ms": 3,
+                "max": 0.20000000018626451
+              },
+              "view": {
+                "calls": 60,
+                "ms": 11.899999995715916,
+                "max": 0.5
+              },
+              "render": {
+                "calls": 60,
+                "ms": 12.499999995343387,
+                "max": 0.5
+              }
+            },
+            "events": {},
+            "mutations": 31
+          }
+        ]
+      },
+      {
+        "label": "flight",
+        "ms": 1000.3000000007451,
+        "clients": [
+          {
+            "fps": 59.98200539833581,
+            "stats": {
+              "advanceCleaning": {
+                "calls": 60,
+                "ms": 0.09999999962747097,
+                "max": 0.09999999962747097
+              },
+              "advance": {
+                "calls": 60,
+                "ms": 1.2999999979510903,
+                "max": 0.10000000055879354
+              },
+              "project": {
+                "calls": 60,
+                "ms": 1.9999999962747097,
+                "max": 0.10000000055879354
+              },
+              "hud": {
+                "calls": 60,
+                "ms": 0.7999999988824129,
+                "max": 0.2999999998137355
+              },
+              "update": {
+                "calls": 60,
+                "ms": 3.999999993480742,
+                "max": 0.39999999944120646
+              },
+              "binContents": {
+                "calls": 60,
+                "ms": 0.2999999998137355,
+                "max": 0.10000000055879354
+              },
+              "obstacles": {
+                "calls": 60,
+                "ms": 0,
+                "max": 0
+              },
+              "drawBackground": {
+                "calls": 60,
+                "ms": 1.0000000018626451,
+                "max": 0.10000000055879354
+              },
+              "body": {
+                "calls": 60,
+                "ms": 0.7999999998137355,
+                "max": 0.10000000055879354
+              },
+              "overview": {
+                "calls": 60,
+                "ms": 2.4999999972060323,
+                "max": 0.20000000018626451
+              },
+              "view": {
+                "calls": 60,
+                "ms": 15.100000001490116,
+                "max": 1.099999999627471
+              },
+              "render": {
+                "calls": 60,
+                "ms": 15.700000001117587,
+                "max": 1.2000000001862645
+              },
+              "bin": {
+                "calls": 2,
+                "ms": 0.20000000018626451,
+                "max": 0.10000000055879354
+              }
+            },
+            "events": {},
+            "mutations": 34
+          },
+          {
+            "fps": 57.982605218391285,
+            "stats": {
+              "advanceCleaning": {
+                "calls": 60,
+                "ms": 0,
+                "max": 0
+              },
+              "advance": {
+                "calls": 60,
+                "ms": 3.699999999254942,
+                "max": 0.20000000018626451
+              },
+              "project": {
+                "calls": 60,
+                "ms": 3.900000000372529,
+                "max": 0.20000000018626451
+              },
+              "hud": {
+                "calls": 60,
+                "ms": 0.10000000055879354,
+                "max": 0.10000000055879354
+              },
+              "update": {
+                "calls": 60,
+                "ms": 4.800000000745058,
+                "max": 0.2999999998137355
+              },
+              "binContents": {
+                "calls": 58,
+                "ms": 0.2999999998137355,
+                "max": 0.10000000055879354
+              },
+              "obstacles": {
+                "calls": 58,
+                "ms": 0,
+                "max": 0
+              },
+              "drawBackground": {
+                "calls": 58,
+                "ms": 0.30000000074505806,
+                "max": 0.10000000055879354
+              },
+              "body": {
+                "calls": 58,
+                "ms": 0.4999999990686774,
+                "max": 0.10000000055879354
+              },
+              "overview": {
+                "calls": 58,
+                "ms": 2.2999999970197678,
+                "max": 0.10000000055879354
+              },
+              "view": {
+                "calls": 58,
+                "ms": 9.500000001862645,
+                "max": 0.40000000037252903
+              },
+              "render": {
+                "calls": 60,
+                "ms": 10.000000001862645,
+                "max": 0.40000000037252903
+              },
+              "bin": {
+                "calls": 2,
+                "ms": 0.09999999962747097,
+                "max": 0.09999999962747097
+              }
+            },
+            "events": {},
+            "mutations": 18
+          }
+        ]
+      }
+    ]
+  }
+}

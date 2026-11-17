@@ -1,0 +1,1725 @@
+{
+  "date": "2026-11-17",
+  "versions": {
+    "original_60fps_df0f60a": {
+      "baseline": "df0f60a",
+      "environment": {
+        "browser": "headless Chrome",
+        "viewport": "390x844 @2x",
+        "cpuThrottle": 4,
+        "sampleMs": 2000,
+        "notes": "Nested timings overlap. Canvas timings measure command submission, not GPU energy or iPhone temperature. Fixed scenario seed 42. Debris cases place 40 resting items across the map."
+      },
+      "rows": [
+        {
+          "scene": "office",
+          "mode": "idle",
+          "ms": 2001,
+          "fps": 0,
+          "p95FrameMs": 0,
+          "mutations": 0,
+          "stats": {},
+          "pixels": 1751040,
+          "browserMs": {
+            "ScriptDuration": 0.004999999999991123,
+            "LayoutDuration": 0,
+            "RecalcStyleDuration": 0,
+            "TaskDuration": 4.593000000000014
+          }
+        },
+        {
+          "scene": "office",
+          "mode": "aim",
+          "ms": 2006.2000000001863,
+          "fps": 47.35320506429627,
+          "p95FrameMs": 22.800000000745058,
+          "mutations": 3840,
+          "stats": {
+            "advanceCleaning": {
+              "calls": 120,
+              "ms": 2.900000000372529,
+              "max": 0.7999999998137355
+            },
+            "hud": {
+              "calls": 120,
+              "ms": 65.20000000018626,
+              "max": 1.400000000372529
+            },
+            "update": {
+              "calls": 120,
+              "ms": 72.19999999832362,
+              "max": 1.7000000001862645
+            },
+            "binContents": {
+              "calls": 95,
+              "ms": 1.5,
+              "max": 1.3999999994412065
+            },
+            "background": {
+              "calls": 95,
+              "ms": 29.599999994970858,
+              "max": 1
+            },
+            "bin": {
+              "calls": 570,
+              "ms": 28.700000004842877,
+              "max": 0.900000000372529
+            },
+            "person": {
+              "calls": 190,
+              "ms": 12.899999997578561,
+              "max": 0.900000000372529
+            },
+            "obstacles": {
+              "calls": 190,
+              "ms": 2.2000000029802322,
+              "max": 0.8000000007450581
+            },
+            "obstacle": {
+              "calls": 190,
+              "ms": 14.499999995343387,
+              "max": 1.5
+            },
+            "overview": {
+              "calls": 95,
+              "ms": 12.599999999627471,
+              "max": 1
+            },
+            "view": {
+              "calls": 95,
+              "ms": 157.89999999850988,
+              "max": 2.6000000005587935
+            },
+            "render": {
+              "calls": 95,
+              "ms": 162.09999999776483,
+              "max": 4.2999999998137355
+            }
+          },
+          "pixels": 1751040,
+          "browserMs": {
+            "ScriptDuration": 214.34900000000002,
+            "LayoutDuration": 107.705,
+            "RecalcStyleDuration": 34.437,
+            "TaskDuration": 2024.1560000000002
+          }
+        },
+        {
+          "scene": "office",
+          "mode": "charge",
+          "ms": 2016.2000000001863,
+          "fps": 47.614323975791656,
+          "p95FrameMs": 24.200000000186265,
+          "mutations": 4356,
+          "stats": {
+            "advanceCleaning": {
+              "calls": 121,
+              "ms": 2.400000002235174,
+              "max": 0.7000000001862645
+            },
+            "hud": {
+              "calls": 121,
+              "ms": 65.7000000057742,
+              "max": 5.2999999998137355
+            },
+            "update": {
+              "calls": 121,
+              "ms": 71.40000000782311,
+              "max": 5.2999999998137355
+            },
+            "binContents": {
+              "calls": 96,
+              "ms": 2.2000000001862645,
+              "max": 0.7999999998137355
+            },
+            "background": {
+              "calls": 96,
+              "ms": 19.999999999068677,
+              "max": 1.1000000005587935
+            },
+            "bin": {
+              "calls": 576,
+              "ms": 22.099999996833503,
+              "max": 1
+            },
+            "person": {
+              "calls": 192,
+              "ms": 14.599999999627471,
+              "max": 0.8999999994412065
+            },
+            "obstacles": {
+              "calls": 192,
+              "ms": 4.299999998882413,
+              "max": 0.7999999998137355
+            },
+            "obstacle": {
+              "calls": 192,
+              "ms": 11.500000006519258,
+              "max": 0.8999999994412065
+            },
+            "overview": {
+              "calls": 96,
+              "ms": 13.099999998696148,
+              "max": 0.900000000372529
+            },
+            "view": {
+              "calls": 96,
+              "ms": 139.9999999953434,
+              "max": 2.5
+            },
+            "render": {
+              "calls": 96,
+              "ms": 143.2999999942258,
+              "max": 2.5
+            }
+          },
+          "pixels": 1751040,
+          "browserMs": {
+            "ScriptDuration": 196.674,
+            "LayoutDuration": 89.37899999999999,
+            "RecalcStyleDuration": 35.235,
+            "TaskDuration": 2026.0369999999996
+          }
+        },
+        {
+          "scene": "office",
+          "mode": "flight",
+          "ms": 2000.300000000745,
+          "fps": 52.99205119230142,
+          "p95FrameMs": 23.100000000558794,
+          "mutations": 3921,
+          "stats": {
+            "advanceCleaning": {
+              "calls": 120,
+              "ms": 3.600000001490116,
+              "max": 0.7999999998137355
+            },
+            "advance": {
+              "calls": 120,
+              "ms": 12.700000000186265,
+              "max": 0.900000000372529
+            },
+            "hud": {
+              "calls": 112,
+              "ms": 54.99999999534339,
+              "max": 1.5
+            },
+            "update": {
+              "calls": 120,
+              "ms": 77.3999999994412,
+              "max": 5
+            },
+            "binContents": {
+              "calls": 106,
+              "ms": 1.799999998882413,
+              "max": 0.7000000001862645
+            },
+            "background": {
+              "calls": 106,
+              "ms": 29.399999998509884,
+              "max": 1.400000000372529
+            },
+            "bin": {
+              "calls": 636,
+              "ms": 24.200000006705523,
+              "max": 0.8999999994412065
+            },
+            "person": {
+              "calls": 212,
+              "ms": 12.90000000409782,
+              "max": 0.7999999998137355
+            },
+            "body": {
+              "calls": 106,
+              "ms": 7.800000002607703,
+              "max": 1.7999999998137355
+            },
+            "obstacles": {
+              "calls": 212,
+              "ms": 0.5,
+              "max": 0.20000000018626451
+            },
+            "obstacle": {
+              "calls": 212,
+              "ms": 11.499999998137355,
+              "max": 0.8999999994412065
+            },
+            "overview": {
+              "calls": 106,
+              "ms": 25.799999997019768,
+              "max": 1.7999999998137355
+            },
+            "view": {
+              "calls": 106,
+              "ms": 163.20000000391155,
+              "max": 3.2999999998137355
+            },
+            "render": {
+              "calls": 106,
+              "ms": 165.10000000335276,
+              "max": 3.3999999994412065
+            }
+          },
+          "pixels": 1751040,
+          "browserMs": {
+            "ScriptDuration": 224.67899999999997,
+            "LayoutDuration": 106.302,
+            "RecalcStyleDuration": 29.54799999999999,
+            "TaskDuration": 2015.0030000000002
+          }
+        },
+        {
+          "scene": "arena",
+          "mode": "debris",
+          "ms": 2028.8999999994412,
+          "fps": 37.951599388841835,
+          "p95FrameMs": 30.399999999441206,
+          "mutations": 3904,
+          "stats": {
+            "advanceCleaning": {
+              "calls": 122,
+              "ms": 10.000000002793968,
+              "max": 0.900000000372529
+            },
+            "hud": {
+              "calls": 122,
+              "ms": 46.69999999552965,
+              "max": 1.2999999998137355
+            },
+            "update": {
+              "calls": 122,
+              "ms": 65.39999999664724,
+              "max": 1.7000000001862645
+            },
+            "binContents": {
+              "calls": 77,
+              "ms": 3.200000001117587,
+              "max": 0.8000000007450581
+            },
+            "background": {
+              "calls": 77,
+              "ms": 100.19999999832362,
+              "max": 6.1000000005587935
+            },
+            "bin": {
+              "calls": 1232,
+              "ms": 46.69999999366701,
+              "max": 0.900000000372529
+            },
+            "person": {
+              "calls": 77,
+              "ms": 4.79999999795109,
+              "max": 0.7999999998137355
+            },
+            "body": {
+              "calls": 3080,
+              "ms": 49.799999999813735,
+              "max": 1.2000000001862645
+            },
+            "obstacles": {
+              "calls": 154,
+              "ms": 0.19999999925494194,
+              "max": 0.09999999962747097
+            },
+            "overview": {
+              "calls": 77,
+              "ms": 17.00000000372529,
+              "max": 1.5
+            },
+            "view": {
+              "calls": 77,
+              "ms": 236.90000000037253,
+              "max": 7.800000000745058
+            },
+            "render": {
+              "calls": 77,
+              "ms": 241.00000000279397,
+              "max": 8.100000000558794
+            }
+          },
+          "pixels": 1751040,
+          "browserMs": {
+            "ScriptDuration": 296.34799999999996,
+            "LayoutDuration": 82.22600000000003,
+            "RecalcStyleDuration": 29.752000000000002,
+            "TaskDuration": 2056.4460000000004
+          }
+        },
+        {
+          "scene": "construction",
+          "mode": "debris",
+          "ms": 2005,
+          "fps": 47.38154613466334,
+          "p95FrameMs": 24.299999999813735,
+          "mutations": 3872,
+          "stats": {
+            "advanceCleaning": {
+              "calls": 121,
+              "ms": 4.600000001490116,
+              "max": 0.7999999998137355
+            },
+            "hud": {
+              "calls": 121,
+              "ms": 55.5,
+              "max": 1.1000000005587935
+            },
+            "update": {
+              "calls": 121,
+              "ms": 65.20000000298023,
+              "max": 1.599999999627471
+            },
+            "binContents": {
+              "calls": 95,
+              "ms": 3.4999999990686774,
+              "max": 0.7999999998137355
+            },
+            "background": {
+              "calls": 95,
+              "ms": 66.29999999981374,
+              "max": 5.699999999254942
+            },
+            "bin": {
+              "calls": 950,
+              "ms": 37.90000000502914,
+              "max": 1.099999999627471
+            },
+            "person": {
+              "calls": 285,
+              "ms": 20.200000003911555,
+              "max": 1.2999999998137355
+            },
+            "body": {
+              "calls": 3800,
+              "ms": 39.19999999832362,
+              "max": 1.800000000745058
+            },
+            "obstacles": {
+              "calls": 190,
+              "ms": 2.099999997764826,
+              "max": 0.7999999998137355
+            },
+            "obstacle": {
+              "calls": 380,
+              "ms": 15.700000001117587,
+              "max": 0.8999999994412065
+            },
+            "overview": {
+              "calls": 95,
+              "ms": 18.39999999664724,
+              "max": 1
+            },
+            "view": {
+              "calls": 95,
+              "ms": 253.3999999994412,
+              "max": 8
+            },
+            "render": {
+              "calls": 95,
+              "ms": 257.4999999990687,
+              "max": 8
+            }
+          },
+          "pixels": 1751040,
+          "browserMs": {
+            "ScriptDuration": 309.85299999999995,
+            "LayoutDuration": 98.01900000000008,
+            "RecalcStyleDuration": 30.610000000000028,
+            "TaskDuration": 2024.9129999999998
+          }
+        }
+      ],
+      "cpuPlanning": [
+        {
+          "scene": "office",
+          "ms": 410.19999999925494,
+          "candidates": 277,
+          "frequency": "once per CPU turn, not per frame"
+        },
+        {
+          "scene": "construction",
+          "ms": 752.4000000003725,
+          "candidates": 277,
+          "frequency": "once per CPU turn, not per frame"
+        }
+      ]
+    },
+    "capped_30fps_7f094e8": {
+      "baseline": "7f094e8",
+      "environment": {
+        "browser": "headless Chrome",
+        "viewport": "390x844 @2x",
+        "cpuThrottle": 4,
+        "sampleMs": 2000,
+        "notes": "Nested timings overlap. Canvas timings measure command submission, not GPU energy or iPhone temperature. Fixed scenario seed 42. Debris cases place 40 resting items across the map."
+      },
+      "rows": [
+        {
+          "scene": "office",
+          "mode": "idle",
+          "ms": 2000.6000000005588,
+          "fps": 0,
+          "p95FrameMs": 0,
+          "mutations": 0,
+          "stats": {},
+          "pixels": 442364,
+          "browserMs": {
+            "ScriptDuration": 0.005999999999992123,
+            "LayoutDuration": 0,
+            "RecalcStyleDuration": 0,
+            "TaskDuration": 4.487000000000019
+          }
+        },
+        {
+          "scene": "office",
+          "mode": "aim",
+          "ms": 2004.9000000003725,
+          "fps": 27.931567659229685,
+          "p95FrameMs": 50.299999999813735,
+          "mutations": 900,
+          "stats": {
+            "advanceCleaning": {
+              "calls": 120,
+              "ms": 1.0000000009313226,
+              "max": 0.40000000037252903
+            },
+            "hud": {
+              "calls": 120,
+              "ms": 13.000000000931323,
+              "max": 0.8000000007450581
+            },
+            "update": {
+              "calls": 120,
+              "ms": 17,
+              "max": 0.8999999994412065
+            },
+            "binContents": {
+              "calls": 56,
+              "ms": 0.8999999985098839,
+              "max": 0.6999999992549419
+            },
+            "drawBackground": {
+              "calls": 56,
+              "ms": 1.2999999998137355,
+              "max": 0.599999999627471
+            },
+            "bin": {
+              "calls": 336,
+              "ms": 18.80000000167638,
+              "max": 0.8000000007450581
+            },
+            "person": {
+              "calls": 112,
+              "ms": 6.199999999254942,
+              "max": 0.7000000001862645
+            },
+            "obstacles": {
+              "calls": 112,
+              "ms": 2.0000000009313226,
+              "max": 0.900000000372529
+            },
+            "obstacle": {
+              "calls": 112,
+              "ms": 6.299999998882413,
+              "max": 0.7000000001862645
+            },
+            "overview": {
+              "calls": 56,
+              "ms": 8.799999998882413,
+              "max": 1
+            },
+            "view": {
+              "calls": 56,
+              "ms": 57.40000000409782,
+              "max": 1.7999999998137355
+            },
+            "render": {
+              "calls": 120,
+              "ms": 73.80000000167638,
+              "max": 2
+            }
+          },
+          "pixels": 442364,
+          "browserMs": {
+            "ScriptDuration": 95.015,
+            "LayoutDuration": 0,
+            "RecalcStyleDuration": 13.132000000000005,
+            "TaskDuration": 466.073
+          }
+        },
+        {
+          "scene": "office",
+          "mode": "charge",
+          "ms": 2000.800000000745,
+          "fps": 27.489004398230467,
+          "p95FrameMs": 50.90000000037253,
+          "mutations": 1200,
+          "stats": {
+            "advanceCleaning": {
+              "calls": 120,
+              "ms": 0.599999999627471,
+              "max": 0.20000000018626451
+            },
+            "hud": {
+              "calls": 120,
+              "ms": 18.100000000558794,
+              "max": 1.099999999627471
+            },
+            "update": {
+              "calls": 120,
+              "ms": 20.800000002607703,
+              "max": 1.099999999627471
+            },
+            "binContents": {
+              "calls": 55,
+              "ms": 0.5000000009313226,
+              "max": 0.40000000037252903
+            },
+            "drawBackground": {
+              "calls": 55,
+              "ms": 3.900000000372529,
+              "max": 0.7999999998137355
+            },
+            "bin": {
+              "calls": 330,
+              "ms": 10.899999999441206,
+              "max": 0.8999999994412065
+            },
+            "person": {
+              "calls": 110,
+              "ms": 5.900000003166497,
+              "max": 0.900000000372529
+            },
+            "obstacles": {
+              "calls": 110,
+              "ms": 1.200000001117587,
+              "max": 0.7999999998137355
+            },
+            "obstacle": {
+              "calls": 110,
+              "ms": 8.899999999441206,
+              "max": 0.900000000372529
+            },
+            "overview": {
+              "calls": 55,
+              "ms": 11.600000002421439,
+              "max": 1
+            },
+            "view": {
+              "calls": 55,
+              "ms": 60,
+              "max": 1.900000000372529
+            },
+            "render": {
+              "calls": 120,
+              "ms": 114.59999999962747,
+              "max": 2.6000000005587935
+            }
+          },
+          "pixels": 442364,
+          "browserMs": {
+            "ScriptDuration": 97.51499999999999,
+            "LayoutDuration": 24.096000000000007,
+            "RecalcStyleDuration": 25.037999999999997,
+            "TaskDuration": 585.6479999999999
+          }
+        },
+        {
+          "scene": "office",
+          "mode": "flight",
+          "ms": 2000.5,
+          "fps": 26.99325168707823,
+          "p95FrameMs": 50.799999999813735,
+          "mutations": 1011,
+          "stats": {
+            "advanceCleaning": {
+              "calls": 120,
+              "ms": 1.9000000013038516,
+              "max": 0.6000000005587935
+            },
+            "advance": {
+              "calls": 120,
+              "ms": 9.299999998882413,
+              "max": 1.099999999627471
+            },
+            "hud": {
+              "calls": 112,
+              "ms": 14.500000005587935,
+              "max": 0.900000000372529
+            },
+            "update": {
+              "calls": 120,
+              "ms": 30.800000006332994,
+              "max": 4.7999999998137355
+            },
+            "render": {
+              "calls": 120,
+              "ms": 85.50000000465661,
+              "max": 5.099999999627471
+            },
+            "binContents": {
+              "calls": 54,
+              "ms": 0.5,
+              "max": 0.2999999998137355
+            },
+            "drawBackground": {
+              "calls": 54,
+              "ms": 3.7999999998137355,
+              "max": 0.8000000007450581
+            },
+            "bin": {
+              "calls": 324,
+              "ms": 12.099999996833503,
+              "max": 0.8999999994412065
+            },
+            "person": {
+              "calls": 108,
+              "ms": 9.800000000745058,
+              "max": 0.900000000372529
+            },
+            "body": {
+              "calls": 54,
+              "ms": 5,
+              "max": 0.7999999998137355
+            },
+            "obstacles": {
+              "calls": 108,
+              "ms": 1.5,
+              "max": 1
+            },
+            "obstacle": {
+              "calls": 108,
+              "ms": 6.499999999068677,
+              "max": 0.7999999998137355
+            },
+            "overview": {
+              "calls": 54,
+              "ms": 13.300000004470348,
+              "max": 1.099999999627471
+            },
+            "view": {
+              "calls": 54,
+              "ms": 65.70000000391155,
+              "max": 3.7999999998137355
+            }
+          },
+          "pixels": 442364,
+          "browserMs": {
+            "ScriptDuration": 112.935,
+            "LayoutDuration": 1.0839999999999739,
+            "RecalcStyleDuration": 14.391000000000002,
+            "TaskDuration": 439.56499999999977
+          }
+        },
+        {
+          "scene": "arena",
+          "mode": "debris",
+          "ms": 2000.5999999996275,
+          "fps": 27.491752474262842,
+          "p95FrameMs": 49.80000000074506,
+          "mutations": 900,
+          "stats": {
+            "advanceCleaning": {
+              "calls": 120,
+              "ms": 4,
+              "max": 1
+            },
+            "hud": {
+              "calls": 120,
+              "ms": 19.100000004284084,
+              "max": 0.900000000372529
+            },
+            "update": {
+              "calls": 120,
+              "ms": 27.100000004284084,
+              "max": 1.1000000005587935
+            },
+            "binContents": {
+              "calls": 55,
+              "ms": 1.2999999998137355,
+              "max": 0.6000000005587935
+            },
+            "drawBackground": {
+              "calls": 55,
+              "ms": 2.800000000745058,
+              "max": 0.900000000372529
+            },
+            "bin": {
+              "calls": 880,
+              "ms": 29.999999993480742,
+              "max": 0.8999999994412065
+            },
+            "person": {
+              "calls": 55,
+              "ms": 3.9000000013038516,
+              "max": 0.7999999998137355
+            },
+            "body": {
+              "calls": 2200,
+              "ms": 38.20000000204891,
+              "max": 0.900000000372529
+            },
+            "obstacles": {
+              "calls": 110,
+              "ms": 0.09999999962747097,
+              "max": 0.09999999962747097
+            },
+            "overview": {
+              "calls": 55,
+              "ms": 15.999999998137355,
+              "max": 0.900000000372529
+            },
+            "view": {
+              "calls": 55,
+              "ms": 118.89999999757856,
+              "max": 3.5
+            },
+            "render": {
+              "calls": 120,
+              "ms": 143.79999999608845,
+              "max": 3.599999999627471
+            }
+          },
+          "pixels": 442364,
+          "browserMs": {
+            "ScriptDuration": 164.51300000000003,
+            "LayoutDuration": 0,
+            "RecalcStyleDuration": 20.737000000000005,
+            "TaskDuration": 719.0799999999999
+          }
+        },
+        {
+          "scene": "construction",
+          "mode": "debris",
+          "ms": 2000.7999999998137,
+          "fps": 28.98840463814744,
+          "p95FrameMs": 48.799999999813735,
+          "mutations": 900,
+          "stats": {
+            "advanceCleaning": {
+              "calls": 120,
+              "ms": 4.199999996460974,
+              "max": 0.900000000372529
+            },
+            "hud": {
+              "calls": 120,
+              "ms": 13.200000001117587,
+              "max": 1.1000000005587935
+            },
+            "update": {
+              "calls": 120,
+              "ms": 18.499999997206032,
+              "max": 1.2000000001862645
+            },
+            "render": {
+              "calls": 120,
+              "ms": 124.29999999888241,
+              "max": 2.8999999994412065
+            },
+            "binContents": {
+              "calls": 58,
+              "ms": 1.900000000372529,
+              "max": 0.6000000005587935
+            },
+            "drawBackground": {
+              "calls": 58,
+              "ms": 1.5000000009313226,
+              "max": 0.20000000018626451
+            },
+            "bin": {
+              "calls": 580,
+              "ms": 24.40000000130385,
+              "max": 0.900000000372529
+            },
+            "person": {
+              "calls": 174,
+              "ms": 13.900000002235174,
+              "max": 0.900000000372529
+            },
+            "body": {
+              "calls": 2320,
+              "ms": 23.69999999180436,
+              "max": 0.900000000372529
+            },
+            "obstacles": {
+              "calls": 116,
+              "ms": 0.7999999988824129,
+              "max": 0.599999999627471
+            },
+            "obstacle": {
+              "calls": 232,
+              "ms": 9.800000000745058,
+              "max": 0.900000000372529
+            },
+            "overview": {
+              "calls": 58,
+              "ms": 12.000000000931323,
+              "max": 0.900000000372529
+            },
+            "view": {
+              "calls": 58,
+              "ms": 100.30000000167638,
+              "max": 2.7000000001862645
+            }
+          },
+          "pixels": 442364,
+          "browserMs": {
+            "ScriptDuration": 135.02399999999992,
+            "LayoutDuration": 0,
+            "RecalcStyleDuration": 18.073000000000008,
+            "TaskDuration": 568.8410000000003
+          }
+        }
+      ],
+      "cpuPlanning": [
+        {
+          "scene": "office",
+          "ms": 424.20000000018626,
+          "candidates": 277,
+          "frequency": "once per CPU turn, not per frame"
+        },
+        {
+          "scene": "construction",
+          "ms": 760.7999999998137,
+          "candidates": 277,
+          "frequency": "once per CPU turn, not per frame"
+        }
+      ]
+    },
+    "optimized_30fps": {
+      "baseline": "working tree",
+      "environment": {
+        "browser": "headless Chrome",
+        "viewport": "390x844 @2x",
+        "quality": "efficient",
+        "cpuThrottle": 4,
+        "sampleMs": 2000,
+        "notes": "Nested timings overlap. Canvas timings measure command submission, not GPU energy or iPhone temperature. Fixed scenario seed 42. Debris cases place 40 resting items across the map. Historical versions retain their own FPS policy."
+      },
+      "rows": [
+        {
+          "scene": "office",
+          "mode": "idle",
+          "ms": 2000.6000000005588,
+          "fps": 0,
+          "p95FrameMs": 0,
+          "mutations": 0,
+          "stats": {},
+          "pixels": 442364,
+          "browserMs": {
+            "ScriptDuration": 0.004999999999991123,
+            "LayoutDuration": 0,
+            "RecalcStyleDuration": 0,
+            "TaskDuration": 4.975000000000007
+          }
+        },
+        {
+          "scene": "office",
+          "mode": "aim",
+          "ms": 2000.1000000005588,
+          "fps": 29.998500074987867,
+          "p95FrameMs": 50.200000000186265,
+          "mutations": 0,
+          "stats": {
+            "advanceCleaning": {
+              "calls": 120,
+              "ms": 1.9000000013038516,
+              "max": 0.900000000372529
+            },
+            "hud": {
+              "calls": 120,
+              "ms": 1.1000000014901161,
+              "max": 0.2999999998137355
+            },
+            "update": {
+              "calls": 120,
+              "ms": 5.800000007264316,
+              "max": 1
+            },
+            "render": {
+              "calls": 120,
+              "ms": 49.59999999962747,
+              "max": 1.599999999627471
+            },
+            "binContents": {
+              "calls": 60,
+              "ms": 0,
+              "max": 0
+            },
+            "obstacles": {
+              "calls": 60,
+              "ms": 0.7000000001862645,
+              "max": 0.40000000037252903
+            },
+            "drawBackground": {
+              "calls": 60,
+              "ms": 1.0999999986961484,
+              "max": 0.20000000018626451
+            },
+            "person": {
+              "calls": 60,
+              "ms": 7.800000001676381,
+              "max": 1
+            },
+            "obstacle": {
+              "calls": 120,
+              "ms": 12.100000003352761,
+              "max": 1
+            },
+            "overview": {
+              "calls": 60,
+              "ms": 6.799999996088445,
+              "max": 0.8999999994412065
+            },
+            "view": {
+              "calls": 60,
+              "ms": 48.19999999925494,
+              "max": 1.5
+            }
+          },
+          "pixels": 442364,
+          "browserMs": {
+            "ScriptDuration": 68.31800000000001,
+            "LayoutDuration": 0,
+            "RecalcStyleDuration": 0,
+            "TaskDuration": 475.29900000000004
+          }
+        },
+        {
+          "scene": "office",
+          "mode": "charge",
+          "ms": 2000.2999999998137,
+          "fps": 29.99550067490156,
+          "p95FrameMs": 34.799999999813735,
+          "mutations": 180,
+          "stats": {
+            "advanceCleaning": {
+              "calls": 120,
+              "ms": 1.2000000001862645,
+              "max": 0.2999999998137355
+            },
+            "hud": {
+              "calls": 120,
+              "ms": 8.59999999590218,
+              "max": 0.8999999994412065
+            },
+            "update": {
+              "calls": 120,
+              "ms": 12.499999997206032,
+              "max": 1
+            },
+            "render": {
+              "calls": 120,
+              "ms": 55.200000007636845,
+              "max": 2
+            },
+            "binContents": {
+              "calls": 60,
+              "ms": 0.20000000018626451,
+              "max": 0.20000000018626451
+            },
+            "obstacles": {
+              "calls": 60,
+              "ms": 0.900000000372529,
+              "max": 0.20000000018626451
+            },
+            "drawBackground": {
+              "calls": 60,
+              "ms": 2.6000000024214387,
+              "max": 0.8000000007450581
+            },
+            "person": {
+              "calls": 60,
+              "ms": 9.100000003352761,
+              "max": 0.900000000372529
+            },
+            "obstacle": {
+              "calls": 120,
+              "ms": 13.700000001117587,
+              "max": 0.900000000372529
+            },
+            "overview": {
+              "calls": 60,
+              "ms": 7,
+              "max": 0.7000000001862645
+            },
+            "view": {
+              "calls": 60,
+              "ms": 52.600000005215406,
+              "max": 1.8999999994412065
+            }
+          },
+          "pixels": 442364,
+          "browserMs": {
+            "ScriptDuration": 80.38300000000001,
+            "LayoutDuration": 31.691999999999997,
+            "RecalcStyleDuration": 6.683000000000002,
+            "TaskDuration": 607.542
+          }
+        },
+        {
+          "scene": "office",
+          "mode": "flight",
+          "ms": 2000.0999999996275,
+          "fps": 29.99850007500184,
+          "p95FrameMs": 34.40000000037253,
+          "mutations": 21,
+          "stats": {
+            "advanceCleaning": {
+              "calls": 120,
+              "ms": 2.599999999627471,
+              "max": 0.8999999994412065
+            },
+            "advance": {
+              "calls": 120,
+              "ms": 8.999999999068677,
+              "max": 0.7999999998137355
+            },
+            "hud": {
+              "calls": 112,
+              "ms": 2.199999996460974,
+              "max": 1.099999999627471
+            },
+            "update": {
+              "calls": 120,
+              "ms": 18.799999996088445,
+              "max": 4.599999999627471
+            },
+            "render": {
+              "calls": 120,
+              "ms": 55.39999999944121,
+              "max": 3.7000000001862645
+            },
+            "binContents": {
+              "calls": 60,
+              "ms": 0.30000000167638063,
+              "max": 0.10000000055879354
+            },
+            "obstacles": {
+              "calls": 60,
+              "ms": 0.09999999962747097,
+              "max": 0.09999999962747097
+            },
+            "drawBackground": {
+              "calls": 60,
+              "ms": 3.2000000001862645,
+              "max": 0.599999999627471
+            },
+            "body": {
+              "calls": 60,
+              "ms": 5.399999997578561,
+              "max": 0.7999999998137355
+            },
+            "person": {
+              "calls": 60,
+              "ms": 5.79999999795109,
+              "max": 0.7999999998137355
+            },
+            "obstacle": {
+              "calls": 120,
+              "ms": 10.799999998882413,
+              "max": 1
+            },
+            "overview": {
+              "calls": 60,
+              "ms": 9.499999999068677,
+              "max": 0.900000000372529
+            },
+            "view": {
+              "calls": 60,
+              "ms": 52.69999999925494,
+              "max": 3.599999999627471
+            },
+            "bin": {
+              "calls": 2,
+              "ms": 0,
+              "max": 0
+            }
+          },
+          "pixels": 442364,
+          "browserMs": {
+            "ScriptDuration": 87.64499999999997,
+            "LayoutDuration": 1.1140000000000039,
+            "RecalcStyleDuration": 0.37700000000000233,
+            "TaskDuration": 468.82599999999996
+          }
+        },
+        {
+          "scene": "arena",
+          "mode": "debris",
+          "ms": 2000.7000000001863,
+          "fps": 29.989503673711408,
+          "p95FrameMs": 34.40000000037253,
+          "mutations": 0,
+          "stats": {
+            "advanceCleaning": {
+              "calls": 120,
+              "ms": 5.800000002607703,
+              "max": 0.8000000007450581
+            },
+            "hud": {
+              "calls": 120,
+              "ms": 0.4999999990686774,
+              "max": 0.19999999925494194
+            },
+            "update": {
+              "calls": 120,
+              "ms": 11.300000000745058,
+              "max": 0.8999999994412065
+            },
+            "binContents": {
+              "calls": 60,
+              "ms": 1.099999999627471,
+              "max": 0.2999999998137355
+            },
+            "obstacles": {
+              "calls": 60,
+              "ms": 0,
+              "max": 0
+            },
+            "drawBackground": {
+              "calls": 60,
+              "ms": 2.7999999998137355,
+              "max": 0.6000000005587935
+            },
+            "body": {
+              "calls": 2400,
+              "ms": 28.39999999664724,
+              "max": 1
+            },
+            "overview": {
+              "calls": 60,
+              "ms": 13.000000004656613,
+              "max": 0.900000000372529
+            },
+            "view": {
+              "calls": 60,
+              "ms": 76.6000000052154,
+              "max": 2.2999999998137355
+            },
+            "render": {
+              "calls": 120,
+              "ms": 78.40000000596046,
+              "max": 2.2999999998137355
+            }
+          },
+          "pixels": 442364,
+          "browserMs": {
+            "ScriptDuration": 98.30499999999998,
+            "LayoutDuration": 0,
+            "RecalcStyleDuration": 0,
+            "TaskDuration": 708.215
+          }
+        },
+        {
+          "scene": "construction",
+          "mode": "debris",
+          "ms": 2000.0999999996275,
+          "fps": 29.99850007500184,
+          "p95FrameMs": 34.40000000037253,
+          "mutations": 0,
+          "stats": {
+            "advanceCleaning": {
+              "calls": 120,
+              "ms": 3.2000000020489097,
+              "max": 0.7999999998137355
+            },
+            "hud": {
+              "calls": 120,
+              "ms": 0.599999999627471,
+              "max": 0.20000000018626451
+            },
+            "update": {
+              "calls": 120,
+              "ms": 5.500000001862645,
+              "max": 0.900000000372529
+            },
+            "render": {
+              "calls": 120,
+              "ms": 48.20000000111759,
+              "max": 1.400000000372529
+            },
+            "binContents": {
+              "calls": 60,
+              "ms": 1.2999999998137355,
+              "max": 0.7999999998137355
+            },
+            "obstacles": {
+              "calls": 60,
+              "ms": 0.5999999986961484,
+              "max": 0.20000000018626451
+            },
+            "drawBackground": {
+              "calls": 60,
+              "ms": 2.599999999627471,
+              "max": 0.5
+            },
+            "body": {
+              "calls": 2400,
+              "ms": 11.100000001490116,
+              "max": 1
+            },
+            "person": {
+              "calls": 60,
+              "ms": 7.400000001303852,
+              "max": 0.900000000372529
+            },
+            "obstacle": {
+              "calls": 120,
+              "ms": 9.600000002421439,
+              "max": 0.900000000372529
+            },
+            "overview": {
+              "calls": 60,
+              "ms": 7.29999999795109,
+              "max": 0.900000000372529
+            },
+            "view": {
+              "calls": 60,
+              "ms": 44.700000000186265,
+              "max": 1.2000000001862645
+            }
+          },
+          "pixels": 442364,
+          "browserMs": {
+            "ScriptDuration": 62.273999999999944,
+            "LayoutDuration": 0,
+            "RecalcStyleDuration": 0,
+            "TaskDuration": 497.80099999999993
+          }
+        }
+      ],
+      "cpuPlanning": [
+        {
+          "scene": "office",
+          "ms": 426.1000000005588,
+          "candidates": 277,
+          "frequency": "once per CPU turn, not per frame"
+        },
+        {
+          "scene": "construction",
+          "ms": 769.1999999992549,
+          "candidates": 277,
+          "frequency": "once per CPU turn, not per frame"
+        }
+      ]
+    },
+    "optimized_60fps": {
+      "baseline": "working tree",
+      "environment": {
+        "browser": "headless Chrome",
+        "viewport": "390x844 @2x",
+        "quality": "smooth",
+        "cpuThrottle": 4,
+        "sampleMs": 2000,
+        "notes": "Nested timings overlap. Canvas timings measure command submission, not GPU energy or iPhone temperature. Fixed scenario seed 42. Debris cases place 40 resting items across the map. Historical versions retain their own FPS policy."
+      },
+      "rows": [
+        {
+          "scene": "office",
+          "mode": "idle",
+          "ms": 2000.800000000745,
+          "fps": 0,
+          "p95FrameMs": 0,
+          "mutations": 0,
+          "stats": {},
+          "pixels": 442364,
+          "browserMs": {
+            "ScriptDuration": 0.005999999999992123,
+            "LayoutDuration": 0,
+            "RecalcStyleDuration": 0,
+            "TaskDuration": 2.597000000000016
+          }
+        },
+        {
+          "scene": "office",
+          "mode": "aim",
+          "ms": 2000.2999999998137,
+          "fps": 59.99100134980312,
+          "p95FrameMs": 18,
+          "mutations": 0,
+          "stats": {
+            "advanceCleaning": {
+              "calls": 120,
+              "ms": 0.5,
+              "max": 0.10000000055879354
+            },
+            "hud": {
+              "calls": 120,
+              "ms": 1.199999999254942,
+              "max": 0.2999999998137355
+            },
+            "update": {
+              "calls": 120,
+              "ms": 3.6999999983236194,
+              "max": 0.30000000074505806
+            },
+            "binContents": {
+              "calls": 120,
+              "ms": 0.40000000037252903,
+              "max": 0.19999999925494194
+            },
+            "obstacles": {
+              "calls": 120,
+              "ms": 1.699999999254942,
+              "max": 0.7000000001862645
+            },
+            "drawBackground": {
+              "calls": 120,
+              "ms": 3.2999999998137355,
+              "max": 0.6999999992549419
+            },
+            "person": {
+              "calls": 120,
+              "ms": 13.599999996833503,
+              "max": 0.900000000372529
+            },
+            "obstacle": {
+              "calls": 240,
+              "ms": 19.800000000745058,
+              "max": 0.900000000372529
+            },
+            "overview": {
+              "calls": 120,
+              "ms": 14.299999999813735,
+              "max": 1.1000000005587935
+            },
+            "view": {
+              "calls": 120,
+              "ms": 82.40000000037253,
+              "max": 1.6000000005587935
+            },
+            "render": {
+              "calls": 120,
+              "ms": 85.70000000204891,
+              "max": 1.6000000005587935
+            }
+          },
+          "pixels": 442364,
+          "browserMs": {
+            "ScriptDuration": 101.32,
+            "LayoutDuration": 0,
+            "RecalcStyleDuration": 0,
+            "TaskDuration": 887.4979999999999
+          }
+        },
+        {
+          "scene": "office",
+          "mode": "charge",
+          "ms": 2000.1000000005588,
+          "fps": 59.99700014997573,
+          "p95FrameMs": 17.799999999813735,
+          "mutations": 180,
+          "stats": {
+            "advanceCleaning": {
+              "calls": 120,
+              "ms": 0.20000000018626451,
+              "max": 0.10000000055879354
+            },
+            "hud": {
+              "calls": 120,
+              "ms": 7.200000001117587,
+              "max": 0.7999999998137355
+            },
+            "update": {
+              "calls": 120,
+              "ms": 8.700000004842877,
+              "max": 0.7999999998137355
+            },
+            "binContents": {
+              "calls": 120,
+              "ms": 0.20000000018626451,
+              "max": 0.20000000018626451
+            },
+            "obstacles": {
+              "calls": 120,
+              "ms": 0.6000000014901161,
+              "max": 0.10000000055879354
+            },
+            "drawBackground": {
+              "calls": 120,
+              "ms": 4.299999997019768,
+              "max": 0.7999999998137355
+            },
+            "person": {
+              "calls": 120,
+              "ms": 11.199999999254942,
+              "max": 1
+            },
+            "obstacle": {
+              "calls": 240,
+              "ms": 18.700000000186265,
+              "max": 1
+            },
+            "overview": {
+              "calls": 120,
+              "ms": 17.10000000335276,
+              "max": 0.900000000372529
+            },
+            "view": {
+              "calls": 120,
+              "ms": 87.6000000052154,
+              "max": 1.599999999627471
+            },
+            "render": {
+              "calls": 120,
+              "ms": 91.10000000335276,
+              "max": 1.599999999627471
+            }
+          },
+          "pixels": 442364,
+          "browserMs": {
+            "ScriptDuration": 118.06300000000003,
+            "LayoutDuration": 29.658999999999992,
+            "RecalcStyleDuration": 4.114,
+            "TaskDuration": 1038.805
+          }
+        },
+        {
+          "scene": "office",
+          "mode": "flight",
+          "ms": 2000.2000000001863,
+          "fps": 59.49405059493497,
+          "p95FrameMs": 17.799999999813735,
+          "mutations": 21,
+          "stats": {
+            "advanceCleaning": {
+              "calls": 120,
+              "ms": 1.400000000372529,
+              "max": 0.10000000055879354
+            },
+            "advance": {
+              "calls": 120,
+              "ms": 9.999999997206032,
+              "max": 1
+            },
+            "hud": {
+              "calls": 112,
+              "ms": 1.4999999981373549,
+              "max": 1.099999999627471
+            },
+            "update": {
+              "calls": 120,
+              "ms": 18.99999999627471,
+              "max": 5.099999999627471
+            },
+            "binContents": {
+              "calls": 119,
+              "ms": 1.099999999627471,
+              "max": 0.7000000001862645
+            },
+            "obstacles": {
+              "calls": 119,
+              "ms": 0,
+              "max": 0
+            },
+            "drawBackground": {
+              "calls": 119,
+              "ms": 3.699999999254942,
+              "max": 0.599999999627471
+            },
+            "body": {
+              "calls": 119,
+              "ms": 5.399999997578561,
+              "max": 0.8999999994412065
+            },
+            "person": {
+              "calls": 119,
+              "ms": 10.700000000186265,
+              "max": 0.900000000372529
+            },
+            "obstacle": {
+              "calls": 238,
+              "ms": 16.59999999869615,
+              "max": 0.900000000372529
+            },
+            "overview": {
+              "calls": 119,
+              "ms": 19.100000001490116,
+              "max": 0.8999999994412065
+            },
+            "view": {
+              "calls": 119,
+              "ms": 76.20000000111759,
+              "max": 2.900000000372529
+            },
+            "render": {
+              "calls": 120,
+              "ms": 81.70000000391155,
+              "max": 3.6000000005587935
+            },
+            "bin": {
+              "calls": 2,
+              "ms": 0.5,
+              "max": 0.5
+            }
+          },
+          "pixels": 442364,
+          "browserMs": {
+            "ScriptDuration": 112.80000000000001,
+            "LayoutDuration": 0.9139999999999981,
+            "RecalcStyleDuration": 0.7140000000000063,
+            "TaskDuration": 809.8779999999999
+          }
+        },
+        {
+          "scene": "arena",
+          "mode": "debris",
+          "ms": 2001,
+          "fps": 59.470264867566215,
+          "p95FrameMs": 17.799999999813735,
+          "mutations": 0,
+          "stats": {
+            "advanceCleaning": {
+              "calls": 120,
+              "ms": 5.6000000005587935,
+              "max": 0.7000000001862645
+            },
+            "hud": {
+              "calls": 120,
+              "ms": 2.6000000005587935,
+              "max": 0.7000000001862645
+            },
+            "update": {
+              "calls": 120,
+              "ms": 13,
+              "max": 0.7000000001862645
+            },
+            "binContents": {
+              "calls": 119,
+              "ms": 1.300000000745058,
+              "max": 0.20000000018626451
+            },
+            "obstacles": {
+              "calls": 119,
+              "ms": 0.20000000018626451,
+              "max": 0.20000000018626451
+            },
+            "drawBackground": {
+              "calls": 119,
+              "ms": 4.599999997764826,
+              "max": 0.6000000005587935
+            },
+            "body": {
+              "calls": 4760,
+              "ms": 55.499999998137355,
+              "max": 1.900000000372529
+            },
+            "overview": {
+              "calls": 119,
+              "ms": 21.499999999068677,
+              "max": 0.900000000372529
+            },
+            "view": {
+              "calls": 119,
+              "ms": 141.69999999832362,
+              "max": 2.8999999994412065
+            },
+            "render": {
+              "calls": 120,
+              "ms": 145.1000000005588,
+              "max": 2.8999999994412065
+            }
+          },
+          "pixels": 442364,
+          "browserMs": {
+            "ScriptDuration": 166.83700000000002,
+            "LayoutDuration": 0,
+            "RecalcStyleDuration": 0,
+            "TaskDuration": 1351.5310000000004
+          }
+        },
+        {
+          "scene": "construction",
+          "mode": "debris",
+          "ms": 2000.300000000745,
+          "fps": 59.99100134977518,
+          "p95FrameMs": 17.800000000745058,
+          "mutations": 0,
+          "stats": {
+            "advanceCleaning": {
+              "calls": 120,
+              "ms": 3,
+              "max": 0.2999999998137355
+            },
+            "hud": {
+              "calls": 120,
+              "ms": 1.7999999998137355,
+              "max": 0.5
+            },
+            "update": {
+              "calls": 120,
+              "ms": 7.499999999068677,
+              "max": 0.599999999627471
+            },
+            "binContents": {
+              "calls": 120,
+              "ms": 1.299999998882413,
+              "max": 0.599999999627471
+            },
+            "obstacles": {
+              "calls": 120,
+              "ms": 1.7999999979510903,
+              "max": 0.5
+            },
+            "drawBackground": {
+              "calls": 120,
+              "ms": 5.199999999254942,
+              "max": 0.7000000001862645
+            },
+            "body": {
+              "calls": 4800,
+              "ms": 15.49999999627471,
+              "max": 0.7999999998137355
+            },
+            "person": {
+              "calls": 120,
+              "ms": 10.100000004284084,
+              "max": 0.7999999998137355
+            },
+            "obstacle": {
+              "calls": 240,
+              "ms": 11.400000005029142,
+              "max": 0.7999999998137355
+            },
+            "overview": {
+              "calls": 120,
+              "ms": 17.000000002793968,
+              "max": 1.099999999627471
+            },
+            "view": {
+              "calls": 120,
+              "ms": 86.80000000167638,
+              "max": 1.5
+            },
+            "render": {
+              "calls": 120,
+              "ms": 89.30000000074506,
+              "max": 1.5
+            }
+          },
+          "pixels": 442364,
+          "browserMs": {
+            "ScriptDuration": 114.72499999999997,
+            "LayoutDuration": 0,
+            "RecalcStyleDuration": 0,
+            "TaskDuration": 923.8300000000006
+          }
+        }
+      ],
+      "cpuPlanning": [
+        {
+          "scene": "office",
+          "ms": 417.29999999981374,
+          "candidates": 277,
+          "frequency": "once per CPU turn, not per frame"
+        },
+        {
+          "scene": "construction",
+          "ms": 758.3999999994412,
+          "candidates": 277,
+          "frequency": "once per CPU turn, not per frame"
+        }
+      ]
+    }
+  }
+}

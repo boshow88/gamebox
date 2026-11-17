@@ -33,7 +33,7 @@
     root.createTrashTossOnline = function (options) {
         const t = AC.i18n.t;
         let net = null, policy = null, lobby = null, user = null, status = '', pending = false, timer = null;
-        let reported = null, setupTask = null, lastRender = '';
+        let reported = null, setupTask = null, lastRender = '', lastGameUpdate = '';
         function game() { const g = policy && policy.room && policy.room.data && policy.room.data.game; return g && g.matchId ? g : null; }
         function error(err) {
             const code = String(err && (err.code || err.message) || err).toLowerCase();
@@ -47,8 +47,15 @@
             try { return await action(); } catch (err) { error(err); } finally { pending = false; render(); }
         }
         function notify(data) {
-            if (options.onChange) options.onChange(data);
             const g = game(), key = g && g.matchId;
+            // Presence pulses still update the lobby, but do not rewrite game
+            // settings/localStorage or force a canvas/HUD refresh for the same turn.
+            const version = JSON.stringify([policy && policy.room && policy.room.code,
+                g ? [g.matchId, g.seq, g.status] : data && [data.options && data.options.scene, data.revision || 0]]);
+            if (version !== lastGameUpdate) {
+                lastGameUpdate = version;
+                if (options.onChange) options.onChange(data);
+            }
             if (g && g.status !== 'over' && key !== reported) { reported = key; if (lobby) lobby.element.hidden = true; }
             if (g && g.status === 'over' && g.endReason) status = t('ttNetLost');
             render();

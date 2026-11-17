@@ -6,6 +6,9 @@
 const assert = require('node:assert/strict');
 (async () => {
     const port = Number(process.argv[2] || 9377), origin = process.argv[3] || 'http://127.0.0.1:8000', preview = process.argv.includes('--lobby-preview');
+    const perf = process.argv.includes('--perf');
+    const throttle = Number(process.argv.find(arg=>arg.startsWith('--throttle='))?.slice(11)||'1');
+    const output = process.argv.find(arg=>arg.startsWith('--output='))?.slice(9)||'/tmp/trash-toss-online-performance.json';
     const target = await (await fetch('http://127.0.0.1:' + port + '/json/new?' + encodeURIComponent(origin + '/index.html'), { method: 'PUT' })).json();
     const socket = new WebSocket(target.webSocketDebuggerUrl), pending = new Map(); let serial = 0;
     await new Promise((resolve, reject) => { socket.onopen = resolve; socket.onerror = reject; });
@@ -35,13 +38,15 @@ const assert = require('node:assert/strict');
                 };
             } });
         })();` });
-        await command('Emulation.setDeviceMetricsOverride', { width: preview ? 375 : 960, height: preview ? 812 : 900, deviceScaleFactor: 1, mobile: false });
-        const report = await evaluate(async preview => {
+        await command('Emulation.setDeviceMetricsOverride', { width: preview ? 375 : perf ? 780 : 960, height: preview ? 812 : 900, deviceScaleFactor: perf ? 2 : 1, mobile: false });
+        if(perf)await command('Emulation.setCPUThrottlingRate',{rate:throttle});
+        const report = await evaluate(async (preview,perf) => {
             const { createRoomService, createRoomPresence } = await import('/js/net/rooms.mjs');
             const { applyRoomPatch } = await import('/js/net/rtdb-values.mjs');
             const { createRoomLobby } = await import('/js/net/room-lobby.mjs');
             const clone = value => structuredClone(value), rooms = new Map(), listeners = new Map(); let queue = Promise.resolve();
             let latency = 0;
+            const samples=[];
             const notify = code => { const data = clone(rooms.get(code) || null); for (const fn of listeners.get(code) || []) setTimeout(() => fn(clone(data)), latency); };
             const errors = [], frames = [];
             window.addEventListener('error', e => errors.push(e.message));
@@ -70,7 +75,7 @@ const assert = require('node:assert/strict');
                 throw new Error('Timed out: ' + description + ' / ' + JSON.stringify({ errors, game: rooms.get('ABCD')?.game?.status, active: rooms.get('ABCD')?.game?.active, frames: frames.map(f => ({ disabled: f.document.getElementById('tt-throw').disabled, status: f.document.getElementById('tt-status').textContent, clock: f.document.getElementById('tt-clock').textContent, overlay: f.document.getElementById('overlay').hidden, lobby: f.document.getElementById('lobby')?.hidden })) }));
             }
             for (let i = 0; i < 2; i++) {
-                const frame = document.createElement('iframe'); frame.width = 460; frame.height = 860; frame.src = '/games/trash-toss.html'; frame.style.cssText = 'position:fixed;top:0;left:' + (i * 470) + 'px;z-index:1000;background:white'; document.body.append(frame);
+                const frame = document.createElement('iframe'); frame.width = perf?375:460; frame.height = perf?812:860; frame.src = '/games/trash-toss.html'; frame.style.cssText = 'position:fixed;top:0;left:' + (i * (perf?385:470)) + 'px;z-index:1000;background:white'; document.body.append(frame);
                 await new Promise(resolve => frame.onload = resolve);
                 const w = frame.contentWindow, user = { uid: 'browser-account', name: 'Browser P' + (i + 1) }, roomStore = store();
                 w.addEventListener('error', e => errors.push(e.message));
@@ -93,6 +98,13 @@ const assert = require('node:assert/strict');
                 if (w.document.querySelectorAll('#lobby').length !== 1) throw new Error('Duplicate lobby from a double tap');
             }
             const a = frames[0], b = frames[1];
+            async function sample(label,action) {
+                frames.forEach(f=>f.w.__ttPerf.clear());const at=performance.now();
+                if(action)await action();
+                await new Promise(resolve=>setTimeout(resolve,1000));
+                const ms=performance.now()-at;
+                samples.push({label,ms,clients:frames.map(f=>({fps:f.w.__ttPerf.frames.length/ms*1000,stats:clone(f.w.__ttPerf.stats),events:clone(f.w.__ttPerf.events),mutations:f.w.__ttPerf.mutations}))});
+            }
             const click = (f, action) => { const button = f.document.querySelector('[data-lobby-action="' + action + '"]'); if (!button || button.disabled) throw new Error('Unavailable action: ' + action); button.click(); };
             click(a, 'create'); await waitFor(() => rooms.has('ABCD'), 'create');
             b.document.querySelector('.lobby-code-input').value = 'ABCD'; click(b, 'join');
@@ -120,6 +132,15 @@ const assert = require('node:assert/strict');
             await waitFor(() => rooms.get('ABCD').game?.status === 'aim' && !a.document.getElementById('tt-throw').disabled, 'host turn UI');
             if (!b.document.getElementById('tt-throw').disabled) throw new Error('Guest controls enabled during host turn');
             if (a.document.getElementById('tt-scene').value !== 'arena' || b.document.getElementById('tt-scene').value !== 'arena') throw new Error('Scene not synchronized');
+            if(perf) {
+                await sample('aim');
+                await sample('unchanged snapshots',async()=>{for(let i=0;i<20;i++)notify('ABCD');await new Promise(resolve=>setTimeout(resolve,100));});
+                a.document.getElementById('tt-online-room').click();
+                await waitFor(()=>!a.document.getElementById('lobby').hidden,'covered field');
+                await sample('room dialog covers host field');
+                a.document.querySelector('#lobby .lobby-close').click();
+                await waitFor(()=>a.document.getElementById('lobby').hidden,'close live lobby');
+            }
             latency = 200;
             a.document.body.dispatchEvent(new a.w.KeyboardEvent('keydown', { key: ' ', code: 'Space', bubbles: true }));
             await new Promise(r => setTimeout(r, 400)); a.document.body.dispatchEvent(new a.w.KeyboardEvent('keyup', { key: ' ', code: 'Space', bubbles: true }));
@@ -127,6 +148,7 @@ const assert = require('node:assert/strict');
             const shot = clone(rooms.get('ABCD').game.shot);
             await waitFor(() => b.w.__throwStarts.length > 0, 'opponent launch rendered with delayed snapshots');
             if (b.w.__throwStarts[0].age > .06) throw new Error('Opponent first visible frame skipped the launch: ' + JSON.stringify(b.w.__throwStarts));
+            if(perf)await sample('flight');
             await waitFor(() => rooms.get('ABCD').game.active === 1 && !b.document.getElementById('tt-throw').disabled, 'guest turn UI');
             if (!a.document.getElementById('tt-throw').disabled) throw new Error('Host controls enabled during guest turn');
             if (a.document.getElementById('tt-score-a').textContent !== b.document.getElementById('tt-score-a').textContent) throw new Error('Score mismatch');
@@ -137,9 +159,9 @@ const assert = require('node:assert/strict');
             await waitFor(() => !rooms.get('ABCD').game.matchId && !b.document.getElementById('tt-room-scene').disabled, 'return to lobby');
             changeScene(b, 'park');
             await waitFor(() => rooms.get('ABCD').options.scene === 'park' && b.document.getElementById('tt-scene').value === 'park', 'host switches map after the match in the same room');
-            const result = { firstVisible: b.w.__throwStarts[0], readySize: { width: primaryBox.width, height: primaryBox.height }, leaveSize: { width: leaveBox.width, height: leaveBox.height }, shot, scene: 'park', errors, guest: b.document.getElementById('tt-scene').value, roomPlayers: Object.keys(rooms.get('ABCD').players).length };
+            const result = { firstVisible: b.w.__throwStarts[0], readySize: { width: primaryBox.width, height: primaryBox.height }, leaveSize: { width: leaveBox.width, height: leaveBox.height }, shot, scene: 'park', errors, guest: b.document.getElementById('tt-scene').value, roomPlayers: Object.keys(rooms.get('ABCD').players).length,samples };
             frames.forEach(f => f.w.frameElement.remove()); return result;
-        }, preview);
+        }, preview,perf);
         if (report.preview) {
             const shot = await command('Page.captureScreenshot', { format: 'png' });
             require('node:fs').writeFileSync('/tmp/trash-toss-lobby-preview.png', Buffer.from(shot.data, 'base64'));
@@ -147,9 +169,20 @@ const assert = require('node:assert/strict');
         }
         assert.deepEqual(report.errors, []);
         assert.equal(report.guest, 'park'); assert.equal(report.roomPlayers, 1);
+        if(process.argv.includes('--expect-optimized')) {
+            const unchanged=report.samples.find(sample=>sample.label==='unchanged snapshots');
+            assert(unchanged.clients.every(client=>!client.events.gameChanges&&!client.events.storageWrites),'Presence-only snapshots must not refresh game state or write preferences');
+            const covered=report.samples.find(sample=>sample.label==='room dialog covers host field');
+            assert.equal(covered.clients[0].stats.project?.calls||0,0,'A covered field must not run local physics replay');
+        }
         assert.ok(report.shot.power > 0 && report.shot.power < 100);
         console.log('Observed first frame:', report.firstVisible, 'Ready/Leave:', report.readySize, report.leaveSize);
         console.log('PASS: two real game pages, lobby create/join/ready/start, shared scene, active-seat controls, accepted charged throw, turn/score synchronization, departure result and return to lobby.');
+        if(perf) {
+            require('node:fs').writeFileSync(output,JSON.stringify({environment:{browser:'headless Chrome, two same-process 375x812 frames @2x',cpuThrottle:throttle,network:'local fake RTDB, 200ms snapshot delay'},...report},null,2)+'\n');
+            console.log('Online samples:',JSON.stringify(report.samples.map(s=>({label:s.label,clients:s.clients.map(c=>({fps:+c.fps.toFixed(1),gameChanges:c.events.gameChanges||0,storageWrites:c.events.storageWrites||0,project:c.stats.project?.calls||0}))}))));
+            console.log('Report:',output);
+        }
     } finally {
         socket.close(); await fetch('http://127.0.0.1:' + port + '/json/close/' + target.id);
     }

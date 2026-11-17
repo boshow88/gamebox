@@ -5,6 +5,7 @@
     const strings = {
         en: {
             ttLaunching: 'Releasing…', ttName: 'Trash Toss', ttOnline: 'Online duel', ttRoom: 'Online room', ttArena: 'Street arena · medium', ttParrot: 'the pet parrot',
+            ttMotion: 'Animation', ttMotionEfficient: 'Battery saver · 30 FPS', ttMotionSmooth: 'Smooth · 60 FPS',
             ttReceipt: 'Lottery receipt', ttSpraycap: 'Spray paint cap', ttCassette: 'Tangled mixtape', ttBottlecap: 'Soda bottle cap', ttWristband: 'Expired gig wristband', ttPadlock: 'Keyless padlock', ttSkatewheel: 'Worn skate wheel', ttNoodlebox: 'Empty noodle box', ttVinyl: 'Scratched vinyl', ttSneaker: 'Retired sneaker', ttSettings: 'Game settings', ttMode: 'Mode', ttPractice: 'Practice', ttCpu: 'Vs CPU', ttLocal: 'Two players',
             ttScene: 'Scene', ttOffice: 'Office · medium', ttLiving: 'Living room · short', ttPark: 'Park · medium', ttItem: 'Object', ttPaper: 'Scrunched memo', ttCan: 'Crushed soda can', ttBook: 'Outdated comic',
             ttMixed: 'Mixed objects', ttBottle: 'Empty bottle', ttCup: 'Yesterday’s coffee cup', ttCarton: 'Empty cookie box', ttPeel: 'Banana peel', ttApple: 'Apple core',
@@ -49,6 +50,7 @@
         },
         zh: {
             ttLaunching: '準備出手…', ttName: '丟垃圾', ttOnline: '連線對戰', ttRoom: '連線房間', ttArena: '街頭競技場・中距離', ttParrot: '寵物鸚鵡',
+            ttMotion: '畫面', ttMotionEfficient: '省電・30 FPS', ttMotionSmooth: '流暢・60 FPS',
             ttReceipt: '沒中的發票', ttSpraycap: '噴漆罐蓋', ttCassette: '卡帶混音帶', ttBottlecap: '汽水瓶蓋', ttWristband: '過期演唱會手環', ttPadlock: '沒鑰匙的掛鎖', ttSkatewheel: '磨平滑板輪', ttNoodlebox: '空炒麵盒', ttVinyl: '刮花黑膠唱片', ttSneaker: '退休球鞋', ttSettings: '遊戲設定', ttMode: '模式', ttPractice: '自由練習', ttCpu: '挑戰電腦', ttLocal: '同機雙人',
             ttScene: '場景', ttOffice: '辦公室・中距離', ttLiving: '客廳・短距離', ttPark: '公園・中距離', ttItem: '投擲物', ttPaper: '廢紙團', ttCan: '喝扁的汽水罐', ttBook: '過期漫畫',
             ttMixed: '輪換物件', ttBottle: '空寶特瓶', ttCup: '隔夜咖啡杯', ttCarton: '空餅乾盒', ttPeel: '香蕉皮', ttApple: '蘋果核',
@@ -99,10 +101,13 @@
     };
     const fields = { mode: $('tt-mode'), scene: $('tt-scene'), difficulty: $('tt-difficulty') };
     const prefs = AC.prefs.get('trash-toss');
+    const motion = $('tt-motion');
+    motion.value = ['efficient', 'smooth'].includes(prefs.motion) ? prefs.motion : 'smooth';
     const saved = R.config(Object.assign({}, prefs, { scene: 'office', item: 'mixed' }));
     Object.keys(fields).forEach(key => { fields[key].value = saved[key]; });
     const view = window.TrashTossView.create($('stage'));
     let hudAt = -Infinity, paintAt = -Infinity, nextScenario = null, nextScenarioKey = '';
+    let hudState = [], hudAngle = null, hudPower = null;
     let online = null, netCache = null, netKey = '', netFinished = '', sending = false;
     let shell, match, scene, pendingMatch, phase = 'aim', time = 0, power = 0, angle = 45;
     let ball = null, trail = [], ghost = [], result = null, resultTime = 0, plan = null;
@@ -138,7 +143,7 @@
         const different = JSON.stringify(c) !== JSON.stringify(match.config);
         $('tt-pending').hidden = !different;
         $('tt-pending').textContent = different ? t('ttPending', setupLabel(match.config), setupLabel(c)) : '';
-        AC.prefs.set('trash-toss', Object.assign({ version: 2 }, c));
+        AC.prefs.set('trash-toss', Object.assign({ version: 2, motion: motion.value }, c));
     }
     function cancelCharge() {
         angleHold = null; angleCarry = 0; charging = null; pointerId = null; power = 0;
@@ -230,6 +235,27 @@
         if (!match) return;
         if (!force && (document.hidden || online && online.isOpen() || worldTime >= hudAt && worldTime - hudAt < 1 / 30 - .0001)) return;
         hudAt = worldTime;
+        // Charging/angle changes touch only their own controls, not every label.
+        const shownAngle = Math.round(angle);
+        if (force || hudAngle !== shownAngle) {
+            hudAngle = shownAngle; $('tt-angle').value = shownAngle;
+            putText('tt-angle-value', shownAngle + '°');
+        }
+        if (force || hudPower !== power) {
+            hudPower = power; putText('tt-power-value', Math.round(power));
+            $('tt-power-fill').style.transform = 'scaleX(' + power / 100 + ')'; $('tt-power-meter').setAttribute('aria-valuenow', Math.round(power));
+        }
+        // Physics and the canvas keep moving; unchanged labels/attributes do not
+        // need to be written again on every HUD tick.
+        const state = [scene, match, pendingMatch, result, phase, match.active, match.round, match.turn,
+            match.scores[0], match.scores[1], previousThrow, last[match.active], debris.length,
+            !!(ball && ball.hits.length), sending, canInput(),
+            shell && shell.isPlaying(), isOnline() && online.canControl(), AC.i18n.locale,
+            !isFree() && ['aim', 'charge'].includes(phase) ? Math.max(0, Math.ceil(R.WORLD.turnSeconds - time)) : 0,
+            cleaning.active, cleaning.active && cleaning.active.cleared,
+            cleaning.active && worldTime >= cleaning.active.arriveAt];
+        if (!force && state.length === hudState.length && state.every((value, i) => value === hudState[i])) return;
+        hudState = state;
         const practice = isFree(), scores = (pendingMatch ? pendingMatch.scores : match.scores).slice();
         if (phase === 'flight' && ball.hits.length) scores[match.active] -= 5;
         putText('tt-round', practice ? '∞' : match.round > 5 ? t('ttExtra', match.round - 5) : match.round + ' / 5');
@@ -263,13 +289,10 @@
         putText('tt-previous-wind', previousThrow ? t('ttPreviousWind', windLabel(previousThrow) +
             (R.SCENES[previousThrow.scene].outdoor ? ' · ' + t('tt' + previousThrow.weather[0].toUpperCase() + previousThrow.weather.slice(1) + 'Weather') : '')) : '');
         $('tt-wind-icon').classList.toggle('is-left', scene.wind < 0);
-        $('tt-angle').value = Math.round(angle); putText('tt-angle-value', Math.round(angle) + '°');
         const input = canInput();
         for (const id of ['tt-angle', 'tt-angle-down', 'tt-angle-up', 'tt-throw']) $(id).disabled = !input || (phase === 'charge' && id !== 'tt-throw');
         $('tt-throw').classList.toggle('is-charging', phase === 'charge');
         putText('tt-throw-label', t(phase === 'charge' ? 'ttCharging' : input ? 'ttHold' : 'ttWait'));
-        putText('tt-power-value', Math.round(power));
-        $('tt-power-fill').style.width = power + '%'; $('tt-power-meter').setAttribute('aria-valuenow', Math.round(power));
         const previous = last[match.active];
         putText('tt-last', previous ? material(previous) + ' · ' + t('ttLast', Math.round(previous.angle), Math.round(previous.power)) : t('ttNoLast'));
         $('tt-last-mark').hidden = !previous; if (previous) $('tt-last-mark').style.left = previous.power + '%';
@@ -321,7 +344,12 @@
         } else angleCarry = 0;
     }
     function update(dt) {
-        if (isOnline()) { applyOnline(); adjustAngle(dt); sync(false); return; }
+        if (isOnline()) {
+            // Room deadlines/presence keep running, but a covered/hidden field
+            // needs no local replay. Reconstruct it exactly when shown again.
+            if (document.hidden || online.isOpen()) return;
+            applyOnline(); adjustAngle(dt); sync(false); return;
+        }
         worldTime += dt;
         const rainStep = dt * .65;
         visualRain += R.clamp(scene.rain - visualRain, -rainStep, rainStep);
@@ -374,10 +402,10 @@
     function render(force) {
         if (document.hidden || online && online.isOpen()) return;
         const now = window.performance ? window.performance.now() : worldTime * 1000;
-        const mobile = window.innerWidth <= 620 || window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
-        const interval = 1000 / (mobile ? 30 : 60);
+        const interval = 1000 / (motion.value === 'smooth' ? 60 : 30);
         if (force !== true && now >= paintAt && now - paintAt < interval - .5) return;
-        paintAt = now;
+        // Anchor the schedule instead of losing a whole frame to small RAF jitter.
+        paintAt = force !== true && now >= paintAt && now - paintAt < interval * 2 ? paintAt + interval : now;
         if (shell && !shell.isPlaying()) sync();
         view.render({ scene, time: worldTime, visualRain, angle, ball, trail, ghost, reference: isQa() ? qa.baseline() : null, result: isQa() ? null : result, debris, resultPosition, feedback,
             binContents: R.binContents(scene, debris), players: isFree() ? 1 : 2, active: match.active,
@@ -426,6 +454,7 @@
     });
     // The shell does not call reset during construction.
     reset(); render();
+    motion.addEventListener('change', () => { syncSettings(); paintAt = -Infinity; render(true); });
     Object.values(fields).forEach(field => field.addEventListener('input', () => { syncSettings(); shell.refreshOverlay(); }));
     $('tt-apply').addEventListener('click', () => {
         if (online && online.inRoom()) return;
@@ -475,7 +504,7 @@
         online = window.createTrashTossOnline({ settings: chosen,
             message: text => { $('tt-status').textContent = text; },
             onOpen() { cancelCharge(); if (!isOnline() && shell.isPlaying()) shell.pause(); },
-            onClose() { shell.refreshOverlay(); sync(); render(true); },
+            onClose() { if (isOnline()) applyOnline(); shell.refreshOverlay(); sync(); render(true); },
             onError() { cancelCharge(); sync(); },
             onChange(data) {
                 const g = data && data.game;

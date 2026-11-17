@@ -6,6 +6,7 @@
 })(typeof window === 'object' ? window : globalThis, function (R) {
     'use strict';
     const LAUNCH_LEAD_MS = 400;
+    const quietWorlds = new WeakMap();
     const clone = value => JSON.parse(JSON.stringify(value));
     const tickAt = (game, now) => Math.max(game.world.tick, Math.floor((now - game.originAt) * .06 + 1e-7));
     function environment(game, world) {
@@ -21,8 +22,37 @@
     }
     function advance(game, world, target) {
         const scene = environment(game, world);
-        while (world.tick < target) step(scene, world);
+        while (world.tick < target) {
+            if (!skipQuiet(scene, world, target)) step(scene, world);
+        }
         return world;
+    }
+    // Stationary trash cannot change between cleaning events. Advance the clock
+    // directly, but execute the exact fixed tick at each clear/end/ready boundary.
+    // No ball or moving body may use this shortcut; their collision steps stay intact.
+    function skipQuiet(scene, world, target) {
+        if (world.tick >= target) return false;
+        const state = world.cleaning, previous = quietWorlds.get(world);
+        if (!state.active && previous && previous.scene === scene && previous.debris === world.debris &&
+            previous.length === world.debris.length && previous.state === state && previous.readyAt === state.readyAt) {
+            world.tick = target; return true;
+        }
+        if (world.debris.some(body => !body.resting)) return false;
+        const job = state.active;
+        const eventAt = job ? job.cleared ? job.endAt : Math.min(job.clearAt, job.endAt) : state.readyAt;
+        let eventTick = Math.ceil(eventAt * 60);
+        // Match tick/60 >= eventAt exactly, including floating-point boundaries.
+        if (eventTick / 60 < eventAt) eventTick++;
+        if ((eventTick - 1) / 60 >= eventAt) eventTick--;
+        if (eventTick > world.tick + 1) {
+            world.tick = Math.min(target, eventTick - 1); return true;
+        }
+        step(scene, world);
+        if (!job && !state.active) {
+            quietWorlds.set(world, { scene, debris: world.debris, length: world.debris.length, state, readyAt: state.readyAt });
+            world.tick = target;
+        }
+        return true;
     }
     function accept(game, angle, power, now, timeout) {
         const start = advance(game, clone(game.world), tickAt(game, now));
@@ -57,6 +87,9 @@
         launchDue();
         const target = game.status === 'over' ? game.world.tick : tickAt(game, now);
         while (cache.world.tick < target) {
+            if (!cache.ball && skipQuiet(cache.scene, cache.world, Math.min(target, cache.launched ? target : launchTick))) {
+                launchDue(); continue;
+            }
             const ball = cache.ball, hadHit = ball && ball.hits.length;
             step(cache.scene, cache.world, ball);
             if (ball) {
