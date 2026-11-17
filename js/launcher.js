@@ -127,6 +127,12 @@
             subtitle: 'A collection of small games.',
             all: 'All',
             signIn: 'Sign in',
+            signingIn: 'Signing in…',
+            signInCancelled: 'Sign-in was cancelled. You can try again.',
+            signInBlocked: 'The sign-in window was blocked. Allow pop-ups for this site, then try again.',
+            signInError: 'Sign-in could not finish. Please try again.',
+            signInWaiting: 'Sign-in has not finished. You can try again or reload this page.',
+            reloadAccount: 'Reload page',
             accountLoading: 'Restoring your account…',
             accountError: 'Account verification is unavailable. Please reload to retry.',
             accessChecking: 'Checking access…',
@@ -261,6 +267,12 @@
             subtitle: '一個小遊戲合輯。',
             all: '全部',
             signIn: '登入',
+            signingIn: '登入中…',
+            signInCancelled: '已取消登入，可以再試一次。',
+            signInBlocked: '登入視窗遭到阻擋，請允許此網站開啟彈出式視窗後再試。',
+            signInError: '登入未能完成，請再試一次。',
+            signInWaiting: '尚未收到登入結果，可以重試或重新整理頁面。',
+            reloadAccount: '重新整理頁面',
             accountLoading: '正在恢復登入狀態…',
             accountError: '暫時無法確認登入狀態，請重新整理後再試。',
             accessChecking: '正在確認存取權限…',
@@ -476,6 +488,7 @@
     var adminUnlock = false;      // signed-in owner (config/admins) → WIP games open directly, no gate
     var accountUser;              // undefined = restoring; null = confirmed signed out
     var authFailed = false, authObserved = false;
+    var loginAttempt = null, loginMessage = '';
     var adminState = 'loading', adminEpoch = 0, adminClient = null;
     var pendingAccess = null;
     var personalization = null;
@@ -1038,6 +1051,44 @@
         yes.focus();
     }
 
+    function clearLoginAttempt() {
+        if (!loginAttempt) return;
+        clearTimeout(loginAttempt.timer);
+        document.removeEventListener('visibilitychange', loginAttempt.watch);
+        loginAttempt = null;
+    }
+    function startGoogleSignIn(N) {
+        if (loginAttempt) return;
+        loginMessage = '';
+        var attempt = { timer: null, watch: null };
+        loginAttempt = attempt;
+        function finish(error) {
+            if (loginAttempt !== attempt) return;
+            clearLoginAttempt();
+            if (error) {
+                var code = error.code;
+                loginMessage = code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request' ? 'signInCancelled' : code === 'auth/popup-blocked' ? 'signInBlocked' : 'signInError';
+            }
+            renderAccount(accountUser);
+        }
+        // Give the result a full minute in the foreground. Time spent choosing a
+        // Google account or completing MFA in another window must not expire it.
+        attempt.watch = function () {
+            clearTimeout(attempt.timer);
+            if (document.visibilityState === 'hidden') return;
+            attempt.timer = setTimeout(function () {
+                if (loginAttempt !== attempt) return;
+                clearLoginAttempt(); loginMessage = 'signInWaiting';
+                renderAccount(accountUser);
+            }, 60000);
+        };
+        document.addEventListener('visibilitychange', attempt.watch);
+        attempt.watch(); renderAccount(accountUser);
+        // Keep the SDK call in the user's click handler, preserving popup activation.
+        try { Promise.resolve(N.signInGoogle()).then(function () { finish(); }, finish); }
+        catch (error) { finish(error); }
+    }
+
     // Account control: hidden when cloud is unavailable; "Sign in" (Google) when signed
     // out; avatar + name + "Sign out" when signed in with a real account.
     function renderAccount(user) {
@@ -1069,12 +1120,20 @@
         } else {
             var inBtn = document.createElement('button');
             inBtn.type = 'button'; inBtn.className = 'account-btn primary';
-            inBtn.textContent = t('signIn');
+            inBtn.textContent = t(loginAttempt ? 'signingIn' : 'signIn');
+            inBtn.disabled = !!loginAttempt;
             inBtn.addEventListener('click', function () {
-                inBtn.disabled = true;
-                Promise.resolve(N.signInGoogle()).catch(function () {}).then(function () { inBtn.disabled = false; });
+                startGoogleSignIn(N);
             });
             el.appendChild(inBtn);
+            if (loginMessage) {
+                var message = document.createElement('span'); message.className = 'account-message'; message.setAttribute('role', 'status');
+                message.textContent = t(loginMessage); el.appendChild(message);
+                if (loginMessage === 'signInWaiting') {
+                    var reload = document.createElement('button'); reload.type = 'button'; reload.className = 'account-btn';
+                    reload.textContent = t('reloadAccount'); reload.addEventListener('click', function () { location.reload(); }); el.appendChild(reload);
+                }
+            }
         }
         // Menu button shows the account avatar when signed in (identity is glanceable
         // while the ☰ glyph stays, so it still reads as an openable menu).
@@ -1126,6 +1185,7 @@
             if (pendingAccess && accountUser !== undefined && (accountUser && accountUser.uid) !== (user && user.uid)) pendingAccess.modal.close();
             // Clear the previous account's permissions synchronously, even for A→B→A.
             accountUser = user; authFailed = !!(N.authState && N.authState() === 'error');
+            if (user && !user.anon) { clearLoginAttempt(); loginMessage = ''; }
             if (personalization) personalization.setUser(user);
             refreshAdmin(); renderAccount(user);
         });
@@ -1234,7 +1294,7 @@
         // Auth can finish before Firestore and rooms. Subscribe to its small facade first.
         if (window.ArcadeAuth) observeAccount(window.ArcadeAuth);
         else window.addEventListener('arcade-auth-ready', function () { observeAccount(window.ArcadeAuth); }, { once: true });
-        window.addEventListener('arcade-auth-error', function () { authFailed = true; adminEpoch++; setAdmin(false, 'error'); renderAccount(accountUser); });
+        window.addEventListener('arcade-auth-error', function () { clearLoginAttempt(); loginMessage = ''; authFailed = true; adminEpoch++; setAdmin(false, 'error'); renderAccount(accountUser); });
         whenNet(function (N) {
             if (!authObserved) observeAccount(window.ArcadeAuth || N);
             else if (adminClient !== N) refreshAdmin();

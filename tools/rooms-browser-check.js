@@ -42,8 +42,7 @@ export const onSnapshot = (_query, next) => { queueMicrotask(() => next({ docs: 
 export const runTransaction = async (_db, task) => task({ get: getDoc, update: updateDoc });
 `;
 const auth = `
-export const initializeAuth = () => ({ authStateReady: async () => {}, get currentUser() { return user; } });
-export const indexedDBLocalPersistence = {}, browserLocalPersistence = {}, browserSessionPersistence = {}, browserPopupRedirectResolver = {};
+export const getAuth = () => ({ authStateReady: async () => {}, get currentUser() { return user; } });
 const uid = new URLSearchParams(location.search).get('testUser') || 'same-account';
 let user = { uid, displayName: uid.startsWith('google-') ? 'Google Player' : 'Test player', photoURL: null, isAnonymous: !uid.startsWith('google-') };
 const observers = [];

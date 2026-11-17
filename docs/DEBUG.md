@@ -1,13 +1,5 @@
 # Debug & dev affordances
 
-## Temporary Google login A/B test
-
-The homepage account menu currently includes **登入 A/B 測試（暫時）** for the
-iOS Home Screen login regression. See [test steps, exact changes and clean removal](AUTH-AB-TEST.md).
-Default behavior remains A until a device explicitly selects B.
-Run `node tools/auth-startup-audit.js` and
-`node tools/auth-ab-browser-check.js /usr/bin/google-chrome` for local checks.
-
 A running list of the non-shipping dev surface in the project.
 
 The per-game debug / demo **URL flags** (`?hashi_debug`, `?sudoku_demo`,
@@ -584,12 +576,14 @@ site, different browsers and different devices have independent marker storage.
 
 Run `node tools/auth-startup-audit.js` for isolated SDK dependency/permission
 checks and `node tools/auth-startup-browser-audit.js /path/to/chrome` for the real
-launcher with delayed account/admin fixtures. Neither uses a real account nor
-reads/writes Firebase.
+launcher with delayed account/admin fixtures. Run
+`node tools/auth-login-browser-check.js /path/to/chrome` for homepage sign-in
+recovery checks. These checks do not use real accounts or access Firebase.
 
 The SDK checks hold Firestore or RTDB for 800 ms and require Auth delivery before
 release. The homepage must not import RTDB or room implementation modules. Checks
-also cover explicit popup dependencies, shared roster reads, server verification,
+also require SDK default Auth initialization, cleanup of obsolete diagnostic
+settings without clearing scores, shared roster reads, server verification,
 transient failures/retries, permission denial, stale A→B→A responses, unsubscribe,
 and failure isolation between Auth, Firestore and RTDB.
 
@@ -600,6 +594,15 @@ wait. They verify cancellation, automatic continuation after approval, stable
 admin menus on locale changes, one lookup per identity, explicit retry, account
 changes and logout. Timing fixtures are deliberate delays, not production latency
 measurements.
+
+The login browser check covers blocked/cancelled/thrown popup errors, state across
+locale redraws, foreground-only wait/retry/reload, obsolete promise results, late
+Auth success and 320px layout. It preserves direct click activation for the SDK.
+The 2026-11-17 real iPhone test completed login with SDK defaults; the old deferred
+initialization remained pending in the Home Screen Web App. For future Auth
+changes, also manually sign out/in, cancel, return from Google and fully close
+and reopen the app on real iOS Safari and its Home Screen Web App. A local Chrome
+fixture cannot prove those platform behaviors or real session persistence.
 
 `node tools/rooms-browser-check.js /path/to/chrome` tests Beam and Rune Stones
 with the real network module and a local fake Firebase SDK. Add `--darts` for

@@ -5,20 +5,17 @@ const fs = require('node:fs'), vm = require('node:vm'), assert = require('node:a
 const { webcrypto } = require('node:crypto');
 const source = fs.readFileSync(require('node:path').join(__dirname, '../js/net/net.js'), 'utf8')
     .replace(/^import .*;\n/gm, '').replace(/\bimport\(/g, '__import(');
-const abSource = fs.readFileSync(require('node:path').join(__dirname, '../js/net/auth-ab-test.mjs'), 'utf8').replace(/^export /gm, '');
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
 const flush = async () => { for (let i = 0; i < 4; i++) await new Promise(setImmediate); };
 const deferred = () => { let resolve, reject; const promise = new Promise((yes, no) => { resolve = yes; reject = no; }); return { promise, resolve, reject }; };
 const admin = { uid: 'admin-a', email: 'admin@example.test', displayName: 'Admin', isAnonymous: false };
-function fixture({ delayed, initial = admin, failed, holdAuth = false, abMode } = {}) {
+function fixture({ delayed, initial = admin, failed, holdAuth = false, legacyMode } = {}) {
     const gate = deferred(), started = performance.now(), events = [], downloads = [], times = {};
     let emit, emitError, reads = 0, read = async () => ({ exists: () => true, data: () => ({ members: { [admin.email]: {} } }) });
-    let popupArgs, dependencies, anonymousCalls = 0, restoredUser, defaultAuthCalls = 0;
+    let popupArgs, anonymousCalls = 0, restoredUser, defaultAuthCalls = 0;
     const authReady = deferred();
     const auth = {
-        getAuth(app) { defaultAuthCalls++; return auth.initializeAuth(app, { persistence: [auth.indexedDBLocalPersistence, auth.browserLocalPersistence, auth.browserSessionPersistence], popupRedirectResolver: auth.browserPopupRedirectResolver }); },
-        initializeAuth(_app, options) { dependencies = options; times.authInit = Math.round(performance.now() - started); return { authStateReady: () => authReady.promise, get currentUser() { return restoredUser; } }; },
-        indexedDBLocalPersistence: {}, browserLocalPersistence: {}, browserSessionPersistence: {}, browserPopupRedirectResolver: {},
+        getAuth() { defaultAuthCalls++; times.authInit = Math.round(performance.now() - started); return { authStateReady: () => authReady.promise, get currentUser() { return restoredUser; } }; },
         onAuthStateChanged(_auth, next, error) { emit = value => { restoredUser = value; next(value); authReady.resolve(); }; emitError = error; if (!holdAuth) queueMicrotask(() => { times.restored = Math.round(performance.now() - started); emit(initial); }); },
         signInAnonymously() { anonymousCalls++; return {}; }, signOut() {}, GoogleAuthProvider: class {}, signInWithPopup(...args) { popupArgs = args; },
     };
@@ -32,23 +29,24 @@ function fixture({ delayed, initial = admin, failed, holdAuth = false, abMode } 
         'firebase-firestore.js': firestore, 'firebase-database.js': { getDatabase: () => ({}), ref: (_db, name) => name, onValue: (_ref, next) => next({ val: () => 0 }) },
         'rooms.mjs': { createRoomService: () => ({}), createRoomPresence() {}, generateRoomCode() {} },
         'room-lobby.mjs': { createRoomLobby() {} }, 'rtdb-rooms.mjs': { createRealtimeRoomStore: () => ({}) } };
-    const storage = new Map(abMode ? [['gamebox:auth-ab-test:v1', JSON.stringify({mode:abMode,events:[]})]] : []);
-    const window = { localStorage: { getItem: key => storage.get(key) || null, setItem: (key, value) => storage.set(key, value) },
-        FIREBASE_READY: true, FIREBASE_CONFIG: {}, FIREBASE_ROOMS: { databaseURL: 'https://fixture.firebaseio.com/' },
+    const storage = new Map([['gamebox:score:fixture', '42']]);
+    if (legacyMode) storage.set('gamebox:auth-ab-test:v1', JSON.stringify({mode:legacyMode,events:[]}));
+    const localStorage = { getItem: key => storage.get(key) || null, setItem: (key, value) => storage.set(key, value), removeItem: key => storage.delete(key) };
+    const window = { FIREBASE_READY: true, FIREBASE_CONFIG: {}, FIREBASE_ROOMS: { databaseURL: 'https://fixture.firebaseio.com/' },
         dispatchEvent(event) {
             events.push(event.type);
             if (event.type === 'arcade-auth-ready' && window.ArcadeAuth.ok) window.ArcadeAuth.onAuth(() => { times.delivered = Math.round(performance.now() - started); });
         },
     };
-    const context = { window, console: { warn() {} }, crypto: webcrypto, localStorage: { setItem() {}, removeItem() {} }, queueMicrotask,
+    const context = { window, console: { warn() {} }, crypto: webcrypto, localStorage, queueMicrotask,
         CustomEvent: class { constructor(type) { this.type = type; } },
         createRoomService: () => ({}), createRoomPresence() {}, generateRoomCode() {}, createRoomLobby() {},
         createRealtimeRoomStore: () => ({}), createFeedbackService: () => ({}), createAnnouncementService: () => ({}),
         __import: async url => { const name = url.split('/').pop(); downloads.push(name); if (name === delayed) await gate.promise; if (name === failed) throw Error('SDK unavailable'); return modules[name]; },
     };
-    const boot = vm.runInNewContext(abSource + '\n' + source, context);
-    return { window, boot, gate, times, events, downloads, auth, emit: next => emit(next), error: e => emitError(e),
-        anonymousCalls: () => anonymousCalls, defaultAuthCalls: () => defaultAuthCalls, setRead: fn => { read = fn; }, reads: () => reads, popup: () => popupArgs, dependencies: () => dependencies };
+    const boot = vm.runInNewContext(source, context);
+    return { window, boot, gate, times, events, downloads, auth, storage, emit: next => emit(next), error: e => emitError(e),
+        anonymousCalls: () => anonymousCalls, defaultAuthCalls: () => defaultAuthCalls, setRead: fn => { read = fn; }, reads: () => reads, popup: () => popupArgs };
 }
 (async () => {
     const slow = fixture({ delayed: 'firebase-firestore.js' });
@@ -60,22 +58,17 @@ function fixture({ delayed, initial = admin, failed, holdAuth = false, abMode } 
     slow.gate.resolve(); await slow.boot;
     console.log('PASS: 800 ms Firestore hold does not block Auth:', JSON.stringify(slow.times));
     assert.equal(slow.downloads.includes('firebase-database.js'), false, 'Homepage must not download RTDB');
-    assert.equal(slow.dependencies().persistence.length, 3);
-    assert.equal('popupRedirectResolver' in slow.dependencies(), false);
+    assert.equal(slow.defaultAuthCalls(), 1, 'Always use SDK default initialization for Safari/Home Screen popup support');
     slow.window.ArcadeAuth.signInGoogle();
-    assert.equal(slow.popup()[2], slow.auth.browserPopupRedirectResolver, 'Popup still receives its explicit resolver');
+    assert.equal(slow.popup().length, 2, 'Popup uses the resolver installed by getAuth');
 
-    for (const abMode of ['A', 'B']) {
-        const sample = fixture({ abMode, delayed: 'firebase-firestore.js' }); await flush();
-        assert.equal(sample.window.ArcadeAuth.currentUser().uid, admin.uid, abMode + ' must deliver Auth before Firestore');
-        assert.equal(sample.defaultAuthCalls(), abMode === 'B' ? 1 : 0);
-        assert.equal('popupRedirectResolver' in sample.dependencies(), abMode === 'B');
-        sample.window.ArcadeAuth.signInGoogle();
-        assert.equal(sample.popup()[2], sample.auth.browserPopupRedirectResolver);
-        sample.gate.resolve(); await sample.boot;
-        assert.equal(sample.downloads.includes('firebase-database.js'), false);
+    for (const legacyMode of ['A', 'B', 'invalid']) {
+        const sample = fixture({ legacyMode }); await sample.boot;
+        assert.equal(sample.defaultAuthCalls(), 1, 'Old diagnostic settings must never select an initialization mode');
+        assert.equal(sample.storage.has('gamebox:auth-ab-test:v1'), false);
+        assert.equal(sample.storage.get('gamebox:score:fixture'), '42', 'Diagnostic cleanup preserves unrelated data');
     }
-    console.log('PASS: A preserves deferred initialization; B uses SDK defaults without blocking Auth on Firestore/rooms');
+    console.log('PASS: SDK defaults for every device; obsolete diagnostic settings removed without clearing scores');
 
     const room = fixture({ delayed: 'firebase-database.js' }); await room.boot;
     const loading = room.window.ArcadeNet.rooms.ready();

@@ -181,6 +181,7 @@ button { font-family: inherit; cursor: pointer; }
     gap: var(--space-sm);
 }
 .account[hidden] { display: none; }
+.account-message { flex-basis: 100%; font-size: 0.82rem; color: var(--text-secondary); }
 
 .account-avatar {
     width: 26px;
@@ -212,6 +213,7 @@ button { font-family: inherit; cursor: pointer; }
         border-color var(--transition-fast);
 }
 .account-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+.account-btn:disabled { opacity: 0.6; cursor: wait; }
 .account-btn.primary { border-color: var(--accent); color: var(--accent); }
 .account-btn.primary:hover { background: var(--accent); color: var(--text-on-accent); }
 

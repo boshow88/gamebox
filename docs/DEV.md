@@ -331,14 +331,32 @@ returns a user or null for compatibility, so callers needing a confirmed identit
 must use `onAuth(callback)`. Its return value unsubscribes. Initialization failure
 still publishes an `ok:false` facade; later Auth errors emit `arcade-auth-error`.
 
-Auth uses `initializeAuth` with the normal IndexedDB/localStorage/sessionStorage
-fallbacks. It supplies `browserPopupRedirectResolver` explicitly to
-`signInWithPopup`, keeping the default popup/redirect iframe out of account
-restoration. Google uses popup sign-in on all platforms. Existing persistence
-keys are retained. Guest fallback waits for initial Auth restoration and reuses
-an existing session, so an early online/feedback action cannot replace Google
+Auth uses `getAuth(app)` with the SDK's default IndexedDB/localStorage/sessionStorage
+fallbacks and popup resolver. Its early popup communication setup on Safari/iOS
+must be preserved, including for Home Screen Web Apps. Google uses popup sign-in
+on all platforms. Existing persistence keys are retained. Guest fallback waits
+for initial Auth restoration and reuses an existing session, so an early online/feedback action cannot replace Google
 with an anonymous account. The display-only `gamebox:account-name` hint is retained. See
 [Firebase's dependency initialization reference](https://firebase.google.com/docs/auth/web/custom-dependencies).
+The 2026-11-17 iPhone A/B test found that the deferred resolver initialization
+introduced in `6897781` left Home Screen login pending, while default initialization
+completed Google sign-in. Keep the independent Auth facade, concurrent Firestore
+download, lazy room loading and permission guards; only the Auth dependency
+initialization needed to return to SDK defaults. This restores platform preparation
+and may add Auth startup work; the fake-SDK delay checks are not a measurement of
+real iPhone latency. The temporary A/B module, panel and switching logic were
+removed after diagnosis. The obsolete `gamebox:auth-ab-test:v1` key is deleted on
+startup without clearing authentication or game data.
+
+The homepage sign-in button starts the SDK call directly from the user's click.
+Busy state survives redraws. Popup errors show translated feedback. After 60
+seconds in the foreground without a result, it offers manual retry and reload;
+going to the background clears this timer, and returning starts a fresh minute,
+so Google account selection/MFA does not consume the foreground wait. This is a
+UI recovery timer, not an SDK cancellation or a change to authentication state.
+Late real Auth updates still succeed, and obsolete popup promises cannot clear
+a newer attempt. Real account state, never a timer, decides whether to show sign-out.
+
 The launcher's head preloads the App/Auth modules; keep their pinned version in
 sync with `SDK` in `net.js`.
 
