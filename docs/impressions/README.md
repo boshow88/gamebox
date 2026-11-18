@@ -99,8 +99,10 @@ leaders take zero damage; attacks do not stack. Default round multipliers are
   exact counts manually and on time. Missing/invalid/auto receipts or departure
   prevent the increase. CPUs never qualify a round; new matches reset stage 0.
 - Current Pitch questions have 3/4 tones and one reference in a valid position.
-  Each adjustable tone has a wheel and starts at **440 Hz**. Fixed references
-  do not dilute RMS. Legacy five-tone/two-reference interfaces remain supported.
+  Each adjustable tone has a wheel and starts at **440 Hz**. Wheels emphasize
+  frequency in Hz, with cents relative to 220 Hz underneath. Input steps remain
+  in cents; fixed references do not dilute RMS. Legacy five-tone/two-reference
+  interfaces remain supported.
 - CPU profiles and model version freeze at Start. Difficulty 1–4 changes seeded
   answer error/delay distributions. Actual CPU receipts pass through the same
   scoring, deadline and HP settlement as human receipts.
