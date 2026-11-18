@@ -6,9 +6,9 @@ const { realtimeGameBackend } = require('./helpers/rtdb-fixtures.js');
 (async () => {
     const { createRoomService } = await import('../js/net/rooms.mjs');
     const modules = Object.assign({}, await import('../js/net/rtdb-rooms.mjs'), await import('../js/net/rtdb-values.mjs'));
-    const memoryRooms = () => realtimeGameBackend(modules);
+    const impressionsRooms = () => realtimeGameBackend(modules);
     async function scenario(optimized, active) {
-        const backend = memoryRooms(); let clock = 1000, counter = 0;
+        const backend = impressionsRooms(); let clock = 1000, counter = 0;
         const store = backend.createStore({ collection: 'rooms' }, () => null, '', () => clock);
         backend.put('rooms/R-ABCD', { players: { you: {}, peer: {} }, game: { matchId: 'm', round: 1, status: 'playing' } });
         const service = createRoomService({ store, getUser: () => ({ uid: 'you' }), now: () => clock },
@@ -35,7 +35,7 @@ const { realtimeGameBackend } = require('./helpers/rtdb-fixtures.js');
     const idleBaseline = await scenario(false, false), idle = await scenario(true, false);
     assert.equal(idle.writes, idleBaseline.writes, 'Silent players keep the same heartbeat interval');
 
-    const backend = memoryRooms(); let clock = 1000;
+    const backend = impressionsRooms(); let clock = 1000;
     const store = backend.createStore({ collection: 'test' }, () => null, '', () => clock);
     const service = createRoomService({ store, getUser: () => ({ uid: 'you' }), now: () => clock }, { presenceField: 'presence' });
     backend.put('test/R-ABCD', { players: { you: {} }, ready: {}, game: { matchId: 'm', round: 1, status: 'playing', board: [1] } });

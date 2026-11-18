@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Impressions 色彩等分線</title>
+    <link rel="stylesheet" href="impressions-color-map.css">
+</head>
+<body>
+<main id="color-map">
+    <nav><a href="impressions-scoring.html">固定色票與曲線圖</a><a href="../games/impressions.html">印象派</a></nav>
+    <header><p class="eyebrow">IMPRESSIONS · DEVELOPMENT TOOL</p><h1>這些顏色，值得幾分？</h1><p>以同一個目標與空間尺度，比較 V1、歷史 V3 與正式預設 V4（亦保留歷史 V2）。所有試算只留在本頁。</p></header>
+    <section class="panel controls" aria-label="色彩與評分設定">
+        <form id="target-form" class="target-controls">
+            <div class="target-chip" id="target-chip" role="img" aria-label="目標色"></div>
+            <label>目標色 · HEX 或 RGB<input id="target-input" value="#3092C6" spellcheck="false" autocomplete="off" aria-describedby="target-help"></label>
+            <button type="submit">套用目標</button><button type="button" id="random-target">換一個隨機目標</button>
+            <p id="target-help" class="hint">例如 #3092C6 或 48, 146, 198。隨機色使用遊戲現有的出題器。</p>
+        </form>
+        <div class="view-controls">
+            <label>剖面<select id="slice-plane"><option value="ab">a / b · 固定 L</option><option value="aL">a / L · 固定 b</option><option value="bL">b / L · 固定 a</option></select></label>
+            <label>顯示<select id="curve-view"><option value="v1-v3-v4" selected>V1 / V3 / V4 同尺度比較</option><option value="all">V1 / V2 / V3 / V4 同尺度比較</option><option value="v2-v3">V2 / V3 並排</option><option value="original">只看原始 V1</option><option value="experimental">只看歷史 V2</option><option value="candidate">只看歷史 V3</option><option value="v4">只看預設 V4</option></select></label>
+            <label>共同視野半徑<select id="slice-extent"><option value="0.15">Δ 0.15 · 放大</option><option value="0.25">Δ 0.25</option><option value="0.4" selected>Δ 0.40</option><option value="0.6">Δ 0.60</option><option value="1">Δ 1.00 · 縮小</option></select></label>
+        </div>
+        <form id="scoring-form">
+            <fieldset class="parameter-controls"><legend>共同基礎曲線</legend>
+                <label>Tolerance<input id="map-tolerance" type="number" min="0.001" max="2" step="any" value="0.2" required></label>
+                <label>Exponent<input id="map-exponent" type="number" min="0.1" max="10" step="any" value="1.4" required></label>
+                <button id="reset-parameters" type="button">還原四版比較設定</button>
+            </fieldset>
+            <fieldset class="parameter-controls"><legend>V2 · 歷史平方懲罰</legend>
+                <label>Knee<input id="map-knee" type="number" min="0" max="2" step="any" value="0.06" required></label>
+                <label>Width<input id="map-width" type="number" min="0.001" max="2" step="any" value="0.05" required></label>
+                <label>Strength<input id="map-strength" type="number" min="0" max="100" step="any" value="1.2" required></label>
+            </fieldset>
+            <fieldset class="parameter-controls"><legend>V3 · 歷史可調冪次懲罰</legend>
+                <label>Knee<input id="map-v3-knee" type="number" min="0" max="2" step="any" value="0.06" required></label>
+                <label>Width<input id="map-v3-width" type="number" min="0.001" max="2" step="any" value="0.08" required></label>
+                <label>Strength<input id="map-v3-strength" type="number" min="0" max="100" step="any" value="0.5" required></label>
+                <label>Penalty exponent<input id="map-v3-penaltyExponent" type="number" min="0.1" max="10" step="any" value="1.5" required></label>
+            </fieldset>
+
+            <fieldset class="parameter-controls"><legend>V4 · 目前遊戲預設（本頁調參只供試算）</legend>
+                <label>Knee<input id="map-v4-knee" type="number" min="0" max="2" step="any" value="0.08" required></label>
+                <label>Width<input id="map-v4-width" type="number" min="0.001" max="2" step="any" value="0.10" required></label>
+                <label>Strength<input id="map-v4-strength" type="number" min="0" max="100" step="any" value="0.35" required></label>
+                <label>Penalty exponent<input id="map-v4-penaltyExponent" type="number" min="0.1" max="10" step="any" value="1.5" required></label>
+            </fieldset>
+        </form>
+        <p class="hint">Tolerance / Exponent 同時用於四條曲線；V2、V3、V4 的懲罰參數各自獨立。調參不會更動目標、共同視野或正式遊戲設定。</p>
+        <p class="status" id="map-status" role="status" aria-live="polite"></p>
+    </section>
+    <aside class="explanation">
+        <p id="slice-summary"></p>
+        <p><span class="checker-key" aria-hidden="true"></span>棋盤格代表超出 sRGB 色域：不裁切通道、不顯示替代色，也不計分。等分圓延伸至棋盤格的部分只有理論位置。</p>
+        <p id="slice-limit">Oklab 是三維空間，每張圖只呈現通過目標的一個二維剖面。預設固定 L，無法呈現明暗差；可切換 a / L 或 b / L 檢查明暗。</p>
+        <p id="map-help">滑過預覽，按一下固定。聚焦圖面後可用方向鍵移動，Shift 加大步幅；Enter 固定，Esc 回到目標。等分標籤可點選強調。</p>
+    </aside>
+    <section class="panel inspection" aria-labelledby="inspection-title">
+        <div class="inspection-heading"><h2 id="inspection-title">檢視色彩</h2><span id="selection-state">預覽中</span><button id="clear-selection" type="button">回到目標</button></div>
+        <div class="inspection-grid">
+            <figure><div id="inspect-target-swatch" class="inspect-swatch"></div><figcaption>目標 <code id="inspect-target"></code></figcaption></figure>
+            <figure><div id="inspect-selected-swatch" class="inspect-swatch"></div><figcaption>選取 <code id="inspect-selected"></code></figcaption></figure>
+            <dl><dt>實際 Oklab 色差</dt><dd id="inspect-distance"></dd><dt>理想剖面色差</dt><dd id="inspect-ideal-distance"></dd></dl>
+            <dl><dt>原始 V1 分數</dt><dd id="inspect-original"></dd><dt>歷史 V2 分數</dt><dd id="inspect-experimental"></dd><dt>歷史 V3 分數</dt><dd id="inspect-candidate"></dd><dt>預設 V4 分數</dt><dd id="inspect-v4"></dd></dl>
+        </div>
+        <p id="selection-message" class="hint"></p>
+    </section>
+    <div class="plots" id="plots" data-view="v1-v3-v4">
+        <section class="panel plot" id="original-panel" aria-labelledby="original-title">
+            <header><h2 id="original-title">原始曲線 · v1</h2><output id="original-preview">100 分</output></header>
+            <canvas id="original-map" width="600" height="600" tabindex="0" role="group" aria-label="原始曲線色彩圖" aria-describedby="map-help slice-limit">請使用支援 Canvas 的瀏覽器查看色彩圖。</canvas>
+            <div class="contour-legend" id="original-legend" aria-label="原始曲線等分線"></div>
+        </section>
+        <section class="panel plot" id="experimental-panel" aria-labelledby="experimental-title">
+            <header><h2 id="experimental-title">歷史曲線 · V2</h2><output id="experimental-preview">100 分</output></header>
+            <canvas id="experimental-map" width="600" height="600" tabindex="0" role="group" aria-label="實驗曲線色彩圖" aria-describedby="map-help slice-limit">請使用支援 Canvas 的瀏覽器查看色彩圖。</canvas>
+            <div class="contour-legend" id="experimental-legend" aria-label="實驗曲線等分線"></div>
+        </section>
+        <section class="panel plot" id="candidate-panel" aria-labelledby="candidate-title">
+            <header><h2 id="candidate-title">歷史曲線 · V3</h2><output id="candidate-preview">100 分</output></header>
+            <canvas id="candidate-map" width="600" height="600" tabindex="0" role="group" aria-label="歷史 V3 曲線色彩圖" aria-describedby="map-help slice-limit">請使用支援 Canvas 的瀏覽器查看色彩圖。</canvas>
+            <div class="contour-legend" id="candidate-legend" aria-label="歷史 V3 等分線"></div>
+        </section>
+        <section class="panel plot" id="v4-panel" aria-labelledby="v4-title">
+            <header><h2 id="v4-title">遊戲預設 · V4</h2><output id="v4-preview">100 分</output></header>
+            <canvas id="v4-map" width="600" height="600" tabindex="0" role="group" aria-label="預設 V4 曲線色彩圖" aria-describedby="map-help slice-limit">請使用支援 Canvas 的瀏覽器查看色彩圖。</canvas>
+            <div class="contour-legend" id="v4-legend" aria-label="預設 V4 等分線"></div>
+        </section>
+    </div>
+    <section class="score-samples" aria-labelledby="samples-title">
+        <h2 id="samples-title">各分數附近的實際色票</h2>
+        <p class="hint">以目前目標與剖面，尋找接近 90／70／50／30／10 分的可顯示答案。每張色票列出取整後的實際分數；找不到時會標明。這些樣本不受視野縮放限制。</p>
+        <div class="sample-groups" id="sample-groups" data-view="v1-v3-v4">
+            <section class="panel" id="original-sample-panel"><h3>原始 V1</h3><div id="original-samples"></div></section>
+            <section class="panel" id="experimental-sample-panel"><h3>歷史 V2</h3><div id="experimental-samples"></div></section>
+            <section class="panel" id="candidate-sample-panel"><h3>歷史 V3</h3><div id="candidate-samples"></div></section>
+            <section class="panel" id="v4-sample-panel"><h3>預設 V4</h3><div id="v4-samples"></div></section>
+        </div>
+    </section>
+    <section class="panel"><h2>同一組答案的分差與傷害</h2><p class="hint">各曲線使用完全相同的實際 RGB 答案。空白時自動選取 V4 的 90／70／30 分色票；此為合成範例，不能代表真人分布。</p><label>玩家答案（每行一個 HEX，2–8 位；空白使用範例）<textarea id="players-answers" rows="3"></textarea></label><label>回合倍率<select id="damage-multiplier"><option>1</option><option>1.3</option><option>1.7</option><option>2.2</option><option>3</option></select></label><p id="players-error" role="status"></p><div id="players-table" class="table-scroll"></div><h3>代表性 Oklab 色差</h3><p class="hint">理論距離使用同一個正式評分函式；實際色票分數另以 RGB8 重算。</p><div id="distance-table" class="table-scroll"></div></section>
+    <footer class="hint"><p>等分線以遊戲的未取整評分函式反求半徑，不使用任意間距。畫面以有限網格與 8 位元 RGB 取樣，所以實際顯示色彩可能略偏離理想剖面／等分線；檢視分數會以顯示的 RGB，重新呼叫遊戲的 grade 函式（0.001 分精度）。</p><p>此工具只處理 sRGB；顯示器、亮度與周遭環境會影響主觀感受。沒有載入 Firebase，也不會儲存參數。</p></footer>
+</main>
+<script src="../js/games/impressions-color.js"></script>
+<script src="../js/games/impressions-rules.js"></script>
+<script src="helpers/impressions-color-slice.js"></script>
+<script src="helpers/impressions-color-v4.js"></script>
+<script src="impressions-color-map.js"></script>
+</body>
+</html>

@@ -70,8 +70,9 @@
             tags: ['action', 'single', 'multi'],
         },
         {
+            // Keep the existing feedback/record identity across the Impressions rename.
             id: 'memory', theme: 'arcade', icon: 'blend', color: '#d7b98e',
-            href: './games/memory.html',
+            href: './games/impressions.html',
             tags: ['puzzle', 'timeattack', 'single', 'multi'], wip: true,
         },
         {
@@ -240,7 +241,7 @@
             'darts_name': 'Darts',
             'darts_tagline': 'Control direction and power with a flick.',
             'darts_body': 'Flick direction and speed determine where the dart lands. Practise your aim or play X01, Cricket and Count-Up.',
-            'memory_name': 'By Feel',
+            'memory_name': 'Impressions',
             'memory_tagline': 'Color, quantity, pitch. Recreate the impression.',
             'memory_body': 'A quick look or listen, then turn the wheels to bring it back. Practise on your own, play with friends or take on CPU players.',
             'patches_name': 'Patches',
@@ -383,7 +384,7 @@
             'darts_name': '飛鏢',
             'darts_tagline': '滑動投鏢，掌握方向與力道。',
             'darts_body': '滑動方向與速度決定落點。可自由練習，或挑戰X01、Cricket與Count-Up。',
-            'memory_name': '憑感覺',
+            'memory_name': '印象派',
             'memory_tagline': '色彩、數量、音高，憑印象重現。',
             'memory_body': '看一眼、聽一段，再用滾輪把印象調回來。可以自己練習，也能和朋友、電腦對戰。',
             'patches_name': 'Patches',

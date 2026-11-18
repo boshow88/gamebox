@@ -1,6 +1,6 @@
 import { createFeedbackService } from './feedback.mjs';
 import { createAnnouncementService } from './announcements.mjs';
-import { createAnalyticsWriter } from './memory-analytics.mjs';
+import { createAnalyticsWriter } from './impressions-analytics.mjs';
 
 /*
  * ArcadeNet — thin Firebase layer for online play (ES module, no build step).
@@ -143,7 +143,7 @@ function fail(err) {
         function configureRooms(options) {
             if (!options || !options.collection) throw new Error('Room collection is required');
             if (rooms.ok !== true) throw rooms.error || new Error('Await rooms.ready() before creating a room service');
-            // Memory can restore a same-tab controller; other games retain page identities.
+            // Impressions can restore a same-tab controller; other games retain page identities.
             const sessionId = options.sessionId || roomSessionId;
             const store = transportModule.createRealtimeRoomStore(rtdbSdk, rtdb, options.collection, {
                 now: options.now || Date.now,

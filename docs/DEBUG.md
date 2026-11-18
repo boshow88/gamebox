@@ -29,19 +29,19 @@ loaded manually by opening the file. Safe to ship, but they are dev surface:
 | `tools/hashi-view.html` | Visual check for Hashi rendering: draws a generated board solved (single/double bridges), won (green), with a hint band + ghost, and a conflict (crossing bridges + over-filled island) — reuses the real CSS classes to eyeball the board vocabulary. |
 | `tools/hashi-hintview.html` | Visual check for Hashi hints: finds a board state that surfaces a grounded deduce hint (e.g. "one short of full") and a Hard assume→contradiction walk-through, then renders each with its anchor rings, ghosts and numbered chain so the hint vocabulary can be eyeballed. |
 
-## Memory checks
+## Impressions checks
 
-The [maintained test reference](memory/TESTING.md) lists core and browser modes,
+The [maintained test reference](impressions/TESTING.md) lists core and browser modes,
 calibration pages, human playtest collection and real-Firebase room checks.
 For a quick core pass:
 
 ```text
-node tools/memory-check.js
-node tools/memory-room-check.js
-node tools/memory-analytics-check.js
+node tools/impressions-check.js
+node tools/impressions-room-check.js
+node tools/impressions-analytics-check.js
 ```
 
-[Analytics operations](memory/ANALYTICS.md#tests-and-deployment) owns the demo
+[Analytics operations](impressions/ANALYTICS.md#tests-and-deployment) owns the demo
 Firestore Emulator/export checks. Browser fixtures, emulator results, real
 Firebase verification and physical-device testing are separate evidence.
 Use localhost for live room testing; a website push is not required. The live
@@ -77,15 +77,15 @@ Cleanup checks use the actual adapter with simulated clocks: ±6-minute/±24-hou
 offsets, pending/invalid calibration, clock jumps/disconnects during a pass, new
 heartbeats between scanning and deletion, collection isolation and unchanged
 60-second/20-room budgets. Entry checks execute Darts' actual async initialization
-with delayed Auth and hanging/throwing/rejected cleanup; Memory's
-`memory-online-browser-check.js --recovery` also checks recovery-before-cleanup
+with delayed Auth and hanging/throwing/rejected cleanup; Impressions's
+`impressions-online-browser-check.js --recovery` also checks recovery-before-cleanup
 and nonblocking failure behavior.
 
 Run the actual database/rule/transaction checks against a loopback demo emulator:
 
 ```text
 firebase emulators:exec --project demo-gamebox --only database "node tools/room-cleanup-emulator-check.mjs"
-firebase emulators:exec --project demo-gamebox --only database "node tools/memory-rtdb-rules-check.mjs"
+firebase emulators:exec --project demo-gamebox --only database "node tools/impressions-rtdb-rules-check.mjs"
 ```
 
 These scripts reuse the existing rules-test packages under `.cache/feedback-tests`
@@ -641,7 +641,7 @@ recovery checks. These checks do not use real accounts or access Firebase.
 
 The SDK checks hold Firestore or RTDB for 800 ms and require Auth delivery before
 release. The homepage must not import RTDB or room implementation modules. Checks
-also verify Memory's restored session, custom clock, native-disconnect policy and
+also verify Impressions's restored session, custom clock, native-disconnect policy and
 shared cleanup-clock wiring after lazy loading, while other games retain their
 page identities. These fixtures supply the current Auth API, including
 `authStateReady()`; delayed restoration must not become an anonymous sign-in.

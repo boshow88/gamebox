@@ -1,0 +1,10 @@
+(function(){
+    'use strict';
+    var D=window.ImpressionsCpuDiagnostics,rows=[],get=function(id){return document.getElementById(id);};
+    get('parameters').textContent=JSON.stringify(ImpressionsCpu.configuration(),null,2);
+    get('run').addEventListener('click',async function(){if(!get('samples').checkValidity())return;get('run').disabled=true;get('export').disabled=true;rows=[];get('rows').replaceChildren();
+        try{var count=Number(get('samples').value),cases=D.cases(),done=0;for(var testCase of cases)for(var level of ImpressionsCpu.levels){get('status').textContent='Synthetic simulation '+(++done)+' / '+cases.length*4;await new Promise(function(resolve){setTimeout(resolve,0);});var r=D.runCase(testCase,level,count);rows.push(r);var tr=document.createElement('tr');[r.category+' / '+r.variant,r.quantityStage===null?'—':r.quantityStage,r.difficulty,r.scores.n,r.scores.mean.toFixed(2),r.scores.median.toFixed(2),r.scores.p10.toFixed(2),r.scores.p90.toFixed(2),r.scores.p95.toFixed(2),(r.perfectRate*100).toFixed(2),r.errorUnit,r.error.median.toFixed(4),r.error.p90.toFixed(4),r.delayFraction.median.toFixed(3)].forEach(function(v){var td=document.createElement('td');td.textContent=v;tr.append(td);});get('rows').append(tr);}get('status').textContent='Completed '+rows.reduce(function(s,r){return s+r.scores.n;},0)+' synthetic answers. Exact % uses raw zero error, not a rounded score of 100.';get('export').disabled=false;}catch(e){get('status').textContent=e.message;}finally{get('run').disabled=false;}
+    });
+    get('export').addEventListener('click',function(){var blob=new Blob([JSON.stringify({source:'synthetic',cpuVersion:ImpressionsCpu.version,parameters:ImpressionsCpu.configuration(),rows:rows,summary:D.aggregate(rows)},null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='impressions-cpu-synthetic.json';a.click();setTimeout(function(){URL.revokeObjectURL(url);},1000);});
+    window.ImpressionsCpuTool={rows:function(){return JSON.parse(JSON.stringify(rows));}};
+})();

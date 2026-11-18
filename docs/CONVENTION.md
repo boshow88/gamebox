@@ -47,7 +47,7 @@ entry easy to find. Larger diagnostic/admin tool sets belong under
 Shared engines and transports remain in their shared locations.
 
 This is a direction for deliberate changes, not an instruction to move existing
-Memory/Darts files now. Existing flat modules can stay until a focused migration
+Impressions/Darts files now. Existing flat modules can stay until a focused migration
 is justified. Directory names and filenames describe responsibilities, not phase
 numbers, dates or `new`/`final`/`v2-final` development iterations. Explicit version
 names are appropriate when they represent a real supported data/algorithm contract.
@@ -81,7 +81,7 @@ rather than leaving several competing explanations of the current system.
 | [rules.md](rules.md) | Current player-facing rules and controls |
 | [ROOMS.md](ROOMS.md) | Shared room API, network policies and Firebase deployment |
 | [UNSHACKLE.md](UNSHACKLE.md) | Isolated 3D subsystem contracts |
-| [memory/](memory/README.md) | Maintained Memory implementation, tests/tools and analytics operations |
+| [impressions/](impressions/README.md) | Maintained Impressions implementation, tests/tools and analytics operations |
 
 Update the owning reference instead of creating one report per phase or feature.
 Give substantial independent topics a dedicated directory and a small set of

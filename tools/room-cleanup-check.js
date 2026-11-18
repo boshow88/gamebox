@@ -1,13 +1,13 @@
 /* Shared cleanup clock and transaction races, using the actual RTDB adapter. */
 'use strict';
 const assert = require('node:assert/strict');
-const { memoryRealtimeDatabase } = require('./helpers/rtdb-fixtures.js');
+const { impressionsRealtimeDatabase } = require('./helpers/rtdb-fixtures.js');
 (async () => {
     const { createRealtimeCleanupClock } = await import('../js/net/rtdb-clock.mjs');
     const { createRealtimeRoomStore } = await import('../js/net/rtdb-rooms.mjs');
     const { encodeRoomValue } = await import('../js/net/rtdb-values.mjs');
     function fixture(skew = 0) {
-        const base = Date.now(), native = memoryRealtimeDatabase(), sdk = native.clientSDK(), callbacks = new Map();
+        const base = Date.now(), native = impressionsRealtimeDatabase(), sdk = native.clientSDK(), callbacks = new Map();
         let elapsed = 0, wallJump = 0, throttle = 0, afterQuery = () => {}, beforeTransaction = () => {};
         const clock = createRealtimeCleanupClock({ ...sdk, onValue: (target, cb) => {
             callbacks.set(target.path, cb); return () => callbacks.delete(target.path);

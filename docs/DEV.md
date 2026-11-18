@@ -910,21 +910,21 @@ Measurements use logical px, seconds and game parameters, not real metres or m/s
 The no-wind trace preserves all other inputs. A sweep records winds -60/-30/0/+30/+60 without altering the
 currently selected inputs or competitive state.
 
-## Memory
+## Impressions
 
-[Memory](../games/memory.html) has local Color/Quantity/Pitch practice and online
+[Impressions](../games/impressions.html) has local Color/Quantity/Pitch practice and online
 matches with human/CPU participants. It uses the shared room service and RTDB;
 analytics is a separate best-effort Firestore observer.
 
-- [Current implementation](memory/README.md): module ownership, scoring,
+- [Current implementation](impressions/README.md): module ownership, scoring,
   challenge/stages, audio/results, ranking, rematches and frozen protocols.
-- [Tests and tools](memory/TESTING.md): core/browser checks, calibration,
+- [Tests and tools](impressions/TESTING.md): core/browser checks, calibration,
   human playtesting and isolated real-Firebase room verification.
-- [Analytics operations](memory/ANALYTICS.md): capture/schema, privacy, export,
+- [Analytics operations](impressions/ANALYTICS.md): capture/schema, privacy, export,
   retention, emulator tests and the separate Firestore deployment boundary.
 
-Keep player-facing controls in [rules.md](rules.md#memory), shared transport and
-deployment policy in [ROOMS.md](ROOMS.md#memory-room-and-match-protocol).
+Keep player-facing controls in [rules.md](rules.md#impressions), shared transport and
+deployment policy in [ROOMS.md](ROOMS.md#impressions-room-and-match-protocol).
 Pure reducers own gameplay; views, recorders and export tools do not settle it.
 Update these maintained references instead of appending development-phase reports.
 

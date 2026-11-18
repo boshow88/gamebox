@@ -101,7 +101,7 @@ function fixture({ delayed, initial = admin, failed, holdAuth = false, legacyMod
     assert.notEqual(firstTab, 'restored-tab');
     assert.equal(room.downloads.filter(name => name === 'rtdb-clock.mjs').length, 1);
     console.log('PASS: 800 ms RTDB hold does not block Auth or admin lookup:', JSON.stringify(room.times));
-    console.log('PASS: lazy room loading retains Memory recovery/clock options and other games\' page identities');
+    console.log('PASS: lazy room loading retains Impressions recovery/clock options and other games\' page identities');
 
     const net = slow.window.ArcadeNet;
     const pending = deferred(); slow.setRead(() => pending.promise);

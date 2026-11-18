@@ -31,3 +31,5 @@ dist/
 .commit_msg.*
 tools/memory-analytics/credentials/
 tools/memory-analytics/exports/
+tools/impressions-analytics/credentials/
+tools/impressions-analytics/exports/

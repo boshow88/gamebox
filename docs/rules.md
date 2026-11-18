@@ -37,9 +37,9 @@ All games share the same chrome and lifecycle:
 
 ---
 
-<a id="memory"></a>
+<a id="impressions"></a>
 
-## By Feel
+## Impressions
 
 Practice Color, Quantity or Pitch locally, or play an online match with 2–8
 participants, including at least one human. One human can play against CPUs.
@@ -57,7 +57,7 @@ values and other players' answers are hidden in the interface while answering.
 ### Quantity memory
 
 Reconstruct one count or separate counts for up to three groups: circle, square,
-triangle. Each group has its own control. Memory and reconstruction use the
+triangle. Each group has its own control. Impressions and reconstruction use the
 same deterministic ordered position pool; equal counts reproduce the same dots,
 and changing a count adds/removes one dot without moving the rest. Shapes have
 equal filled areas; the current palette is blue, orange and green respectively.
@@ -96,7 +96,7 @@ rematches; mute, explicit reset or failed recovery require another confirmation.
 The host chooses categories, capacity, HP, round cap and timing; guests Ready,
 then the host explicitly Starts. The room need not be full. Lobby changes clear
 Ready. Defaults are 500 HP, 12 rounds, 3s preparation and **15s results**; base
-Color memory/answer windows are 4s/25s. Actual memory windows vary by category,
+Color impressions/answer windows are 4s/25s. Actual memory windows vary by category,
 variant and seeded challenge, and are the same for every participant. Challenge
 conditions are not score-driven adaptation. Frozen older matches keep their rules.
 
@@ -127,8 +127,8 @@ may need confirmation again, and the shared timers keep running.
 Online play uses Firebase over HTTP(S); offline practice does not require it.
 For balancing, the browser may save completed questions, answers and results
 without account IDs/names as unverified, best-effort internal analytics. It does
-not guarantee delivery. [Implementation/scoring](memory/README.md) and
-[analytics/privacy](memory/ANALYTICS.md) describe the maintained details.
+not guarantee delivery. [Implementation/scoring](impressions/README.md) and
+[analytics/privacy](impressions/ANALYTICS.md) describe the maintained details.
 
 ---
 
@@ -466,7 +466,7 @@ heart heal, combo step, enhanced ×), `AI_LEVELS` (per-difficulty spin search `b
 ## Beam
 
 **Goal.** The mirrors flash up for a moment, then vanish. A laser fires in — tap
-the edge cell where it **exits** before the clock runs out. It's a memory-and-
+the edge cell where it **exits** before the clock runs out. It's a impressions-and-
 geometry race: read the layout fast and outlast your rivals.
 
 ### A round

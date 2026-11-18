@@ -2,7 +2,7 @@
 const assert = require('node:assert/strict');
 
 /** Native JSON tree + cold transaction caches. This fixture does not evaluate security rules. */
-function memoryRealtimeDatabase() {
+function impressionsRealtimeDatabase() {
     let tree = {}, queue = Promise.resolve(), nextClient = 0;
     const listeners = new Set(), clients = new Set(), commits = [];
     const usage = { transactionReads: 0, updates: 0, reads: 0, queries: 0, writes: 0, deletes: 0, listenerEvents: 0 };
@@ -122,7 +122,7 @@ function memoryRealtimeDatabase() {
 }
 
 function realtimeGameBackend(modules) {
-    const native = memoryRealtimeDatabase();
+    const native = impressionsRealtimeDatabase();
     const playerSDKs = new Map();
     return { ...native,
         get: path => modules.decodeRoomValue(native.raw('rooms/' + path)),
@@ -146,4 +146,4 @@ function realtimeGameBackend(modules) {
         reconnectPlayer: uid => native.reconnect(playerSDKs.get(uid)),
     };
 }
-module.exports = { memoryRealtimeDatabase, realtimeGameBackend };
+module.exports = { impressionsRealtimeDatabase, realtimeGameBackend };

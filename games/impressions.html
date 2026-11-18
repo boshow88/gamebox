@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="arcade">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="A quick look or listen, then recreate the color, quantity or pitch by feel. Practise on your own, play with friends or take on CPU players.">
+    <title>Impressions · GameBox</title>
+    <link rel="icon" type="image/svg+xml" href="../favicon.svg">
+    <link rel="stylesheet" href="../css/common.css">
+    <link rel="stylesheet" href="../css/arcade.css">
+    <link rel="stylesheet" href="../css/impressions.css">
+</head>
+<body>
+    <main class="game-shell impressions-shell" id="impressions-game" data-phase="idle">
+        <header class="game-topbar">
+            <a class="back-link" href="../index.html"><span data-icon="arrow-left" aria-hidden="true"></span><span data-i18n="menu">Menu</span></a>
+            <div class="game-title"><span class="game-icon" data-icon="blend" aria-hidden="true"></span><span data-i18n="impressionsName">Impressions</span></div>
+            <div class="impressions-topbar-controls"><div class="lang-toggle" id="lang-toggle" role="radiogroup" data-i18n-aria-label="language">
+                <button type="button" data-lang="en" role="radio" aria-checked="true">EN</button>
+                <button type="button" data-lang="zh" role="radio" aria-checked="false">中</button>
+            </div></div>
+        </header>
+
+        <section class="impressions-panel" aria-labelledby="impressions-title">
+            <header class="impressions-panel-header">
+                <div><p class="impressions-eyebrow" id="impressions-mode-label">Local practice</p><label class="impressions-local-category"><span data-i18n="impressionsCategoryMode">Question categories</span><select id="impressions-local-category"><option value="weighted" data-i18n="impressionsWeighted" selected>Mixed categories</option><option value="color" data-i18n="impressionsColorOnly">Color only</option><option value="quantity" data-i18n="impressionsQuantityOnly">Quantity only</option><option value="pitch" data-i18n="impressionsPitchOnly">Pitch only</option><option value="mixed" data-i18n="impressionsPitchMixed">Mixed</option></select></label><h1 id="impressions-title" data-i18n="impressionsColor">Color</h1></div>
+                <div class="impressions-header-actions"><div class="impressions-round"><span data-i18n="impressionsRound">Round</span><strong id="impressions-round">01</strong></div><button type="button" class="btn" id="impressions-online-btn" aria-haspopup="dialog" aria-controls="impressions-lobby" data-i18n="impressionsOnlineRoom">Online room</button><button type="button" class="btn" id="impressions-result-recent" data-i18n="impressionsRecentRound" hidden>Recent round</button></div>
+            </header>
+            <div id="impressions-local-audio" hidden><section class="impressions-audio-gate" id="impressions-audio-setup" aria-label="Sound setup"><p id="impressions-audio-instruction" data-i18n="impressionsAudioInstruction">Play the test sound, then confirm that you can hear it.</p><button type="button" class="btn" id="impressions-enable-audio" data-i18n="impressionsAudioTest">Play test sound</button><button type="button" class="btn btn-primary" id="impressions-confirm-audio" data-i18n="impressionsAudioConfirm" disabled>I can hear it</button><button type="button" class="btn" id="impressions-repeat-audio" data-i18n="impressionsAudioRepeat" hidden>Repeat sound setup</button><span id="impressions-local-audio-status" role="status" aria-live="polite"></span></section></div>
+            <ol class="impressions-phases" aria-label="Round phases" data-i18n-aria-label="impressionsPhases">
+                <li data-step="prepare"><span>01</span><span data-i18n="impressionsPrepare">Prepare</span></li>
+                <li data-step="memorize"><span>02</span><span data-i18n="impressionsMemorize">Notice</span></li>
+                <li data-step="answer"><span>03</span><span data-i18n="impressionsRecreate">Recreate</span></li>
+                <li data-step="results"><span>04</span><span data-i18n="impressionsResults">Compare</span></li>
+            </ol>
+            <section class="impressions-match-status" id="impressions-match-status" hidden aria-label="Match status" data-i18n-aria-label="impressionsMatchStatus">
+                <p id="impressions-connection" role="status" aria-live="polite"></p>
+                <div class="impressions-personal-hp"><span data-i18n="impressionsYourHp">Your HP</span><strong id="impressions-hp"></strong><span id="impressions-match-round"></span><span id="impressions-personal-damage"></span></div>
+                <div class="impressions-hp-track" aria-hidden="true"><div id="impressions-hp-fill"></div></div>
+                <div class="impressions-participant-strip" id="impressions-participant-strip"></div>
+            </section>
+            <div class="impressions-phase-header">
+                <div class="impressions-phase-copy"><h2 id="impressions-phase-title" tabindex="-1">A quick look. A short listen.</h2><p id="impressions-phase-message" role="status" aria-live="polite"></p></div>
+                <div class="impressions-timer" id="impressions-timer" role="timer" aria-live="off" data-i18n-aria-label="impressionsTimeLeft"><strong id="impressions-seconds">—</strong><span data-i18n="impressionsSeconds">sec</span></div>
+            </div>
+            <div class="impressions-time-track" aria-hidden="true"><div id="impressions-time-fill"></div></div>
+
+            <div class="impressions-workspace">
+                <section class="impressions-preview-region" aria-label="Color preview" data-i18n-aria-label="impressionsPreview">
+                    <div class="impressions-display">
+                        <div class="impressions-preview" id="impressions-preview" role="img" aria-label="Color preview">
+                            <div class="impressions-preview-cover" id="impressions-preview-cover"><span class="impressions-orbit" aria-hidden="true"></span><strong id="impressions-countdown"></strong></div>
+                        </div>
+                        <div class="impressions-comparison" id="impressions-comparison" hidden>
+                            <figure><div class="impressions-result-swatch" id="impressions-target-swatch"></div><figcaption><span data-i18n="impressionsOriginal">Original</span><code id="impressions-target-hex"></code></figcaption></figure>
+                            <figure><div class="impressions-result-swatch" id="impressions-answer-swatch"></div><figcaption><span data-i18n="impressionsYourColor">Your color</span><code id="impressions-answer-hex"></code></figcaption></figure>
+                        </div>
+                        <div id="impressions-modern-color-display" hidden><div class="impressions-modern-palette" id="impressions-modern-palette"></div><p id="impressions-modern-color-note"></p></div>
+                        <div id="impressions-modern-color-comparison" hidden><div class="impressions-modern-comparison"><figure><div class="impressions-result-palette" id="impressions-color-result-target"></div><figcaption data-i18n="impressionsOriginal">Original</figcaption></figure><figure><div class="impressions-result-palette" id="impressions-color-result-answer"></div><figcaption data-i18n="impressionsYourColor">Your color</figcaption></figure></div><table class="impressions-color-errors"><tbody id="impressions-color-error-rows"></tbody></table><p id="impressions-color-rms"></p></div>
+                        <div class="impressions-pitch-display" id="impressions-pitch-display" hidden>
+                            <p class="impressions-pitch-reference" data-i18n="impressionsPitchLocked">Locked reference</p>
+                            <div class="impressions-pitch-tones" id="impressions-pitch-tones"></div>
+                            <div class="impressions-pitch-playback"><button type="button" class="btn" id="impressions-pitch-play" data-i18n="impressionsPitchPlay">Play your sequence</button><button type="button" class="btn" id="impressions-pitch-original" data-i18n="impressionsPitchOriginal" hidden>Play original</button><button type="button" class="btn" id="impressions-pitch-stop" data-i18n="impressionsPitchStop">Stop</button></div>
+                            <p id="impressions-pitch-audio-status" role="status"></p><button type="button" class="btn" id="impressions-pitch-enable" data-i18n="impressionsPitchEnable">Enable sound &amp; test</button>
+                            <div id="impressions-pitch-comparison" hidden><table><thead><tr><th data-i18n="impressionsPitchTone">Tone</th><th data-i18n="impressionsPitchTarget">Original Hz</th><th data-i18n="impressionsPitchAnswer">Answer Hz</th><th data-i18n="impressionsPitchError">Error (cents)</th></tr></thead><tbody id="impressions-pitch-result-rows"></tbody></table><p id="impressions-pitch-rms"></p></div>
+                        </div>
+                        <div class="impressions-group-display" id="impressions-group-display" hidden><div class="impressions-group-legend" id="impressions-group-legend"></div><div class="impressions-dot-field" id="impressions-group-preview"></div></div>
+                        <div id="impressions-group-comparison" hidden><div class="impressions-group-comparison"><figure><div class="impressions-dot-field" id="impressions-group-target"></div><figcaption data-i18n="impressionsGroupTarget">Original</figcaption></figure><figure><div class="impressions-dot-field" id="impressions-group-answer"></div><figcaption data-i18n="impressionsGroupAnswer">Answer</figcaption></figure></div><table class="impressions-group-table"><thead><tr><th data-i18n="impressionsGroup">Group</th><th data-i18n="impressionsGroupTarget">Original</th><th data-i18n="impressionsGroupAnswer">Answer</th><th data-i18n="impressionsGroupError">Error</th></tr></thead><tbody id="impressions-group-result-rows"></tbody></table></div>
+                        <div class="impressions-quantity-display" id="impressions-quantity-display" hidden>
+                            <div class="impressions-dot-field" id="impressions-dot-preview"></div>
+                            <div class="impressions-controls-cover" id="impressions-dot-cover"><span id="impressions-dot-note"></span></div>
+                        </div>
+                        <div class="impressions-quantity-comparison" id="impressions-quantity-comparison" hidden>
+                            <figure><div class="impressions-dot-field" id="impressions-target-dots"></div><figcaption><span data-i18n="impressionsOriginalQuantity">Original quantity</span><strong id="impressions-target-count"></strong></figcaption></figure>
+                            <figure><div class="impressions-dot-field" id="impressions-answer-dots"></div><figcaption><span data-i18n="impressionsYourQuantity">Your quantity</span><strong id="impressions-answer-count"></strong></figcaption></figure>
+                        </div>
+                    </div>
+                    <div class="impressions-preview-footer"><span class="impressions-preview-label" id="impressions-preview-label"></span><span id="impressions-lock-label" class="impressions-lock-label" hidden></span></div>
+                </section>
+
+                <section class="impressions-controls-region" aria-label="RGB controls" data-i18n-aria-label="impressionsControls">
+                    <div id="impressions-hsl-controls" hidden><div class="impressions-hsl-wheel-wrap"><div class="impressions-hsl-wheels" id="impressions-hsl-wheels"></div><div class="impressions-controls-cover" id="impressions-hsl-cover"><span id="impressions-hsl-note"></span></div></div><p class="impressions-wheel-help" id="impressions-hsl-help"></p></div>
+                    <div id="impressions-color-controls">
+                    <div class="impressions-controls-caption"><span data-i18n="impressionsMix">Mix your color</span><span class="impressions-range">0 — 255</span></div>
+                    <div class="impressions-wheel-group" id="impressions-wheels">
+                        <div class="impressions-channel" id="impressions-wheel-r" data-channel="r"></div>
+                        <div class="impressions-channel" id="impressions-wheel-g" data-channel="g"></div>
+                        <div class="impressions-channel" id="impressions-wheel-b" data-channel="b"></div>
+                        <div class="impressions-controls-cover" id="impressions-controls-cover"><span id="impressions-controls-note"></span></div>
+                    </div>
+                    <p class="impressions-wheel-help" id="impressions-wheel-help" data-i18n="impressionsWheelHelp">Drag up or down · ± for precision</p>
+                    </div>
+                    <div id="impressions-pitch-controls" hidden><div class="impressions-pitch-adjustment" id="impressions-pitch-adjustment" role="group" aria-label="Pitch adjustment"><button type="button" class="btn" id="impressions-pitch-coarse" aria-pressed="true" data-i18n="impressionsPitchCoarse">Coarse</button><button type="button" class="btn" id="impressions-pitch-fine" aria-pressed="false" data-i18n="impressionsPitchFine">Fine</button></div><div class="impressions-pitch-wheels" id="impressions-pitch-wheels"></div><p class="impressions-wheel-help" id="impressions-pitch-help" data-i18n="impressionsPitchWheelHelp">Drag for intervals · Shift for precision · ±: 1 cent</p><p class="impressions-wheel-help" data-i18n="impressionsPitchUnits"></p></div>
+                    <div id="impressions-group-controls" hidden><div class="impressions-group-wheel-wrap"><div class="impressions-group-wheels" id="impressions-group-wheels"></div><div class="impressions-controls-cover" id="impressions-group-cover"><span id="impressions-group-note"></span></div></div><p class="impressions-wheel-help" id="impressions-group-help" data-i18n="impressionsGroupsControls">One wheel per shape · ± for one</p></div>
+                    <div id="impressions-quantity-controls" hidden>
+                        <div class="impressions-controls-caption"><span data-i18n="impressionsQuantityMix">Recreate the quantity</span><span id="impressions-quantity-range">0 — 220</span></div>
+                        <div class="impressions-quantity-wheel-group"><div class="impressions-channel" id="impressions-wheel-quantity"></div><div class="impressions-controls-cover" id="impressions-quantity-cover"><span id="impressions-quantity-note"></span></div></div>
+                        <p class="impressions-wheel-help" data-i18n="impressionsQuantityWheelHelp">Drag for large changes · ± / arrows for one · Page Up / Down for 25</p>
+                    </div>
+                </section>
+            </div>
+
+            <footer class="impressions-action-area">
+                <div class="impressions-feedback" id="impressions-feedback"><span class="impressions-feedback-label" id="impressions-feedback-label"></span><div class="impressions-score-line"><strong id="impressions-score">—</strong><small id="impressions-score-max" aria-hidden="true" hidden>/ 100</small><span id="impressions-score-description"></span></div></div>
+                <button type="button" class="btn btn-primary impressions-primary" id="impressions-action">Start round <span aria-hidden="true">↗</span></button>
+            </footer>
+            <section class="impressions-match-results" id="impressions-match-results" hidden aria-labelledby="impressions-match-heading" aria-hidden="true">
+                <h2 id="impressions-match-heading" tabindex="-1"></h2><p id="impressions-outcome"></p>
+                <div class="impressions-results-scroll"><table><thead><tr><th data-i18n="impressionsPlayer">Player</th><th data-i18n="score">Score</th><th data-i18n="impressionsDamage">Damage</th><th>HP</th><th data-i18n="impressionsStatus">Status</th></tr></thead><tbody id="impressions-result-rows"></tbody></table></div>
+            </section>
+        </section>
+
+        <details class="impressions-instructions" id="impressions-practice-settings"><summary data-i18n="impressionsPracticeSettings">Practice settings</summary><div class="impressions-frequency-grid"><label class="impressions-field"><span data-i18n="impressionsColor">color</span><select id="impressions-local-weight-color"><option value="0" data-i18n="impressionsFrequencyOff">Off</option><option value="1" data-i18n="impressionsFrequencyLow">Low</option><option value="2" data-i18n="impressionsFrequencyMedium" selected>Medium</option><option value="4" data-i18n="impressionsFrequencyHigh">High</option></select><output id="impressions-local-probability-color"></output></label><label class="impressions-field"><span data-i18n="impressionsQuantity">quantity</span><select id="impressions-local-weight-quantity"><option value="0" data-i18n="impressionsFrequencyOff">Off</option><option value="1" data-i18n="impressionsFrequencyLow">Low</option><option value="2" data-i18n="impressionsFrequencyMedium" selected>Medium</option><option value="4" data-i18n="impressionsFrequencyHigh">High</option></select><output id="impressions-local-probability-quantity"></output></label><label class="impressions-field"><span data-i18n="impressionsPitch">pitch</span><select id="impressions-local-weight-pitch"><option value="0" data-i18n="impressionsFrequencyOff">Off</option><option value="1" data-i18n="impressionsFrequencyLow">Low</option><option value="2" data-i18n="impressionsFrequencyMedium" selected>Medium</option><option value="4" data-i18n="impressionsFrequencyHigh">High</option></select><output id="impressions-local-probability-pitch"></output></label></div><label class="impressions-adaptive-option"><input type="checkbox" id="impressions-local-adaptive" checked><span data-i18n="impressionsAdaptive">Adaptive difficulty</span></label><label class="impressions-field impressions-initial-difficulty"><span data-i18n="impressionsInitialDifficulty">Starting difficulty</span><input type="number" id="impressions-local-initial-difficulty" min="1" max="10" step="0.5" value="5"></label><p class="impressions-room-note" id="impressions-local-frequency-note"></p></details>
+        <details class="impressions-instructions">
+            <summary data-i18n="howToPlay">How to play</summary>
+            <p id="impressions-help-flow">Look at the color for 4 seconds, then recreate it within 25 seconds. Lock it in when ready; your current answer is submitted when time runs out.</p>
+            <p id="impressions-help-controls" data-i18n="impressionsHelpControls">Drag a wheel up or down. Use ± or arrow keys for small adjustments; hold Shift for finer control. Page Up/Down changes by 16; Home/End jumps to a limit.</p>
+            <p id="impressions-help-score" data-i18n="impressionsHelpScore">Closer colors score higher. Speed does not affect the score. Each answer starts from the same neutral gray.</p>
+            <p data-i18n="impressionsAnalyticsDisclosure">To improve game balance, we may retain match questions, answers, and results without account IDs or player names for internal analysis.</p>
+        </details>
+        <dialog class="impressions-lobby" id="impressions-lobby" aria-labelledby="impressions-lobby-title">
+            <header class="impressions-lobby-header"><div><p class="impressions-eyebrow" data-i18n="impressionsOnlineColor">Color · 2–8 players</p><h2 id="impressions-lobby-title" data-i18n="impressionsOnlineRoom">Online room</h2></div><button type="button" class="btn" id="impressions-lobby-close" data-i18n="impressionsCloseRoom">Close</button></header>
+            <div class="impressions-lobby-body">
+                <div class="impressions-auth-line"><span id="impressions-account"></span><button type="button" class="btn" id="impressions-google-btn" data-i18n="impressionsGoogle">Google sign-in</button></div>
+                <label class="impressions-field"><span data-i18n="impressionsYourName">Your name</span><input id="impressions-name" type="text" maxlength="32" autocomplete="nickname"></label>
+                <div id="impressions-room-entry" class="impressions-room-entry">
+                    <button type="button" class="btn btn-primary" id="impressions-create-btn" data-i18n="impressionsCreate">Create room</button>
+                    <div class="impressions-join-line"><label class="impressions-field"><span data-i18n="impressionsRoomCode">Room code</span><input id="impressions-code-input" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="4"></label><button type="button" class="btn" id="impressions-join-btn" data-i18n="impressionsJoin">Join</button></div>
+                </div>
+                <div id="impressions-room-membership" hidden>
+                    <div class="impressions-room-code-line"><span data-i18n="impressionsRoomCode">Room code</span><strong id="impressions-room-code"></strong><button type="button" class="btn" id="impressions-copy-btn" data-i18n="impressionsCopy">Copy</button></div>
+                    <button type="button" class="btn" id="impressions-previous-match" data-i18n="impressionsPreviousMatch" hidden>View previous match results</button><ul class="impressions-lobby-players" id="impressions-lobby-players"></ul>
+                    <button type="button" class="btn" id="impressions-add-cpu" data-i18n="impressionsAddCpu">Add CPU</button>
+                </div>
+                <fieldset class="impressions-room-settings" id="impressions-room-settings"><legend data-i18n="impressionsMatchRules">Match rules</legend>
+                    <div class="impressions-frequency-settings"><div class="impressions-frequency-grid"><label class="impressions-field"><span data-i18n="impressionsColor">color</span><select id="impressions-weight-color"><option value="0" data-i18n="impressionsFrequencyOff">Off</option><option value="1" data-i18n="impressionsFrequencyLow">Low</option><option value="2" data-i18n="impressionsFrequencyMedium" selected>Medium</option><option value="4" data-i18n="impressionsFrequencyHigh">High</option></select><output id="impressions-probability-color"></output></label><label class="impressions-field"><span data-i18n="impressionsQuantity">quantity</span><select id="impressions-weight-quantity"><option value="0" data-i18n="impressionsFrequencyOff">Off</option><option value="1" data-i18n="impressionsFrequencyLow">Low</option><option value="2" data-i18n="impressionsFrequencyMedium" selected>Medium</option><option value="4" data-i18n="impressionsFrequencyHigh">High</option></select><output id="impressions-probability-quantity"></output></label><label class="impressions-field"><span data-i18n="impressionsPitch">pitch</span><select id="impressions-weight-pitch"><option value="0" data-i18n="impressionsFrequencyOff">Off</option><option value="1" data-i18n="impressionsFrequencyLow">Low</option><option value="2" data-i18n="impressionsFrequencyMedium" selected>Medium</option><option value="4" data-i18n="impressionsFrequencyHigh">High</option></select><output id="impressions-probability-pitch"></output></label></div><label class="impressions-adaptive-option"><input type="checkbox" id="impressions-adaptive" checked><span data-i18n="impressionsAdaptive">Adaptive difficulty</span></label><label class="impressions-field impressions-initial-difficulty"><span data-i18n="impressionsInitialDifficulty">Starting difficulty</span><input type="number" id="impressions-initial-difficulty" min="1" max="10" step="0.5" value="5"></label><p class="impressions-room-note" id="impressions-frequency-note"></p></div>
+                    <details class="impressions-advanced-settings"><summary data-i18n="impressionsAdvanced">Advanced room settings</summary><label class="impressions-field"><span data-i18n="impressionsCapacity">Capacity</span><select id="impressions-capacity"><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option><option>7</option><option selected>8</option></select></label></details>
+                    <label class="impressions-field"><span data-i18n="impressionsMaxRounds">Round limit</span><input id="impressions-max-rounds" type="number" min="1" max="100" step="1" value="12"></label>
+                    <label class="impressions-field"><span data-i18n="impressionsStartingHp">Starting HP</span><input id="impressions-start-hp" type="number" min="1" max="1000000" step="1" value="500"></label>
+                    <details class="impressions-timing-settings"><summary data-i18n="impressionsTiming">Phase times (seconds)</summary><div class="impressions-timing-grid">
+                        <label class="impressions-field"><span data-i18n="impressionsPrepare">Prepare</span><input id="impressions-prepare-seconds" type="number" min="1" max="60" step="1" value="3"></label>
+                        <label class="impressions-field"><span data-i18n="impressionsMemorize">Memorize</span><input id="impressions-memorize-seconds" type="number" min="1" max="60" step="1" value="4"></label>
+                        <label class="impressions-field"><span data-i18n="impressionsRecreate">Recreate</span><input id="impressions-answer-seconds" type="number" min="5" max="90" step="1" value="25"></label>
+                        <label class="impressions-field"><span data-i18n="impressionsResults">Compare</span><input id="impressions-results-seconds" type="number" min="2" max="30" step="1" value="15"></label>
+                        <label class="impressions-field"><span data-i18n="impressionsPitchMemorizeTime">Pitch memorization</span><input id="impressions-pitch-memorize-seconds" type="number" min="2" max="90" step="1" value="8"></label>
+                        <label class="impressions-field"><span data-i18n="impressionsPitchAnswerTime">Pitch answering</span><input id="impressions-pitch-answer-seconds" type="number" min="5" max="90" step="1" value="35"></label>
+                    </div></details>
+                </fieldset>
+                <div id="impressions-room-audio" hidden></div><p class="impressions-start-reason" id="impressions-start-reason" role="status" aria-live="polite"></p>
+                <p class="impressions-room-note" id="impressions-room-note"></p>
+                <p class="impressions-lobby-error" id="impressions-lobby-error" role="status" aria-live="polite"></p>
+            </div>
+            <footer class="impressions-lobby-footer"><button type="button" class="btn" id="impressions-leave-btn" data-i18n="impressionsLeave" hidden>Leave room</button><div class="impressions-lobby-actions"><button type="button" class="btn" id="impressions-ready-btn" hidden></button><button type="button" class="btn btn-primary" id="impressions-start-btn" data-i18n="impressionsStartMatch" hidden>Start match</button><button type="button" class="btn btn-primary" id="impressions-return-btn" data-i18n="impressionsPrepareNext" hidden>Prepare next match</button></div></footer>
+        </dialog>
+        <section class="impressions-results-screen" id="impressions-results-screen" aria-labelledby="impressions-result-title" hidden>
+            <header><h2 id="impressions-result-title" tabindex="-1"></h2><strong id="impressions-result-countdown"></strong></header>
+            <p id="impressions-result-review-note" hidden></p><p id="impressions-result-summary"></p><p id="impressions-result-formula"></p><p id="impressions-result-scroll-hint" hidden></p>
+            <section id="impressions-match-finished" hidden><p id="impressions-match-outcome" role="status"></p><p id="impressions-match-placement" hidden></p><p id="impressions-match-winners"></p><p id="impressions-match-ranking-note"></p><div class="impressions-standings-scroll"><table class="impressions-final-standings"><thead><tr><th data-i18n="impressionsRank">Rank</th><th data-i18n="impressionsPlayer">Player</th><th>HP</th><th data-i18n="impressionsStatus">Status</th></tr></thead><tbody id="impressions-match-standings"></tbody></table></div><p id="impressions-match-host-note" hidden></p><p id="impressions-match-guest-note"></p><div class="impressions-post-match-actions"><button type="button" class="btn btn-primary" id="impressions-match-back-lobby" data-i18n="impressionsBackLobby" hidden>Back to lobby</button><button type="button" class="btn btn-primary" id="impressions-match-return" data-i18n="impressionsPrepareNext">Prepare next match</button><button type="button" class="btn" id="impressions-match-last" data-i18n="impressionsViewLastRound">View last round</button><button type="button" class="btn" id="impressions-match-leave" data-i18n="impressionsLeave">Leave room</button></div></section>
+            <div class="impressions-result-scroll" tabindex="0" aria-label="Round scoreboard"><table class="impressions-result-scoreboard"><thead><tr><th data-i18n="impressionsPlayer">Player</th><th data-i18n="score">Score</th><th data-i18n="impressionsResultGap">Gap</th><th data-i18n="impressionsResultReceived">Damage received</th><th data-i18n="impressionsResultHpChange">HP before → after</th></tr></thead><tbody id="impressions-result-body"></tbody></table><details id="impressions-result-details"><summary data-i18n="impressionsResultDetails">Answer details</summary><div id="impressions-result-detail-body"></div></details></div>
+            <footer><button type="button" class="btn" id="impressions-result-finish" data-i18n="impressionsViewStandings" hidden>View final standings</button><button type="button" class="btn" id="impressions-result-close" data-i18n="impressionsResultClose" hidden>Back to game</button></footer>
+        </section>
+        <noscript><p class="impressions-noscript">Please enable JavaScript to play Impressions.</p></noscript>
+    </main>
+    <script src="../js/arcade.js"></script>
+    <script src="../js/games/impressions-color.js"></script>
+    <script src="../js/games/impressions-rules.js"></script>
+    <script src="../js/games/impressions-quantity.js"></script>
+    <script src="../js/games/impressions-pitch.js"></script>
+    <script src="../js/games/impressions-audio.js"></script>
+    <script src="../js/games/impressions-audio-readiness.js"></script>
+    <script src="../js/games/impressions-results.js"></script>
+    <script src="../js/games/impressions-results-view.js"></script>
+    <script src="../js/games/impressions-progression.js"></script>
+    <script src="../js/games/impressions-quantity-groups.js"></script>
+    <script src="../js/games/impressions-color-variants.js"></script><script src="../js/games/impressions-pitch-variations.js"></script><script src="../js/games/impressions-color-single.js"></script><script src="../js/games/impressions-quantity-appearance.js"></script><script src="../js/games/impressions-quantity-progression.js"></script><script src="../js/games/impressions-challenge.js"></script><script src="../js/games/impressions-categories.js"></script>
+    <script src="../js/games/impressions-dots.js"></script>
+    <script src="../js/games/impressions-cpu.js"></script><script src="../js/games/impressions-match.js"></script>
+    <script src="../js/games/impressions-room.js"></script>
+    <script src="../js/games/impressions-wheel.js"></script>
+    <script src="../js/games/impressions-color-view.js"></script>
+    <script src="../js/games/impressions-quantity-groups-view.js"></script>
+    <script src="../js/games/impressions-pitch-view.js"></script>
+    <script src="../js/firebase-config.js"></script>
+    <script src="../js/games/impressions/recovery.js"></script>
+    <script src="../js/games/impressions-online.js"></script>
+    <script src="../js/games/impressions-playtest.js"></script>
+    <script src="../js/games/impressions-analytics.js"></script>
+    <script src="../tools/impressions-playtest-controls.js"></script>
+    <script src="../js/games/impressions.js"></script>
+</body>
+</html>

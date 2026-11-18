@@ -2,7 +2,7 @@
 'use strict';
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const { memoryRealtimeDatabase } = require('./helpers/rtdb-fixtures.js');
+const { impressionsRealtimeDatabase } = require('./helpers/rtdb-fixtures.js');
 const { gameClient } = require('./helpers/room-fixtures.js');
 
 (async () => {
@@ -16,7 +16,7 @@ const { gameClient } = require('./helpers/room-fixtures.js');
         assert.throws(() => encodeRoomValue({ [key]: true }), /Invalid/);
     }
     assert.throws(() => encodeRoomValue({ missing: undefined }), /finite JSON/);
-    const native = memoryRealtimeDatabase(); let clock = 1000;
+    const native = impressionsRealtimeDatabase(); let clock = 1000;
     const hostSDK = native.clientSDK(), peerSDK = native.clientSDK();
     const hostStore = createRealtimeRoomStore(hostSDK, native.db, 'beam_rooms', { now: () => clock, presenceField: 'presence', getPlayerId: () => 'host' });
     const peerStore = createRealtimeRoomStore(peerSDK, native.db, 'beam_rooms', { now: () => clock, presenceField: 'presence', getPlayerId: () => 'peer' });

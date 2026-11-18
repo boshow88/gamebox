@@ -12,7 +12,7 @@ covers Console setup and Firestore room retirement.
 load of the RTDB SDK and local room modules; `rooms.ok` is null until loaded, true
 on success, and false on failure. A rejected load can be retried. Account/Auth
 readiness is independent of rooms. Beam and Rune Stones initialize rooms on their
-game pages; Darts, Memory and Trash Toss wait until online entry (Memory also
+game pages; Darts, Impressions and Trash Toss wait until online entry (Impressions also
 initializes for a stored recovery location). The launcher never loads them.
 `rooms.clock()` also requires this readiness. Auth restoration is published through
 `ArcadeAuth` before Firestore; guest sign-in waits for restoration instead of
@@ -21,9 +21,9 @@ replacing a restoring Google session with an anonymous account.
 Rune Stones supplies translated text, player badges, results and actions
 to the shared lobby view. Beam and Darts each use their own unified lobby view on
 the same room service — Darts so one device can control several participants, Beam
-(`js/games/beam-lobby.js`) for its Solo/Online tabs and custom CPUs. Memory also uses
+(`js/games/beam-lobby.js`) for its Solo/Online tabs and custom CPUs. Impressions also uses
 its own lobby with the same service; its simultaneous submission protocol is
-described in [Memory room and match protocol](#memory-room-and-match-protocol). Match simulation,
+described in [Impressions room and match protocol](#impressions-room-and-match-protocol). Match simulation,
 heartbeat cadence and timeouts remain game-specific. Configuration and
 synchronous lifecycle hooks replace separate copies of room CRUD and readiness
 checks.
@@ -54,14 +54,14 @@ codes such as `ABCD`. The adapter keeps the existing `R-ABCD` RTDB key and store
 metadata, so active rooms and published rules need no migration. Firestore rooms
 remain retired; four-character input always addresses RTDB.
 
-## Memory room and match protocol
+## Impressions room and match protocol
 
-Memory uses `/rooms/memory_rooms/R-XXXX`, four-character public codes and
+Impressions uses `/rooms/memory_rooms/R-XXXX`, four-character public codes and
 the shared service with tab/controller identity, join order, presence and
 guarded transactions. Separate frozen participants/seat order include one human
 per controller plus any owned CPUs; there are 2–8 actors at Start and at least
 one human. The room need not be full. See
-[current match contracts](memory/README.md) and [player rules](rules.md#memory).
+[current match contracts](impressions/README.md) and [player rules](rules.md#impressions).
 
 - Host Start requires connected human controllers, current guest Ready and
   usable Pitch audio acknowledgements when needed. CPU settings/ownership and
@@ -75,13 +75,13 @@ one human. The room need not be full. See
   usable audio, clears Ready and opens the lobby for everyone. Host Start creates
   a new match; it is not an automatic rematch. Previous standings are readonly.
 - Leaving withdraws the controller's human and CPUs during play. Host migration
-  retains the 15s presence grace. Memory supports membership-only same-tab refresh
+  retains the 15s presence grace. Impressions supports membership-only same-tab refresh
   recovery using sessionStorage and an exclusive controller lock; see
-  [recovery contracts and limitations](memory/README.md#same-tab-recovery).
+  [recovery contracts and limitations](impressions/README.md#same-tab-recovery).
   Last-controller departure deletes the room. Current question/receipts and the
   latest result are retained, not full round history.
 
-### Memory deployment and trust boundary
+### Impressions deployment and trust boundary
 
 RTDB must have the reviewed `memory_rooms` policy. If it already works, do not
 redeploy unchanged RTDB Rules for a presentation or analytics change. The policy
@@ -89,10 +89,10 @@ permits authenticated browser room writes with basic metadata validation; it
 does not enforce scoring, immutable game state or malicious-client ownership
 checks. UI hiding is not anti-cheat protection.
 
-[Automatic analytics](memory/ANALYTICS.md) observes snapshots without changing
+[Automatic analytics](impressions/ANALYTICS.md) observes snapshots without changing
 room transactions. Its Firestore create-only Rules/indexes are a separate
 deployment, require explicit approval and do not make room data trusted.
-See [tests](memory/TESTING.md#real-firebase-and-rules) and the
+See [tests](impressions/TESTING.md#real-firebase-and-rules) and the
 [shared deployment policy](#development-stage-deployment-policy).
 
 ## Darts room and match protocol
@@ -456,7 +456,7 @@ decides when a game starts.
 ## Traffic and storage
 
 Rooms, gameplay and presence use RTDB. Authentication, account records/scores,
-admin settings, feedback and best-effort Memory analytics use the existing
+admin settings, feedback and best-effort Impressions analytics use the existing
 Auth/Firestore APIs independently of room transactions. There is
 no room backend selector, legacy routing or cross-database fallback. Invalid
 RTDB configuration disables rooms while account sync and solo play remain usable.
@@ -506,12 +506,12 @@ or the count of successful deletions; they do not feed errors into gameplay.
 This protects ordinary clock/race failures, not malicious authenticated clients
 that bypass the honor-system room API.
 
-Memory attempts one background cleanup per authenticated page entry after its
+Impressions attempts one background cleanup per authenticated page entry after its
 optional original-room recovery has committed. Darts attempts it after online
 Auth initialization; expanding **Invite / join** starts that initialization,
 while its ordinary offline lobby remains local. Repeated initialization for the
 same UID does not start another entry sweep. Create/join never await cleanup.
-Memory's 60s and Darts' 30s host-maintenance calls remain; adapter throttling still
+Impressions's 60s and Darts' 30s host-maintenance calls remain; adapter throttling still
 limits queries to one per 60s. Beam/Rune Stones keep their existing lobby-entry
 and periodic cleanup calls. Failed/pending cleanup cannot block room recovery,
 admission or gameplay. If calibration is unavailable on entry, later normal
@@ -538,7 +538,7 @@ positive beat. Periodic pulses preserve the existing 8/15-second timeouts even
 when server disconnect detection takes longer. Native member-presence registration
 starts after room use; the independent cleanup clock observes RTDB info at online
 initialization. Solo startup does not scan rooms.
-Memory alone opts out of that shared disconnect-marker write to avoid stale
+Impressions alone opts out of that shared disconnect-marker write to avoid stale
 connection overwrites during refresh; it retains heartbeat/grace cleanup. Its
 explicit tab-session override does not change Darts or other games' identities.
 
@@ -566,7 +566,7 @@ Before publishing, preserve and review the complete working tree, including
 untracked game modules, fixtures and static assets. Fetch and compare the release
 branch before integrating shared Auth/room changes. Retain parallel changes such
 as lazy SDK initialization, departure hooks and permissions for other games;
-adding Memory must not remove another game's room collection. Test the integrated
+adding Impressions must not remove another game's room collection. Test the integrated
 candidate, not just each branch separately.
 
 Compare the **published** Firestore Rules, RTDB Rules and index configuration
@@ -580,10 +580,10 @@ finish before enabling dependent queries.
 After approval, publish only required Rules/index changes, then commit/push the
 reviewed website through the repository's configured GitHub Pages source. Check
 the Pages build and actual served assets; a successful push alone is insufficient.
-Verify Memory, Darts, Beam and Rune Stones, plus any other changed game, with
+Verify Impressions, Darts, Beam and Rune Stones, plus any other changed game, with
 fresh browser sessions. Include profiles, feedback and announcements when their
 shared Auth/Firestore boundary changed. Follow
-[Memory analytics operations](memory/ANALYTICS.md#tests-and-deployment) for the
+[Impressions analytics operations](impressions/ANALYTICS.md#tests-and-deployment) for the
 separate upload/export check. Rules deployment, website publication and live
 verification remain separately approved/reported actions.
 
@@ -599,7 +599,7 @@ with an existing project-authorized Google account, then
 separate from game/browser Auth and does not deploy anything. Use Console or
 authorized read-only APIs to compare active RTDB/Firestore Rules and indexes;
 do not infer a missing deployment from Git history. ADC/IAM used by analytics
-export is a separate credential, described in [analytics operations](memory/ANALYTICS.md).
+export is a separate credential, described in [analytics operations](impressions/ANALYTICS.md).
 
 ### RTDB security boundary
 
@@ -628,7 +628,7 @@ do not claim the existing rules provide it. Public release must explicitly resol
 or accept this room-tampering risk. Test adversarial cases only in a demo emulator,
 never by scanning/deleting real player rooms.
 
-The initial Memory release for friend playtesting retains this honor-system
+The initial Impressions release for friend playtesting retains this honor-system
 policy with the project owner's explicit acceptance of its cheating and
 cross-room mutation/deletion risks. The proposed access layer below is deferred;
 do not describe the current rooms as isolated or server-authoritative.
@@ -687,7 +687,7 @@ the admission handshake. Deployment/migration remains a separate approval.
 Before implementation approval, prototype the authorization boundary in the RTDB
 Emulator. Required cases include outsider overwrite/delete and self-grant denial,
 admission races, replayed grants after code reuse, revocation, same-account tabs,
-Memory refresh/owned CPUs, Darts multi-seat ownership, Beam spectators, Rune
+Impressions refresh/owned CPUs, Darts multi-seat ownership, Beam spectators, Rune
 forfeit, Trash Toss departure reasons, host migration, native disconnect and
 heartbeat-versus-expiry deletion. Privacy/read-enumeration restrictions are a
 separate decision; closing write access alone does not hide targets from readers.
@@ -703,11 +703,11 @@ Firebase RTDB Rules may be deployed during development/testing when required.
 The development stage is not itself a reason to defer deployment. Before a
 rule deployment, validate security and backward compatibility with existing
 games/room protocols and run the relevant local rules, shared-room, Darts and
-Memory regression tests. Report a breaking migration or security-sensitive
+Impressions regression tests. Report a breaking migration or security-sensitive
 change before proceeding. Do not redeploy unchanged rules.
 
 After a rule change, supplement local fixtures/emulator checks with real Firebase
-Darts and Memory room verification. Use isolated test clients/rooms, test only
+Darts and Impressions room verification. Use isolated test clients/rooms, test only
 those rooms and clean them up afterward. Do not use fixture SDKs or simulated
 clocks for the live smoke test. Check create/join, readiness, shared deadlines,
 independent accepted answers, scoring/HP, one settlement, rematch and leaving.
@@ -721,7 +721,7 @@ Firebase, local fixtures or physical devices.
 
 The current website can run on **localhost against real Firebase** without a
 push or website deployment. Verify that the local page and current modules load;
-Memory's [live test modes](memory/TESTING.md#real-firebase-and-rules) use isolated
+Impressions's [live test modes](impressions/TESTING.md#real-firebase-and-rules) use isolated
 clients/rooms, real SDK/Auth/RTDB and normal deadlines, then remove their temporary
 room and guest accounts. The explicit `--live` flag is required. The harness
 disables unrelated stale-room cleanup and automatic production analytics.
