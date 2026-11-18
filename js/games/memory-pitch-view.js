@@ -5,8 +5,8 @@
     Object.assign(AC.i18n.STRINGS.en,{memoryAudioActiveRecovery:'This match is already running. Sound setup restores playback; it does not restart the round or pause its clock.'});
     Object.assign(AC.i18n.STRINGS.zh,{memoryAudioActiveRecovery:'對戰已在進行中，聲音設定只會恢復播放，不會重開回合或暫停倒數。'});
     Object.assign(AC.i18n.STRINGS.en, {
-        memoryPitch: 'Pitch Memory', memoryPitchOnly: 'Pitch only', memoryPitchMixed: 'Mixed · color, quantity, pitch',
-        memoryPitchIdleTitle: 'Remember a melody.', memoryPitchIdleMessage: 'The first tone stays correct. Recreate the others by ear.',
+        memoryPitch: 'Pitch', memoryPitchOnly: 'Pitch only', memoryPitchMixed: 'Mixed · color, quantity, pitch',
+        memoryPitchIdleTitle: 'Recreate a melody.', memoryPitchIdleMessage: 'The first tone stays correct. Recreate the others by ear.',
         memoryPitchPrepareTitle: 'Get ready to listen', memoryPitchPrepareMessage: 'Remember the order and pitch of the tones.',
         memoryPitchMemorizeTitle: 'Listen to the sequence', memoryPitchMemorizeMessage: 'Hear it twice. Tone 1 is your fixed reference.',
         memoryPitchAnswerTitle: 'Bring the tones back', memoryPitchAnswerMessage: 'Tone 1 is locked. Turn the other wheels and listen.',
@@ -15,15 +15,15 @@
         memoryPitchStop: 'Stop', memoryPitchEnable: 'Enable sound & test', memoryPitchConfirm: 'Test sound & confirm ready',
         memoryPitchAudioReady: 'Sound is enabled', memoryPitchAudioNeeded: 'Enable sound before starting. Listen for a short test tone.',
         memoryPitchAudioFailed: 'Sound could not start. Check mute/output and tap Enable sound again.', memoryPitchPlaying: 'Playing',
-        memoryPitchCents: 'cents', memoryPitchRms: 'RMS error', memoryPitchHelp: 'Listen to the target sequence twice. Tone 1 stays fixed; recreate the remaining tones relative to it. The original can be replayed only after results.',
+        memoryPitchCents: 'cents', memoryPitchRms: 'Overall pitch error', memoryPitchHelp: 'Listen to the target sequence twice. Tone 1 stays fixed; recreate the remaining tones relative to it. The original can be replayed only after results.',
         memoryPitchWheelHelp: 'Drag for larger intervals · Shift for fine control · ± / arrows: 1 cent · Page Up / Down: 100 cents',
-        memoryPitchHelpScore: 'Only adjustable tones count. Accuracy uses their RMS pitch difference in cents; speed does not affect it.',
+        memoryPitchHelpScore: 'Only adjustable notes count toward the score. Closer pitches score higher; speed does not affect it.',
         memoryPitchRoomAudio: 'Pitch requires every player, including the host, to test sound and confirm readiness for the current room settings.',
         memoryPitchAccuracy: 'Pitch accuracy', memoryPitchFrequency: 'Frequency (Hz)', memoryPitchError: 'Error (cents)', memoryPitchTarget: 'Original Hz', memoryPitchAnswer: 'Answer Hz', memoryPitchMemorizeTime: 'Pitch memorization', memoryPitchAnswerTime: 'Pitch answering'
     });
     Object.assign(AC.i18n.STRINGS.zh, {
-        memoryPitch: '音高記憶', memoryPitchOnly: '只玩音高', memoryPitchMixed: '混合 · 色彩、數量、音高',
-        memoryPitchIdleTitle: '記住一段旋律。', memoryPitchIdleMessage: '第一音保持正確，用耳朵把其他音調回來。',
+        memoryPitch: '音高', memoryPitchOnly: '只玩音高', memoryPitchMixed: '混合 · 色彩、數量、音高',
+        memoryPitchIdleTitle: '重現一段旋律。', memoryPitchIdleMessage: '第一音保持正確，用耳朵把其他音調回來。',
         memoryPitchPrepareTitle: '準備聆聽', memoryPitchPrepareMessage: '記住各個音的順序與高低。',
         memoryPitchMemorizeTitle: '聽聽這段音序', memoryPitchMemorizeMessage: '播放兩次，第一音會是固定的參考。',
         memoryPitchAnswerTitle: '重現你記得的音高', memoryPitchAnswerMessage: '第一音已鎖定，轉動其他滾輪並試聽。',
@@ -32,16 +32,16 @@
         memoryPitchStop: '停止', memoryPitchEnable: '啟用聲音並試聽', memoryPitchConfirm: '試聽並確認聲音已就緒',
         memoryPitchAudioReady: '聲音已啟用', memoryPitchAudioNeeded: '開始前請啟用聲音，確認能聽到短測試音。',
         memoryPitchAudioFailed: '聲音無法啟動，請確認靜音與輸出裝置後，再按啟用聲音。', memoryPitchPlaying: '播放中',
-        memoryPitchCents: '音分', memoryPitchRms: 'RMS 誤差', memoryPitchHelp: '聽兩次目標音序。第一音固定正確，請以它為參考重現其餘音高；原音序要到結果階段才能重播。',
+        memoryPitchCents: '音分', memoryPitchRms: '整體音高誤差', memoryPitchHelp: '聽兩次目標音序。第一音固定正確，請以它為參考重現其餘音高；原音序要到結果階段才能重播。',
         memoryPitchWheelHelp: '拖曳快速升降 · Shift 精細調整 · ±／方向鍵：1 音分 · Page Up／Down：100 音分',
-        memoryPitchHelpScore: '只計算可調整音的音分 RMS 誤差，固定的第一音不計分，作答速度不影響分數。',
+        memoryPitchHelpScore: '只計算可調整的音，越接近原音分數越高；作答速度不影響。',
         memoryPitchRoomAudio: '含音高題型時，每位玩家（包含房主）都要針對目前設定試聽並確認聲音已就緒。',
         memoryPitchAccuracy: '音高準確度', memoryPitchFrequency: '頻率（Hz）', memoryPitchError: '誤差（音分）', memoryPitchTarget: '原音 Hz', memoryPitchAnswer: '答案 Hz', memoryPitchMemorizeTime: '音高記憶時間', memoryPitchAnswerTime: '音高作答時間'
     });
-    Object.assign(AC.i18n.STRINGS.en, { memoryPitchVariationMemorize: 'Listen to the melody. Locked tones will remain available as references.', memoryPitchVariationAnswer: 'Locked tones are correct. Adjust the others; tap a tone to hear or select it.', memoryPitchVariationHelp: 'Remember the melody. Locked tones stay correct and playable; reconstruct the other tones. Five-tone questions use a selected tone and one shared wheel.', memoryPitchVariationScore: 'Only adjustable tones count toward RMS cents error. References do not improve or reduce the score.', memoryPitchSelected: 'Selected tone', memoryPitchReferences: 'Fixed references' });
-    Object.assign(AC.i18n.STRINGS.zh, { memoryPitchVariationMemorize: '聽聽這段旋律，鎖定的音會保留作為參考。', memoryPitchVariationAnswer: '鎖定音已正確。調整其餘音，點選音符可試聽或切換。', memoryPitchVariationHelp: '記住旋律。鎖定音保持正確且可試聽，請重現其餘音；五音題可選取音符，再用同一個滾輪調整。', memoryPitchVariationScore: '只計算可調整音的音分 RMS 誤差，參考音不會提高或降低分數。', memoryPitchSelected: '目前調整的音', memoryPitchReferences: '固定參考音' });
-    Object.assign(AC.i18n.STRINGS.en,{memoryPitchCurrentHelp:'Remember the melody. One marked reference stays correct; use the two or three independent wheels to reconstruct the other tones.',memoryPitchCurrentIdle:'One marked reference stays correct. Recreate the other tones by ear.',memoryPitchCurrentAnswer:'The locked reference is correct. Adjust the other wheels; tap a tone to preview it.'});
-    Object.assign(AC.i18n.STRINGS.zh,{memoryPitchCurrentHelp:'記住旋律。標記的單一參考音保持正確，請用兩個或三個獨立滾輪重現其餘音高。',memoryPitchCurrentIdle:'標記的單一參考音會保持正確，請憑聽覺重現其餘音高。',memoryPitchCurrentAnswer:'鎖定的參考音已正確。調整其他滾輪，點選音符可試聽。'});
+    Object.assign(AC.i18n.STRINGS.en, { memoryPitchVariationMemorize: 'Listen to the melody. Locked tones will remain available as references.', memoryPitchVariationAnswer: 'Locked tones are correct. Adjust the others; tap a tone to hear or select it.', memoryPitchVariationHelp: 'Remember the melody. Locked tones stay correct and playable; reconstruct the other tones. Five-tone questions use a selected tone and one shared wheel.', memoryPitchVariationScore: 'Only adjustable notes count toward the score. A larger pitch difference lowers the score more.', memoryPitchSelected: 'Selected tone', memoryPitchReferences: 'Fixed references' });
+    Object.assign(AC.i18n.STRINGS.zh, { memoryPitchVariationMemorize: '聽聽這段旋律，鎖定的音會保留作為參考。', memoryPitchVariationAnswer: '鎖定音已正確。調整其餘音，點選音符可試聽或切換。', memoryPitchVariationHelp: '記住旋律。鎖定音保持正確且可試聽，請重現其餘音；五音題可選取音符，再用同一個滾輪調整。', memoryPitchVariationScore: '只計算可調整的音，偏差較大的音會更影響分數。', memoryPitchSelected: '目前調整的音', memoryPitchReferences: '固定參考音' });
+    Object.assign(AC.i18n.STRINGS.en,{memoryPitchCurrentHelp: 'Listen to the melody twice, then tune the other notes around the fixed reference. Preview individual notes or play your whole answer while adjusting.',memoryPitchCurrentIdle:'One marked reference stays correct. Recreate the other tones by ear.',memoryPitchCurrentAnswer:'The locked reference is correct. Adjust the other wheels; tap a tone to preview it.'});
+    Object.assign(AC.i18n.STRINGS.zh,{memoryPitchCurrentHelp: '聽兩次旋律，再以固定參考音為基準，調整其他音。作答時可以試聽單音或整段旋律。',memoryPitchCurrentIdle:'標記的單一參考音會保持正確，請憑聽覺重現其餘音高。',memoryPitchCurrentAnswer:'鎖定的參考音已正確。調整其他滾輪，點選音符可試聽。'});
     Object.assign(AC.i18n.STRINGS.en,{memoryAudioInstruction:'Play the test sound, then confirm that you can hear it. Sound setup is separate from match Ready.',memoryAudioTest:'Play test sound',memoryAudioConfirm:'I can hear it',memoryAudioRepeat:'Repeat sound setup',memoryAudioNeeded:'Sound test needed',memoryAudioTested:'Test sound played — please confirm',memoryAudioConfirmed:'Sound confirmed',memoryAudioUnavailable:'Audio unavailable — check mute/output, then retry',memoryAudioRecovering:'Restoring sound…',memoryAudioTesting:'Playing test sound…',memoryAudioDuringMemory:'Wait until memorization ends to test sound. The round clock keeps running.',memoryPitchCoarse:'Coarse',memoryPitchFine:'Fine',memoryPitchUnits:'Wheel values are cents relative to 220 Hz; the smaller readout shows Hz. Fine mode works with touch; Shift is optional.'});
     Object.assign(AC.i18n.STRINGS.zh,{memoryAudioInstruction:'播放測試音，聽到後再確認。聲音確認與對戰準備是兩個步驟。',memoryAudioTest:'播放測試音',memoryAudioConfirm:'我聽到了',memoryAudioRepeat:'重新設定聲音',memoryAudioNeeded:'需要測試聲音',memoryAudioTested:'測試音已播放，請確認是否聽到',memoryAudioConfirmed:'聲音已確認',memoryAudioUnavailable:'聲音無法使用，請檢查靜音與輸出裝置後重試',memoryAudioRecovering:'正在恢復聲音…',memoryAudioTesting:'正在播放測試音…',memoryAudioDuringMemory:'請等記憶播放結束後再測試聲音，回合倒數仍會繼續。',memoryPitchCoarse:'粗調',memoryPitchFine:'細調',memoryPitchUnits:'滾輪數字是以 220 Hz 為零點的音分，下方另顯示 Hz。觸控可直接選細調，Shift 為選用快捷鍵。'});
     Object.assign(AC.i18n.STRINGS.en,{memoryPitchEnable:'Sound setup',memoryAudioLocalInstruction:'Play the test sound, then press I can hear it to enable Pitch practice and replay.',memoryPitchAudioReady:'Sound available',memoryPitchAudioNeeded:'Open Sound setup, play the test sound, then confirm that you can hear it.',memoryPitchAudioFailed:'Audio unavailable. Open Sound setup, check mute/output, then retry.'});Object.assign(AC.i18n.STRINGS.zh,{memoryPitchEnable:'聲音設定',memoryAudioLocalInstruction:'播放測試音，聽到後按「我聽到了」，即可使用音高練習與重播。',memoryPitchAudioReady:'聲音可用',memoryPitchAudioNeeded:'請開啟聲音設定，播放測試音後按「我聽到了」。',memoryPitchAudioFailed:'聲音無法使用，請開啟聲音設定，檢查靜音與輸出裝置後重試。'});

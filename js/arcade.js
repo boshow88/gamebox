@@ -167,6 +167,8 @@
     // -----------------------------------------------------------------
 
     const ICONS = {
+        // lucide: blend; mirror of js/launcher.js.
+        blend: '<circle cx="15" cy="9" r="7"/><circle cx="9" cy="15" r="7"/>',
         // custom: open wastebasket, shared with the launcher.
         'trash-2': '<path d="M4 7h16M9 3h6l1 4H8l1-4Zm-3 4 1 14h10l1-14M10 10v7m4-7v7"/>',
         // custom: diagonal launch arrow.

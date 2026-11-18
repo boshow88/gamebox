@@ -5,9 +5,15 @@ Player rules belong in [rules.md](../rules.md#memory); commands and diagnostic
 tools are in [TESTING.md](TESTING.md), and analytics administration is in
 [ANALYTICS.md](ANALYTICS.md). Update these files rather than adding phase reports.
 
+The working player-facing name is **By Feel**. Its shared Lucide `blend` icon
+and warm sand accent (`#d7b98e`) match on the launcher and game page; question
+colors remain separate from interface decoration. Existing `memory` URLs, module
+names, storage keys, protocols and analytics identifiers remain the compatibility
+contract.
+
 ## Current configuration
 
-The initial friend-playtest release has a normal playable launcher entry. It
+The launcher entry is currently marked WIP while presentation is reviewed. It
 retains the existing RTDB honor-system permissions and their accepted known
 limitations; see the [shared security boundary](../ROOMS.md#rtdb-security-boundary).
 

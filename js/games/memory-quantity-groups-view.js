@@ -36,10 +36,10 @@
     var Groups = window.MemoryQuantityGroups;
     Object.assign(AC.i18n.STRINGS.en, { memoryGroupCircle: 'Circles', memoryGroupSquare: 'Squares', memoryGroupTriangle: 'Triangles', memoryGroup: 'Group', memoryGroupTarget: 'Original', memoryGroupAnswer: 'Answer', memoryGroupError: 'Error',
         memoryGroupsMemorizeTitle: 'Remember every group', memoryGroupsMemorizeMessage: 'Notice how many of each shape fill the board.', memoryGroupsAnswerTitle: 'Recreate every group', memoryGroupsAnswerMessage: 'Adjust each wheel to bring the full arrangement back.',
-        memoryGroupsHelp: 'Remember the quantity of each shape. Every group has its own wheel and fixed positions. Matching all counts recreates the original board.', memoryGroupsControls: 'One wheel per shape · drag to adjust · ± / arrows for one · Page Up / Down for 25', memoryGroupsScore: 'Accuracy uses RMS relative error across groups. The first target and answer positions are shared; only counts change.' });
+        memoryGroupsHelp: 'Remember the quantity of each shape. Every group has its own wheel and fixed positions. Matching all counts recreates the original board.', memoryGroupsControls: 'One wheel per shape · drag to adjust · ± / arrows for one · Page Up / Down for 25', memoryGroupsScore: 'Each shape is compared separately with its original count. Overestimates and underestimates do not cancel each other out.' });
     Object.assign(AC.i18n.STRINGS.zh, { memoryGroupCircle: '圓形', memoryGroupSquare: '方形', memoryGroupTriangle: '三角形', memoryGroup: '形狀', memoryGroupTarget: '原本', memoryGroupAnswer: '答案', memoryGroupError: '誤差',
         memoryGroupsMemorizeTitle: '記住每組的數量', memoryGroupsMemorizeMessage: '留意每種形狀在圖中的數量。', memoryGroupsAnswerTitle: '重現各組的數量', memoryGroupsAnswerMessage: '調整每個滾輪，把整張圖重現出來。',
-        memoryGroupsHelp: '記住每種形狀的數量。每組都有自己的滾輪與固定位置；所有數量都正確時，就會重現原本的整張圖。', memoryGroupsControls: '每種形狀一個滾輪 · 拖曳調整 · ±／方向鍵微調 1 · Page Up／Down 調整 25', memoryGroupsScore: '準確度取決於各組相對誤差的 RMS；記憶與作答共用位置，只改變數量。' });
+        memoryGroupsHelp: '記住每種形狀的數量。每組都有自己的滾輪與固定位置；所有數量都正確時，就會重現原本的整張圖。', memoryGroupsControls: '每種形狀一個滾輪 · 拖曳調整 · ±／方向鍵微調 1 · Page Up／Down 調整 25', memoryGroupsScore: '每種形狀分開比較數量，多估與少估不會互相抵銷。' });
     function label(id) { return AC.i18n.t('memoryGroup' + id[0].toUpperCase() + id.slice(1)); }
     window.MemoryQuantityGroupsView = { create: function (options) {
         var root = options.root, doc = root.ownerDocument, t = AC.i18n.t, context = null, key = null, pools = null, wheelKey = null, wheels = {}, listeners = new AbortController();

@@ -37,7 +37,9 @@ All games share the same chrome and lifecycle:
 
 ---
 
-## Memory
+<a id="memory"></a>
+
+## By Feel
 
 Practice Color, Quantity or Pitch locally, or play an online match with 2–8
 participants, including at least one human. One human can play against CPUs.
@@ -115,12 +117,12 @@ first, then later eliminations and closer survival margins. A first placement
 does not invent a winner in a no-winner match. Non-winners see neutral completion
 text and their placement. CPU owners leaving withdraw their human and CPUs.
 
-The Room button stays in the Memory card's sticky upper-right header. Host
+The Room button stays in the game card's sticky upper-right header. Host
 **Prepare next match** returns everyone to the same lobby; guests Ready again,
 then host Starts. Roster/settings/usable audio remain. Previous match results
 are viewable in lobby until the next Start replaces them, without changing Ready.
-Same-page reconnect may preserve a seat during the presence grace; refresh does
-not automatically reclaim it.
+Same-tab refresh can resume an existing seat while membership remains. Sound
+may need confirmation again, and the shared timers keep running.
 
 Online play uses Firebase over HTTP(S); offline practice does not require it.
 For balancing, the browser may save completed questions, answers and results

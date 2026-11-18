@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Remember colors, dot quantities and tone sequences. Reconstruct them with precision wheels locally or online with 2–8 people.">
-    <title>Memory · GameBox</title>
+    <meta name="description" content="A quick look or listen, then recreate the color, quantity or pitch by feel. Practise on your own, play with friends or take on CPU players.">
+    <title>By Feel · GameBox</title>
     <link rel="icon" type="image/svg+xml" href="../favicon.svg">
     <link rel="stylesheet" href="../css/common.css">
     <link rel="stylesheet" href="../css/arcade.css">
@@ -14,7 +14,7 @@
     <main class="game-shell memory-shell" id="memory-game" data-phase="idle">
         <header class="game-topbar">
             <a class="back-link" href="../index.html"><span data-icon="arrow-left" aria-hidden="true"></span><span data-i18n="menu">Menu</span></a>
-            <div class="game-title"><span class="memory-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span data-i18n="memoryName">Memory</span></div>
+            <div class="game-title"><span class="game-icon" data-icon="blend" aria-hidden="true"></span><span data-i18n="memoryName">By Feel</span></div>
             <div class="memory-topbar-controls"><div class="lang-toggle" id="lang-toggle" role="radiogroup" data-i18n-aria-label="language">
                 <button type="button" data-lang="en" role="radio" aria-checked="true">EN</button>
                 <button type="button" data-lang="zh" role="radio" aria-checked="false">中</button>
@@ -23,13 +23,13 @@
 
         <section class="memory-panel" aria-labelledby="memory-title">
             <header class="memory-panel-header">
-                <div><p class="memory-eyebrow" id="memory-mode-label">Local practice</p><label class="memory-local-category"><span data-i18n="memoryCategoryMode">Question categories</span><select id="memory-local-category"><option value="weighted" data-i18n="memoryWeighted" selected>Weighted</option><option value="color" data-i18n="memoryColorOnly">Color only</option><option value="quantity" data-i18n="memoryQuantityOnly">Quantity only</option><option value="pitch" data-i18n="memoryPitchOnly">Pitch only</option><option value="mixed" data-i18n="memoryPitchMixed">Mixed</option></select></label><h1 id="memory-title" data-i18n="memoryColor">Color Memory</h1></div>
+                <div><p class="memory-eyebrow" id="memory-mode-label">Local practice</p><label class="memory-local-category"><span data-i18n="memoryCategoryMode">Question categories</span><select id="memory-local-category"><option value="weighted" data-i18n="memoryWeighted" selected>Mixed categories</option><option value="color" data-i18n="memoryColorOnly">Color only</option><option value="quantity" data-i18n="memoryQuantityOnly">Quantity only</option><option value="pitch" data-i18n="memoryPitchOnly">Pitch only</option><option value="mixed" data-i18n="memoryPitchMixed">Mixed</option></select></label><h1 id="memory-title" data-i18n="memoryColor">Color</h1></div>
                 <div class="memory-header-actions"><div class="memory-round"><span data-i18n="memoryRound">Round</span><strong id="memory-round">01</strong></div><button type="button" class="btn" id="memory-online-btn" aria-haspopup="dialog" aria-controls="memory-lobby" data-i18n="memoryOnlineRoom">Online room</button><button type="button" class="btn" id="memory-result-recent" data-i18n="memoryRecentRound" hidden>Recent round</button></div>
             </header>
             <div id="memory-local-audio" hidden><section class="memory-audio-gate" id="memory-audio-setup" aria-label="Sound setup"><p id="memory-audio-instruction" data-i18n="memoryAudioInstruction">Play the test sound, then confirm that you can hear it.</p><button type="button" class="btn" id="memory-enable-audio" data-i18n="memoryAudioTest">Play test sound</button><button type="button" class="btn btn-primary" id="memory-confirm-audio" data-i18n="memoryAudioConfirm" disabled>I can hear it</button><button type="button" class="btn" id="memory-repeat-audio" data-i18n="memoryAudioRepeat" hidden>Repeat sound setup</button><span id="memory-local-audio-status" role="status" aria-live="polite"></span></section></div>
             <ol class="memory-phases" aria-label="Round phases" data-i18n-aria-label="memoryPhases">
                 <li data-step="prepare"><span>01</span><span data-i18n="memoryPrepare">Prepare</span></li>
-                <li data-step="memorize"><span>02</span><span data-i18n="memoryMemorize">Memorize</span></li>
+                <li data-step="memorize"><span>02</span><span data-i18n="memoryMemorize">Notice</span></li>
                 <li data-step="answer"><span>03</span><span data-i18n="memoryRecreate">Recreate</span></li>
                 <li data-step="results"><span>04</span><span data-i18n="memoryResults">Compare</span></li>
             </ol>
@@ -40,7 +40,7 @@
                 <div class="memory-participant-strip" id="memory-participant-strip"></div>
             </section>
             <div class="memory-phase-header">
-                <div class="memory-phase-copy"><h2 id="memory-phase-title" tabindex="-1">A color. A moment. Your memory.</h2><p id="memory-phase-message" role="status" aria-live="polite"></p></div>
+                <div class="memory-phase-copy"><h2 id="memory-phase-title" tabindex="-1">A quick look. A short listen.</h2><p id="memory-phase-message" role="status" aria-live="polite"></p></div>
                 <div class="memory-timer" id="memory-timer" role="timer" aria-live="off" data-i18n-aria-label="memoryTimeLeft"><strong id="memory-seconds">—</strong><span data-i18n="memorySeconds">sec</span></div>
             </div>
             <div class="memory-time-track" aria-hidden="true"><div id="memory-time-fill"></div></div>
@@ -113,10 +113,10 @@
         <details class="memory-instructions" id="memory-practice-settings"><summary data-i18n="memoryPracticeSettings">Practice settings</summary><div class="memory-frequency-grid"><label class="memory-field"><span data-i18n="memoryColor">color</span><select id="memory-local-weight-color"><option value="0" data-i18n="memoryFrequencyOff">Off</option><option value="1" data-i18n="memoryFrequencyLow">Low</option><option value="2" data-i18n="memoryFrequencyMedium" selected>Medium</option><option value="4" data-i18n="memoryFrequencyHigh">High</option></select><output id="memory-local-probability-color"></output></label><label class="memory-field"><span data-i18n="memoryQuantity">quantity</span><select id="memory-local-weight-quantity"><option value="0" data-i18n="memoryFrequencyOff">Off</option><option value="1" data-i18n="memoryFrequencyLow">Low</option><option value="2" data-i18n="memoryFrequencyMedium" selected>Medium</option><option value="4" data-i18n="memoryFrequencyHigh">High</option></select><output id="memory-local-probability-quantity"></output></label><label class="memory-field"><span data-i18n="memoryPitch">pitch</span><select id="memory-local-weight-pitch"><option value="0" data-i18n="memoryFrequencyOff">Off</option><option value="1" data-i18n="memoryFrequencyLow">Low</option><option value="2" data-i18n="memoryFrequencyMedium" selected>Medium</option><option value="4" data-i18n="memoryFrequencyHigh">High</option></select><output id="memory-local-probability-pitch"></output></label></div><label class="memory-adaptive-option"><input type="checkbox" id="memory-local-adaptive" checked><span data-i18n="memoryAdaptive">Adaptive difficulty</span></label><label class="memory-field memory-initial-difficulty"><span data-i18n="memoryInitialDifficulty">Starting difficulty</span><input type="number" id="memory-local-initial-difficulty" min="1" max="10" step="0.5" value="5"></label><p class="memory-room-note" id="memory-local-frequency-note"></p></details>
         <details class="memory-instructions">
             <summary data-i18n="howToPlay">How to play</summary>
+            <p id="memory-help-flow">Look at the color for 4 seconds, then recreate it within 25 seconds. Lock it in when ready; your current answer is submitted when time runs out.</p>
+            <p id="memory-help-controls" data-i18n="memoryHelpControls">Drag a wheel up or down. Use ± or arrow keys for small adjustments; hold Shift for finer control. Page Up/Down changes by 16; Home/End jumps to a limit.</p>
+            <p id="memory-help-score" data-i18n="memoryHelpScore">Closer colors score higher. Speed does not affect the score. Each answer starts from the same neutral gray.</p>
             <p data-i18n="memoryAnalyticsDisclosure">To improve game balance, we may retain match questions, answers, and results without account IDs or player names for internal analysis.</p>
-            <p id="memory-help-flow">Memorize the color for 4 seconds. You then have 25 seconds to recreate it. Lock your answer when you are ready; when time runs out, your current color is saved automatically.</p>
-            <p id="memory-help-controls" data-i18n="memoryHelpControls">Drag a wheel upward to increase a channel. Use ± or arrow keys for single steps, Page Up / Down for 16, and Home / End for the limits. Hold Shift while dragging or scrolling for finer control.</p>
-            <p id="memory-help-score" data-i18n="memoryHelpScore">Your score measures color similarity. Taking more or less time does not change it. Each round starts from the same neutral gray.</p>
         </details>
         <dialog class="memory-lobby" id="memory-lobby" aria-labelledby="memory-lobby-title">
             <header class="memory-lobby-header"><div><p class="memory-eyebrow" data-i18n="memoryOnlineColor">Color · 2–8 players</p><h2 id="memory-lobby-title" data-i18n="memoryOnlineRoom">Online room</h2></div><button type="button" class="btn" id="memory-lobby-close" data-i18n="memoryCloseRoom">Close</button></header>
@@ -159,7 +159,7 @@
             <div class="memory-result-scroll" tabindex="0" aria-label="Round scoreboard"><table class="memory-result-scoreboard"><thead><tr><th data-i18n="memoryPlayer">Player</th><th data-i18n="score">Score</th><th data-i18n="memoryResultGap">Gap</th><th data-i18n="memoryResultReceived">Damage received</th><th data-i18n="memoryResultHpChange">HP before → after</th></tr></thead><tbody id="memory-result-body"></tbody></table><details id="memory-result-details"><summary data-i18n="memoryResultDetails">Answer details</summary><div id="memory-result-detail-body"></div></details></div>
             <footer><button type="button" class="btn" id="memory-result-finish" data-i18n="memoryViewStandings" hidden>View final standings</button><button type="button" class="btn" id="memory-result-close" data-i18n="memoryResultClose" hidden>Back to game</button></footer>
         </section>
-        <noscript><p class="memory-noscript">Please enable JavaScript to play Color Memory.</p></noscript>
+        <noscript><p class="memory-noscript">Please enable JavaScript to play By Feel.</p></noscript>
     </main>
     <script src="../js/arcade.js"></script>
     <script src="../js/games/memory-color.js"></script>
