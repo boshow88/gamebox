@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="arcade">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Remember colors, dot quantities and tone sequences. Reconstruct them with precision wheels locally or online with 2–8 people.">
+    <title>Memory · GameBox</title>
+    <link rel="icon" type="image/svg+xml" href="../favicon.svg">
+    <link rel="stylesheet" href="../css/common.css">
+    <link rel="stylesheet" href="../css/arcade.css">
+    <link rel="stylesheet" href="../css/memory.css">
+</head>
+<body>
+    <main class="game-shell memory-shell" id="memory-game" data-phase="idle">
+        <header class="game-topbar">
+            <a class="back-link" href="../index.html"><span data-icon="arrow-left" aria-hidden="true"></span><span data-i18n="menu">Menu</span></a>
+            <div class="game-title"><span class="memory-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span data-i18n="memoryName">Memory</span></div>
+            <div class="memory-topbar-controls"><div class="lang-toggle" id="lang-toggle" role="radiogroup" data-i18n-aria-label="language">
+                <button type="button" data-lang="en" role="radio" aria-checked="true">EN</button>
+                <button type="button" data-lang="zh" role="radio" aria-checked="false">中</button>
+            </div></div>
+        </header>
+
+        <section class="memory-panel" aria-labelledby="memory-title">
+            <header class="memory-panel-header">
+                <div><p class="memory-eyebrow" id="memory-mode-label">Local practice</p><label class="memory-local-category"><span data-i18n="memoryCategoryMode">Question categories</span><select id="memory-local-category"><option value="weighted" data-i18n="memoryWeighted" selected>Weighted</option><option value="color" data-i18n="memoryColorOnly">Color only</option><option value="quantity" data-i18n="memoryQuantityOnly">Quantity only</option><option value="pitch" data-i18n="memoryPitchOnly">Pitch only</option><option value="mixed" data-i18n="memoryPitchMixed">Mixed</option></select></label><h1 id="memory-title" data-i18n="memoryColor">Color Memory</h1></div>
+                <div class="memory-header-actions"><div class="memory-round"><span data-i18n="memoryRound">Round</span><strong id="memory-round">01</strong></div><button type="button" class="btn" id="memory-online-btn" aria-haspopup="dialog" aria-controls="memory-lobby" data-i18n="memoryOnlineRoom">Online room</button><button type="button" class="btn" id="memory-result-recent" data-i18n="memoryRecentRound" hidden>Recent round</button></div>
+            </header>
+            <div id="memory-local-audio" hidden><section class="memory-audio-gate" id="memory-audio-setup" aria-label="Sound setup"><p id="memory-audio-instruction" data-i18n="memoryAudioInstruction">Play the test sound, then confirm that you can hear it.</p><button type="button" class="btn" id="memory-enable-audio" data-i18n="memoryAudioTest">Play test sound</button><button type="button" class="btn btn-primary" id="memory-confirm-audio" data-i18n="memoryAudioConfirm" disabled>I can hear it</button><button type="button" class="btn" id="memory-repeat-audio" data-i18n="memoryAudioRepeat" hidden>Repeat sound setup</button><span id="memory-local-audio-status" role="status" aria-live="polite"></span></section></div>
+            <ol class="memory-phases" aria-label="Round phases" data-i18n-aria-label="memoryPhases">
+                <li data-step="prepare"><span>01</span><span data-i18n="memoryPrepare">Prepare</span></li>
+                <li data-step="memorize"><span>02</span><span data-i18n="memoryMemorize">Memorize</span></li>
+                <li data-step="answer"><span>03</span><span data-i18n="memoryRecreate">Recreate</span></li>
+                <li data-step="results"><span>04</span><span data-i18n="memoryResults">Compare</span></li>
+            </ol>
+            <section class="memory-match-status" id="memory-match-status" hidden aria-label="Match status" data-i18n-aria-label="memoryMatchStatus">
+                <p id="memory-connection" role="status" aria-live="polite"></p>
+                <div class="memory-personal-hp"><span data-i18n="memoryYourHp">Your HP</span><strong id="memory-hp"></strong><span id="memory-match-round"></span><span id="memory-personal-damage"></span></div>
+                <div class="memory-hp-track" aria-hidden="true"><div id="memory-hp-fill"></div></div>
+                <div class="memory-participant-strip" id="memory-participant-strip"></div>
+            </section>
+            <div class="memory-phase-header">
+                <div class="memory-phase-copy"><h2 id="memory-phase-title" tabindex="-1">A color. A moment. Your memory.</h2><p id="memory-phase-message" role="status" aria-live="polite"></p></div>
+                <div class="memory-timer" id="memory-timer" role="timer" aria-live="off" data-i18n-aria-label="memoryTimeLeft"><strong id="memory-seconds">—</strong><span data-i18n="memorySeconds">sec</span></div>
+            </div>
+            <div class="memory-time-track" aria-hidden="true"><div id="memory-time-fill"></div></div>
+
+            <div class="memory-workspace">
+                <section class="memory-preview-region" aria-label="Color preview" data-i18n-aria-label="memoryPreview">
+                    <div class="memory-display">
+                        <div class="memory-preview" id="memory-preview" role="img" aria-label="Color preview">
+                            <div class="memory-preview-cover" id="memory-preview-cover"><span class="memory-orbit" aria-hidden="true"></span><strong id="memory-countdown"></strong></div>
+                        </div>
+                        <div class="memory-comparison" id="memory-comparison" hidden>
+                            <figure><div class="memory-result-swatch" id="memory-target-swatch"></div><figcaption><span data-i18n="memoryOriginal">Original</span><code id="memory-target-hex"></code></figcaption></figure>
+                            <figure><div class="memory-result-swatch" id="memory-answer-swatch"></div><figcaption><span data-i18n="memoryYourColor">Your color</span><code id="memory-answer-hex"></code></figcaption></figure>
+                        </div>
+                        <div id="memory-modern-color-display" hidden><div class="memory-modern-palette" id="memory-modern-palette"></div><p id="memory-modern-color-note"></p></div>
+                        <div id="memory-modern-color-comparison" hidden><div class="memory-modern-comparison"><figure><div class="memory-result-palette" id="memory-color-result-target"></div><figcaption data-i18n="memoryOriginal">Original</figcaption></figure><figure><div class="memory-result-palette" id="memory-color-result-answer"></div><figcaption data-i18n="memoryYourColor">Your color</figcaption></figure></div><table class="memory-color-errors"><tbody id="memory-color-error-rows"></tbody></table><p id="memory-color-rms"></p></div>
+                        <div class="memory-pitch-display" id="memory-pitch-display" hidden>
+                            <p class="memory-pitch-reference" data-i18n="memoryPitchLocked">Locked reference</p>
+                            <div class="memory-pitch-tones" id="memory-pitch-tones"></div>
+                            <div class="memory-pitch-playback"><button type="button" class="btn" id="memory-pitch-play" data-i18n="memoryPitchPlay">Play your sequence</button><button type="button" class="btn" id="memory-pitch-original" data-i18n="memoryPitchOriginal" hidden>Play original</button><button type="button" class="btn" id="memory-pitch-stop" data-i18n="memoryPitchStop">Stop</button></div>
+                            <p id="memory-pitch-audio-status" role="status"></p><button type="button" class="btn" id="memory-pitch-enable" data-i18n="memoryPitchEnable">Enable sound &amp; test</button>
+                            <div id="memory-pitch-comparison" hidden><table><thead><tr><th data-i18n="memoryPitchTone">Tone</th><th data-i18n="memoryPitchTarget">Original Hz</th><th data-i18n="memoryPitchAnswer">Answer Hz</th><th data-i18n="memoryPitchError">Error (cents)</th></tr></thead><tbody id="memory-pitch-result-rows"></tbody></table><p id="memory-pitch-rms"></p></div>
+                        </div>
+                        <div class="memory-group-display" id="memory-group-display" hidden><div class="memory-group-legend" id="memory-group-legend"></div><div class="memory-dot-field" id="memory-group-preview"></div></div>
+                        <div id="memory-group-comparison" hidden><div class="memory-group-comparison"><figure><div class="memory-dot-field" id="memory-group-target"></div><figcaption data-i18n="memoryGroupTarget">Original</figcaption></figure><figure><div class="memory-dot-field" id="memory-group-answer"></div><figcaption data-i18n="memoryGroupAnswer">Answer</figcaption></figure></div><table class="memory-group-table"><thead><tr><th data-i18n="memoryGroup">Group</th><th data-i18n="memoryGroupTarget">Original</th><th data-i18n="memoryGroupAnswer">Answer</th><th data-i18n="memoryGroupError">Error</th></tr></thead><tbody id="memory-group-result-rows"></tbody></table></div>
+                        <div class="memory-quantity-display" id="memory-quantity-display" hidden>
+                            <div class="memory-dot-field" id="memory-dot-preview"></div>
+                            <div class="memory-controls-cover" id="memory-dot-cover"><span id="memory-dot-note"></span></div>
+                        </div>
+                        <div class="memory-quantity-comparison" id="memory-quantity-comparison" hidden>
+                            <figure><div class="memory-dot-field" id="memory-target-dots"></div><figcaption><span data-i18n="memoryOriginalQuantity">Original quantity</span><strong id="memory-target-count"></strong></figcaption></figure>
+                            <figure><div class="memory-dot-field" id="memory-answer-dots"></div><figcaption><span data-i18n="memoryYourQuantity">Your quantity</span><strong id="memory-answer-count"></strong></figcaption></figure>
+                        </div>
+                    </div>
+                    <div class="memory-preview-footer"><span class="memory-preview-label" id="memory-preview-label"></span><span id="memory-lock-label" class="memory-lock-label" hidden></span></div>
+                </section>
+
+                <section class="memory-controls-region" aria-label="RGB controls" data-i18n-aria-label="memoryControls">
+                    <div id="memory-hsl-controls" hidden><div class="memory-hsl-wheel-wrap"><div class="memory-hsl-wheels" id="memory-hsl-wheels"></div><div class="memory-controls-cover" id="memory-hsl-cover"><span id="memory-hsl-note"></span></div></div><p class="memory-wheel-help" id="memory-hsl-help"></p></div>
+                    <div id="memory-color-controls">
+                    <div class="memory-controls-caption"><span data-i18n="memoryMix">Mix your color</span><span class="memory-range">0 — 255</span></div>
+                    <div class="memory-wheel-group" id="memory-wheels">
+                        <div class="memory-channel" id="memory-wheel-r" data-channel="r"></div>
+                        <div class="memory-channel" id="memory-wheel-g" data-channel="g"></div>
+                        <div class="memory-channel" id="memory-wheel-b" data-channel="b"></div>
+                        <div class="memory-controls-cover" id="memory-controls-cover"><span id="memory-controls-note"></span></div>
+                    </div>
+                    <p class="memory-wheel-help" id="memory-wheel-help" data-i18n="memoryWheelHelp">Drag up or down · ± for precision</p>
+                    </div>
+                    <div id="memory-pitch-controls" hidden><div class="memory-pitch-adjustment" id="memory-pitch-adjustment" role="group" aria-label="Pitch adjustment"><button type="button" class="btn" id="memory-pitch-coarse" aria-pressed="true" data-i18n="memoryPitchCoarse">Coarse</button><button type="button" class="btn" id="memory-pitch-fine" aria-pressed="false" data-i18n="memoryPitchFine">Fine</button></div><div class="memory-pitch-wheels" id="memory-pitch-wheels"></div><p class="memory-wheel-help" id="memory-pitch-help" data-i18n="memoryPitchWheelHelp">Drag for intervals · Shift for precision · ±: 1 cent</p><p class="memory-wheel-help" data-i18n="memoryPitchUnits"></p></div>
+                    <div id="memory-group-controls" hidden><div class="memory-group-wheel-wrap"><div class="memory-group-wheels" id="memory-group-wheels"></div><div class="memory-controls-cover" id="memory-group-cover"><span id="memory-group-note"></span></div></div><p class="memory-wheel-help" id="memory-group-help" data-i18n="memoryGroupsControls">One wheel per shape · ± for one</p></div>
+                    <div id="memory-quantity-controls" hidden>
+                        <div class="memory-controls-caption"><span data-i18n="memoryQuantityMix">Recreate the quantity</span><span id="memory-quantity-range">0 — 220</span></div>
+                        <div class="memory-quantity-wheel-group"><div class="memory-channel" id="memory-wheel-quantity"></div><div class="memory-controls-cover" id="memory-quantity-cover"><span id="memory-quantity-note"></span></div></div>
+                        <p class="memory-wheel-help" data-i18n="memoryQuantityWheelHelp">Drag for large changes · ± / arrows for one · Page Up / Down for 25</p>
+                    </div>
+                </section>
+            </div>
+
+            <footer class="memory-action-area">
+                <div class="memory-feedback" id="memory-feedback"><span class="memory-feedback-label" id="memory-feedback-label"></span><div class="memory-score-line"><strong id="memory-score">—</strong><small id="memory-score-max" aria-hidden="true" hidden>/ 100</small><span id="memory-score-description"></span></div></div>
+                <button type="button" class="btn btn-primary memory-primary" id="memory-action">Start round <span aria-hidden="true">↗</span></button>
+            </footer>
+            <section class="memory-match-results" id="memory-match-results" hidden aria-labelledby="memory-match-heading" aria-hidden="true">
+                <h2 id="memory-match-heading" tabindex="-1"></h2><p id="memory-outcome"></p>
+                <div class="memory-results-scroll"><table><thead><tr><th data-i18n="memoryPlayer">Player</th><th data-i18n="score">Score</th><th data-i18n="memoryDamage">Damage</th><th>HP</th><th data-i18n="memoryStatus">Status</th></tr></thead><tbody id="memory-result-rows"></tbody></table></div>
+            </section>
+        </section>
+
+        <details class="memory-instructions" id="memory-practice-settings"><summary data-i18n="memoryPracticeSettings">Practice settings</summary><div class="memory-frequency-grid"><label class="memory-field"><span data-i18n="memoryColor">color</span><select id="memory-local-weight-color"><option value="0" data-i18n="memoryFrequencyOff">Off</option><option value="1" data-i18n="memoryFrequencyLow">Low</option><option value="2" data-i18n="memoryFrequencyMedium" selected>Medium</option><option value="4" data-i18n="memoryFrequencyHigh">High</option></select><output id="memory-local-probability-color"></output></label><label class="memory-field"><span data-i18n="memoryQuantity">quantity</span><select id="memory-local-weight-quantity"><option value="0" data-i18n="memoryFrequencyOff">Off</option><option value="1" data-i18n="memoryFrequencyLow">Low</option><option value="2" data-i18n="memoryFrequencyMedium" selected>Medium</option><option value="4" data-i18n="memoryFrequencyHigh">High</option></select><output id="memory-local-probability-quantity"></output></label><label class="memory-field"><span data-i18n="memoryPitch">pitch</span><select id="memory-local-weight-pitch"><option value="0" data-i18n="memoryFrequencyOff">Off</option><option value="1" data-i18n="memoryFrequencyLow">Low</option><option value="2" data-i18n="memoryFrequencyMedium" selected>Medium</option><option value="4" data-i18n="memoryFrequencyHigh">High</option></select><output id="memory-local-probability-pitch"></output></label></div><label class="memory-adaptive-option"><input type="checkbox" id="memory-local-adaptive" checked><span data-i18n="memoryAdaptive">Adaptive difficulty</span></label><label class="memory-field memory-initial-difficulty"><span data-i18n="memoryInitialDifficulty">Starting difficulty</span><input type="number" id="memory-local-initial-difficulty" min="1" max="10" step="0.5" value="5"></label><p class="memory-room-note" id="memory-local-frequency-note"></p></details>
+        <details class="memory-instructions">
+            <summary data-i18n="howToPlay">How to play</summary>
+            <p data-i18n="memoryAnalyticsDisclosure">To improve game balance, we may retain match questions, answers, and results without account IDs or player names for internal analysis.</p>
+            <p id="memory-help-flow">Memorize the color for 4 seconds. You then have 25 seconds to recreate it. Lock your answer when you are ready; when time runs out, your current color is saved automatically.</p>
+            <p id="memory-help-controls" data-i18n="memoryHelpControls">Drag a wheel upward to increase a channel. Use ± or arrow keys for single steps, Page Up / Down for 16, and Home / End for the limits. Hold Shift while dragging or scrolling for finer control.</p>
+            <p id="memory-help-score" data-i18n="memoryHelpScore">Your score measures color similarity. Taking more or less time does not change it. Each round starts from the same neutral gray.</p>
+        </details>
+        <dialog class="memory-lobby" id="memory-lobby" aria-labelledby="memory-lobby-title">
+            <header class="memory-lobby-header"><div><p class="memory-eyebrow" data-i18n="memoryOnlineColor">Color · 2–8 players</p><h2 id="memory-lobby-title" data-i18n="memoryOnlineRoom">Online room</h2></div><button type="button" class="btn" id="memory-lobby-close" data-i18n="memoryCloseRoom">Close</button></header>
+            <div class="memory-lobby-body">
+                <div class="memory-auth-line"><span id="memory-account"></span><button type="button" class="btn" id="memory-google-btn" data-i18n="memoryGoogle">Google sign-in</button></div>
+                <label class="memory-field"><span data-i18n="memoryYourName">Your name</span><input id="memory-name" type="text" maxlength="32" autocomplete="nickname"></label>
+                <div id="memory-room-entry" class="memory-room-entry">
+                    <button type="button" class="btn btn-primary" id="memory-create-btn" data-i18n="memoryCreate">Create room</button>
+                    <div class="memory-join-line"><label class="memory-field"><span data-i18n="memoryRoomCode">Room code</span><input id="memory-code-input" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="4"></label><button type="button" class="btn" id="memory-join-btn" data-i18n="memoryJoin">Join</button></div>
+                </div>
+                <div id="memory-room-membership" hidden>
+                    <div class="memory-room-code-line"><span data-i18n="memoryRoomCode">Room code</span><strong id="memory-room-code"></strong><button type="button" class="btn" id="memory-copy-btn" data-i18n="memoryCopy">Copy</button></div>
+                    <button type="button" class="btn" id="memory-previous-match" data-i18n="memoryPreviousMatch" hidden>View previous match results</button><ul class="memory-lobby-players" id="memory-lobby-players"></ul>
+                    <button type="button" class="btn" id="memory-add-cpu" data-i18n="memoryAddCpu">Add CPU</button>
+                </div>
+                <fieldset class="memory-room-settings" id="memory-room-settings"><legend data-i18n="memoryMatchRules">Match rules</legend>
+                    <div class="memory-frequency-settings"><div class="memory-frequency-grid"><label class="memory-field"><span data-i18n="memoryColor">color</span><select id="memory-weight-color"><option value="0" data-i18n="memoryFrequencyOff">Off</option><option value="1" data-i18n="memoryFrequencyLow">Low</option><option value="2" data-i18n="memoryFrequencyMedium" selected>Medium</option><option value="4" data-i18n="memoryFrequencyHigh">High</option></select><output id="memory-probability-color"></output></label><label class="memory-field"><span data-i18n="memoryQuantity">quantity</span><select id="memory-weight-quantity"><option value="0" data-i18n="memoryFrequencyOff">Off</option><option value="1" data-i18n="memoryFrequencyLow">Low</option><option value="2" data-i18n="memoryFrequencyMedium" selected>Medium</option><option value="4" data-i18n="memoryFrequencyHigh">High</option></select><output id="memory-probability-quantity"></output></label><label class="memory-field"><span data-i18n="memoryPitch">pitch</span><select id="memory-weight-pitch"><option value="0" data-i18n="memoryFrequencyOff">Off</option><option value="1" data-i18n="memoryFrequencyLow">Low</option><option value="2" data-i18n="memoryFrequencyMedium" selected>Medium</option><option value="4" data-i18n="memoryFrequencyHigh">High</option></select><output id="memory-probability-pitch"></output></label></div><label class="memory-adaptive-option"><input type="checkbox" id="memory-adaptive" checked><span data-i18n="memoryAdaptive">Adaptive difficulty</span></label><label class="memory-field memory-initial-difficulty"><span data-i18n="memoryInitialDifficulty">Starting difficulty</span><input type="number" id="memory-initial-difficulty" min="1" max="10" step="0.5" value="5"></label><p class="memory-room-note" id="memory-frequency-note"></p></div>
+                    <details class="memory-advanced-settings"><summary data-i18n="memoryAdvanced">Advanced room settings</summary><label class="memory-field"><span data-i18n="memoryCapacity">Capacity</span><select id="memory-capacity"><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option><option>7</option><option selected>8</option></select></label></details>
+                    <label class="memory-field"><span data-i18n="memoryMaxRounds">Round limit</span><input id="memory-max-rounds" type="number" min="1" max="100" step="1" value="12"></label>
+                    <label class="memory-field"><span data-i18n="memoryStartingHp">Starting HP</span><input id="memory-start-hp" type="number" min="1" max="1000000" step="1" value="500"></label>
+                    <details class="memory-timing-settings"><summary data-i18n="memoryTiming">Phase times (seconds)</summary><div class="memory-timing-grid">
+                        <label class="memory-field"><span data-i18n="memoryPrepare">Prepare</span><input id="memory-prepare-seconds" type="number" min="1" max="60" step="1" value="3"></label>
+                        <label class="memory-field"><span data-i18n="memoryMemorize">Memorize</span><input id="memory-memorize-seconds" type="number" min="1" max="60" step="1" value="4"></label>
+                        <label class="memory-field"><span data-i18n="memoryRecreate">Recreate</span><input id="memory-answer-seconds" type="number" min="5" max="90" step="1" value="25"></label>
+                        <label class="memory-field"><span data-i18n="memoryResults">Compare</span><input id="memory-results-seconds" type="number" min="2" max="30" step="1" value="15"></label>
+                        <label class="memory-field"><span data-i18n="memoryPitchMemorizeTime">Pitch memorization</span><input id="memory-pitch-memorize-seconds" type="number" min="2" max="90" step="1" value="8"></label>
+                        <label class="memory-field"><span data-i18n="memoryPitchAnswerTime">Pitch answering</span><input id="memory-pitch-answer-seconds" type="number" min="5" max="90" step="1" value="35"></label>
+                    </div></details>
+                </fieldset>
+                <div id="memory-room-audio" hidden></div><p class="memory-start-reason" id="memory-start-reason" role="status" aria-live="polite"></p>
+                <p class="memory-room-note" id="memory-room-note"></p>
+                <p class="memory-lobby-error" id="memory-lobby-error" role="status" aria-live="polite"></p>
+            </div>
+            <footer class="memory-lobby-footer"><button type="button" class="btn" id="memory-leave-btn" data-i18n="memoryLeave" hidden>Leave room</button><div class="memory-lobby-actions"><button type="button" class="btn" id="memory-ready-btn" hidden></button><button type="button" class="btn btn-primary" id="memory-start-btn" data-i18n="memoryStartMatch" hidden>Start match</button><button type="button" class="btn btn-primary" id="memory-return-btn" data-i18n="memoryPrepareNext" hidden>Prepare next match</button></div></footer>
+        </dialog>
+        <section class="memory-results-screen" id="memory-results-screen" aria-labelledby="memory-result-title" hidden>
+            <header><h2 id="memory-result-title" tabindex="-1"></h2><strong id="memory-result-countdown"></strong></header>
+            <p id="memory-result-review-note" hidden></p><p id="memory-result-summary"></p><p id="memory-result-formula"></p><p id="memory-result-scroll-hint" hidden></p>
+            <section id="memory-match-finished" hidden><p id="memory-match-outcome" role="status"></p><p id="memory-match-placement" hidden></p><p id="memory-match-winners"></p><p id="memory-match-ranking-note"></p><div class="memory-standings-scroll"><table class="memory-final-standings"><thead><tr><th data-i18n="memoryRank">Rank</th><th data-i18n="memoryPlayer">Player</th><th>HP</th><th data-i18n="memoryStatus">Status</th></tr></thead><tbody id="memory-match-standings"></tbody></table></div><p id="memory-match-host-note" hidden></p><p id="memory-match-guest-note"></p><div class="memory-post-match-actions"><button type="button" class="btn btn-primary" id="memory-match-back-lobby" data-i18n="memoryBackLobby" hidden>Back to lobby</button><button type="button" class="btn btn-primary" id="memory-match-return" data-i18n="memoryPrepareNext">Prepare next match</button><button type="button" class="btn" id="memory-match-last" data-i18n="memoryViewLastRound">View last round</button><button type="button" class="btn" id="memory-match-leave" data-i18n="memoryLeave">Leave room</button></div></section>
+            <div class="memory-result-scroll" tabindex="0" aria-label="Round scoreboard"><table class="memory-result-scoreboard"><thead><tr><th data-i18n="memoryPlayer">Player</th><th data-i18n="score">Score</th><th data-i18n="memoryResultGap">Gap</th><th data-i18n="memoryResultReceived">Damage received</th><th data-i18n="memoryResultHpChange">HP before → after</th></tr></thead><tbody id="memory-result-body"></tbody></table><details id="memory-result-details"><summary data-i18n="memoryResultDetails">Answer details</summary><div id="memory-result-detail-body"></div></details></div>
+            <footer><button type="button" class="btn" id="memory-result-finish" data-i18n="memoryViewStandings" hidden>View final standings</button><button type="button" class="btn" id="memory-result-close" data-i18n="memoryResultClose" hidden>Back to game</button></footer>
+        </section>
+        <noscript><p class="memory-noscript">Please enable JavaScript to play Color Memory.</p></noscript>
+    </main>
+    <script src="../js/arcade.js"></script>
+    <script src="../js/games/memory-color.js"></script>
+    <script src="../js/games/memory-rules.js"></script>
+    <script src="../js/games/memory-quantity.js"></script>
+    <script src="../js/games/memory-pitch.js"></script>
+    <script src="../js/games/memory-audio.js"></script>
+    <script src="../js/games/memory-audio-readiness.js"></script>
+    <script src="../js/games/memory-results.js"></script>
+    <script src="../js/games/memory-results-view.js"></script>
+    <script src="../js/games/memory-progression.js"></script>
+    <script src="../js/games/memory-quantity-groups.js"></script>
+    <script src="../js/games/memory-color-variants.js"></script><script src="../js/games/memory-pitch-variations.js"></script><script src="../js/games/memory-color-single.js"></script><script src="../js/games/memory-quantity-appearance.js"></script><script src="../js/games/memory-quantity-progression.js"></script><script src="../js/games/memory-challenge.js"></script><script src="../js/games/memory-categories.js"></script>
+    <script src="../js/games/memory-dots.js"></script>
+    <script src="../js/games/memory-cpu.js"></script><script src="../js/games/memory-match.js"></script>
+    <script src="../js/games/memory-room.js"></script>
+    <script src="../js/games/memory-wheel.js"></script>
+    <script src="../js/games/memory-color-view.js"></script>
+    <script src="../js/games/memory-quantity-groups-view.js"></script>
+    <script src="../js/games/memory-pitch-view.js"></script>
+    <script src="../js/firebase-config.js"></script>
+    <script src="../js/games/memory/recovery.js"></script>
+    <script src="../js/games/memory-online.js"></script>
+    <script src="../js/games/memory-playtest.js"></script>
+    <script src="../js/games/memory-analytics.js"></script>
+    <script src="../tools/memory-playtest-controls.js"></script>
+    <script src="../js/games/memory.js"></script>
+</body>
+</html>

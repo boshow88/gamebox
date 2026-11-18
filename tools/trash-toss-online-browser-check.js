@@ -26,6 +26,11 @@ const assert = require('node:assert/strict');
     }
     try {
         await command('Page.enable');
+        const navigationDeadline = Date.now() + 15000;
+        while (!await evaluate(expected => location.origin === expected && document.readyState === 'complete', new URL(origin).origin)) {
+            if (Date.now() >= navigationDeadline) throw Error('Local test page did not finish navigating');
+            await new Promise(resolve => setTimeout(resolve, 30));
+        }
         await command('Page.addScriptToEvaluateOnNewDocument', { source: `(() => {
             if (${legacy}) {
                 let create;

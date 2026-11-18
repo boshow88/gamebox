@@ -61,8 +61,11 @@ function memoryRealtimeDatabase() {
             },
             onValue: (target, next, fail) => {
                 const entry = { client, path: target.path, next, fail }; listeners.add(entry);
-                const snap = snapshot(target.path, target.path === '.info/connected' ? client.connected : read(target.path));
-                queueMicrotask(() => { usage.listenerEvents++; next(snap); }); return () => listeners.delete(entry);
+                const snap = snapshot(target.path, target.path === '.info/connected' ? client.connected : target.path === '.info/serverTimeOffset' ? 0 : read(target.path));
+                queueMicrotask(() => {
+                    if (target.path === '.info/connected' && client.connected) next(snapshot(target.path, false));
+                    usage.listenerEvents++; next(snap);
+                }); return () => listeners.delete(entry);
             },
             runTransaction: (target, updater, options) => {
                 assert.equal(options.applyLocally, false);
@@ -137,7 +140,7 @@ function realtimeGameBackend(modules) {
             const sdk = native.clientSDK();
             const getPlayerId = () => { const user = getUser(); return user && (config.identity === 'tab' ? user.uid + '_' + sessionId : user.uid); };
             playerSDKs.set(getPlayerId(), sdk);
-            return modules.createRealtimeRoomStore(sdk, native.db, config.collection, { presenceField: config.presenceField, now, getPlayerId });
+            return modules.createRealtimeRoomStore(sdk, native.db, config.collection, { presenceField: config.presenceField, now, getPlayerId, monotonicNow: now });
         },
         disconnectPlayer: uid => native.disconnect(playerSDKs.get(uid)),
         reconnectPlayer: uid => native.reconnect(playerSDKs.get(uid)),

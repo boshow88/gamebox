@@ -1,5 +1,6 @@
 import { encodeRoomValue, decodeRoomValue, applyRoomPatch, encodeRoomPatch } from './rtdb-values.mjs';
 import { normalizeCode } from './rooms.mjs';
+import { createRealtimeCleanupClock } from './rtdb-clock.mjs';
 
 const validCode = code => /^[A-Z0-9]{4}$/.test(code);
 // Public codes omit the prefix; retaining storage keys keeps active rooms and rules compatible.
@@ -13,7 +14,8 @@ function decodeStoredRoom(raw) {
 
 /** RTDB implementation of the same room store contract. Never writes to Firestore. */
 export function createRealtimeRoomStore(sdk, db, group, {
-    now = Date.now, presenceField = null, getPlayerId = () => null,
+    now = Date.now, presenceField = null, getPlayerId = () => null, nativeDisconnect = true,
+    cleanupClock = createRealtimeCleanupClock(sdk, db), monotonicNow = () => performance.now(),
 } = {}) {
     const { ref, get, onValue, runTransaction, update, remove, serverTimestamp,
         query, orderByChild, endAt, limitToFirst, onDisconnect } = sdk;
@@ -42,6 +44,9 @@ export function createRealtimeRoomStore(sdk, db, group, {
         if (!reconnect && memberships.has(path) === present) return;
         if (present) monitorConnection();
         if (present) memberships.set(path, { code, uid }); else memberships.delete(path);
+        // Recoverable controllers rely on the existing heartbeat grace period.
+        // A previous connection must never write -1 over a newer connection's beat.
+        if (!nativeDisconnect) return;
         const task = (nativeTasks.get(path) || Promise.resolve()).catch(() => {}).then(async () => {
             const handle = onDisconnect(ref(db, path));
             if (memberships.has(path)) await handle.set(-1);
@@ -137,15 +142,29 @@ export function createRealtimeRoomStore(sdk, db, group, {
         },
         cleanup(maxAgeMs = 5 * 60 * 1000) {
             if (cleanupPending) return cleanupPending;
-            if (now() - cleanupAt < 60000) return Promise.resolve(0);
-            cleanupAt = now();
+            const attemptAt = monotonicNow();
+            if (!Number.isFinite(attemptAt) || attemptAt - cleanupAt < 60000) return Promise.resolve(0);
+            cleanupAt = attemptAt;
             cleanupPending = (async () => {
-                const cutoff = now() - maxAgeMs;
+                if (!Number.isFinite(maxAgeMs) || maxAgeMs <= 0) return 0;
+                if (!await cleanupClock.waitUntilReady()) return 0;
+                const initial = cleanupClock.read();
+                if (!initial) return 0;
+                const cutoff = initial.time - maxAgeMs;
                 const snapshot = await get(query(ref(db, 'rooms/' + group), orderByChild('lastActionAt'), endAt(cutoff), limitToFirst(20)));
                 const jobs = [];
                 snapshot.forEach(child => {
-                    jobs.push(store.transact(child.key, data => data && data.lastActionAt < cutoff
-                        ? { kind: 'delete', result: true } : { result: false }));
+                    const observed = child.val() && child.val().lastActionAt;
+                    if (!Number.isFinite(observed) || observed < 0 || observed >= cutoff) return;
+                    jobs.push(store.transact(child.key, data => {
+                        const current = cleanupClock.read();
+                        // Every retry must still have the same calibration and unchanged
+                        // activity. A new heartbeat or lost clock/connection aborts deletion.
+                        return current && current.epoch === initial.epoch && data
+                            && Number.isFinite(data.lastActionAt) && data.lastActionAt === observed
+                            && data.lastActionAt < Math.min(cutoff, current.time - maxAgeMs)
+                            ? { kind: 'delete', result: true } : { result: false };
+                    }));
                 });
                 const results = await Promise.allSettled(jobs);
                 return results.filter(item => item.status === 'fulfilled' && item.value).length;

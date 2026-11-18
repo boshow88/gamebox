@@ -1,5 +1,6 @@
 import { createFeedbackService } from './feedback.mjs';
 import { createAnnouncementService } from './announcements.mjs';
+import { createAnalyticsWriter } from './memory-analytics.mjs';
 
 /*
  * ArcadeNet — thin Firebase layer for online play (ES module, no build step).
@@ -105,7 +106,7 @@ function fail(err) {
         }
         const roomSessionId = crypto.getRandomValues(new Uint32Array(4)).join('-');
         const roomSettings = window.FIREBASE_ROOMS || {};
-        let rtdbSdk = null, rtdb = null, roomLoad = null, roomModule, lobbyModule, transportModule, roomClockOffset = 0;
+        let rtdbSdk = null, rtdb = null, roomLoad = null, roomModule, lobbyModule, transportModule, clockModule, cleanupClock, roomClockOffset = 0;
         const rooms = {
             ok: null, backend: 'rtdb', error: null,
             now: () => Date.now() + roomClockOffset,
@@ -115,11 +116,12 @@ function fail(err) {
                     if (!roomSettings.databaseURL || !/^https:\/\/[a-z0-9.-]+\.(firebaseio\.com|firebasedatabase\.app)\/?$/i.test(roomSettings.databaseURL)) {
                         throw new Error('Copy the Realtime Database URL from Firebase Console into FIREBASE_ROOMS.databaseURL');
                     }
-                    [rtdbSdk, roomModule, lobbyModule, transportModule] = await Promise.all([
+                    [rtdbSdk, roomModule, lobbyModule, transportModule, clockModule] = await Promise.all([
                         import(`${BASE}/firebase-database.js`), import('./rooms.mjs'),
-                        import('./room-lobby.mjs'), import('./rtdb-rooms.mjs'),
+                        import('./room-lobby.mjs'), import('./rtdb-rooms.mjs'), import('./rtdb-clock.mjs'),
                     ]);
                     rtdb = rtdbSdk.getDatabase(app, roomSettings.databaseURL);
+                    cleanupClock = clockModule.createRealtimeCleanupClock(rtdbSdk, rtdb);
                     rtdbSdk.onValue(rtdbSdk.ref(rtdb, '.info/serverTimeOffset'), snapshot => {
                         const offset = snapshot.val(); if (Number.isFinite(offset)) roomClockOffset = offset;
                     });
@@ -133,18 +135,28 @@ function fail(err) {
             create: configureRooms,
             presence(...args) { return roomModule.createRoomPresence(...args); },
             lobby(...args) { return lobbyModule.createRoomLobby(...args); },
+            clock(options) {
+                if (rooms.ok !== true) throw rooms.error || new Error('Await rooms.ready() before creating a room clock');
+                return clockModule.createRealtimeRoomClock(rtdbSdk, rtdb, options);
+            },
         };
         function configureRooms(options) {
             if (!options || !options.collection) throw new Error('Room collection is required');
             if (rooms.ok !== true) throw rooms.error || new Error('Await rooms.ready() before creating a room service');
+            // Memory can restore a same-tab controller; other games retain page identities.
+            const sessionId = options.sessionId || roomSessionId;
             const store = transportModule.createRealtimeRoomStore(rtdbSdk, rtdb, options.collection, {
+                now: options.now || Date.now,
                 presenceField: options.presenceField,
-                getPlayerId: () => user ? (options.identity === 'tab' ? user.uid + '_' + roomSessionId : user.uid) : null,
+                nativeDisconnect: options.nativeDisconnect,
+                cleanupClock,
+                getPlayerId: () => user ? (options.identity === 'tab' ? user.uid + '_' + sessionId : user.uid) : null,
             });
             return roomModule.createRoomService({
                 store,
-                getUser: () => user, sessionId: roomSessionId,
+                getUser: () => user, sessionId,
                 generateCode: roomModule.generateRoomCode,
+                now: options.now || Date.now,
             }, Object.assign({}, options, { codeLength: 4 }));
         }
 
@@ -153,6 +165,7 @@ function fail(err) {
             ok: true,
             sdk: SDK,
             ...account,
+            memoryAnalytics: { create: createAnalyticsWriter({ auth, projectId: window.FIREBASE_CONFIG.projectId }) },
             // per-user cloud profile — e.g. { bests: { "<gameId>:<mode>": score } } —
             // so a signed-in player's high scores follow them across devices.
             profile: {

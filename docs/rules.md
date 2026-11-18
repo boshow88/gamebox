@@ -37,6 +37,99 @@ All games share the same chrome and lifecycle:
 
 ---
 
+## Memory
+
+Practice Color, Quantity or Pitch locally, or play an online match with 2–8
+participants, including at least one human. One human can play against CPUs.
+Category frequencies Off/Low/Medium/High use weights 0/1/2/4; all-Off cannot
+start. A weighted bag limits long repeats but does not promise exact totals.
+
+### Color memory
+
+Memorize one color, then reconstruct it with HSL or RGB wheels. Both edit the
+same RGB8 answer; switching controls alone does not change the preview/score.
+Each question starts from the same target-independent initial color. Scoring
+uses Oklab similarity with Color V4; closer answers score higher. Target numeric
+values and other players' answers are hidden in the interface while answering.
+
+### Quantity memory
+
+Reconstruct one count or separate counts for up to three groups: circle, square,
+triangle. Each group has its own control. Memory and reconstruction use the
+same deterministic ordered position pool; equal counts reproduce the same dots,
+and changing a count adds/removes one dot without moving the rest. Shapes have
+equal filled areas; the current palette is blue, orange and green respectively.
+
+Grouped scoring uses equal-weight RMS of each group's relative count error,
+not error in the summed total. There are four shared stages, starting at zero:
+
+| Stage | Single target / answer range | Two groups, each | Three groups, each |
+|---|---|---|---|
+| 0 | 20–80 / 0–100 | 10–35 / 0–45 | 10–25 / 0–35 |
+| 1 | 30–110 / 0–140 | 15–45 / 0–60 | 12–35 / 0–45 |
+| 2 | 40–150 / 0–190 | 20–60 / 0–80 | 15–45 / 0–60 |
+| 3 | 50–190 / 0–230 | 25–75 / 0–100 | 18–55 / 0–70 |
+
+These are envelopes; seeded challenge conditions select a subrange within them.
+Stage advances only when every human required at round start submits every count
+exactly, manually and before cutoff. Auto/missing/invalid submissions or departures
+prevent advancement; CPUs do not qualify it. Wrong answers do not lower stage.
+Group count is a separate random draw, not a stage increase. New matches reset it.
+
+### Pitch memory
+
+Listen to a 3/4-tone melody with one fixed reference, then tune the other notes
+using their independent wheels. Adjustable notes start at 440 Hz. Coarse/Fine,
+individual previews and sequence playback help adjustment; the full original
+is replayable only after results. Scoring uses RMS cents error across adjustable
+notes, excluding references. No microphone is needed.
+
+When Pitch is enabled, each human uses **Play test sound → I can hear it**.
+Guests then Ready; hosts do not need a separate Ready action. CPUs and Pitch-Off
+rooms are exempt. Usable audio confirmation survives normal lobby changes and
+rematches; mute, explicit reset or failed recovery require another confirmation.
+
+### Online matches and results
+
+The host chooses categories, capacity, HP, round cap and timing; guests Ready,
+then the host explicitly Starts. The room need not be full. Lobby changes clear
+Ready. Defaults are 500 HP, 12 rounds, 3s preparation and **15s results**; base
+Color memory/answer windows are 4s/25s. Actual memory windows vary by category,
+variant and seeded challenge, and are the same for every participant. Challenge
+conditions are not score-driven adaptation. Frozen older matches keep their rules.
+
+Each participant can lock one final answer. Auto-submit begins 350ms before
+cutoff to allow network transit; unaccepted drafts count as missing, scored zero.
+When all eligible answers arrive, current matches may settle early. Disconnect,
+dialogs and review do not pause timers or grant more exposure/answer time.
+
+All tied round leaders take zero damage. Others lose
+`(highestScore − ownScore) × multiplier` HP, clamped at zero. Default multipliers
+are 1 in rounds 1–2, 1.3 in 3–4, 1.7 in 5–6, 2.2 in 7–8 and 3 from round 9.
+Eliminated players can watch. Results reveal scores, score gaps/damage and HP;
+small screens may require scrolling inside the panel.
+
+Last eligible survivor wins; at the cap, highest remaining HP wins, with exact
+ties sharing victory. Victory is separate from placement: v14 ranks survivors
+first, then later eliminations and closer survival margins. A first placement
+does not invent a winner in a no-winner match. Non-winners see neutral completion
+text and their placement. CPU owners leaving withdraw their human and CPUs.
+
+The Room button stays in the Memory card's sticky upper-right header. Host
+**Prepare next match** returns everyone to the same lobby; guests Ready again,
+then host Starts. Roster/settings/usable audio remain. Previous match results
+are viewable in lobby until the next Start replaces them, without changing Ready.
+Same-page reconnect may preserve a seat during the presence grace; refresh does
+not automatically reclaim it.
+
+Online play uses Firebase over HTTP(S); offline practice does not require it.
+For balancing, the browser may save completed questions, answers and results
+without account IDs/names as unverified, best-effort internal analytics. It does
+not guarantee delivery. [Implementation/scoring](memory/README.md) and
+[analytics/privacy](memory/ANALYTICS.md) describe the maintained details.
+
+---
+
 ## Colour Ladder
 
 A real-time **ghost leg** (amidakuji). Colour-coded balls fall down a
@@ -1323,4 +1416,3 @@ Puzzles are generated by assembling pieces in reverse removal order and validati
 their actual geometric blockers. Easy uses shallow dependency chains; Medium and
 Hard require deeper dependencies and fewer initial exits. All piece orientations
 stay fixed; only the camera rotates. Clear every piece to finish a puzzle.
-

@@ -12,12 +12,18 @@ covers Console setup and Firestore room retirement.
 load of the RTDB SDK and local room modules; `rooms.ok` is null until loaded, true
 on success, and false on failure. A rejected load can be retried. Account/Auth
 readiness is independent of rooms. Beam and Rune Stones initialize rooms on their
-game pages; Darts waits until an online action. The launcher never loads them.
+game pages; Darts, Memory and Trash Toss wait until online entry (Memory also
+initializes for a stored recovery location). The launcher never loads them.
+`rooms.clock()` also requires this readiness. Auth restoration is published through
+`ArcadeAuth` before Firestore; guest sign-in waits for restoration instead of
+replacing a restoring Google session with an anonymous account.
 
 Rune Stones supplies translated text, player badges, results and actions
 to the shared lobby view. Beam and Darts each use their own unified lobby view on
 the same room service — Darts so one device can control several participants, Beam
-(`js/games/beam-lobby.js`) for its Solo/Online tabs and custom CPUs. Match simulation,
+(`js/games/beam-lobby.js`) for its Solo/Online tabs and custom CPUs. Memory also uses
+its own lobby with the same service; its simultaneous submission protocol is
+described in [Memory room and match protocol](#memory-room-and-match-protocol). Match simulation,
 heartbeat cadence and timeouts remain game-specific. Configuration and
 synchronous lifecycle hooks replace separate copies of room CRUD and readiness
 checks.
@@ -47,6 +53,47 @@ running match (`game.status: 'playing'`). Players see and share four-character
 codes such as `ABCD`. The adapter keeps the existing `R-ABCD` RTDB key and stored
 metadata, so active rooms and published rules need no migration. Firestore rooms
 remain retired; four-character input always addresses RTDB.
+
+## Memory room and match protocol
+
+Memory uses `/rooms/memory_rooms/R-XXXX`, four-character public codes and
+the shared service with tab/controller identity, join order, presence and
+guarded transactions. Separate frozen participants/seat order include one human
+per controller plus any owned CPUs; there are 2–8 actors at Start and at least
+one human. The room need not be full. See
+[current match contracts](memory/README.md) and [player rules](rules.md#memory).
+
+- Host Start requires connected human controllers, current guest Ready and
+  usable Pitch audio acknowledgements when needed. CPU settings/ownership and
+  all gameplay settings freeze into the new match.
+- Each actor has one accepted receipt per question. Match/round/question guards,
+  ownership checks and the settled-round guard prevent ordinary stale/duplicate
+  client operations. These checks live in browser code, not a trusted scorer.
+- V14 elimination metadata commits with HP settlement. V13+ can settle early
+  after all eligible valid receipts; earlier frozen matches keep their deadlines.
+- Preparing the next match retains the finished game, room/roster/settings and
+  usable audio, clears Ready and opens the lobby for everyone. Host Start creates
+  a new match; it is not an automatic rematch. Previous standings are readonly.
+- Leaving withdraws the controller's human and CPUs during play. Host migration
+  retains the 15s presence grace. Memory supports membership-only same-tab refresh
+  recovery using sessionStorage and an exclusive controller lock; see
+  [recovery contracts and limitations](memory/README.md#same-tab-recovery).
+  Last-controller departure deletes the room. Current question/receipts and the
+  latest result are retained, not full round history.
+
+### Memory deployment and trust boundary
+
+RTDB must have the reviewed `memory_rooms` policy. If it already works, do not
+redeploy unchanged RTDB Rules for a presentation or analytics change. The policy
+permits authenticated browser room writes with basic metadata validation; it
+does not enforce scoring, immutable game state or malicious-client ownership
+checks. UI hiding is not anti-cheat protection.
+
+[Automatic analytics](memory/ANALYTICS.md) observes snapshots without changing
+room transactions. Its Firestore create-only Rules/indexes are a separate
+deployment, require explicit approval and do not make room data trusted.
+See [tests](memory/TESTING.md#real-firebase-and-rules) and the
+[shared deployment policy](#development-stage-deployment-policy).
 
 ## Darts room and match protocol
 
@@ -268,6 +315,7 @@ that interval; silent players still send their regular heartbeats.
 | `currentPlayer()` | Account information with the room UID, or `null` when signed out |
 | `isConnected()` | The store's observed connection status; true for stores without a connection observer |
 | `create(input)`, `join(code)` | Return the normalized room code; same-player reconnect is idempotent |
+| `resume(code, buildPatch)` | Recover existing membership transactionally, pulse presence and apply a pure game-specific recovery patch; missing rooms/members reject without running Join |
 | `leave(code)` | Remove this player, migrate the host, delete an empty room; observers do not mutate membership |
 | `kick(code, targetUid)` | Host-only removal of another member (frees a seat held by a departed/disconnected player); migrates the host and deletes an empty room via the same departure path |
 | `setReady(code, ready = true)` | Member-only, transactional readiness; ignored during play |
@@ -408,7 +456,8 @@ decides when a game starts.
 ## Traffic and storage
 
 Rooms, gameplay and presence use RTDB. Authentication, account records/scores,
-admin settings and feedback still use the existing Auth/Firestore APIs. There is
+admin settings, feedback and best-effort Memory analytics use the existing
+Auth/Firestore APIs independently of room transactions. There is
 no room backend selector, legacy routing or cross-database fallback. Invalid
 RTDB configuration disables rooms while account sync and solo play remain usable.
 
@@ -428,6 +477,46 @@ interval, Beam's 8-second timeout and Rune Stones' 15-second timeout:
   per-room transactions, and deletes only rooms that are still inactive. Cleanup
   is not a presence mechanism and can take several passes to drain a backlog.
 
+### Cleanup time and entry points
+
+`rtdb-rooms.mjs.cleanup()` retains a five-minute default based on `lastActionAt`;
+heartbeats and other committed room writes refresh that field with
+`serverTimestamp()`. `expireAt` is not an automatic TTL. Each pass only queries
+its own game collection. The 60-second cooldown uses monotonic time, independently
+of the game clock and the client calendar clock.
+
+`createRealtimeCleanupClock()` in `rtdb-clock.mjs` is separate from game timing.
+`net.js` creates one at RTDB initialization and shares it with room stores. It
+requires both a finite `.info/serverTimeOffset` calibration and a connected
+handshake observed after a disconnected state (a late cached `connected=true`
+alone is insufficient), anchors server time to monotonic elapsed time, and uses a one-second
+conservative uncertainty margin. The default expiry setting remains five minutes;
+rooms near the boundary may wait for a later pass. Missing calibration can wait
+up to 1.5s in the **background cleanup task**, then returns zero without querying.
+Disconnects, information-listener errors, invalid samples and detected wall-clock
+jumps invalidate the clock. Cached duplicate info cannot revalidate a wall jump;
+a fresh offset/connected calibration is required. Cleanup never reconnects the
+SDK or changes game clocks to obtain calibration.
+
+Each deletion transaction/retry must still have the pass's valid calibration,
+an unchanged finite nonnegative `lastActionAt` from the query, and an activity
+time older than the conservative cutoff. A new heartbeat, changed calibration or
+lost connection cancels that deletion. Query/transaction failures resolve to zero
+or the count of successful deletions; they do not feed errors into gameplay.
+This protects ordinary clock/race failures, not malicious authenticated clients
+that bypass the honor-system room API.
+
+Memory attempts one background cleanup per authenticated page entry after its
+optional original-room recovery has committed. Darts attempts it after online
+Auth initialization; expanding **Invite / join** starts that initialization,
+while its ordinary offline lobby remains local. Repeated initialization for the
+same UID does not start another entry sweep. Create/join never await cleanup.
+Memory's 60s and Darts' 30s host-maintenance calls remain; adapter throttling still
+limits queries to one per 60s. Beam/Rune Stones keep their existing lobby-entry
+and periodic cleanup calls. Failed/pending cleanup cannot block room recovery,
+admission or gameplay. If calibration is unavailable on entry, later normal
+maintenance can retry; without any eligible online client there is no server job.
+
 The deterministic traffic fixture compares fixed and piggybacked heartbeats:
 30 gameplay actions per minute produce 50 versus 30 writes and 100 versus 60
 update deliveries to two listeners. Idle clients retain their heartbeat cadence.
@@ -443,11 +532,15 @@ server state before evaluating a missing-room decision, disable optimistic game
 notifications and retry against fresh data. This client's updates are serialized
 with its room transactions to avoid cancelling its own pending transaction.
 
-Native `onDisconnect` marks this player's presence counter as `-1` and is
+By default, native `onDisconnect` marks this player's presence counter as `-1` and is
 rearmed after reconnect. Existing observers retain the deadline from the last
 positive beat. Periodic pulses preserve the existing 8/15-second timeouts even
-when server disconnect detection takes longer. Connection monitoring starts only
-after room use; solo startup does not scan rooms.
+when server disconnect detection takes longer. Native member-presence registration
+starts after room use; the independent cleanup clock observes RTDB info at online
+initialization. Solo startup does not scan rooms.
+Memory alone opts out of that shared disconnect-marker write to avoid stale
+connection overwrites during refresh; it retains heartbeat/grace cleanup. Its
+explicit tab-session override does not change Darts or other games' identities.
 
 The shared service normalizes `ABCD` and `R-ABCD` to the same public code. The
 adapter validates the four-character suffix before SDK access and deterministically
@@ -467,6 +560,178 @@ The two-tab procedure below verifies the deployed rules; local fakes cannot do s
 
 ## Deployment and Firebase configuration
 
+### Release gates
+
+Before publishing, preserve and review the complete working tree, including
+untracked game modules, fixtures and static assets. Fetch and compare the release
+branch before integrating shared Auth/room changes. Retain parallel changes such
+as lazy SDK initialization, departure hooks and permissions for other games;
+adding Memory must not remove another game's room collection. Test the integrated
+candidate, not just each branch separately.
+
+Compare the **published** Firestore Rules, RTDB Rules and index configuration
+with the reviewed candidate using authorized Console/CLI access. A Git diff only
+compares repository versions; it cannot establish whether rules were published
+manually. If access is unavailable, report deployment state as unverified rather
+than requesting an unnecessary redeployment. Retain existing profile, feedback,
+announcement and room permissions/indexes. Wait for required index changes to
+finish before enabling dependent queries.
+
+After approval, publish only required Rules/index changes, then commit/push the
+reviewed website through the repository's configured GitHub Pages source. Check
+the Pages build and actual served assets; a successful push alone is insufficient.
+Verify Memory, Darts, Beam and Rune Stones, plus any other changed game, with
+fresh browser sessions. Include profiles, feedback and announcements when their
+shared Auth/Firestore boundary changed. Follow
+[Memory analytics operations](memory/ANALYTICS.md#tests-and-deployment) for the
+separate upload/export check. Rules deployment, website publication and live
+verification remain separately approved/reported actions.
+
+This repository's Pages source is **Deploy from a branch: `main`, `/` (root)**.
+GitHub runs the generated `pages-build-deployment` workflow; there is no local
+website build step. Pushing `main` can publish automatically. A local commit does
+not publish. Approve the complete release commit before pushing, then verify the
+successful Pages run and actual served files for that commit.
+
+For a machine without Firebase CLI credentials, run `npx firebase-tools login`
+with an existing project-authorized Google account, then
+`npx firebase-tools projects:list` to confirm access to `games-7e19b`. This login is
+separate from game/browser Auth and does not deploy anything. Use Console or
+authorized read-only APIs to compare active RTDB/Firestore Rules and indexes;
+do not infer a missing deployment from Git history. ADC/IAM used by analytics
+export is a separate credential, described in [analytics operations](memory/ANALYTICS.md).
+
+### RTDB security boundary
+
+The current collection-level authenticated reads and room-level authenticated
+writes are an honor-system policy. Anonymous Firebase users are authenticated:
+they can enumerate allowed game collections and edit/delete another room, not
+just their own seat. Metadata validation is not an ownership check, and `.validate`
+does not run on deletes. Client transaction guards and the conservative cleanup
+clock protect normal clients from races/skew; they cannot stop a malicious client
+from issuing a direct write. These permissions do not grant access to Firestore
+profiles or private feedback.
+
+A small hardening option is to reject `lastActionAt > now + 5000` in the room
+validation, using RTDB's server `now`. An emulator-only candidate has verified
+ordinary server-timestamp writes, expiry queries and legacy presence-marker
+writes alongside this bound. This option is **not applied to the checked-in
+rules** and does not prevent enumeration, other-room mutation or deletion.
+Compatibility/security review and approval are still required before adopting it.
+
+Changing only the delete predicate to trust a mutable `hostUid` is insufficient
+while arbitrary writes can replace that field or membership. Reliable access
+isolation needs protected Auth-to-controller ownership and field-specific write
+permissions compatible with shared settlement, host migration and frozen rooms.
+That can be evaluated without a paid backend, but is a separate permission change;
+do not claim the existing rules provide it. Public release must explicitly resolve
+or accept this room-tampering risk. Test adversarial cases only in a demo emulator,
+never by scanning/deleting real player rooms.
+
+The initial Memory release for friend playtesting retains this honor-system
+policy with the project owner's explicit acceptance of its cheating and
+cross-room mutation/deletion risks. The proposed access layer below is deferred;
+do not describe the current rooms as isolated or server-authoritative.
+
+### Proposed room access protection (not implemented)
+
+The smallest viable direction is a **shared room admission/access layer**, not
+server-authoritative scoring. Keep the existing room transaction path and game
+reducers, but authorize writes using protected Firebase Auth ownership rather
+than trusting `hostUid`, a controller-ID prefix or caller-supplied new membership.
+
+- Put authorization records outside the writable room snapshot, for example
+  `/roomAccess/<game>/<code>/<instanceId>`. A whole-room transaction must never
+  grant permission to edit this sibling ACL. Bind a fresh room incarnation to its
+  creator and verified human Auth/controller ownership; code reuse must not inherit
+  old grants. Require the incarnation on existing-room writes and protect it from
+  deletion/replacement. CPUs use their human owner's authorization.
+- Existing verified members retain whole-room transactions for simultaneous
+  answers, deadlines, settlement and host migration. A nonmember can only submit
+  a constrained join request. An authorized seated client admits it through the
+  existing lobby policy before the join transaction. Never allow an arbitrary
+  caller to grant itself membership merely by knowing a code. Automatic admission
+  can preserve the current public-room interaction; a legitimately admitted player
+  is then trusted inside that room, including one who joined with bad intent.
+- Keep ACL grants/revocations separate from ordinary game writes. Explicit Leave,
+  stale-seat eviction and same-account multi-tab cases need per-controller grant
+  tracking so one departure neither retains unintended access nor ejects another
+  active tab. Room deletion/recreation, failed admission, concurrent joins and
+  orphaned ACL/request cleanup need bounded, retry-safe lifecycle handling.
+- Active whole-room deletion should require verified last-controller departure,
+  not just a mutable host field. Unrelated clients may delete only a server-proven
+  stale room after five minutes. Enforce server activity timestamps (while allowing
+  unchanged timestamps for native presence-only disconnect writes); otherwise a
+  forged old timestamp bypasses that expiry exception. Recheck expiry in Rules
+  against current committed data as well as in the cleanup transaction.
+
+This is a proposal, not audited rule code or a claim of current protection.
+It changes the shared service/adapter, admission handshake, Rules and tests;
+it does not require five independent game rewrites or a paid backend. Additional
+ACL/request/grant traffic is concentrated at create/join/leave, not each answer or
+physics tick. Exact traffic and implementation effort require a small emulator
+prototype. Existing RTDB storage/download/connection quotas still apply.
+Rules authenticate accounts, not browser locks: same-UID tabs share that security
+principal. Per-controller bookkeeping preserves their lifecycle without claiming
+cryptographic isolation between tabs signed into the same account. See
+[Firebase pricing](https://firebase.google.com/pricing) for the existing quotas.
+
+Rollout cannot silently secure legacy rooms that lack verified ownership. New
+protected rooms need an explicit transport access version; frozen gameplay
+protocols/scoring can remain unchanged. Choose either a coordinated refresh after
+legacy rooms finish, or a time-limited legacy policy with its old risk clearly
+accepted. Do not permanently permit an unprotected fallback, or let a client
+downgrade a protected room. Old loaded clients will not automatically understand
+the admission handshake. Deployment/migration remains a separate approval.
+
+Before implementation approval, prototype the authorization boundary in the RTDB
+Emulator. Required cases include outsider overwrite/delete and self-grant denial,
+admission races, replayed grants after code reuse, revocation, same-account tabs,
+Memory refresh/owned CPUs, Darts multi-seat ownership, Beam spectators, Rune
+forfeit, Trash Toss departure reasons, host migration, native disconnect and
+heartbeat-versus-expiry deletion. Privacy/read-enumeration restrictions are a
+separate decision; closing write access alone does not hide targets from readers.
+
+Firebase's [cascading write permissions](https://firebase.google.com/docs/database/security/core-syntax#read_and_write_rules_cascade)
+explain why a restrictive child `.write` cannot override a broad parent grant.
+Use the [Rules API](https://firebase.google.com/docs/reference/security/database)
+for concrete conditions; Rules `val()` on an object is not deep-object equality.
+
+### Development-stage deployment policy
+
+Firebase RTDB Rules may be deployed during development/testing when required.
+The development stage is not itself a reason to defer deployment. Before a
+rule deployment, validate security and backward compatibility with existing
+games/room protocols and run the relevant local rules, shared-room, Darts and
+Memory regression tests. Report a breaking migration or security-sensitive
+change before proceeding. Do not redeploy unchanged rules.
+
+After a rule change, supplement local fixtures/emulator checks with real Firebase
+Darts and Memory room verification. Use isolated test clients/rooms, test only
+those rooms and clean them up afterward. Do not use fixture SDKs or simulated
+clocks for the live smoke test. Check create/join, readiness, shared deadlines,
+independent accepted answers, scoring/HP, one settlement, rematch and leaving.
+
+Reports must distinguish three separate actions: **Firebase Rules deployment**,
+**website deployment**, and **verification against real Firebase**. Publishing
+the website does not publish rules; successful local fixtures do not establish
+that the deployed website/rules work together. State the tested website URL and
+version, whether rules were changed/deployed, and whether tests used real
+Firebase, local fixtures or physical devices.
+
+The current website can run on **localhost against real Firebase** without a
+push or website deployment. Verify that the local page and current modules load;
+Memory's [live test modes](memory/TESTING.md#real-firebase-and-rules) use isolated
+clients/rooms, real SDK/Auth/RTDB and normal deadlines, then remove their temporary
+room and guest accounts. The explicit `--live` flag is required. The harness
+disables unrelated stale-room cleanup and automatic production analytics.
+
+Once published, also verify the actual deployed page. A missing public page
+means that website verification is pending; it does not block localhost-to-real-
+Firebase verification or imply that rules need republishing. Report the origin
+(`localhost` versus a deployed URL) separately from the backend
+(real Firebase versus a fixture).
+
 ### Configure RTDB in a new environment
 
 Use the same Firebase project as the existing Auth/Firestore configuration.
@@ -476,7 +741,8 @@ of [`database.rules.json`](../database.rules.json) in **Realtime Database > Rule
 This is separate from **Firestore Database > Rules**.
 
 The supplied rules allow authenticated users, including existing anonymous guest
-accounts, to use `/rooms/beam_rooms`, `/rooms/duel_rooms`, `/rooms/darts_rooms` and `/rooms/trash_toss_rooms`. Publish
+accounts, to use `/rooms/beam_rooms`, `/rooms/duel_rooms`, `/rooms/darts_rooms`,
+`/rooms/trash_toss_rooms` and `/rooms/memory_rooms`. Publish
 the current RTDB rules before using online rooms; see [Darts room and match protocol](#darts-room-and-match-protocol).
 They validate basic
 room metadata and index `lastActionAt` for cleanup. The project's existing

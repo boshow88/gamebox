@@ -2,6 +2,53 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // Client-reported balancing data: create-only, never a trusted score source.
+    match /memoryMatchAnalytics/{id} {
+      allow create: if request.auth != null && id.matches('^[a-f0-9]{64}$')
+                       && validAnalytics(request.resource.data);
+      allow get, list: if isOwner();
+      allow update: if false;
+      allow delete: if isOwner();
+    }
+    function analyticsParticipant(p, id) {
+      return p is map && p.keys().hasOnly(['id','type','cpuDifficulty','cpuVersion','startingHpUnits','finalHpUnits','eliminationRound','placement','winner','withdrawn'])
+             && p.id == id && p.type in ['human','cpu'];
+    }
+    function analyticsObservation(o) {
+      return o is map && o.keys().hasOnly(['id','answer','missing','submissionSource','acceptedElapsedMs','timeSource','error','metrics','scoreUnits','damageUnits','hpBeforeUnits','hpAfterUnits','eliminated'])
+             && o.id in ['p1','p2','p3','p4','p5','p6','p7','p8'] && o.missing is bool
+             && o.scoreUnits is int && o.scoreUnits >= 0 && o.scoreUnits <= 100000
+             && o.damageUnits is int && o.damageUnits >= 0;
+    }
+    function analyticsRound(r, expected, count) {
+      return r is map && r.keys().hasOnly(['round','question','timing','multiplier','observations']) && r.round == expected
+             && r.question is map && r.question.keys().hasOnly(['type','version','variant','variantVersion','variationVersion','answerSchema','scoringVersion','seed','target','targetHsl','parameters','challenge','difficulty','renderingVersion','variation','tones','fixed','groups','swatches','saturation','lightness'])
+             && r.question.type in ['color','quantity','pitch'] && r.question.seed is int
+             && r.timing is map && r.timing.keys().hasOnly(['prepareMs','memorizeMs','answerMs'])
+             && r.multiplier is number && r.multiplier >= 0 && r.multiplier <= 1000
+             && r.observations is list && r.observations.size() >= 1 && r.observations.size() <= count
+             && analyticsObservation(r.observations[0]);
+    }
+    function validAnalytics(d) {
+      let p = d.participants;
+      let n = p.size();
+      let r = d.rounds;
+      let count = r.size();
+      return d.keys().hasOnly(['schemaVersion','protocolVersion','captureMode','captureStatus','verificationStatus','createdAt','scoringVersion','settings','participants','rounds','finalResult'])
+             && d.schemaVersion == 1 && d.protocolVersion is int && d.protocolVersion >= 1 && d.protocolVersion <= 14
+             && d.captureMode == 'client-best-effort' && d.captureStatus == 'complete' && d.verificationStatus == 'unverified-client-state'
+             && d.createdAt == request.time && d.scoringVersion is int && d.scoringVersion >= 1 && d.scoringVersion <= 4
+             && d.settings is map && d.settings.keys().hasOnly(['capacity','maxRounds','startingHp','timing','initialAnswer','generation','scoring','multiplierSchedule','autoSubmitLeadMs','categoryMode','selectionVersion','categoryWeights','adaptive','challengeVersion','challenge','quantity','pitch','color','cpu'])
+             && p is list && n >= 2 && n <= 8 && analyticsParticipant(p[0],'p1')
+             && analyticsParticipant(p[n-1],'p'+string(n))
+             && r is list && count >= 1 && count <= 100
+             && analyticsRound(r[0],1,n) && analyticsRound(r[count-1],count,n)
+             && d.finalResult is map && d.finalResult.keys().hasOnly(['status','endReason','settledRounds','lastRound','winners'])
+             && d.finalResult.status == 'over' && d.finalResult.settledRounds == count
+             && d.finalResult.endReason in ['last-survivor','round-cap','withdrawal','empty']
+             && d.finalResult.winners is list && d.finalResult.winners.hasOnly(['p1','p2','p3','p4','p5','p6','p7','p8']);
+    }
+
     // ---- Player profiles (per-user saved data, e.g. high scores synced across devices) ----
     // A signed-in user may read/write only their own profile document.
     match /profiles/{uid} {

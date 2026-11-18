@@ -5,6 +5,7 @@ const readAll = () => JSON.parse(localStorage.getItem(key) || '{}');
 function rootKey(path) { return path.split('/').slice(0, 3).join('/'); }
 function read(path) {
     if (path === '.info/connected') return true;
+    if (path === '.info/serverTimeOffset') return 0;
     const parts = path.split('/'), all = readAll();
     if (parts.length === 2) return Object.fromEntries(Object.entries(all).filter(([key]) => key.startsWith(path + '/')).map(([key, value]) => [key.split('/').at(-1), value]));
     return parts.slice(3).reduce((node, field) => node && node[field], all[rootKey(path)]) ?? null;
@@ -29,7 +30,7 @@ export const get = async target => {
         value = Object.fromEntries(Object.entries(value || {}).filter(([, room]) => room.lastActionAt <= end).sort((a,b) => a[1].lastActionAt - b[1].lastActionAt).slice(0, limit)); }
     return snapshot(target.path, value);
 };
-export function onValue(target, cb) { const w = { path: target.path, cb }; watchers.add(w); queueMicrotask(() => cb(snapshot(target.path))); return () => watchers.delete(w); }
+export function onValue(target, cb) { const w = { path: target.path, cb }; watchers.add(w); queueMicrotask(() => {if(target.path==='.info/connected')cb(snapshot(target.path,false));cb(snapshot(target.path));}); return () => watchers.delete(w); }
 export function runTransaction(target, update, options) {
     if (options.applyLocally !== false) throw new Error('Optimistic room transactions must be disabled');
     pending.add(target.path);

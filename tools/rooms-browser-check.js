@@ -5,9 +5,18 @@ const fs = require('node:fs');
 const http = require('node:http');
 const os = require('node:os');
 const path = require('node:path');
-const { spawn } = require('node:child_process');
+const { spawn, execFileSync } = require('node:child_process');
 const root = path.resolve(__dirname, '..');
 const args = process.argv.slice(2);
+const baseline = args.includes('--baseline');
+const baselineAssets = new Map();
+function readAsset(file) {
+    if (!baseline) return fs.readFileSync(file);
+    const relative = path.relative(root, file).replace(/\\/g, '/');
+    if (!baselineAssets.has(relative)) baselineAssets.set(relative,
+        execFileSync('git', ['show', 'HEAD:' + relative], { cwd: root, windowsHide: true }));
+    return baselineAssets.get(relative);
+}
 const mode = args.includes('--invalid-rtdb') ? 'invalid' : 'rtdb';
 const accountOnly = args.includes('--account');
 const lobbyPreview = args.includes('--darts-lobby');
@@ -274,7 +283,18 @@ ${dartsOnly ? fs.readFileSync(path.join(__dirname, 'helpers/darts-browser-v2.js'
         else { await checkBeam(); await check('rune-stones', 'duel_rooms', 'rd'); }
     }
     document.getElementById('result').textContent = 'PASS (' + mode + '): ' + (mode === 'invalid' ? 'disabled online rooms and working account profiles.' : cricketFocusOnly ? 'Darts Cricket target contrast, global closure, Bull, withdrawn players, Cork/X01 palette and responsive geometry.' : turnHitOnly ? 'Darts third-hit visibility, delayed handoff, human/CPU gating, remote agreement, Cork entry, deadlines and responsive geometry.' : openingOnly ? 'Darts synchronized random starter, full first-turn timer, reduced motion, input/CPU gating, hidden-page CPU progress and responsive geometry.' : guideOnly ? 'Darts throw-area guidance, shared gesture feedback, persistence, controls, CPU/remote ownership, handoff, reduced motion and responsive geometry.' : cpuOnly ? 'Darts local CPU slots, physical gestures, all compositions, pacing, cancellation, handoff, timers, Cricket and Cork.' : dartsOnly ? 'Darts Cricket target contrast, third-hit visibility, random starter, hidden-page CPU progress, throwing guidance, CPU opponents, Cork contexts/rethrows/ownership, overflow and reduced-motion detail, X01 settings, final-hit timing, local/mixed rooms, history and responsive geometry.' : 'real browser room flows, backend selection and account isolation.');
-})().catch(error => { document.getElementById('result').textContent = 'FAIL: ' + error.stack; });
+})().catch(error => {
+    const details = [...document.querySelectorAll('iframe')].map(frame => {
+        const state = frame.contentWindow.__dartsTest?.snapshot();
+        const button = frame.contentDocument.getElementById('lobby-start-btn');
+        return state ? { uid: state.uid, sending: state.sending, phase: state.data?.phase,
+            revision: state.data?.revision, host: state.data?.hostUid, ready: state.data?.ready,
+            presence: state.data?.presence, players: Object.keys(state.data?.players || {}),
+            game: state.match && { status: state.match.status, matchId: state.match.matchId },
+            action: button && { text: button.textContent, disabled: button.disabled } } : { url: frame.src };
+    });
+    document.getElementById('result').textContent = 'FAIL: ' + error.stack + '\\n' + JSON.stringify(details);
+});
 </script>`;
 
 async function main() {
@@ -293,7 +313,7 @@ async function main() {
         else {
             const file = path.resolve(root, '.' + url.pathname);
             if (!file.startsWith(root + path.sep) || !fs.existsSync(file) || !fs.statSync(file).isFile()) { response.writeHead(404); response.end(); return; }
-            body = fs.readFileSync(file);
+            body = readAsset(file);
             if (file.endsWith('firebase-config.js')) body = body.toString()
                 + '\nwindow.FIREBASE_ROOMS = ' + JSON.stringify({ databaseURL: mode === 'invalid' ? '' : 'https://demo-local-test.firebaseio.com' }) + ';';
             if (file.endsWith('net.js')) body = body.toString().replace('const BASE = `https://www.gstatic.com/firebasejs/${SDK}`;', "const BASE = location.origin + '/__sdk';");
@@ -348,20 +368,21 @@ async function main() {
         }
         const targetUrl = 'http://127.0.0.1:' + server.address().port + '/__check';
         browser = spawn(chrome, ['--headless=new', '--disable-gpu', '--no-first-run', '--no-default-browser-check', ...extra,
-            '--disable-background-networking', '--user-data-dir=' + profile,
+            '--disable-background-networking', '--disable-background-timer-throttling', '--user-data-dir=' + profile,
             ...(preview ? ['--dump-dom', '--virtual-time-budget=' + (dartsOnly ? 180000 : 45000)] : ['--remote-debugging-port=0', '--remote-debugging-address=127.0.0.1']),
             targetUrl], { windowsHide: true });
         let output = '', diagnostics = '';
         browser.stdout.on('data', chunk => { output += chunk; }); browser.stderr.on('data', chunk => { diagnostics += chunk; });
-        const timeout = setTimeout(() => browser.kill(), 45000);
+        const timeoutMs = dartsOnly ? 90000 : 45000;
+        const timeout = setTimeout(() => browser.kill(), timeoutMs);
         try {
             if (preview) await new Promise((resolve, reject) => { browser.on('error', reject); browser.on('exit', resolve); });
-            else output = '<pre id="result">' + await require('./helpers/chrome-result.js')(profile, targetUrl) + '</pre>';
+            else output = '<pre id="result">' + await require('./helpers/chrome-result.js')(profile, targetUrl, timeoutMs - 5000) + '</pre>';
         }
         finally { clearTimeout(timeout); }
         const match = output.match(/<pre id="result">([\s\S]*?)<\/pre>/);
         assert(match && match[1].startsWith('PASS ('), (match && match[1]) || diagnostics.slice(-2000) || 'No browser result');
-        console.log(match[1]);
+        console.log((baseline ? 'BASELINE HEAD: ' : '') + match[1]);
     } finally {
         if (browser && browser.exitCode === null) browser.kill();
         await new Promise(resolve => server.close(resolve));

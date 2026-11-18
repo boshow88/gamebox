@@ -8,7 +8,8 @@ no build step, works offline, deployable on GitHub Pages.
 
 "Arcade" and "Puzzle" are **no longer folders or separate sites** — they are
 just a **theme**, chosen per page with `<body data-theme="arcade">` or
-`<body data-theme="puzzle">`. Everything lives in one flat tree.
+`<body data-theme="puzzle">`. Related modules can use game-specific directories
+within the shared repository.
 
 ## Layout
 
@@ -38,7 +39,7 @@ js/
   birthday.js         Birthday-only homepage entry (see docs/DEV.md#birthday-personalization)
   birthday-cake.js    Reusable directional candle interaction
   birthday-settings.js Optional manual birthday account settings
-  games/*.js          One module per game (logic + rendering)
+  games/*.js          Game entries and game-owned modules
   games/unshackle/    Unshackle's 3D engine, renderer, UI and continuous sliding
   generators/*.js     Puzzle generators & solvers
 games/*.html          One page per game (each sets <body data-theme="…">)
@@ -46,6 +47,7 @@ tools/*.html          Puzzle dev tools (generators/solvers test harnesses)
 tools/*.js            Node.js checks (run with node, no packages required)
 docs/
   rules.md            Full player-facing rules for every game (merged)
+  CONVENTION.md       Organization, module boundaries & refactoring method
   DEV.md              Architecture, shared conventions & implementation
   DEBUG.md            Test commands, fixtures & debugging/reset procedures
   ROOMS.md            Shared online rooms, policies & Firebase deployment
@@ -54,7 +56,8 @@ docs/
 
 ## Documentation
 
-Start with [DEV.md](docs/DEV.md) for implementation and conventions,
+Start with [CONVENTION.md](docs/CONVENTION.md) for organization and refactoring,
+[DEV.md](docs/DEV.md) for implementation and engine/UI conventions,
 [DEBUG.md](docs/DEBUG.md) for checks, or [rules.md](docs/rules.md) for game rules.
 The [room reference](docs/ROOMS.md) owns online-room APIs and Firebase setup;
 [Unshackle](docs/UNSHACKLE.md) owns the isolated 3D engine. Feature changes update

@@ -80,7 +80,7 @@ export function createRoomService({ store, getUser, sessionId, generateCode = ra
     if (config.identity === 'tab' && !sessionId) throw new Error('Tab identity requires a session ID');
     config.occupiedStatus = config.occupiedStatus || config.waitingStatus;
     Object.freeze(config);
-    let pulse = 0;
+    let pulse = config.presenceSeed || 0;
     const activity = new Map();
     function activityFor(code) {
         if (!activity.has(code)) activity.set(code, { at: -Infinity, pending: null, pendingAt: -Infinity, retryAfter: -Infinity });
@@ -218,6 +218,17 @@ export function createRoomService({ store, getUser, sessionId, generateCode = ra
             return departure(data, player.uid);
         });
     }
+    async function resume(value, buildPatch = () => ({})) {
+        const player = requirePlayer(), code = normalizeCode(value);
+        return transact(code, player, data => {
+            requireRoom(data);
+            if (!(data.players || {})[player.uid]) throw error('membership-ended', 'Original membership has ended');
+            // Membership-only recovery: never call onJoin or create a seat.
+            const patch = buildPatch(data, player);
+            return { kind: 'update', data: Object.assign({}, patch,
+                config.presenceField ? { [config.presenceField + '.' + player.uid]: ++pulse } : {}), result: code };
+        });
+    }
     async function kick(value, targetUid) {
         // Host-only removal of another member. Migrates the host and deletes an empty room via departure().
         const player = requirePlayer(), code = normalizeCode(value);
@@ -286,7 +297,7 @@ export function createRoomService({ store, getUser, sessionId, generateCode = ra
         });
     }
     const service = {
-        config, currentPlayer, playerIds, host, canStart, primaryAction, create, join, leave, kick, releaseDisconnected,
+        config, currentPlayer, playerIds, host, canStart, primaryAction, create, join, resume, leave, kick, releaseDisconnected,
         isConnected: () => !store.isConnected || store.isConnected(),
         setReady, start, reset, updateMatch, settleRound,
         async heartbeat(value, intervalMs = 3000) {

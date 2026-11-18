@@ -8,26 +8,16 @@ to add another game. For per-game *rules* see [`rules.md`](rules.md).
 > (`window.ArcadeCommon`); the **Puzzle engine** is `js/puzzle.js`
 > (`window.PuzzleCommon`). Shared base + both themes live in `css/common.css`
 > (scoped under `[data-theme]`); arcade page chrome is `css/arcade.css`.
-> See [Shared conventions](#shared-conventions) for house style and
+> See [repository conventions](CONVENTION.md) for organization/refactoring,
+> [Shared conventions](#shared-conventions) for engine/UI behavior, and
 > [`DEBUG.md`](DEBUG.md) for dev tools / logging.
 
 ## Documentation ownership
 
-Keep maintained documentation in these five files:
-
-| Document | Owns |
-| --- | --- |
-| [DEV.md](DEV.md) | Architecture, shared conventions and implementation details |
-| [DEBUG.md](DEBUG.md) | Test commands, local fixtures and debugging/reset procedures |
-| [rules.md](rules.md) | Current player-facing game rules and controls |
-| [ROOMS.md](ROOMS.md) | Shared online-room API, policies and Firebase deployment |
-| [UNSHACKLE.md](UNSHACKLE.md) | The isolated 3D engine, generation and compatibility contracts |
-
-Update the relevant section when implementing a feature. Do not create a separate
-feature diary or retain a completed follow-up spec. Tests document expected
-behavior; these files explain ownership, contracts and how to run those tests.
-Create another document only when a substantial independent system needs its own
-maintained reference. Link to the owning section instead of copying setup or rules.
+The [ownership map](CONVENTION.md#documentation-ownership) identifies the maintained
+home for each topic. The [refactoring method](CONVENTION.md#focused-refactoring-workflow)
+also applies to JavaScript and tools. This file owns engine/UI conventions and
+implementation details; update the existing owner instead of adding phase reports.
 
 ## Philosophy
 
@@ -67,7 +57,8 @@ js/birthday-settings.js      Optional manual birthday account settings
 css/birthday-settings.css    Account settings modal styling
 js/games/birthday.js         Bilingual birthday-only ceremony and replayable candle game
 css/birthday.css             Birthday ceremony and homepage entry visuals
-js/games/colour-ladder.js    One file per game: logic + Canvas 2D rendering
+js/games/colour-ladder.js    Small game entry with logic + Canvas 2D rendering
+js/games/unshackle/         Larger subsystem split into engine, view and game
 docs/rules.md                Player-facing rules
 docs/DEV.md                  This file
 ```
@@ -918,6 +909,24 @@ QA weight inputs use a 0.01g step: quarter-weight minima such as 11.25g and
 Measurements use logical px, seconds and game parameters, not real metres or m/s.
 The no-wind trace preserves all other inputs. A sweep records winds -60/-30/0/+30/+60 without altering the
 currently selected inputs or competitive state.
+
+## Memory
+
+[Memory](../games/memory.html) has local Color/Quantity/Pitch practice and online
+matches with human/CPU participants. It uses the shared room service and RTDB;
+analytics is a separate best-effort Firestore observer.
+
+- [Current implementation](memory/README.md): module ownership, scoring,
+  challenge/stages, audio/results, ranking, rematches and frozen protocols.
+- [Tests and tools](memory/TESTING.md): core/browser checks, calibration,
+  human playtesting and isolated real-Firebase room verification.
+- [Analytics operations](memory/ANALYTICS.md): capture/schema, privacy, export,
+  retention, emulator tests and the separate Firestore deployment boundary.
+
+Keep player-facing controls in [rules.md](rules.md#memory), shared transport and
+deployment policy in [ROOMS.md](ROOMS.md#memory-room-and-match-protocol).
+Pure reducers own gameplay; views, recorders and export tools do not settle it.
+Update these maintained references instead of appending development-phase reports.
 
 ## Colour Ladder internals
 

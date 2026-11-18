@@ -1,0 +1,6409 @@
+[
+  {
+    "initial": {
+      "version": 1,
+      "status": "playing",
+      "participants": [
+        "a",
+        "b",
+        "c0",
+        "c1",
+        "c2",
+        "c3",
+        "c4",
+        "c5"
+      ],
+      "round": 1,
+      "settledRound": 0,
+      "hpUnits": {
+        "a": 50000000,
+        "b": 50000000,
+        "c0": 50000000,
+        "c1": 50000000,
+        "c2": 50000000,
+        "c3": 50000000,
+        "c4": 50000000,
+        "c5": 50000000
+      },
+      "multiplierSchedule": {
+        "steps": [
+          1,
+          1,
+          1.3,
+          1.3,
+          1.7,
+          1.7,
+          2.2,
+          2.2,
+          3,
+          3,
+          3,
+          3
+        ]
+      },
+      "lastResult": null,
+      "winners": [],
+      "protocolVersion": 11,
+      "scoringVersion": 4,
+      "matchId": "v11-cpu-color",
+      "config": {
+        "capacity": 8,
+        "maxRounds": 12,
+        "startingHp": 50000,
+        "timing": {
+          "prepareMs": 3000,
+          "memorizeMs": 4000,
+          "answerMs": 25000,
+          "resultsMs": 6000
+        },
+        "initialAnswer": [
+          128,
+          128,
+          128
+        ],
+        "generation": {
+          "channelMin": 24,
+          "channelMax": 240,
+          "minLightness": 0.4,
+          "maxLightness": 0.85,
+          "minChroma": 0.06,
+          "maxChroma": 0.28,
+          "maxAttempts": 256
+        },
+        "scoring": {
+          "version": 4,
+          "tolerance": 0.2,
+          "exponent": 1.4,
+          "knee": 0.08,
+          "width": 0.1,
+          "strength": 0.35,
+          "penaltyExponent": 1.5
+        },
+        "multiplierSchedule": {
+          "steps": [
+            1,
+            1,
+            1.3,
+            1.3,
+            1.7,
+            1.7,
+            2.2,
+            2.2,
+            3,
+            3,
+            3,
+            3
+          ]
+        },
+        "autoSubmitLeadMs": 350,
+        "categoryMode": "color",
+        "selectionVersion": 3,
+        "categoryWeights": {
+          "color": 2,
+          "quantity": 0,
+          "pitch": 0
+        },
+        "adaptive": {
+          "version": 1,
+          "enabled": false,
+          "min": 1,
+          "max": 10,
+          "initial": 5,
+          "mappingCenter": 5,
+          "step": 0.5,
+          "low": 55,
+          "high": 85,
+          "window": 4,
+          "minRounds": 3,
+          "minObservations": 3,
+          "jitter": 0.25,
+          "initialByType": {
+            "color": 5,
+            "quantity": 5,
+            "pitch": 5
+          },
+          "mappings": {
+            "color": {
+              "easyMemorizeScale": 1.35,
+              "hardMemorizeScale": 0.7,
+              "minMemorizeMs": 1500
+            },
+            "quantity": {
+              "easyMinFraction": 0,
+              "easyMaxFraction": 0.3,
+              "hardMinFraction": 0.55,
+              "hardMaxFraction": 1,
+              "easyMemorizeScale": 1.15,
+              "hardMemorizeScale": 0.85,
+              "minMemorizeMs": 1500
+            },
+            "pitch": {
+              "threeToneThrough": 4,
+              "easyMaxInterval": 500,
+              "hardMaxInterval": 720
+            }
+          }
+        },
+        "challengeVersion": 1,
+        "challenge": {
+          "version": 1,
+          "weights": {
+            "easy": 20,
+            "normal": 60,
+            "hard": 20
+          },
+          "levels": {
+            "easy": {
+              "min": 2,
+              "max": 4
+            },
+            "normal": {
+              "min": 4,
+              "max": 7
+            },
+            "hard": {
+              "min": 7,
+              "max": 9
+            }
+          }
+        },
+        "quantity": {
+          "generation": {
+            "minCount": 30,
+            "maxCount": 150,
+            "poolSize": 220,
+            "jitter": 0.22,
+            "dotRadius": 0.009
+          },
+          "scoring": {
+            "version": 1,
+            "tolerance": 0.3,
+            "exponent": 1.5
+          },
+          "initialAnswer": 15,
+          "variantSelectionVersion": 1,
+          "multi": {
+            "version": 1,
+            "scoring": {
+              "version": 2,
+              "tolerance": 0.3,
+              "exponent": 1.5
+            },
+            "weights": {
+              "easy": {
+                "single": 4,
+                "multi2": 2,
+                "multi3": 1
+              },
+              "hard": {
+                "single": 2,
+                "multi2": 3,
+                "multi3": 3
+              }
+            },
+            "multi2": {
+              "minCount": 15,
+              "maxCount": 65,
+              "answerMax": 90,
+              "initialAnswer": 8,
+              "memorizeScale": 1.25
+            },
+            "multi3": {
+              "minCount": 10,
+              "maxCount": 45,
+              "answerMax": 60,
+              "initialAnswer": 6,
+              "memorizeScale": 1.5
+            },
+            "jitter": 0.22,
+            "dotRadius": 0.0105
+          },
+          "renderingVersion": 3,
+          "progression": {
+            "version": 1,
+            "maxStage": 3,
+            "variantWeights": {
+              "single": 3,
+              "multi2": 2,
+              "multi3": 2
+            },
+            "ranges": {
+              "single": [
+                {
+                  "minCount": 20,
+                  "maxCount": 80,
+                  "answerMax": 100
+                },
+                {
+                  "minCount": 30,
+                  "maxCount": 110,
+                  "answerMax": 140
+                },
+                {
+                  "minCount": 40,
+                  "maxCount": 150,
+                  "answerMax": 190
+                },
+                {
+                  "minCount": 50,
+                  "maxCount": 190,
+                  "answerMax": 230
+                }
+              ],
+              "multi2": [
+                {
+                  "minCount": 10,
+                  "maxCount": 35,
+                  "answerMax": 45
+                },
+                {
+                  "minCount": 15,
+                  "maxCount": 45,
+                  "answerMax": 60
+                },
+                {
+                  "minCount": 20,
+                  "maxCount": 60,
+                  "answerMax": 80
+                },
+                {
+                  "minCount": 25,
+                  "maxCount": 75,
+                  "answerMax": 100
+                }
+              ],
+              "multi3": [
+                {
+                  "minCount": 10,
+                  "maxCount": 25,
+                  "answerMax": 35
+                },
+                {
+                  "minCount": 12,
+                  "maxCount": 35,
+                  "answerMax": 45
+                },
+                {
+                  "minCount": 15,
+                  "maxCount": 45,
+                  "answerMax": 60
+                },
+                {
+                  "minCount": 18,
+                  "maxCount": 55,
+                  "answerMax": 70
+                }
+              ]
+            }
+          }
+        },
+        "pitch": {
+          "generation": {
+            "toneCount": 4,
+            "minHz": 220,
+            "maxHz": 880,
+            "minInterval": 150,
+            "maxInterval": 720
+          },
+          "scoring": {
+            "version": 1,
+            "tolerance": 180,
+            "exponent": 1.3
+          },
+          "audio": {
+            "toneMs": 550,
+            "gapMs": 160,
+            "repeatGapMs": 450,
+            "repeats": 2,
+            "leadMs": 250,
+            "volume": 0.1,
+            "attackMs": 15,
+            "releaseMs": 45
+          },
+          "timing": {
+            "memorizeMs": 8000,
+            "answerMs": 35000
+          },
+          "initialHz": 440,
+          "variantSelectionVersion": 2,
+          "variations": {
+            "version": 1,
+            "lengths": {
+              "easy": {
+                "n3": 3,
+                "n4": 4,
+                "n5": 0
+              },
+              "hard": {
+                "n3": 2,
+                "n4": 3,
+                "n5": 0
+              }
+            },
+            "references": {
+              "easy": {
+                "one": 1,
+                "two": 0
+              },
+              "hard": {
+                "one": 1,
+                "two": 0
+              }
+            },
+            "positions": {
+              "first": 1,
+              "middle": 1,
+              "last": 1,
+              "interior": 1
+            },
+            "contours": {
+              "ascending": 2,
+              "descending": 2,
+              "arch": 2,
+              "valley": 2,
+              "mixed": 4,
+              "echo": 1
+            },
+            "timing": {
+              "memoryScales": {
+                "n3": 0.9,
+                "n4": 1,
+                "n5": 1.2
+              },
+              "answerScales": {
+                "n3": 1,
+                "n4": 1,
+                "n5": 1.15
+              },
+              "easyScale": 1.15,
+              "hardScale": 0.9,
+              "safetyMs": 300
+            }
+          }
+        },
+        "color": {
+          "version": 2,
+          "variantSelectionVersion": 2,
+          "initialHsl": {
+            "h": 180,
+            "s": 50,
+            "l": 50
+          },
+          "initialHue": 180,
+          "single": {
+            "minS": 35,
+            "maxS": 90,
+            "minL": 30,
+            "maxL": 70
+          },
+          "fixed": {
+            "s": 65,
+            "l": 55
+          },
+          "weights": {
+            "easy": {
+              "single": 1,
+              "hue2": 0,
+              "hue3": 0,
+              "hue4": 0
+            },
+            "hard": {
+              "single": 1,
+              "hue2": 0,
+              "hue3": 0,
+              "hue4": 0
+            }
+          },
+          "separation": {
+            "easy": 50,
+            "hard": 18
+          },
+          "multiScoring": {
+            "version": 1,
+            "curve": {
+              "version": 3,
+              "tolerance": 0.2,
+              "exponent": 1.4,
+              "knee": 0.06,
+              "width": 0.08,
+              "strength": 0.5,
+              "penaltyExponent": 1.5
+            }
+          },
+          "hue2": {
+            "memorizeMs": 5000,
+            "answerMs": 28000
+          },
+          "hue3": {
+            "memorizeMs": 6000,
+            "answerMs": 33000
+          },
+          "hue4": {
+            "memorizeMs": 7000,
+            "answerMs": 38000
+          }
+        },
+        "cpu": {
+          "version": 1,
+          "color": {
+            "sigmaLab": [
+              0.105,
+              0.065,
+              0.038,
+              0.02
+            ],
+            "maxError": 0.5,
+            "attempts": 48,
+            "lapseRate": 0.12,
+            "lapseScale": 2.5,
+            "luckyRate": 0.06,
+            "luckyScale": 0.25
+          },
+          "quantity": {
+            "sigmaRelative": [
+              0.34,
+              0.22,
+              0.13,
+              0.065
+            ],
+            "exactRate": [
+              0.02,
+              0.03,
+              0.04,
+              0.05
+            ],
+            "lapseRate": 0.12,
+            "lapseScale": 2.5,
+            "luckyRate": 0.06,
+            "luckyScale": 0.25
+          },
+          "pitch": {
+            "sigmaCents": [
+              260,
+              160,
+              90,
+              45
+            ],
+            "commonFraction": 0.35,
+            "lapseRate": 0.12,
+            "lapseScale": 2.5,
+            "luckyRate": 0.06,
+            "luckyScale": 0.25
+          },
+          "timing": {
+            "color": {
+              "minFraction": 0.12,
+              "maxFraction": 0.68,
+              "complexityFraction": 0.015
+            },
+            "quantity": {
+              "minFraction": 0.14,
+              "maxFraction": 0.78,
+              "complexityFraction": 0.015
+            },
+            "pitch": {
+              "minFraction": 0.18,
+              "maxFraction": 0.84,
+              "complexityFraction": 0.015
+            }
+          }
+        }
+      },
+      "roster": {
+        "a": {
+          "id": "a",
+          "type": "human",
+          "controllerId": "a"
+        },
+        "b": {
+          "id": "b",
+          "type": "human",
+          "controllerId": "b"
+        },
+        "c0": {
+          "id": "c0",
+          "type": "cpu",
+          "controllerId": "a",
+          "difficulty": 1,
+          "cpuVersion": 1
+        },
+        "c1": {
+          "id": "c1",
+          "type": "cpu",
+          "controllerId": "a",
+          "difficulty": 2,
+          "cpuVersion": 1
+        },
+        "c2": {
+          "id": "c2",
+          "type": "cpu",
+          "controllerId": "a",
+          "difficulty": 3,
+          "cpuVersion": 1
+        },
+        "c3": {
+          "id": "c3",
+          "type": "cpu",
+          "controllerId": "b",
+          "difficulty": 4,
+          "cpuVersion": 1
+        },
+        "c4": {
+          "id": "c4",
+          "type": "cpu",
+          "controllerId": "b",
+          "difficulty": 1,
+          "cpuVersion": 1
+        },
+        "c5": {
+          "id": "c5",
+          "type": "cpu",
+          "controllerId": "b",
+          "difficulty": 2,
+          "cpuVersion": 1
+        }
+      },
+      "seatOrder": [
+        "a",
+        "b",
+        "c0",
+        "c1",
+        "c2",
+        "c3",
+        "c4",
+        "c5"
+      ],
+      "owners": {
+        "a": "a",
+        "b": "b",
+        "c0": "a",
+        "c1": "a",
+        "c2": "a",
+        "c3": "b",
+        "c4": "b",
+        "c5": "b"
+      },
+      "withdrawn": [],
+      "endReason": null,
+      "categoryId": "color",
+      "questionId": "color-single-v3-1-16",
+      "question": {
+        "type": "color",
+        "version": 3,
+        "variant": "single",
+        "variantVersion": 2,
+        "seed": 42,
+        "answerSchema": "rgb8-v1",
+        "targetHsl": {
+          "h": 3.63,
+          "s": 48.86,
+          "l": 49.39
+        },
+        "target": [
+          187,
+          72,
+          64
+        ],
+        "scoringVersion": 4,
+        "parameters": {
+          "version": 1,
+          "generation": {
+            "channelMin": 24,
+            "channelMax": 240,
+            "minLightness": 0.4,
+            "maxLightness": 0.85,
+            "minChroma": 0.06,
+            "maxChroma": 0.28,
+            "maxAttempts": 256
+          },
+          "timing": {
+            "prepareMs": 3000,
+            "memorizeMs": 4200,
+            "answerMs": 25000,
+            "resultsMs": 6000
+          },
+          "color": {
+            "version": 2
+          },
+          "challenge": {
+            "version": 1,
+            "band": "normal",
+            "level": 4.4952
+          }
+        },
+        "challenge": {
+          "version": 1,
+          "band": "normal",
+          "level": 4.4952
+        }
+      },
+      "roundTiming": {
+        "prepareMs": 3000,
+        "memorizeMs": 4200,
+        "answerMs": 25000,
+        "resultsMs": 6000
+      },
+      "timeline": {
+        "startAt": 1000,
+        "memorizeAt": 4000,
+        "answerAt": 8200,
+        "deadline": 33200
+      },
+      "phase": "active",
+      "submissions": {},
+      "resultsAt": null,
+      "resultsUntil": null,
+      "selectionState": {
+        "version": 1,
+        "seed": 42,
+        "draw": 1,
+        "cycle": 1,
+        "remaining": {
+          "color": 1,
+          "quantity": 0,
+          "pitch": 0
+        },
+        "last": "color",
+        "streak": 1
+      },
+      "variantState": {
+        "quantity": {
+          "version": 1,
+          "draw": 0,
+          "last": null,
+          "streak": 0
+        },
+        "color": {
+          "version": 1,
+          "draw": 1,
+          "last": "single",
+          "streak": 1
+        },
+        "pitch": {
+          "version": 1,
+          "draw": 0,
+          "lastStructure": null,
+          "streak": 0,
+          "lastContour": null,
+          "contourStreak": 0
+        }
+      },
+      "challengeState": {
+        "version": 1,
+        "last": {
+          "version": 1,
+          "band": "normal",
+          "level": 4.4952
+        }
+      },
+      "quantityProgress": {
+        "version": 1,
+        "stage": 0,
+        "lastRound": 0,
+        "advanced": false
+      },
+      "roundHumans": [
+        "a",
+        "b"
+      ]
+    },
+    "frames": [
+      {
+        "beforeHash": "027742224c6230b2bc83f021d4110d495925742b83e3327b9d659e3345de56c8",
+        "answers": {
+          "a": [
+            187,
+            72,
+            64
+          ],
+          "b": [
+            187,
+            72,
+            64
+          ],
+          "c0": [
+            174,
+            101,
+            175
+          ],
+          "c1": [
+            211,
+            79,
+            5
+          ],
+          "c2": [
+            204,
+            46,
+            110
+          ],
+          "c3": [
+            178,
+            64,
+            31
+          ],
+          "c4": [
+            78,
+            186,
+            211
+          ],
+          "c5": [
+            162,
+            56,
+            102
+          ]
+        },
+        "plans": {
+          "c0": {
+            "key": "1|v11-cpu-color|1|color-single-v3-1-16|42|c0",
+            "dueAt": 21535,
+            "nonce": "cpu-v1-1-17r0154"
+          },
+          "c1": {
+            "key": "1|v11-cpu-color|1|color-single-v3-1-16|42|c1",
+            "dueAt": 18697,
+            "nonce": "cpu-v1-1-1aktfq2"
+          },
+          "c2": {
+            "key": "1|v11-cpu-color|1|color-single-v3-1-16|42|c2",
+            "dueAt": 18620,
+            "nonce": "cpu-v1-1-1upkks"
+          },
+          "c3": {
+            "key": "1|v11-cpu-color|1|color-single-v3-1-16|42|c3",
+            "dueAt": 16091,
+            "nonce": "cpu-v1-1-vgppg4"
+          },
+          "c4": {
+            "key": "1|v11-cpu-color|1|color-single-v3-1-16|42|c4",
+            "dueAt": 19934,
+            "nonce": "cpu-v1-1-1k3jwqo"
+          },
+          "c5": {
+            "key": "1|v11-cpu-color|1|color-single-v3-1-16|42|c5",
+            "dueAt": 19333,
+            "nonce": "cpu-v1-1-hteh2w"
+          }
+        },
+        "settledHash": "ff1a2bc61cb9054a61b882278d115c0fb1dab4765598a0acb3d3c14d085e9165"
+      },
+      {
+        "beforeHash": "c5bfa564097cf5b5163cd426c4b3eb376c62a5b90d13823b1fb404b451531c76",
+        "answers": {
+          "a": [
+            18,
+            210,
+            213
+          ],
+          "b": [
+            88,
+            210,
+            213
+          ],
+          "c0": [
+            85,
+            212,
+            115
+          ],
+          "c1": [
+            115,
+            225,
+            196
+          ],
+          "c2": [
+            146,
+            187,
+            207
+          ],
+          "c3": [
+            33,
+            210,
+            213
+          ],
+          "c4": [
+            132,
+            198,
+            93
+          ],
+          "c5": [
+            165,
+            229,
+            214
+          ]
+        },
+        "plans": {
+          "c0": {
+            "key": "1|v11-cpu-color|2|color-single-v3-2-17|43|c0",
+            "dueAt": 62225,
+            "nonce": "cpu-v1-2-mb4991"
+          },
+          "c1": {
+            "key": "1|v11-cpu-color|2|color-single-v3-2-17|43|c1",
+            "dueAt": 56138,
+            "nonce": "cpu-v1-2-q6d7co"
+          },
+          "c2": {
+            "key": "1|v11-cpu-color|2|color-single-v3-2-17|43|c2",
+            "dueAt": 52005,
+            "nonce": "cpu-v1-2-13wprej"
+          },
+          "c3": {
+            "key": "1|v11-cpu-color|2|color-single-v3-2-17|43|c3",
+            "dueAt": 57685,
+            "nonce": "cpu-v1-2-vbilwx"
+          },
+          "c4": {
+            "key": "1|v11-cpu-color|2|color-single-v3-2-17|43|c4",
+            "dueAt": 54484,
+            "nonce": "cpu-v1-2-1nbs1o"
+          },
+          "c5": {
+            "key": "1|v11-cpu-color|2|color-single-v3-2-17|43|c5",
+            "dueAt": 55056,
+            "nonce": "cpu-v1-2-19fs2el"
+          }
+        },
+        "settledHash": "96ab00c698beb064e0e105adae56339e9764cf8593108cbeaa7bfd52d854c12a"
+      },
+      {
+        "beforeHash": "83c9cb39126598122473efa88f9f0d3a5d6b1d7a31616692f1f3e2ec4b0579ab",
+        "answers": {
+          "a": [
+            170,
+            199,
+            35
+          ],
+          "b": [
+            170,
+            199,
+            35
+          ],
+          "c0": [
+            132,
+            91,
+            101
+          ],
+          "c1": [
+            138,
+            245,
+            36
+          ],
+          "c2": [
+            166,
+            216,
+            103
+          ],
+          "c3": [
+            184,
+            191,
+            29
+          ],
+          "c4": [
+            31,
+            221,
+            175
+          ],
+          "c5": [
+            160,
+            209,
+            151
+          ]
+        },
+        "plans": {
+          "c0": {
+            "key": "1|v11-cpu-color|3|color-single-v3-3-18|44|c0",
+            "dueAt": 87789,
+            "nonce": "cpu-v1-3-4pygr3"
+          },
+          "c1": {
+            "key": "1|v11-cpu-color|3|color-single-v3-3-18|44|c1",
+            "dueAt": 96813,
+            "nonce": "cpu-v1-3-11a3254"
+          },
+          "c2": {
+            "key": "1|v11-cpu-color|3|color-single-v3-3-18|44|c2",
+            "dueAt": 97985,
+            "nonce": "cpu-v1-3-16xdp8c"
+          },
+          "c3": {
+            "key": "1|v11-cpu-color|3|color-single-v3-3-18|44|c3",
+            "dueAt": 94876,
+            "nonce": "cpu-v1-3-cijci9"
+          },
+          "c4": {
+            "key": "1|v11-cpu-color|3|color-single-v3-3-18|44|c4",
+            "dueAt": 92350,
+            "nonce": "cpu-v1-3-x8ylyd"
+          },
+          "c5": {
+            "key": "1|v11-cpu-color|3|color-single-v3-3-18|44|c5",
+            "dueAt": 94338,
+            "nonce": "cpu-v1-3-1vd35nx"
+          }
+        },
+        "settledHash": "6c0fb3d765d7bf82fcdbcace53ffcf6d568adfd8f3461c153c2b3056d476ee82"
+      },
+      {
+        "beforeHash": "90b2e8b411930748e6f11f180f4883fa43fe03b601efe18c515737d5c3497451",
+        "answers": {
+          "a": [
+            86,
+            125,
+            56
+          ],
+          "b": [
+            156,
+            125,
+            56
+          ],
+          "c0": [
+            150,
+            111,
+            46
+          ],
+          "c1": [
+            108,
+            125,
+            149
+          ],
+          "c2": [
+            92,
+            153,
+            68
+          ],
+          "c3": [
+            102,
+            122,
+            53
+          ],
+          "c4": [
+            127,
+            82,
+            86
+          ],
+          "c5": [
+            169,
+            197,
+            125
+          ]
+        },
+        "plans": {
+          "c0": {
+            "key": "1|v11-cpu-color|4|color-single-v3-4-19|45|c0",
+            "dueAt": 134675,
+            "nonce": "cpu-v1-4-xzihwv"
+          },
+          "c1": {
+            "key": "1|v11-cpu-color|4|color-single-v3-4-19|45|c1",
+            "dueAt": 128141,
+            "nonce": "cpu-v1-4-1rudpei"
+          },
+          "c2": {
+            "key": "1|v11-cpu-color|4|color-single-v3-4-19|45|c2",
+            "dueAt": 128425,
+            "nonce": "cpu-v1-4-7w2n7i"
+          },
+          "c3": {
+            "key": "1|v11-cpu-color|4|color-single-v3-4-19|45|c3",
+            "dueAt": 129957,
+            "nonce": "cpu-v1-4-1rz6afp"
+          },
+          "c4": {
+            "key": "1|v11-cpu-color|4|color-single-v3-4-19|45|c4",
+            "dueAt": 127131,
+            "nonce": "cpu-v1-4-12s2jp6"
+          },
+          "c5": {
+            "key": "1|v11-cpu-color|4|color-single-v3-4-19|45|c5",
+            "dueAt": 135181,
+            "nonce": "cpu-v1-4-zy4tqp"
+          }
+        },
+        "settledHash": "3b71d0b37de2b4b972d68f9d925e2f9d21c9eefeeada44af8eaf93d01b470275"
+      },
+      {
+        "beforeHash": "2519a75f7be0e9971282b682a743cd72e778bc085cf9a0fbd7287ea5cee5a67a",
+        "answers": {
+          "a": [
+            30,
+            84,
+            167
+          ],
+          "b": [
+            30,
+            84,
+            167
+          ],
+          "c0": [
+            43,
+            79,
+            134
+          ],
+          "c1": [
+            91,
+            72,
+            220
+          ],
+          "c2": [
+            37,
+            66,
+            154
+          ],
+          "c3": [
+            63,
+            79,
+            161
+          ],
+          "c4": [
+            119,
+            43,
+            156
+          ],
+          "c5": [
+            112,
+            35,
+            209
+          ]
+        },
+        "plans": {
+          "c0": {
+            "key": "1|v11-cpu-color|5|color-single-v3-5-1a|46|c0",
+            "dueAt": 168976,
+            "nonce": "cpu-v1-5-l6u2ow"
+          },
+          "c1": {
+            "key": "1|v11-cpu-color|5|color-single-v3-5-1a|46|c1",
+            "dueAt": 171146,
+            "nonce": "cpu-v1-5-gsyih1"
+          },
+          "c2": {
+            "key": "1|v11-cpu-color|5|color-single-v3-5-1a|46|c2",
+            "dueAt": 170061,
+            "nonce": "cpu-v1-5-1sw0jjw"
+          },
+          "c3": {
+            "key": "1|v11-cpu-color|5|color-single-v3-5-1a|46|c3",
+            "dueAt": 171813,
+            "nonce": "cpu-v1-5-1e3vqbi"
+          },
+          "c4": {
+            "key": "1|v11-cpu-color|5|color-single-v3-5-1a|46|c4",
+            "dueAt": 171481,
+            "nonce": "cpu-v1-5-xd8gu3"
+          },
+          "c5": {
+            "key": "1|v11-cpu-color|5|color-single-v3-5-1a|46|c5",
+            "dueAt": 164177,
+            "nonce": "cpu-v1-5-72bz5q"
+          }
+        },
+        "settledHash": "0c5ad4d68464deba5749de591bac4bd6822970741076960c110cffbbc766a775"
+      },
+      {
+        "beforeHash": "581067230810a5b3836b327dda5f6a0109afd1cae21b1b5ea989f4d76e073ae5",
+        "answers": {
+          "a": [
+            177,
+            11,
+            56
+          ],
+          "b": [
+            247,
+            11,
+            56
+          ],
+          "c0": [
+            145,
+            101,
+            33
+          ],
+          "c1": [
+            115,
+            38,
+            157
+          ],
+          "c2": [
+            140,
+            11,
+            55
+          ],
+          "c3": [
+            128,
+            53,
+            52
+          ],
+          "c4": [
+            167,
+            121,
+            45
+          ],
+          "c5": [
+            162,
+            14,
+            74
+          ]
+        },
+        "plans": {
+          "c0": {
+            "key": "1|v11-cpu-color|6|color-single-v3-6-1b|47|c0",
+            "dueAt": 205140,
+            "nonce": "cpu-v1-6-aq6vbi"
+          },
+          "c1": {
+            "key": "1|v11-cpu-color|6|color-single-v3-6-1b|47|c1",
+            "dueAt": 204084,
+            "nonce": "cpu-v1-6-5i771o"
+          },
+          "c2": {
+            "key": "1|v11-cpu-color|6|color-single-v3-6-1b|47|c2",
+            "dueAt": 204887,
+            "nonce": "cpu-v1-6-szm3vp"
+          },
+          "c3": {
+            "key": "1|v11-cpu-color|6|color-single-v3-6-1b|47|c3",
+            "dueAt": 207486,
+            "nonce": "cpu-v1-6-9p9vr6"
+          },
+          "c4": {
+            "key": "1|v11-cpu-color|6|color-single-v3-6-1b|47|c4",
+            "dueAt": 206215,
+            "nonce": "cpu-v1-6-be01at"
+          },
+          "c5": {
+            "key": "1|v11-cpu-color|6|color-single-v3-6-1b|47|c5",
+            "dueAt": 207720,
+            "nonce": "cpu-v1-6-i6snhw"
+          }
+        },
+        "settledHash": "22f2d63f2a2424dfc0be8e554769fa5fd0079c1e7697037e44852c0c216cd1b5"
+      },
+      {
+        "beforeHash": "2870a98e6f9b3f1fecbc536c4f0c6b6b1afbf0696b405475dc61381e5141767d",
+        "answers": {
+          "a": [
+            136,
+            61,
+            109
+          ],
+          "b": [
+            136,
+            61,
+            109
+          ],
+          "c0": [
+            51,
+            56,
+            128
+          ],
+          "c1": [
+            74,
+            36,
+            72
+          ],
+          "c2": [
+            117,
+            76,
+            126
+          ],
+          "c3": [
+            129,
+            38,
+            103
+          ],
+          "c4": [
+            132,
+            106,
+            106
+          ],
+          "c5": [
+            143,
+            50,
+            86
+          ]
+        },
+        "plans": {
+          "c0": {
+            "key": "1|v11-cpu-color|7|color-single-v3-7-1c|48|c0",
+            "dueAt": 242387,
+            "nonce": "cpu-v1-7-zrqz9x"
+          },
+          "c1": {
+            "key": "1|v11-cpu-color|7|color-single-v3-7-1c|48|c1",
+            "dueAt": 238413,
+            "nonce": "cpu-v1-7-1kv0nzm"
+          },
+          "c2": {
+            "key": "1|v11-cpu-color|7|color-single-v3-7-1c|48|c2",
+            "dueAt": 244359,
+            "nonce": "cpu-v1-7-dze920"
+          },
+          "c3": {
+            "key": "1|v11-cpu-color|7|color-single-v3-7-1c|48|c3",
+            "dueAt": 243470,
+            "nonce": "cpu-v1-7-1mozkzp"
+          },
+          "c4": {
+            "key": "1|v11-cpu-color|7|color-single-v3-7-1c|48|c4",
+            "dueAt": 241027,
+            "nonce": "cpu-v1-7-14pc7oj"
+          },
+          "c5": {
+            "key": "1|v11-cpu-color|7|color-single-v3-7-1c|48|c5",
+            "dueAt": 243099,
+            "nonce": "cpu-v1-7-zt69xw"
+          }
+        },
+        "settledHash": "0aef92f7d5714950363fea3672b5332ac82b230ff71d3d876ea4e4cd96ee8604"
+      },
+      {
+        "beforeHash": "ccd09c4c2e0076addb38a18cfb9427414d53e9251942059af3eafa14e74573f5",
+        "answers": {
+          "a": [
+            200,
+            227,
+            120
+          ],
+          "b": [
+            14,
+            227,
+            120
+          ],
+          "c0": [
+            74,
+            236,
+            134
+          ],
+          "c1": [
+            158,
+            240,
+            188
+          ],
+          "c2": [
+            199,
+            237,
+            135
+          ],
+          "c3": [
+            206,
+            212,
+            44
+          ],
+          "c4": [
+            162,
+            153,
+            150
+          ],
+          "c5": [
+            191,
+            215,
+            151
+          ]
+        },
+        "plans": {
+          "c0": {
+            "key": "1|v11-cpu-color|8|color-single-v3-8-1d|49|c0",
+            "dueAt": 281892,
+            "nonce": "cpu-v1-8-1ho8kko"
+          },
+          "c1": {
+            "key": "1|v11-cpu-color|8|color-single-v3-8-1d|49|c1",
+            "dueAt": 284359,
+            "nonce": "cpu-v1-8-jpw1ro"
+          },
+          "c2": {
+            "key": "1|v11-cpu-color|8|color-single-v3-8-1d|49|c2",
+            "dueAt": 286563,
+            "nonce": "cpu-v1-8-1i5y2y4"
+          },
+          "c3": {
+            "key": "1|v11-cpu-color|8|color-single-v3-8-1d|49|c3",
+            "dueAt": 279628,
+            "nonce": "cpu-v1-8-tf3bnj"
+          },
+          "c4": {
+            "key": "1|v11-cpu-color|8|color-single-v3-8-1d|49|c4",
+            "dueAt": 281737,
+            "nonce": "cpu-v1-8-kdt734"
+          },
+          "c5": {
+            "key": "1|v11-cpu-color|8|color-single-v3-8-1d|49|c5",
+            "dueAt": 277829,
+            "nonce": "cpu-v1-8-1spg4m1"
+          }
+        },
+        "settledHash": "351ad7c4b04321858023116000b083292b1d18029b762c8824a2c49f93fd0df6"
+      },
+      {
+        "beforeHash": "7a56703c775ec91df26516e2e08efdb7bcef6c869aa4ae57e72d81af7ddcc315",
+        "answers": {
+          "a": [
+            65,
+            49,
+            238
+          ],
+          "b": [
+            65,
+            49,
+            238
+          ],
+          "c0": [
+            46,
+            109,
+            209
+          ],
+          "c1": [
+            95,
+            60,
+            222
+          ],
+          "c2": [
+            44,
+            74,
+            219
+          ],
+          "c3": [
+            45,
+            52,
+            216
+          ],
+          "c4": [
+            128,
+            80,
+            235
+          ],
+          "c5": [
+            34,
+            56,
+            239
+          ]
+        },
+        "plans": {
+          "c0": {
+            "key": "1|v11-cpu-color|9|color-single-v3-9-1e|50|c0",
+            "dueAt": 318918,
+            "nonce": "cpu-v1-9-1und0kb"
+          },
+          "c1": {
+            "key": "1|v11-cpu-color|9|color-single-v3-9-1e|50|c1",
+            "dueAt": 317192,
+            "nonce": "cpu-v1-9-dmkrj"
+          },
+          "c2": {
+            "key": "1|v11-cpu-color|9|color-single-v3-9-1e|50|c2",
+            "dueAt": 320002,
+            "nonce": "cpu-v1-9-1thb3y4"
+          },
+          "c3": {
+            "key": "1|v11-cpu-color|9|color-single-v3-9-1e|50|c3",
+            "dueAt": 319930,
+            "nonce": "cpu-v1-9-1yu05vr"
+          },
+          "c4": {
+            "key": "1|v11-cpu-color|9|color-single-v3-9-1e|50|c4",
+            "dueAt": 321547,
+            "nonce": "cpu-v1-9-k8tohd"
+          },
+          "c5": {
+            "key": "1|v11-cpu-color|9|color-single-v3-9-1e|50|c5",
+            "dueAt": 321678,
+            "nonce": "cpu-v1-9-697bst"
+          }
+        },
+        "settledHash": "309e4f1c391353a67cfa46c222c654aa71ce47423e9bcea83af89b1be535d03b"
+      },
+      {
+        "beforeHash": "0626e2f89680ebbb4a73fa02acf587a1c08b9f227b7df1a4229fee31adfa35a8",
+        "answers": {
+          "a": [
+            36,
+            230,
+            19
+          ],
+          "b": [
+            106,
+            230,
+            19
+          ],
+          "c0": [
+            238,
+            77,
+            117
+          ],
+          "c1": [
+            190,
+            216,
+            48
+          ],
+          "c2": [
+            65,
+            253,
+            84
+          ],
+          "c3": [
+            22,
+            231,
+            46
+          ],
+          "c4": [
+            145,
+            108,
+            106
+          ],
+          "c5": [
+            122,
+            227,
+            63
+          ]
+        },
+        "plans": {
+          "c0": {
+            "key": "1|v11-cpu-color|10|color-single-v3-10-1f|51|c0",
+            "dueAt": 355759,
+            "nonce": "cpu-v1-10-nycler"
+          },
+          "c1": {
+            "key": "1|v11-cpu-color|10|color-single-v3-10-1f|51|c1",
+            "dueAt": 360346,
+            "nonce": "cpu-v1-10-1n3vxu1"
+          },
+          "c2": {
+            "key": "1|v11-cpu-color|10|color-single-v3-10-1f|51|c2",
+            "dueAt": 356326,
+            "nonce": "cpu-v1-10-1sfh8eg"
+          },
+          "c3": {
+            "key": "1|v11-cpu-color|10|color-single-v3-10-1f|51|c3",
+            "dueAt": 359659,
+            "nonce": "cpu-v1-10-1aupk1r"
+          },
+          "c4": {
+            "key": "1|v11-cpu-color|10|color-single-v3-10-1f|51|c4",
+            "dueAt": 354752,
+            "nonce": "cpu-v1-10-1mc2mrl"
+          },
+          "c5": {
+            "key": "1|v11-cpu-color|10|color-single-v3-10-1f|51|c5",
+            "dueAt": 361083,
+            "nonce": "cpu-v1-10-6zk899"
+          }
+        },
+        "settledHash": "b1f827f2dca573054bb77cc335a6f3a052355cd1f8bb7f4a57366d0569aac40e"
+      },
+      {
+        "beforeHash": "5b685e713cf0d535ee82e9be4d2aad47ef99d718e06f4861d545a83f29802300",
+        "answers": {
+          "a": [
+            106,
+            191,
+            149
+          ],
+          "b": [
+            106,
+            191,
+            149
+          ],
+          "c0": [
+            105,
+            145,
+            127
+          ],
+          "c1": [
+            132,
+            189,
+            171
+          ],
+          "c2": [
+            79,
+            204,
+            183
+          ],
+          "c3": [
+            46,
+            198,
+            157
+          ],
+          "c4": [
+            145,
+            162,
+            182
+          ],
+          "c5": [
+            164,
+            154,
+            178
+          ]
+        },
+        "plans": {
+          "c0": {
+            "key": "1|v11-cpu-color|11|color-single-v3-11-1g|52|c0",
+            "dueAt": 398181,
+            "nonce": "cpu-v1-11-4c7hhn"
+          },
+          "c1": {
+            "key": "1|v11-cpu-color|11|color-single-v3-11-1g|52|c1",
+            "dueAt": 392332,
+            "nonce": "cpu-v1-11-11tfll9"
+          },
+          "c2": {
+            "key": "1|v11-cpu-color|11|color-single-v3-11-1g|52|c2",
+            "dueAt": 399997,
+            "nonce": "cpu-v1-11-1rbe5fo"
+          },
+          "c3": {
+            "key": "1|v11-cpu-color|11|color-single-v3-11-1g|52|c3",
+            "dueAt": 399858,
+            "nonce": "cpu-v1-11-f5qm3m"
+          },
+          "c4": {
+            "key": "1|v11-cpu-color|11|color-single-v3-11-1g|52|c4",
+            "dueAt": 390459,
+            "nonce": "cpu-v1-11-28a7u5"
+          },
+          "c5": {
+            "key": "1|v11-cpu-color|11|color-single-v3-11-1g|52|c5",
+            "dueAt": 391117,
+            "nonce": "cpu-v1-11-1sg4lfv"
+          }
+        },
+        "settledHash": "6b3d07272fecf0b3110bdc9b0a7eb0133ed429dfba5146fd95bf3bd29f5985d8"
+      },
+      {
+        "beforeHash": "9449a2acb63ec7300e3a8311510de62bde6ab7de68bb7afcabe6942b61d8baa5",
+        "answers": {
+          "a": [
+            203,
+            180,
+            92
+          ],
+          "b": [
+            17,
+            180,
+            92
+          ],
+          "c0": [
+            101,
+            182,
+            231
+          ],
+          "c1": [
+            198,
+            185,
+            112
+          ],
+          "c2": [
+            169,
+            204,
+            98
+          ],
+          "c3": [
+            209,
+            187,
+            84
+          ],
+          "c4": [
+            214,
+            48,
+            71
+          ],
+          "c5": [
+            115,
+            98,
+            112
+          ]
+        },
+        "plans": {
+          "c0": {
+            "key": "1|v11-cpu-color|12|color-single-v3-12-1h|53|c0",
+            "dueAt": 433415,
+            "nonce": "cpu-v1-12-1opry0q"
+          },
+          "c1": {
+            "key": "1|v11-cpu-color|12|color-single-v3-12-1h|53|c1",
+            "dueAt": 440157,
+            "nonce": "cpu-v1-12-s5ls6s"
+          },
+          "c2": {
+            "key": "1|v11-cpu-color|12|color-single-v3-12-1h|53|c2",
+            "dueAt": 437280,
+            "nonce": "cpu-v1-12-cytexr"
+          },
+          "c3": {
+            "key": "1|v11-cpu-color|12|color-single-v3-12-1h|53|c3",
+            "dueAt": 435097,
+            "nonce": "cpu-v1-12-oyd6s0"
+          },
+          "c4": {
+            "key": "1|v11-cpu-color|12|color-single-v3-12-1h|53|c4",
+            "dueAt": 434102,
+            "nonce": "cpu-v1-12-kbvy6u"
+          },
+          "c5": {
+            "key": "1|v11-cpu-color|12|color-single-v3-12-1h|53|c5",
+            "dueAt": 435250,
+            "nonce": "cpu-v1-12-15ad2cn"
+          }
+        },
+        "settledHash": "b9896d90bc6974d79a2d72c2980e88371a4c9be1a7b5c26f493b2eeb9dc743ec"
+      }
+    ]
+  },
+  {
+    "initial": {
+      "version": 1,
+      "status": "playing",
+      "participants": [
+        "a",
+        "b",
+        "c0",
+        "c1",
+        "c2",
+        "c3",
+        "c4",
+        "c5"
+      ],
+      "round": 1,
+      "settledRound": 0,
+      "hpUnits": {
+        "a": 50000000,
+        "b": 50000000,
+        "c0": 50000000,
+        "c1": 50000000,
+        "c2": 50000000,
+        "c3": 50000000,
+        "c4": 50000000,
+        "c5": 50000000
+      },
+      "multiplierSchedule": {
+        "steps": [
+          1,
+          1,
+          1.3,
+          1.3,
+          1.7,
+          1.7,
+          2.2,
+          2.2,
+          3,
+          3,
+          3,
+          3
+        ]
+      },
+      "lastResult": null,
+      "winners": [],
+      "protocolVersion": 11,
+      "scoringVersion": 4,
+      "matchId": "v11-cpu-quantity",
+      "config": {
+        "capacity": 8,
+        "maxRounds": 12,
+        "startingHp": 50000,
+        "timing": {
+          "prepareMs": 3000,
+          "memorizeMs": 4000,
+          "answerMs": 25000,
+          "resultsMs": 6000
+        },
+        "initialAnswer": [
+          128,
+          128,
+          128
+        ],
+        "generation": {
+          "channelMin": 24,
+          "channelMax": 240,
+          "minLightness": 0.4,
+          "maxLightness": 0.85,
+          "minChroma": 0.06,
+          "maxChroma": 0.28,
+          "maxAttempts": 256
+        },
+        "scoring": {
+          "version": 4,
+          "tolerance": 0.2,
+          "exponent": 1.4,
+          "knee": 0.08,
+          "width": 0.1,
+          "strength": 0.35,
+          "penaltyExponent": 1.5
+        },
+        "multiplierSchedule": {
+          "steps": [
+            1,
+            1,
+            1.3,
+            1.3,
+            1.7,
+            1.7,
+            2.2,
+            2.2,
+            3,
+            3,
+            3,
+            3
+          ]
+        },
+        "autoSubmitLeadMs": 350,
+        "categoryMode": "quantity",
+        "selectionVersion": 3,
+        "categoryWeights": {
+          "color": 0,
+          "quantity": 2,
+          "pitch": 0
+        },
+        "adaptive": {
+          "version": 1,
+          "enabled": false,
+          "min": 1,
+          "max": 10,
+          "initial": 5,
+          "mappingCenter": 5,
+          "step": 0.5,
+          "low": 55,
+          "high": 85,
+          "window": 4,
+          "minRounds": 3,
+          "minObservations": 3,
+          "jitter": 0.25,
+          "initialByType": {
+            "color": 5,
+            "quantity": 5,
+            "pitch": 5
+          },
+          "mappings": {
+            "color": {
+              "easyMemorizeScale": 1.35,
+              "hardMemorizeScale": 0.7,
+              "minMemorizeMs": 1500
+            },
+            "quantity": {
+              "easyMinFraction": 0,
+              "easyMaxFraction": 0.3,
+              "hardMinFraction": 0.55,
+              "hardMaxFraction": 1,
+              "easyMemorizeScale": 1.15,
+              "hardMemorizeScale": 0.85,
+              "minMemorizeMs": 1500
+            },
+            "pitch": {
+              "threeToneThrough": 4,
+              "easyMaxInterval": 500,
+              "hardMaxInterval": 720
+            }
+          }
+        },
+        "challengeVersion": 1,
+        "challenge": {
+          "version": 1,
+          "weights": {
+            "easy": 20,
+            "normal": 60,
+            "hard": 20
+          },
+          "levels": {
+            "easy": {
+              "min": 2,
+              "max": 4
+            },
+            "normal": {
+              "min": 4,
+              "max": 7
+            },
+            "hard": {
+              "min": 7,
+              "max": 9
+            }
+          }
+        },
+        "quantity": {
+          "generation": {
+            "minCount": 30,
+            "maxCount": 150,
+            "poolSize": 220,
+            "jitter": 0.22,
+            "dotRadius": 0.009
+          },
+          "scoring": {
+            "version": 1,
+            "tolerance": 0.3,
+            "exponent": 1.5
+          },
+          "initialAnswer": 15,
+          "variantSelectionVersion": 1,
+          "multi": {
+            "version": 1,
+            "scoring": {
+              "version": 2,
+              "tolerance": 0.3,
+              "exponent": 1.5
+            },
+            "weights": {
+              "easy": {
+                "single": 4,
+                "multi2": 2,
+                "multi3": 1
+              },
+              "hard": {
+                "single": 2,
+                "multi2": 3,
+                "multi3": 3
+              }
+            },
+            "multi2": {
+              "minCount": 15,
+              "maxCount": 65,
+              "answerMax": 90,
+              "initialAnswer": 8,
+              "memorizeScale": 1.25
+            },
+            "multi3": {
+              "minCount": 10,
+              "maxCount": 45,
+              "answerMax": 60,
+              "initialAnswer": 6,
+              "memorizeScale": 1.5
+            },
+            "jitter": 0.22,
+            "dotRadius": 0.0105
+          },
+          "renderingVersion": 3,
+          "progression": {
+            "version": 1,
+            "maxStage": 3,
+            "variantWeights": {
+              "single": 3,
+              "multi2": 2,
+              "multi3": 2
+            },
+            "ranges": {
+              "single": [
+                {
+                  "minCount": 20,
+                  "maxCount": 80,
+                  "answerMax": 100
+                },
+                {
+                  "minCount": 30,
+                  "maxCount": 110,
+                  "answerMax": 140
+                },
+                {
+                  "minCount": 40,
+                  "maxCount": 150,
+                  "answerMax": 190
+                },
+                {
+                  "minCount": 50,
+                  "maxCount": 190,
+                  "answerMax": 230
+                }
+              ],
+              "multi2": [
+                {
+                  "minCount": 10,
+                  "maxCount": 35,
+                  "answerMax": 45
+                },
+                {
+                  "minCount": 15,
+                  "maxCount": 45,
+                  "answerMax": 60
+                },
+                {
+                  "minCount": 20,
+                  "maxCount": 60,
+                  "answerMax": 80
+                },
+                {
+                  "minCount": 25,
+                  "maxCount": 75,
+                  "answerMax": 100
+                }
+              ],
+              "multi3": [
+                {
+                  "minCount": 10,
+                  "maxCount": 25,
+                  "answerMax": 35
+                },
+                {
+                  "minCount": 12,
+                  "maxCount": 35,
+                  "answerMax": 45
+                },
+                {
+                  "minCount": 15,
+                  "maxCount": 45,
+                  "answerMax": 60
+                },
+                {
+                  "minCount": 18,
+                  "maxCount": 55,
+                  "answerMax": 70
+                }
+              ]
+            }
+          }
+        },
+        "pitch": {
+          "generation": {
+            "toneCount": 4,
+            "minHz": 220,
+            "maxHz": 880,
+            "minInterval": 150,
+            "maxInterval": 720
+          },
+          "scoring": {
+            "version": 1,
+            "tolerance": 180,
+            "exponent": 1.3
+          },
+          "audio": {
+            "toneMs": 550,
+            "gapMs": 160,
+            "repeatGapMs": 450,
+            "repeats": 2,
+            "leadMs": 250,
+            "volume": 0.1,
+            "attackMs": 15,
+            "releaseMs": 45
+          },
+          "timing": {
+            "memorizeMs": 8000,
+            "answerMs": 35000
+          },
+          "initialHz": 440,
+          "variantSelectionVersion": 2,
+          "variations": {
+            "version": 1,
+            "lengths": {
+              "easy": {
+                "n3": 3,
+                "n4": 4,
+                "n5": 0
+              },
+              "hard": {
+                "n3": 2,
+                "n4": 3,
+                "n5": 0
+              }
+            },
+            "references": {
+              "easy": {
+                "one": 1,
+                "two": 0
+              },
+              "hard": {
+                "one": 1,
+                "two": 0
+              }
+            },
+            "positions": {
+              "first": 1,
+              "middle": 1,
+              "last": 1,
+              "interior": 1
+            },
+            "contours": {
+              "ascending": 2,
+              "descending": 2,
+              "arch": 2,
+              "valley": 2,
+              "mixed": 4,
+              "echo": 1
+            },
+            "timing": {
+              "memoryScales": {
+                "n3": 0.9,
+                "n4": 1,
+                "n5": 1.2
+              },
+              "answerScales": {
+                "n3": 1,
+                "n4": 1,
+                "n5": 1.15
+              },
+              "easyScale": 1.15,
+              "hardScale": 0.9,
+              "safetyMs": 300
+            }
+          }
+        },
+        "color": {
+          "version": 2,
+          "variantSelectionVersion": 2,
+          "initialHsl": {
+            "h": 180,
+            "s": 50,
+            "l": 50
+          },
+          "initialHue": 180,
+          "single": {
+            "minS": 35,
+            "maxS": 90,
+            "minL": 30,
+            "maxL": 70
+          },
+          "fixed": {
+            "s": 65,
+            "l": 55
+          },
+          "weights": {
+            "easy": {
+              "single": 1,
+              "hue2": 0,
+              "hue3": 0,
+              "hue4": 0
+            },
+            "hard": {
+              "single": 1,
+              "hue2": 0,
+              "hue3": 0,
+              "hue4": 0
+            }
+          },
+          "separation": {
+            "easy": 50,
+            "hard": 18
+          },
+          "multiScoring": {
+            "version": 1,
+            "curve": {
+              "version": 3,
+              "tolerance": 0.2,
+              "exponent": 1.4,
+              "knee": 0.06,
+              "width": 0.08,
+              "strength": 0.5,
+              "penaltyExponent": 1.5
+            }
+          },
+          "hue2": {
+            "memorizeMs": 5000,
+            "answerMs": 28000
+          },
+          "hue3": {
+            "memorizeMs": 6000,
+            "answerMs": 33000
+          },
+          "hue4": {
+            "memorizeMs": 7000,
+            "answerMs": 38000
+          }
+        },
+        "cpu": {
+          "version": 1,
+          "color": {
+            "sigmaLab": [
+              0.105,
+              0.065,
+              0.038,
+              0.02
+            ],
+            "maxError": 0.5,
+            "attempts": 48,
+            "lapseRate": 0.12,
+            "lapseScale": 2.5,
+            "luckyRate": 0.06,
+            "luckyScale": 0.25
+          },
+          "quantity": {
+            "sigmaRelative": [
+              0.34,
+              0.22,
+              0.13,
+              0.065
+            ],
+            "exactRate": [
+              0.02,
+              0.03,
+              0.04,
+              0.05
+            ],
+            "lapseRate": 0.12,
+            "lapseScale": 2.5,
+            "luckyRate": 0.06,
+            "luckyScale": 0.25
+          },
+          "pitch": {
+            "sigmaCents": [
+              260,
+              160,
+              90,
+              45
+            ],
+            "commonFraction": 0.35,
+            "lapseRate": 0.12,
+            "lapseScale": 2.5,
+            "luckyRate": 0.06,
+            "luckyScale": 0.25
+          },
+          "timing": {
+            "color": {
+              "minFraction": 0.12,
+              "maxFraction": 0.68,
+              "complexityFraction": 0.015
+            },
+            "quantity": {
+              "minFraction": 0.14,
+              "maxFraction": 0.78,
+              "complexityFraction": 0.015
+            },
+            "pitch": {
+              "minFraction": 0.18,
+              "maxFraction": 0.84,
+              "complexityFraction": 0.015
+            }
+          }
+        }
+      },
+      "roster": {
+        "a": {
+          "id": "a",
+          "type": "human",
+          "controllerId": "a"
+        },
+        "b": {
+          "id": "b",
+          "type": "human",
+          "controllerId": "b"
+        },
+        "c0": {
+          "id": "c0",
+          "type": "cpu",
+          "controllerId": "a",
+          "difficulty": 1,
+          "cpuVersion": 1
+        },
+        "c1": {
+          "id": "c1",
+          "type": "cpu",
+          "controllerId": "a",
+          "difficulty": 2,
+          "cpuVersion": 1
+        },
+        "c2": {
+          "id": "c2",
+          "type": "cpu",
+          "controllerId": "a",
+          "difficulty": 3,
+          "cpuVersion": 1
+        },
+        "c3": {
+          "id": "c3",
+          "type": "cpu",
+          "controllerId": "b",
+          "difficulty": 4,
+          "cpuVersion": 1
+        },
+        "c4": {
+          "id": "c4",
+          "type": "cpu",
+          "controllerId": "b",
+          "difficulty": 1,
+          "cpuVersion": 1
+        },
+        "c5": {
+          "id": "c5",
+          "type": "cpu",
+          "controllerId": "b",
+          "difficulty": 2,
+          "cpuVersion": 1
+        }
+      },
+      "seatOrder": [
+        "a",
+        "b",
+        "c0",
+        "c1",
+        "c2",
+        "c3",
+        "c4",
+        "c5"
+      ],
+      "owners": {
+        "a": "a",
+        "b": "b",
+        "c0": "a",
+        "c1": "a",
+        "c2": "a",
+        "c3": "b",
+        "c4": "b",
+        "c5": "b"
+      },
+      "withdrawn": [],
+      "endReason": null,
+      "categoryId": "quantity",
+      "questionId": "quantity-single-v1-1-16",
+      "question": {
+        "type": "quantity",
+        "version": 1,
+        "seed": 42,
+        "target": 54,
+        "scoringVersion": 1,
+        "variant": "single",
+        "variantVersion": 1,
+        "parameters": {
+          "version": 1,
+          "generation": {
+            "minCount": 29,
+            "maxCount": 71,
+            "poolSize": 100,
+            "jitter": 0.22,
+            "dotRadius": 0.009
+          },
+          "timing": {
+            "prepareMs": 3000,
+            "memorizeMs": 4000,
+            "answerMs": 25000,
+            "resultsMs": 6000
+          },
+          "quantityProgression": {
+            "version": 1,
+            "stage": 0,
+            "stageMin": 20,
+            "stageMax": 80,
+            "answerMax": 100
+          },
+          "challenge": {
+            "version": 1,
+            "band": "normal",
+            "level": 5.0059,
+            "quantityStage": 0
+          }
+        },
+        "challenge": {
+          "version": 1,
+          "band": "normal",
+          "level": 5.0059,
+          "quantityStage": 0
+        }
+      },
+      "roundTiming": {
+        "prepareMs": 3000,
+        "memorizeMs": 4000,
+        "answerMs": 25000,
+        "resultsMs": 6000
+      },
+      "timeline": {
+        "startAt": 1000,
+        "memorizeAt": 4000,
+        "answerAt": 8000,
+        "deadline": 33000
+      },
+      "phase": "active",
+      "submissions": {},
+      "resultsAt": null,
+      "resultsUntil": null,
+      "selectionState": {
+        "version": 1,
+        "seed": 42,
+        "draw": 1,
+        "cycle": 1,
+        "remaining": {
+          "color": 0,
+          "quantity": 1,
+          "pitch": 0
+        },
+        "last": "quantity",
+        "streak": 1
+      },
+      "variantState": {
+        "quantity": {
+          "version": 1,
+          "draw": 1,
+          "last": "single",
+          "streak": 1
+        },
+        "color": {
+          "version": 1,
+          "draw": 0,
+          "last": null,
+          "streak": 0
+        },
+        "pitch": {
+          "version": 1,
+          "draw": 0,
+          "lastStructure": null,
+          "streak": 0,
+          "lastContour": null,
+          "contourStreak": 0
+        }
+      },
+      "challengeState": {
+        "version": 1,
+        "last": {
+          "version": 1,
+          "band": "normal",
+          "level": 5.0059,
+          "quantityStage": 0
+        }
+      },
+      "quantityProgress": {
+        "version": 1,
+        "stage": 0,
+        "lastRound": 0,
+        "advanced": false
+      },
+      "roundHumans": [
+        "a",
+        "b"
+      ]
+    },
+    "frames": [
+      {
+        "beforeHash": "fe1e5e0e89696cac610466a77d13d506a4f5c603da08cd2aa6956bb70d18705f",
+        "answers": {
+          "a": 54,
+          "b": 54,
+          "c0": 72,
+          "c1": 54,
+          "c2": 59,
+          "c3": 57,
+          "c4": 48,
+          "c5": 49
+        },
+        "plans": {
+          "c0": {
+            "key": "1|v11-cpu-quantity|1|quantity-single-v1-1-16|42|c0",
+            "dueAt": 16810,
+            "nonce": "cpu-v1-1-281uwr"
+          },
+          "c1": {
+            "key": "1|v11-cpu-quantity|1|quantity-single-v1-1-16|42|c1",
+            "dueAt": 13063,
+            "nonce": "cpu-v1-1-i1lyh9"
+          },
+          "c2": {
+            "key": "1|v11-cpu-quantity|1|quantity-single-v1-1-16|42|c2",
+            "dueAt": 24505,
+            "nonce": "cpu-v1-1-cy05hr"
+          },
+          "c3": {
+            "key": "1|v11-cpu-quantity|1|quantity-single-v1-1-16|42|c3",
+            "dueAt": 19554,
+            "nonce": "cpu-v1-1-2362nt"
+          },
+          "c4": {
+            "key": "1|v11-cpu-quantity|1|quantity-single-v1-1-16|42|c4",
+            "dueAt": 13931,
+            "nonce": "cpu-v1-1-ysqga2"
+          },
+          "c5": {
+            "key": "1|v11-cpu-quantity|1|quantity-single-v1-1-16|42|c5",
+            "dueAt": 18050,
+            "nonce": "cpu-v1-1-2hyd8e"
+          }
+        },
+        "settledHash": "4771d4c137af5877045a1d4f430147ca25b588ede0e19954b3a2f2192fef112c"
+      },
+      {
+        "beforeHash": "109f150499c180369a12d8ee138809d61619137254d0f4a0d96604576138b556",
+        "answers": {
+          "a": {
+            "circle": 17,
+            "square": 18,
+            "triangle": 27
+          },
+          "b": {
+            "circle": 16,
+            "square": 18,
+            "triangle": 27
+          },
+          "c0": {
+            "circle": 21,
+            "square": 19,
+            "triangle": 23
+          },
+          "c1": {
+            "circle": 25,
+            "square": 18,
+            "triangle": 34
+          },
+          "c2": {
+            "circle": 18,
+            "square": 17,
+            "triangle": 27
+          },
+          "c3": {
+            "circle": 15,
+            "square": 17,
+            "triangle": 27
+          },
+          "c4": {
+            "circle": 14,
+            "square": 19,
+            "triangle": 20
+          },
+          "c5": {
+            "circle": 13,
+            "square": 16,
+            "triangle": 19
+          }
+        },
+        "plans": {
+          "c0": {
+            "key": "1|v11-cpu-quantity|2|quantity-multi3-v2-2-17|43|c0",
+            "dueAt": 58378,
+            "nonce": "cpu-v1-2-ud8pnm"
+          },
+          "c1": {
+            "key": "1|v11-cpu-quantity|2|quantity-multi3-v2-2-17|43|c1",
+            "dueAt": 58313,
+            "nonce": "cpu-v1-2-1yj3obh"
+          },
+          "c2": {
+            "key": "1|v11-cpu-quantity|2|quantity-multi3-v2-2-17|43|c2",
+            "dueAt": 56857,
+            "nonce": "cpu-v1-2-2aqnz6"
+          },
+          "c3": {
+            "key": "1|v11-cpu-quantity|2|quantity-multi3-v2-2-17|43|c3",
+            "dueAt": 64015,
+            "nonce": "cpu-v1-2-1r13e59"
+          },
+          "c4": {
+            "key": "1|v11-cpu-quantity|2|quantity-multi3-v2-2-17|43|c4",
+            "dueAt": 60271,
+            "nonce": "cpu-v1-2-185v43i"
+          },
+          "c5": {
+            "key": "1|v11-cpu-quantity|2|quantity-multi3-v2-2-17|43|c5",
+            "dueAt": 58106,
+            "nonce": "cpu-v1-2-fzu9am"
+          }
+        },
+        "settledHash": "5e8fde4cb0b9182b45c98ef7ae397044e661db360d31da7e43869e73d1c47834"
+      },
+      {
+        "beforeHash": "dd25cf2591891cdc8d98f246538888b99cc628d6989352d6eaca249ff6c2f56c",
+        "answers": {
+          "a": 70,
+          "b": 70,
+          "c0": 61,
+          "c1": 61,
+          "c2": 63,
+          "c3": 67,
+          "c4": 43,
+          "c5": 101
+        },
+        "plans": {
+          "c0": {
+            "key": "1|v11-cpu-quantity|3|quantity-single-v1-3-18|44|c0",
+            "dueAt": 96017,
+            "nonce": "cpu-v1-3-rtgf1c"
+          },
+          "c1": {
+            "key": "1|v11-cpu-quantity|3|quantity-single-v1-3-18|44|c1",
+            "dueAt": 96407,
+            "nonce": "cpu-v1-3-ii3zua"
+          },
+          "c2": {
+            "key": "1|v11-cpu-quantity|3|quantity-single-v1-3-18|44|c2",
+            "dueAt": 102393,
+            "nonce": "cpu-v1-3-132u3zh"
+          },
+          "c3": {
+            "key": "1|v11-cpu-quantity|3|quantity-single-v1-3-18|44|c3",
+            "dueAt": 98788,
+            "nonce": "cpu-v1-3-fv4iq0"
+          },
+          "c4": {
+            "key": "1|v11-cpu-quantity|3|quantity-single-v1-3-18|44|c4",
+            "dueAt": 97876,
+            "nonce": "cpu-v1-3-mdxxcf"
+          },
+          "c5": {
+            "key": "1|v11-cpu-quantity|3|quantity-single-v1-3-18|44|c5",
+            "dueAt": 97836,
+            "nonce": "cpu-v1-3-koojjp"
+          }
+        },
+        "settledHash": "2c16968b070f9563f98cb74a1e4780588f1fd397a263936379bd7b5675ec08dd"
+      },
+      {
+        "beforeHash": "5af5f3661e83aa04c8296b89bc99714b06ea455716cdd00fe747f004aaf3f839",
+        "answers": {
+          "a": 42,
+          "b": 41,
+          "c0": 50,
+          "c1": 45,
+          "c2": 40,
+          "c3": 39,
+          "c4": 41,
+          "c5": 44
+        },
+        "plans": {
+          "c0": {
+            "key": "1|v11-cpu-quantity|4|quantity-single-v1-4-19|45|c0",
+            "dueAt": 137964,
+            "nonce": "cpu-v1-4-stawsy"
+          },
+          "c1": {
+            "key": "1|v11-cpu-quantity|4|quantity-single-v1-4-19|45|c1",
+            "dueAt": 131484,
+            "nonce": "cpu-v1-4-1de84f8"
+          },
+          "c2": {
+            "key": "1|v11-cpu-quantity|4|quantity-single-v1-4-19|45|c2",
+            "dueAt": 136395,
+            "nonce": "cpu-v1-4-1lphzgn"
+          },
+          "c3": {
+            "key": "1|v11-cpu-quantity|4|quantity-single-v1-4-19|45|c3",
+            "dueAt": 135690,
+            "nonce": "cpu-v1-4-t4vg14"
+          },
+          "c4": {
+            "key": "1|v11-cpu-quantity|4|quantity-single-v1-4-19|45|c4",
+            "dueAt": 138690,
+            "nonce": "cpu-v1-4-jz0jep"
+          },
+          "c5": {
+            "key": "1|v11-cpu-quantity|4|quantity-single-v1-4-19|45|c5",
+            "dueAt": 137214,
+            "nonce": "cpu-v1-4-sfdp6x"
+          }
+        },
+        "settledHash": "dba5ffb038ab35338bfee8c5a8d0cb4610f9182007be4f342d96ed373329481e"
+      },
+      {
+        "beforeHash": "87cc0a02707adcf78864395b3e4b04fbf1730f8cc5af8ba162a7d179ec4d965e",
+        "answers": {
+          "a": {
+            "circle": 32,
+            "square": 36
+          },
+          "b": {
+            "circle": 32,
+            "square": 36
+          },
+          "c0": {
+            "circle": 21,
+            "square": 28
+          },
+          "c1": {
+            "circle": 30,
+            "square": 39
+          },
+          "c2": {
+            "circle": 38,
+            "square": 36
+          },
+          "c3": {
+            "circle": 35,
+            "square": 38
+          },
+          "c4": {
+            "circle": 12,
+            "square": 36
+          },
+          "c5": {
+            "circle": 31,
+            "square": 34
+          }
+        },
+        "plans": {
+          "c0": {
+            "key": "1|v11-cpu-quantity|5|quantity-multi2-v2-5-1a|46|c0",
+            "dueAt": 177263,
+            "nonce": "cpu-v1-5-1hogumi"
+          },
+          "c1": {
+            "key": "1|v11-cpu-quantity|5|quantity-multi2-v2-5-1a|46|c1",
+            "dueAt": 170789,
+            "nonce": "cpu-v1-5-1ney5pt"
+          },
+          "c2": {
+            "key": "1|v11-cpu-quantity|5|quantity-multi2-v2-5-1a|46|c2",
+            "dueAt": 178862,
+            "nonce": "cpu-v1-5-199jsw1"
+          },
+          "c3": {
+            "key": "1|v11-cpu-quantity|5|quantity-multi2-v2-5-1a|46|c3",
+            "dueAt": 172466,
+            "nonce": "cpu-v1-5-jzsfh4"
+          },
+          "c4": {
+            "key": "1|v11-cpu-quantity|5|quantity-multi2-v2-5-1a|46|c4",
+            "dueAt": 173570,
+            "nonce": "cpu-v1-5-1v7qc3y"
+          },
+          "c5": {
+            "key": "1|v11-cpu-quantity|5|quantity-multi2-v2-5-1a|46|c5",
+            "dueAt": 172977,
+            "nonce": "cpu-v1-5-1z0vmoo"
+          }
+        },
+        "settledHash": "7136beb2038a9cecb96e754de4355b4bcf6f332b623e7562394ae59430c3099a"
+      },
+      {
+        "beforeHash": "eddd01e47386a8aab0a4b0bfd34573d34de5cff5932a29b83e35c3c721f7fad1",
+        "answers": {
+          "a": {
+            "circle": 33,
+            "square": 41
+          },
+          "b": {
+            "circle": 32,
+            "square": 41
+          },
+          "c0": {
+            "circle": 24,
+            "square": 61
+          },
+          "c1": {
+            "circle": 32,
+            "square": 49
+          },
+          "c2": {
+            "circle": 35,
+            "square": 37
+          },
+          "c3": {
+            "circle": 33,
+            "square": 36
+          },
+          "c4": {
+            "circle": 20,
+            "square": 34
+          },
+          "c5": {
+            "circle": 30,
+            "square": 25
+          }
+        },
+        "plans": {
+          "c0": {
+            "key": "1|v11-cpu-quantity|6|quantity-multi2-v2-6-1b|47|c0",
+            "dueAt": 217661,
+            "nonce": "cpu-v1-6-1r2jesm"
+          },
+          "c1": {
+            "key": "1|v11-cpu-quantity|6|quantity-multi2-v2-6-1b|47|c1",
+            "dueAt": 214178,
+            "nonce": "cpu-v1-6-bi2lea"
+          },
+          "c2": {
+            "key": "1|v11-cpu-quantity|6|quantity-multi2-v2-6-1b|47|c2",
+            "dueAt": 213664,
+            "nonce": "cpu-v1-6-ndcf6p"
+          },
+          "c3": {
+            "key": "1|v11-cpu-quantity|6|quantity-multi2-v2-6-1b|47|c3",
+            "dueAt": 211673,
+            "nonce": "cpu-v1-6-q52hc7"
+          },
+          "c4": {
+            "key": "1|v11-cpu-quantity|6|quantity-multi2-v2-6-1b|47|c4",
+            "dueAt": 208198,
+            "nonce": "cpu-v1-6-ctr11o"
+          },
+          "c5": {
+            "key": "1|v11-cpu-quantity|6|quantity-multi2-v2-6-1b|47|c5",
+            "dueAt": 215441,
+            "nonce": "cpu-v1-6-12wbdmj"
+          }
+        },
+        "settledHash": "9a4032ca81e1d9feec1aec1e502a983675bd7d72d7f20eeea5a351dcf95938e1"
+      },
+      {
+        "beforeHash": "fc919c5e8bb78a3a0d37fdcc1b5d2defc58e58b9888fa2cf5f1c5b3baed3be11",
+        "answers": {
+          "a": {
+            "circle": 33,
+            "square": 38,
+            "triangle": 39
+          },
+          "b": {
+            "circle": 33,
+            "square": 38,
+            "triangle": 39
+          },
+          "c0": {
+            "circle": 67,
+            "square": 32,
+            "triangle": 63
+          },
+          "c1": {
+            "circle": 38,
+            "square": 41,
+            "triangle": 49
+          },
+          "c2": {
+            "circle": 34,
+            "square": 30,
+            "triangle": 35
+          },
+          "c3": {
+            "circle": 31,
+            "square": 37,
+            "triangle": 42
+          },
+          "c4": {
+            "circle": 47,
+            "square": 50,
+            "triangle": 17
+          },
+          "c5": {
+            "circle": 27,
+            "square": 40,
+            "triangle": 33
+          }
+        },
+        "plans": {
+          "c0": {
+            "key": "1|v11-cpu-quantity|7|quantity-multi3-v2-7-1c|48|c0",
+            "dueAt": 250888,
+            "nonce": "cpu-v1-7-ovq4n4"
+          },
+          "c1": {
+            "key": "1|v11-cpu-quantity|7|quantity-multi3-v2-7-1c|48|c1",
+            "dueAt": 257825,
+            "nonce": "cpu-v1-7-16buqzo"
+          },
+          "c2": {
+            "key": "1|v11-cpu-quantity|7|quantity-multi3-v2-7-1c|48|c2",
+            "dueAt": 254821,
+            "nonce": "cpu-v1-7-1yl9hxb"
+          },
+          "c3": {
+            "key": "1|v11-cpu-quantity|7|quantity-multi3-v2-7-1c|48|c3",
+            "dueAt": 255328,
+            "nonce": "cpu-v1-7-11y5hye"
+          },
+          "c4": {
+            "key": "1|v11-cpu-quantity|7|quantity-multi3-v2-7-1c|48|c4",
+            "dueAt": 257797,
+            "nonce": "cpu-v1-7-1wxivif"
+          },
+          "c5": {
+            "key": "1|v11-cpu-quantity|7|quantity-multi3-v2-7-1c|48|c5",
+            "dueAt": 254431,
+            "nonce": "cpu-v1-7-rvkkho"
+          }
+        },
+        "settledHash": "0aabfb1625bb70899ec43d5cd5233e5acfda9ce12917f6130b46a4603f33bf62"
+      },
+      {
+        "beforeHash": "d35f59c3fc79c8cce21ea47eb740c3024f284d7df750ca96ac1ddcc5d844655f",
+        "answers": {
+          "a": 108,
+          "b": 107,
+          "c0": 49,
+          "c1": 140,
+          "c2": 118,
+          "c3": 114,
+          "c4": 106,
+          "c5": 60
+        },
+        "plans": {
+          "c0": {
+            "key": "1|v11-cpu-quantity|8|quantity-single-v1-8-1d|49|c0",
+            "dueAt": 287720,
+            "nonce": "cpu-v1-8-12bcie4"
+          },
+          "c1": {
+            "key": "1|v11-cpu-quantity|8|quantity-single-v1-8-1d|49|c1",
+            "dueAt": 291893,
+            "nonce": "cpu-v1-8-1p733r5"
+          },
+          "c2": {
+            "key": "1|v11-cpu-quantity|8|quantity-single-v1-8-1d|49|c2",
+            "dueAt": 286737,
+            "nonce": "cpu-v1-8-meffcw"
+          },
+          "c3": {
+            "key": "1|v11-cpu-quantity|8|quantity-single-v1-8-1d|49|c3",
+            "dueAt": 286409,
+            "nonce": "cpu-v1-8-1dnq1a5"
+          },
+          "c4": {
+            "key": "1|v11-cpu-quantity|8|quantity-single-v1-8-1d|49|c4",
+            "dueAt": 290966,
+            "nonce": "cpu-v1-8-s23gvn"
+          },
+          "c5": {
+            "key": "1|v11-cpu-quantity|8|quantity-single-v1-8-1d|49|c5",
+            "dueAt": 292433,
+            "nonce": "cpu-v1-8-cvgr53"
+          }
+        },
+        "settledHash": "991e68a7d9a4cb0920d6f199577ac96ef40808e306d47d7799b58493449579f9"
+      },
+      {
+        "beforeHash": "a70985bafd2b95a70ad83de02ed0a5803b4c40aed688407a874bc84c40618172",
+        "answers": {
+          "a": {
+            "circle": 28,
+            "square": 37,
+            "triangle": 45
+          },
+          "b": {
+            "circle": 28,
+            "square": 37,
+            "triangle": 45
+          },
+          "c0": {
+            "circle": 44,
+            "square": 21,
+            "triangle": 40
+          },
+          "c1": {
+            "circle": 24,
+            "square": 40,
+            "triangle": 45
+          },
+          "c2": {
+            "circle": 33,
+            "square": 40,
+            "triangle": 44
+          },
+          "c3": {
+            "circle": 30,
+            "square": 37,
+            "triangle": 45
+          },
+          "c4": {
+            "circle": 0,
+            "square": 0,
+            "triangle": 70
+          },
+          "c5": {
+            "circle": 18,
+            "square": 32,
+            "triangle": 52
+          }
+        },
+        "plans": {
+          "c0": {
+            "key": "1|v11-cpu-quantity|9|quantity-multi3-v2-9-1e|50|c0",
+            "dueAt": 331165,
+            "nonce": "cpu-v1-9-10ifqe"
+          },
+          "c1": {
+            "key": "1|v11-cpu-quantity|9|quantity-multi3-v2-9-1e|50|c1",
+            "dueAt": 329982,
+            "nonce": "cpu-v1-9-gcfa5s"
+          },
+          "c2": {
+            "key": "1|v11-cpu-quantity|9|quantity-multi3-v2-9-1e|50|c2",
+            "dueAt": 336752,
+            "nonce": "cpu-v1-9-19kap4"
+          },
+          "c3": {
+            "key": "1|v11-cpu-quantity|9|quantity-multi3-v2-9-1e|50|c3",
+            "dueAt": 329831,
+            "nonce": "cpu-v1-9-18ttl2u"
+          },
+          "c4": {
+            "key": "1|v11-cpu-quantity|9|quantity-multi3-v2-9-1e|50|c4",
+            "dueAt": 331190,
+            "nonce": "cpu-v1-9-1y6doax"
+          },
+          "c5": {
+            "key": "1|v11-cpu-quantity|9|quantity-multi3-v2-9-1e|50|c5",
+            "dueAt": 331804,
+            "nonce": "cpu-v1-9-1t3keli"
+          }
+        },
+        "settledHash": "e00be96b5c41cd1ce2927a651b97a93dce35b613a2f1953fc9e5a466430cd26e"
+      },
+      {
+        "beforeHash": "0166c9e9ec26ae587d49b3dcccf88fd2940502b8b47943995e10a9bfaf9680eb",
+        "answers": {
+          "a": 62,
+          "b": 61,
+          "c0": 57,
+          "c1": 0,
+          "c2": 62,
+          "c3": 61,
+          "c4": 80,
+          "c5": 75
+        },
+        "plans": {
+          "c0": {
+            "key": "1|v11-cpu-quantity|10|quantity-single-v1-10-1f|51|c0",
+            "dueAt": 368848,
+            "nonce": "cpu-v1-10-4hg74j"
+          },
+          "c1": {
+            "key": "1|v11-cpu-quantity|10|quantity-single-v1-10-1f|51|c1",
+            "dueAt": 371746,
+            "nonce": "cpu-v1-10-as7q0d"
+          },
+          "c2": {
+            "key": "1|v11-cpu-quantity|10|quantity-single-v1-10-1f|51|c2",
+            "dueAt": 376349,
+            "nonce": "cpu-v1-10-1v383ci"
+          },
+          "c3": {
+            "key": "1|v11-cpu-quantity|10|quantity-single-v1-10-1f|51|c3",
+            "dueAt": 369717,
+            "nonce": "cpu-v1-10-kl7oak"
+          },
+          "c4": {
+            "key": "1|v11-cpu-quantity|10|quantity-single-v1-10-1f|51|c4",
+            "dueAt": 374691,
+            "nonce": "cpu-v1-10-11m6978"
+          },
+          "c5": {
+            "key": "1|v11-cpu-quantity|10|quantity-single-v1-10-1f|51|c5",
+            "dueAt": 366999,
+            "nonce": "cpu-v1-10-wt7p25"
+          }
+        },
+        "settledHash": "d809aa84ab0a9bc806a07156ed8ece61792d7b0df2033ee8c96e04aca335ac99"
+      },
+      {
+        "beforeHash": "b5af3b960bd8807ea266df1590ec7ce887cba3f956b13b6727e5bfd6c977dc99",
+        "answers": {
+          "a": {
+            "circle": 41,
+            "square": 43,
+            "triangle": 40
+          },
+          "b": {
+            "circle": 41,
+            "square": 43,
+            "triangle": 40
+          },
+          "c0": {
+            "circle": 41,
+            "square": 51,
+            "triangle": 40
+          },
+          "c1": {
+            "circle": 43,
+            "square": 67,
+            "triangle": 37
+          },
+          "c2": {
+            "circle": 47,
+            "square": 43,
+            "triangle": 45
+          },
+          "c3": {
+            "circle": 41,
+            "square": 38,
+            "triangle": 43
+          },
+          "c4": {
+            "circle": 30,
+            "square": 63,
+            "triangle": 33
+          },
+          "c5": {
+            "circle": 48,
+            "square": 54,
+            "triangle": 35
+          }
+        },
+        "plans": {
+          "c0": {
+            "key": "1|v11-cpu-quantity|11|quantity-multi3-v2-11-1g|52|c0",
+            "dueAt": 411717,
+            "nonce": "cpu-v1-11-1a1yxki"
+          },
+          "c1": {
+            "key": "1|v11-cpu-quantity|11|quantity-multi3-v2-11-1g|52|c1",
+            "dueAt": 409764,
+            "nonce": "cpu-v1-11-g98xoa"
+          },
+          "c2": {
+            "key": "1|v11-cpu-quantity|11|quantity-multi3-v2-11-1g|52|c2",
+            "dueAt": 409473,
+            "nonce": "cpu-v1-11-rgal8o"
+          },
+          "c3": {
+            "key": "1|v11-cpu-quantity|11|quantity-multi3-v2-11-1g|52|c3",
+            "dueAt": 411536,
+            "nonce": "cpu-v1-11-1ir9qp1"
+          },
+          "c4": {
+            "key": "1|v11-cpu-quantity|11|quantity-multi3-v2-11-1g|52|c4",
+            "dueAt": 405195,
+            "nonce": "cpu-v1-11-fefh0q"
+          },
+          "c5": {
+            "key": "1|v11-cpu-quantity|11|quantity-multi3-v2-11-1g|52|c5",
+            "dueAt": 411106,
+            "nonce": "cpu-v1-11-1g2f95b"
+          }
+        },
+        "settledHash": "7b872d31a929d510e3a3a412fd42463eb1797b1282128e8ec0461dd388f6a86d"
+      },
+      {
+        "beforeHash": "9d14e010c474d8de924a1ad06bf6ccaf6de4148b08e70bff64e5a8bda747cabb",
+        "answers": {
+          "a": 77,
+          "b": 76,
+          "c0": 107,
+          "c1": 84,
+          "c2": 72,
+          "c3": 92,
+          "c4": 100,
+          "c5": 77
+        },
+        "plans": {
+          "c0": {
+            "key": "1|v11-cpu-quantity|12|quantity-single-v1-12-1h|53|c0",
+            "dueAt": 450308,
+            "nonce": "cpu-v1-12-1le47on"
+          },
+          "c1": {
+            "key": "1|v11-cpu-quantity|12|quantity-single-v1-12-1h|53|c1",
+            "dueAt": 453270,
+            "nonce": "cpu-v1-12-u0xtv3"
+          },
+          "c2": {
+            "key": "1|v11-cpu-quantity|12|quantity-single-v1-12-1h|53|c2",
+            "dueAt": 445138,
+            "nonce": "cpu-v1-12-zhzj8q"
+          },
+          "c3": {
+            "key": "1|v11-cpu-quantity|12|quantity-single-v1-12-1h|53|c3",
+            "dueAt": 444888,
+            "nonce": "cpu-v1-12-q1n4rp"
+          },
+          "c4": {
+            "key": "1|v11-cpu-quantity|12|quantity-single-v1-12-1h|53|c4",
+            "dueAt": 442748,
+            "nonce": "cpu-v1-12-ts1c0l"
+          },
+          "c5": {
+            "key": "1|v11-cpu-quantity|12|quantity-single-v1-12-1h|53|c5",
+            "dueAt": 448622,
+            "nonce": "cpu-v1-12-tu9yn6"
+          }
+        },
+        "settledHash": "86e2a716eba84907272cd1ff6a98fd7197a761b77cc9be1d7034d2422281ad2e"
+      }
+    ]
+  },
+  {
+    "initial": {
+      "version": 1,
+      "status": "playing",
+      "participants": [
+        "a",
+        "b",
+        "c0",
+        "c1",
+        "c2",
+        "c3",
+        "c4",
+        "c5"
+      ],
+      "round": 1,
+      "settledRound": 0,
+      "hpUnits": {
+        "a": 50000000,
+        "b": 50000000,
+        "c0": 50000000,
+        "c1": 50000000,
+        "c2": 50000000,
+        "c3": 50000000,
+        "c4": 50000000,
+        "c5": 50000000
+      },
+      "multiplierSchedule": {
+        "steps": [
+          1,
+          1,
+          1.3,
+          1.3,
+          1.7,
+          1.7,
+          2.2,
+          2.2,
+          3,
+          3,
+          3,
+          3
+        ]
+      },
+      "lastResult": null,
+      "winners": [],
+      "protocolVersion": 11,
+      "scoringVersion": 4,
+      "matchId": "v11-cpu-pitch",
+      "config": {
+        "capacity": 8,
+        "maxRounds": 12,
+        "startingHp": 50000,
+        "timing": {
+          "prepareMs": 3000,
+          "memorizeMs": 4000,
+          "answerMs": 25000,
+          "resultsMs": 6000
+        },
+        "initialAnswer": [
+          128,
+          128,
+          128
+        ],
+        "generation": {
+          "channelMin": 24,
+          "channelMax": 240,
+          "minLightness": 0.4,
+          "maxLightness": 0.85,
+          "minChroma": 0.06,
+          "maxChroma": 0.28,
+          "maxAttempts": 256
+        },
+        "scoring": {
+          "version": 4,
+          "tolerance": 0.2,
+          "exponent": 1.4,
+          "knee": 0.08,
+          "width": 0.1,
+          "strength": 0.35,
+          "penaltyExponent": 1.5
+        },
+        "multiplierSchedule": {
+          "steps": [
+            1,
+            1,
+            1.3,
+            1.3,
+            1.7,
+            1.7,
+            2.2,
+            2.2,
+            3,
+            3,
+            3,
+            3
+          ]
+        },
+        "autoSubmitLeadMs": 350,
+        "categoryMode": "pitch",
+        "selectionVersion": 3,
+        "categoryWeights": {
+          "color": 0,
+          "quantity": 0,
+          "pitch": 2
+        },
+        "adaptive": {
+          "version": 1,
+          "enabled": false,
+          "min": 1,
+          "max": 10,
+          "initial": 5,
+          "mappingCenter": 5,
+          "step": 0.5,
+          "low": 55,
+          "high": 85,
+          "window": 4,
+          "minRounds": 3,
+          "minObservations": 3,
+          "jitter": 0.25,
+          "initialByType": {
+            "color": 5,
+            "quantity": 5,
+            "pitch": 5
+          },
+          "mappings": {
+            "color": {
+              "easyMemorizeScale": 1.35,
+              "hardMemorizeScale": 0.7,
+              "minMemorizeMs": 1500
+            },
+            "quantity": {
+              "easyMinFraction": 0,
+              "easyMaxFraction": 0.3,
+              "hardMinFraction": 0.55,
+              "hardMaxFraction": 1,
+              "easyMemorizeScale": 1.15,
+              "hardMemorizeScale": 0.85,
+              "minMemorizeMs": 1500
+            },
+            "pitch": {
+              "threeToneThrough": 4,
+              "easyMaxInterval": 500,
+              "hardMaxInterval": 720
+            }
+          }
+        },
+        "challengeVersion": 1,
+        "challenge": {
+          "version": 1,
+          "weights": {
+            "easy": 20,
+            "normal": 60,
+            "hard": 20
+          },
+          "levels": {
+            "easy": {
+              "min": 2,
+              "max": 4
+            },
+            "normal": {
+              "min": 4,
+              "max": 7
+            },
+            "hard": {
+              "min": 7,
+              "max": 9
+            }
+          }
+        },
+        "quantity": {
+          "generation": {
+            "minCount": 30,
+            "maxCount": 150,
+            "poolSize": 220,
+            "jitter": 0.22,
+            "dotRadius": 0.009
+          },
+          "scoring": {
+            "version": 1,
+            "tolerance": 0.3,
+            "exponent": 1.5
+          },
+          "initialAnswer": 15,
+          "variantSelectionVersion": 1,
+          "multi": {
+            "version": 1,
+            "scoring": {
+              "version": 2,
+              "tolerance": 0.3,
+              "exponent": 1.5
+            },
+            "weights": {
+              "easy": {
+                "single": 4,
+                "multi2": 2,
+                "multi3": 1
+              },
+              "hard": {
+                "single": 2,
+                "multi2": 3,
+                "multi3": 3
+              }
+            },
+            "multi2": {
+              "minCount": 15,
+              "maxCount": 65,
+              "answerMax": 90,
+              "initialAnswer": 8,
+              "memorizeScale": 1.25
+            },
+            "multi3": {
+              "minCount": 10,
+              "maxCount": 45,
+              "answerMax": 60,
+              "initialAnswer": 6,
+              "memorizeScale": 1.5
+            },
+            "jitter": 0.22,
+            "dotRadius": 0.0105
+          },
+          "renderingVersion": 3,
+          "progression": {
+            "version": 1,
+            "maxStage": 3,
+            "variantWeights": {
+              "single": 3,
+              "multi2": 2,
+              "multi3": 2
+            },
+            "ranges": {
+              "single": [
+                {
+                  "minCount": 20,
+                  "maxCount": 80,
+                  "answerMax": 100
+                },
+                {
+                  "minCount": 30,
+                  "maxCount": 110,
+                  "answerMax": 140
+                },
+                {
+                  "minCount": 40,
+                  "maxCount": 150,
+                  "answerMax": 190
+                },
+                {
+                  "minCount": 50,
+                  "maxCount": 190,
+                  "answerMax": 230
+                }
+              ],
+              "multi2": [
+                {
+                  "minCount": 10,
+                  "maxCount": 35,
+                  "answerMax": 45
+                },
+                {
+                  "minCount": 15,
+                  "maxCount": 45,
+                  "answerMax": 60
+                },
+                {
+                  "minCount": 20,
+                  "maxCount": 60,
+                  "answerMax": 80
+                },
+                {
+                  "minCount": 25,
+                  "maxCount": 75,
+                  "answerMax": 100
+                }
+              ],
+              "multi3": [
+                {
+                  "minCount": 10,
+                  "maxCount": 25,
+                  "answerMax": 35
+                },
+                {
+                  "minCount": 12,
+                  "maxCount": 35,
+                  "answerMax": 45
+                },
+                {
+                  "minCount": 15,
+                  "maxCount": 45,
+                  "answerMax": 60
+                },
+                {
+                  "minCount": 18,
+                  "maxCount": 55,
+                  "answerMax": 70
+                }
+              ]
+            }
+          }
+        },
+        "pitch": {
+          "generation": {
+            "toneCount": 4,
+            "minHz": 220,
+            "maxHz": 880,
+            "minInterval": 150,
+            "maxInterval": 720
+          },
+          "scoring": {
+            "version": 1,
+            "tolerance": 180,
+            "exponent": 1.3
+          },
+          "audio": {
+            "toneMs": 550,
+            "gapMs": 160,
+            "repeatGapMs": 450,
+            "repeats": 2,
+            "leadMs": 250,
+            "volume": 0.1,
+            "attackMs": 15,
+            "releaseMs": 45
+          },
+          "timing": {
+            "memorizeMs": 8000,
+            "answerMs": 35000
+          },
+          "initialHz": 440,
+          "variantSelectionVersion": 2,
+          "variations": {
+            "version": 1,
+            "lengths": {
+              "easy": {
+                "n3": 3,
+                "n4": 4,
+                "n5": 0
+              },
+              "hard": {
+                "n3": 2,
+                "n4": 3,
+                "n5": 0
+              }
+            },
+            "references": {
+              "easy": {
+                "one": 1,
+                "two": 0
+              },
+              "hard": {
+                "one": 1,
+                "two": 0
+              }
+            },
+            "positions": {
+              "first": 1,
+              "middle": 1,
+              "last": 1,
+              "interior": 1
+            },
+            "contours": {
+              "ascending": 2,
+              "descending": 2,
+              "arch": 2,
+              "valley": 2,
+              "mixed": 4,
+              "echo": 1
+            },
+            "timing": {
+              "memoryScales": {
+                "n3": 0.9,
+                "n4": 1,
+                "n5": 1.2
+              },
+              "answerScales": {
+                "n3": 1,
+                "n4": 1,
+                "n5": 1.15
+              },
+              "easyScale": 1.15,
+              "hardScale": 0.9,
+              "safetyMs": 300
+            }
+          }
+        },
+        "color": {
+          "version": 2,
+          "variantSelectionVersion": 2,
+          "initialHsl": {
+            "h": 180,
+            "s": 50,
+            "l": 50
+          },
+          "initialHue": 180,
+          "single": {
+            "minS": 35,
+            "maxS": 90,
+            "minL": 30,
+            "maxL": 70
+          },
+          "fixed": {
+            "s": 65,
+            "l": 55
+          },
+          "weights": {
+            "easy": {
+              "single": 1,
+              "hue2": 0,
+              "hue3": 0,
+              "hue4": 0
+            },
+            "hard": {
+              "single": 1,
+              "hue2": 0,
+              "hue3": 0,
+              "hue4": 0
+            }
+          },
+          "separation": {
+            "easy": 50,
+            "hard": 18
+          },
+          "multiScoring": {
+            "version": 1,
+            "curve": {
+              "version": 3,
+              "tolerance": 0.2,
+              "exponent": 1.4,
+              "knee": 0.06,
+              "width": 0.08,
+              "strength": 0.5,
+              "penaltyExponent": 1.5
+            }
+          },
+          "hue2": {
+            "memorizeMs": 5000,
+            "answerMs": 28000
+          },
+          "hue3": {
+            "memorizeMs": 6000,
+            "answerMs": 33000
+          },
+          "hue4": {
+            "memorizeMs": 7000,
+            "answerMs": 38000
+          }
+        },
+        "cpu": {
+          "version": 1,
+          "color": {
+            "sigmaLab": [
+              0.105,
+              0.065,
+              0.038,
+              0.02
+            ],
+            "maxError": 0.5,
+            "attempts": 48,
+            "lapseRate": 0.12,
+            "lapseScale": 2.5,
+            "luckyRate": 0.06,
+            "luckyScale": 0.25
+          },
+          "quantity": {
+            "sigmaRelative": [
+              0.34,
+              0.22,
+              0.13,
+              0.065
+            ],
+            "exactRate": [
+              0.02,
+              0.03,
+              0.04,
+              0.05
+            ],
+            "lapseRate": 0.12,
+            "lapseScale": 2.5,
+            "luckyRate": 0.06,
+            "luckyScale": 0.25
+          },
+          "pitch": {
+            "sigmaCents": [
+              260,
+              160,
+              90,
+              45
+            ],
+            "commonFraction": 0.35,
+            "lapseRate": 0.12,
+            "lapseScale": 2.5,
+            "luckyRate": 0.06,
+            "luckyScale": 0.25
+          },
+          "timing": {
+            "color": {
+              "minFraction": 0.12,
+              "maxFraction": 0.68,
+              "complexityFraction": 0.015
+            },
+            "quantity": {
+              "minFraction": 0.14,
+              "maxFraction": 0.78,
+              "complexityFraction": 0.015
+            },
+            "pitch": {
+              "minFraction": 0.18,
+              "maxFraction": 0.84,
+              "complexityFraction": 0.015
+            }
+          }
+        }
+      },
+      "roster": {
+        "a": {
+          "id": "a",
+          "type": "human",
+          "controllerId": "a"
+        },
+        "b": {
+          "id": "b",
+          "type": "human",
+          "controllerId": "b"
+        },
+        "c0": {
+          "id": "c0",
+          "type": "cpu",
+          "controllerId": "a",
+          "difficulty": 1,
+          "cpuVersion": 1
+        },
+        "c1": {
+          "id": "c1",
+          "type": "cpu",
+          "controllerId": "a",
+          "difficulty": 2,
+          "cpuVersion": 1
+        },
+        "c2": {
+          "id": "c2",
+          "type": "cpu",
+          "controllerId": "a",
+          "difficulty": 3,
+          "cpuVersion": 1
+        },
+        "c3": {
+          "id": "c3",
+          "type": "cpu",
+          "controllerId": "b",
+          "difficulty": 4,
+          "cpuVersion": 1
+        },
+        "c4": {
+          "id": "c4",
+          "type": "cpu",
+          "controllerId": "b",
+          "difficulty": 1,
+          "cpuVersion": 1
+        },
+        "c5": {
+          "id": "c5",
+          "type": "cpu",
+          "controllerId": "b",
+          "difficulty": 2,
+          "cpuVersion": 1
+        }
+      },
+      "seatOrder": [
+        "a",
+        "b",
+        "c0",
+        "c1",
+        "c2",
+        "c3",
+        "c4",
+        "c5"
+      ],
+      "owners": {
+        "a": "a",
+        "b": "b",
+        "c0": "a",
+        "c1": "a",
+        "c2": "a",
+        "c3": "b",
+        "c4": "b",
+        "c5": "b"
+      },
+      "withdrawn": [],
+      "endReason": null,
+      "categoryId": "pitch",
+      "questionId": "pitch-melody-v2-1-16",
+      "question": {
+        "type": "pitch",
+        "version": 2,
+        "variant": "melody",
+        "variationVersion": 1,
+        "answerSchema": "pitch-hz-map-v1",
+        "scoringVersion": 1,
+        "seed": 42,
+        "variation": {
+          "version": 1,
+          "toneCount": 4,
+          "fixedIndices": [
+            3
+          ],
+          "contour": "mixed"
+        },
+        "tones": [
+          "n1",
+          "n2",
+          "n3",
+          "n4"
+        ],
+        "fixed": [
+          "n4"
+        ],
+        "target": {
+          "n1": 675.444325,
+          "n2": 601.057713,
+          "n3": 535.172329,
+          "n4": 469.406187
+        },
+        "parameters": {
+          "version": 1,
+          "generation": {
+            "toneCount": 4,
+            "minHz": 220,
+            "maxHz": 880,
+            "minInterval": 150,
+            "maxInterval": 567
+          },
+          "timing": {
+            "prepareMs": 3000,
+            "memorizeMs": 8400,
+            "answerMs": 35000,
+            "resultsMs": 6000
+          },
+          "pitch": {
+            "version": 1,
+            "variation": {
+              "version": 1,
+              "toneCount": 4,
+              "fixedIndices": [
+                3
+              ],
+              "contour": "mixed"
+            },
+            "requiredMemorizeMs": 6360,
+            "safetyMs": 300
+          },
+          "challenge": {
+            "version": 1,
+            "band": "easy",
+            "level": 3.7553
+          }
+        },
+        "challenge": {
+          "version": 1,
+          "band": "easy",
+          "level": 3.7553
+        }
+      },
+      "roundTiming": {
+        "prepareMs": 3000,
+        "memorizeMs": 8400,
+        "answerMs": 35000,
+        "resultsMs": 6000
+      },
+      "timeline": {
+        "startAt": 1000,
+        "memorizeAt": 4000,
+        "answerAt": 12400,
+        "deadline": 47400
+      },
+      "phase": "active",
+      "submissions": {},
+      "resultsAt": null,
+      "resultsUntil": null,
+      "selectionState": {
+        "version": 1,
+        "seed": 42,
+        "draw": 1,
+        "cycle": 1,
+        "remaining": {
+          "color": 0,
+          "quantity": 0,
+          "pitch": 1
+        },
+        "last": "pitch",
+        "streak": 1
+      },
+      "variantState": {
+        "quantity": {
+          "version": 1,
+          "draw": 0,
+          "last": null,
+          "streak": 0
+        },
+        "color": {
+          "version": 1,
+          "draw": 0,
+          "last": null,
+          "streak": 0
+        },
+        "pitch": {
+          "version": 1,
+          "draw": 1,
+          "lastStructure": "4:3",
+          "streak": 1,
+          "lastContour": "mixed",
+          "contourStreak": 1
+        }
+      },
+      "challengeState": {
+        "version": 1,
+        "last": {
+          "version": 1,
+          "band": "easy",
+          "level": 3.7553
+        }
+      },
+      "quantityProgress": {
+        "version": 1,
+        "stage": 0,
+        "lastRound": 0,
+        "advanced": false
+      },
+      "roundHumans": [
+        "a",
+        "b"
+      ]
+    },
+    "frames": [
+      {
+        "beforeHash": "4b703975cd0b787670f75499c78ea748246a8302d41c80a4768c8b81fd1d47d5",
+        "answers": {
+          "a": {
+            "n1": 675.444325,
+            "n2": 601.057713,
+            "n3": 535.172329,
+            "n4": 469.406187
+          },
+          "b": {
+            "n1": 675.444325,
+            "n2": 601.057713,
+            "n3": 535.172329,
+            "n4": 469.406187
+          },
+          "c0": {
+            "n1": 666.145283,
+            "n2": 460.011584,
+            "n3": 564.707395,
+            "n4": 469.406187
+          },
+          "c1": {
+            "n1": 869.892338,
+            "n2": 380.836087,
+            "n3": 539.517662,
+            "n4": 469.406187
+          },
+          "c2": {
+            "n1": 682.503695,
+            "n2": 614.751574,
+            "n3": 529.025351,
+            "n4": 469.406187
+          },
+          "c3": {
+            "n1": 675.054286,
+            "n2": 599.324295,
+            "n3": 542.329704,
+            "n4": 469.406187
+          },
+          "c4": {
+            "n1": 655.458084,
+            "n2": 686.457399,
+            "n3": 588.008438,
+            "n4": 469.406187
+          },
+          "c5": {
+            "n1": 407.463319,
+            "n2": 542.95659,
+            "n3": 577.573089,
+            "n4": 469.406187
+          }
+        },
+        "plans": {
+          "c0": {
+            "key": "1|v11-cpu-pitch|1|pitch-melody-v2-1-16|42|c0",
+            "dueAt": 23398,
+            "nonce": "cpu-v1-1-5cv28h"
+          },
+          "c1": {
+            "key": "1|v11-cpu-pitch|1|pitch-melody-v2-1-16|42|c1",
+            "dueAt": 38304,
+            "nonce": "cpu-v1-1-lle3or"
+          },
+          "c2": {
+            "key": "1|v11-cpu-pitch|1|pitch-melody-v2-1-16|42|c2",
+            "dueAt": 26083,
+            "nonce": "cpu-v1-1-vjtx14"
+          },
+          "c3": {
+            "key": "1|v11-cpu-pitch|1|pitch-melody-v2-1-16|42|c3",
+            "dueAt": 27716,
+            "nonce": "cpu-v1-1-1fr9gqj"
+          },
+          "c4": {
+            "key": "1|v11-cpu-pitch|1|pitch-melody-v2-1-16|42|c4",
+            "dueAt": 32533,
+            "nonce": "cpu-v1-1-jyhdrl"
+          },
+          "c5": {
+            "key": "1|v11-cpu-pitch|1|pitch-melody-v2-1-16|42|c5",
+            "dueAt": 25011,
+            "nonce": "cpu-v1-1-1plrlu9"
+          }
+        },
+        "settledHash": "69274a7816321afa92c86b16ab6e029291c9e6b195a7f2ded09b568592e61b22"
+      },
+      {
+        "beforeHash": "629bba554fa355d86d8452a8004f1f597e4915ad3a85b405402ce389c2bd54bb",
+        "answers": {
+          "a": {
+            "n1": 362.170789,
+            "n2": 297.076988,
+            "n3": 361.334963,
+            "n4": 442.037937
+          },
+          "b": {
+            "n1": 383.706585,
+            "n2": 297.076988,
+            "n3": 361.334963,
+            "n4": 442.037937
+          },
+          "c0": {
+            "n1": 477.335463,
+            "n2": 297.076988,
+            "n3": 452.892984,
+            "n4": 428.215452
+          },
+          "c1": {
+            "n1": 381.717022,
+            "n2": 297.076988,
+            "n3": 318.215371,
+            "n4": 371.922885
+          },
+          "c2": {
+            "n1": 381.496598,
+            "n2": 297.076988,
+            "n3": 383.042248,
+            "n4": 471.308007
+          },
+          "c3": {
+            "n1": 369.353826,
+            "n2": 297.076988,
+            "n3": 359.669093,
+            "n4": 455.253526
+          },
+          "c4": {
+            "n1": 366.379011,
+            "n2": 297.076988,
+            "n3": 349.430012,
+            "n4": 445.627065
+          },
+          "c5": {
+            "n1": 353.082061,
+            "n2": 297.076988,
+            "n3": 330.199253,
+            "n4": 428.710432
+          }
+        },
+        "plans": {
+          "c0": {
+            "key": "1|v11-cpu-pitch|2|pitch-melody-v2-2-17|43|c0",
+            "dueAt": 91416,
+            "nonce": "cpu-v1-2-xfw4yb"
+          },
+          "c1": {
+            "key": "1|v11-cpu-pitch|2|pitch-melody-v2-2-17|43|c1",
+            "dueAt": 85297,
+            "nonce": "cpu-v1-2-1gr3h6i"
+          },
+          "c2": {
+            "key": "1|v11-cpu-pitch|2|pitch-melody-v2-2-17|43|c2",
+            "dueAt": 82988,
+            "nonce": "cpu-v1-2-1sx7p60"
+          },
+          "c3": {
+            "key": "1|v11-cpu-pitch|2|pitch-melody-v2-2-17|43|c3",
+            "dueAt": 74073,
+            "nonce": "cpu-v1-2-1m3tfp2"
+          },
+          "c4": {
+            "key": "1|v11-cpu-pitch|2|pitch-melody-v2-2-17|43|c4",
+            "dueAt": 78747,
+            "nonce": "cpu-v1-2-1uxz2ml"
+          },
+          "c5": {
+            "key": "1|v11-cpu-pitch|2|pitch-melody-v2-2-17|43|c5",
+            "dueAt": 85562,
+            "nonce": "cpu-v1-2-11iy6z1"
+          }
+        },
+        "settledHash": "cfb98a1213b9af3494ffa3c5f50981b81960d7b180c43f2d93a10473dd122cda"
+      },
+      {
+        "beforeHash": "a3ed7d90ef0198dc925b824cb19de80357978455f9cc2b1fd1233f12ae158c7a",
+        "answers": {
+          "a": {
+            "n1": 687.250884,
+            "n2": 790.813148,
+            "n3": 678.964835
+          },
+          "b": {
+            "n1": 687.250884,
+            "n2": 790.813148,
+            "n3": 678.964835
+          },
+          "c0": {
+            "n1": 687.250884,
+            "n2": 851.990212,
+            "n3": 597.595875
+          },
+          "c1": {
+            "n1": 687.250884,
+            "n2": 708.206552,
+            "n3": 706.164122
+          },
+          "c2": {
+            "n1": 687.250884,
+            "n2": 801.852488,
+            "n3": 731.489349
+          },
+          "c3": {
+            "n1": 687.250884,
+            "n2": 816.340023,
+            "n3": 650.930504
+          },
+          "c4": {
+            "n1": 687.250884,
+            "n2": 808.830195,
+            "n3": 633.862619
+          },
+          "c5": {
+            "n1": 687.250884,
+            "n2": 836.869996,
+            "n3": 629.48421
+          }
+        },
+        "plans": {
+          "c0": {
+            "key": "1|v11-cpu-pitch|3|pitch-melody-v2-3-18|44|c0",
+            "dueAt": 136540,
+            "nonce": "cpu-v1-3-1y1v1nx"
+          },
+          "c1": {
+            "key": "1|v11-cpu-pitch|3|pitch-melody-v2-3-18|44|c1",
+            "dueAt": 138503,
+            "nonce": "cpu-v1-3-wlyjef"
+          },
+          "c2": {
+            "key": "1|v11-cpu-pitch|3|pitch-melody-v2-3-18|44|c2",
+            "dueAt": 131515,
+            "nonce": "cpu-v1-3-17mfk8p"
+          },
+          "c3": {
+            "key": "1|v11-cpu-pitch|3|pitch-melody-v2-3-18|44|c3",
+            "dueAt": 135651,
+            "nonce": "cpu-v1-3-1o51hbg"
+          },
+          "c4": {
+            "key": "1|v11-cpu-pitch|3|pitch-melody-v2-3-18|44|c4",
+            "dueAt": 131347,
+            "nonce": "cpu-v1-3-17azlub"
+          },
+          "c5": {
+            "key": "1|v11-cpu-pitch|3|pitch-melody-v2-3-18|44|c5",
+            "dueAt": 130652,
+            "nonce": "cpu-v1-3-j1i5p"
+          }
+        },
+        "settledHash": "19986583f6490e17fa4f7cfecb81a111fe3ae9a2ce90827b75fe327e7a4ee2a4"
+      },
+      {
+        "beforeHash": "603cfda4ec2ea6842c6221411c62575b5bbf1ba9a70f28b675f911f53b2e82f2",
+        "answers": {
+          "a": {
+            "n1": 259.218771,
+            "n2": 293.495189,
+            "n3": 376.027157,
+            "n4": 472.671165
+          },
+          "b": {
+            "n1": 274.632721,
+            "n2": 293.495189,
+            "n3": 376.027157,
+            "n4": 472.671165
+          },
+          "c0": {
+            "n1": 223.457973,
+            "n2": 302.444451,
+            "n3": 259.968506,
+            "n4": 472.671165
+          },
+          "c1": {
+            "n1": 262.989194,
+            "n2": 291.973383,
+            "n3": 366.590701,
+            "n4": 472.671165
+          },
+          "c2": {
+            "n1": 251.403289,
+            "n2": 300.702499,
+            "n3": 360.917773,
+            "n4": 472.671165
+          },
+          "c3": {
+            "n1": 261.172595,
+            "n2": 294.514131,
+            "n3": 375.810018,
+            "n4": 472.671165
+          },
+          "c4": {
+            "n1": 271.7921,
+            "n2": 264.359931,
+            "n3": 290.29174,
+            "n4": 472.671165
+          },
+          "c5": {
+            "n1": 236.608766,
+            "n2": 276.702726,
+            "n3": 342.436588,
+            "n4": 472.671165
+          }
+        },
+        "plans": {
+          "c0": {
+            "key": "1|v11-cpu-pitch|4|pitch-melody-v2-4-19|45|c0",
+            "dueAt": 192843,
+            "nonce": "cpu-v1-4-15rpqir"
+          },
+          "c1": {
+            "key": "1|v11-cpu-pitch|4|pitch-melody-v2-4-19|45|c1",
+            "dueAt": 186070,
+            "nonce": "cpu-v1-4-1jk2k0r"
+          },
+          "c2": {
+            "key": "1|v11-cpu-pitch|4|pitch-melody-v2-4-19|45|c2",
+            "dueAt": 192745,
+            "nonce": "cpu-v1-4-19c1b01"
+          },
+          "c3": {
+            "key": "1|v11-cpu-pitch|4|pitch-melody-v2-4-19|45|c3",
+            "dueAt": 187778,
+            "nonce": "cpu-v1-4-12mey63"
+          },
+          "c4": {
+            "key": "1|v11-cpu-pitch|4|pitch-melody-v2-4-19|45|c4",
+            "dueAt": 194028,
+            "nonce": "cpu-v1-4-i82qm9"
+          },
+          "c5": {
+            "key": "1|v11-cpu-pitch|4|pitch-melody-v2-4-19|45|c5",
+            "dueAt": 180688,
+            "nonce": "cpu-v1-4-1v577rj"
+          }
+        },
+        "settledHash": "8e3c2383a94e9589c12f7850254605d9960ef84958eff6a415e758bebdfe1d35"
+      },
+      {
+        "beforeHash": "2d98bebd0b115c3ca2823c4c2c5acadf3b426e038671f3ab21ec0348f21ea2f5",
+        "answers": {
+          "a": {
+            "n1": 865.881855,
+            "n2": 671.942069,
+            "n3": 851.006523
+          },
+          "b": {
+            "n1": 865.881855,
+            "n2": 671.942069,
+            "n3": 851.006523
+          },
+          "c0": {
+            "n1": 865.881855,
+            "n2": 682.898039,
+            "n3": 782.181559
+          },
+          "c1": {
+            "n1": 865.881855,
+            "n2": 796.77379,
+            "n3": 874.426339
+          },
+          "c2": {
+            "n1": 865.881855,
+            "n2": 617.955745,
+            "n3": 783.538152
+          },
+          "c3": {
+            "n1": 865.881855,
+            "n2": 671.554052,
+            "n3": 826.30259
+          },
+          "c4": {
+            "n1": 865.881855,
+            "n2": 708.206552,
+            "n3": 870.394953
+          },
+          "c5": {
+            "n1": 865.881855,
+            "n2": 542.643056,
+            "n3": 708.615746
+          }
+        },
+        "plans": {
+          "c0": {
+            "key": "1|v11-cpu-pitch|5|pitch-melody-v2-5-1a|46|c0",
+            "dueAt": 244319,
+            "nonce": "cpu-v1-5-1dco34z"
+          },
+          "c1": {
+            "key": "1|v11-cpu-pitch|5|pitch-melody-v2-5-1a|46|c1",
+            "dueAt": 235847,
+            "nonce": "cpu-v1-5-1ouejq2"
+          },
+          "c2": {
+            "key": "1|v11-cpu-pitch|5|pitch-melody-v2-5-1a|46|c2",
+            "dueAt": 241467,
+            "nonce": "cpu-v1-5-bu6rhb"
+          },
+          "c3": {
+            "key": "1|v11-cpu-pitch|5|pitch-melody-v2-5-1a|46|c3",
+            "dueAt": 243132,
+            "nonce": "cpu-v1-5-1txc7sv"
+          },
+          "c4": {
+            "key": "1|v11-cpu-pitch|5|pitch-melody-v2-5-1a|46|c4",
+            "dueAt": 237313,
+            "nonce": "cpu-v1-5-1kkwgka"
+          },
+          "c5": {
+            "key": "1|v11-cpu-pitch|5|pitch-melody-v2-5-1a|46|c5",
+            "dueAt": 243665,
+            "nonce": "cpu-v1-5-2qvvk7"
+          }
+        },
+        "settledHash": "0f9ebab87a0a4986cee921cc7a7f641990fdc29fcc9cc32f29727c37e5b4e778"
+      },
+      {
+        "beforeHash": "f16bc4b2a12508cbfedb78291f2aca2a300d2f7bfcc1cd8bfbcd015b928f6662",
+        "answers": {
+          "a": {
+            "n1": 831.569507,
+            "n2": 749.019627,
+            "n3": 579.243597,
+            "n4": 435.197476
+          },
+          "b": {
+            "n1": 831.569507,
+            "n2": 706.980386,
+            "n3": 579.243597,
+            "n4": 435.197476
+          },
+          "c0": {
+            "n1": 831.569507,
+            "n2": 834.938648,
+            "n3": 670.004224,
+            "n4": 400.232093
+          },
+          "c1": {
+            "n1": 831.569507,
+            "n2": 844.640167,
+            "n3": 583.272554,
+            "n4": 392.675301
+          },
+          "c2": {
+            "n1": 831.569507,
+            "n2": 770.967578,
+            "n3": 582.599121,
+            "n4": 442.548894
+          },
+          "c3": {
+            "n1": 831.569507,
+            "n2": 757.722816,
+            "n3": 555.00606,
+            "n4": 425.011985
+          },
+          "c4": {
+            "n1": 831.569507,
+            "n2": 698.860024,
+            "n3": 418.434998,
+            "n4": 560.482835
+          },
+          "c5": {
+            "n1": 831.569507,
+            "n2": 674.274883,
+            "n3": 524.764523,
+            "n4": 460.011584
+          }
+        },
+        "plans": {
+          "c0": {
+            "key": "1|v11-cpu-pitch|6|pitch-melody-v2-6-1b|47|c0",
+            "dueAt": 281033,
+            "nonce": "cpu-v1-6-1hzwg1w"
+          },
+          "c1": {
+            "key": "1|v11-cpu-pitch|6|pitch-melody-v2-6-1b|47|c1",
+            "dueAt": 293229,
+            "nonce": "cpu-v1-6-2pm555"
+          },
+          "c2": {
+            "key": "1|v11-cpu-pitch|6|pitch-melody-v2-6-1b|47|c2",
+            "dueAt": 298856,
+            "nonce": "cpu-v1-6-i7yts7"
+          },
+          "c3": {
+            "key": "1|v11-cpu-pitch|6|pitch-melody-v2-6-1b|47|c3",
+            "dueAt": 286745,
+            "nonce": "cpu-v1-6-kegt9x"
+          },
+          "c4": {
+            "key": "1|v11-cpu-pitch|6|pitch-melody-v2-6-1b|47|c4",
+            "dueAt": 288298,
+            "nonce": "cpu-v1-6-16ap871"
+          },
+          "c5": {
+            "key": "1|v11-cpu-pitch|6|pitch-melody-v2-6-1b|47|c5",
+            "dueAt": 284291,
+            "nonce": "cpu-v1-6-1gb0nsi"
+          }
+        },
+        "settledHash": "a709e6f39bd4abaf3b85fb553481955d51f1a5d3fc6de7111d195fa49d765188"
+      },
+      {
+        "beforeHash": "86d72cfce98bdc0848225aebc16be3d15e06bbf0228e9c45ce07088bbb14fc79",
+        "answers": {
+          "a": {
+            "n1": 694.032645,
+            "n2": 519.636771,
+            "n3": 683.29261
+          },
+          "b": {
+            "n1": 694.032645,
+            "n2": 519.636771,
+            "n3": 683.29261
+          },
+          "c0": {
+            "n1": 694.032645,
+            "n2": 513.371613,
+            "n3": 721.418719
+          },
+          "c1": {
+            "n1": 694.032645,
+            "n2": 486.802594,
+            "n3": 611.917372
+          },
+          "c2": {
+            "n1": 694.032645,
+            "n2": 474.860424,
+            "n3": 670.004224
+          },
+          "c3": {
+            "n1": 694.032645,
+            "n2": 515.15391,
+            "n3": 687.250884
+          },
+          "c4": {
+            "n1": 694.032645,
+            "n2": 536.100516,
+            "n3": 754.229471
+          },
+          "c5": {
+            "n1": 694.032645,
+            "n2": 585.974083,
+            "n3": 693.23133
+          }
+        },
+        "plans": {
+          "c0": {
+            "key": "1|v11-cpu-pitch|7|pitch-melody-v2-7-1c|48|c0",
+            "dueAt": 349579,
+            "nonce": "cpu-v1-7-121j4ta"
+          },
+          "c1": {
+            "key": "1|v11-cpu-pitch|7|pitch-melody-v2-7-1c|48|c1",
+            "dueAt": 340856,
+            "nonce": "cpu-v1-7-1kz7j2t"
+          },
+          "c2": {
+            "key": "1|v11-cpu-pitch|7|pitch-melody-v2-7-1c|48|c2",
+            "dueAt": 350281,
+            "nonce": "cpu-v1-7-3du4tj"
+          },
+          "c3": {
+            "key": "1|v11-cpu-pitch|7|pitch-melody-v2-7-1c|48|c3",
+            "dueAt": 339243,
+            "nonce": "cpu-v1-7-y5zz3z"
+          },
+          "c4": {
+            "key": "1|v11-cpu-pitch|7|pitch-melody-v2-7-1c|48|c4",
+            "dueAt": 337975,
+            "nonce": "cpu-v1-7-om9nfe"
+          },
+          "c5": {
+            "key": "1|v11-cpu-pitch|7|pitch-melody-v2-7-1c|48|c5",
+            "dueAt": 337639,
+            "nonce": "cpu-v1-7-hqo37b"
+          }
+        },
+        "settledHash": "0861d0229666fa77cde8ab301101610afb0fc6ce31f66b725ecaf3e483186884"
+      },
+      {
+        "beforeHash": "314ef97750916435e7acd9b06058ae938dd7294044992581d59b797874bafe85",
+        "answers": {
+          "a": {
+            "n1": 370.63613,
+            "n2": 417.951882,
+            "n3": 352.063791
+          },
+          "b": {
+            "n1": 370.63613,
+            "n2": 442.804594,
+            "n3": 352.063791
+          },
+          "c0": {
+            "n1": 370.63613,
+            "n2": 597.94116,
+            "n3": 816.340023
+          },
+          "c1": {
+            "n1": 370.63613,
+            "n2": 408.64182,
+            "n3": 318.215371
+          },
+          "c2": {
+            "n1": 370.63613,
+            "n2": 426.980502,
+            "n3": 354.512588
+          },
+          "c3": {
+            "n1": 370.63613,
+            "n2": 424.521275,
+            "n3": 407.934311
+          },
+          "c4": {
+            "n1": 370.63613,
+            "n2": 455.779759,
+            "n3": 256.093421
+          },
+          "c5": {
+            "n1": 370.63613,
+            "n2": 455.253526,
+            "n3": 403.714907
+          }
+        },
+        "plans": {
+          "c0": {
+            "key": "1|v11-cpu-pitch|8|pitch-melody-v2-8-1d|49|c0",
+            "dueAt": 384959,
+            "nonce": "cpu-v1-8-1hk8tqi"
+          },
+          "c1": {
+            "key": "1|v11-cpu-pitch|8|pitch-melody-v2-8-1d|49|c1",
+            "dueAt": 392347,
+            "nonce": "cpu-v1-8-1cl186z"
+          },
+          "c2": {
+            "key": "1|v11-cpu-pitch|8|pitch-melody-v2-8-1d|49|c2",
+            "dueAt": 395165,
+            "nonce": "cpu-v1-8-ijrk39"
+          },
+          "c3": {
+            "key": "1|v11-cpu-pitch|8|pitch-melody-v2-8-1d|49|c3",
+            "dueAt": 382632,
+            "nonce": "cpu-v1-8-513g5u"
+          },
+          "c4": {
+            "key": "1|v11-cpu-pitch|8|pitch-melody-v2-8-1d|49|c4",
+            "dueAt": 390011,
+            "nonce": "cpu-v1-8-gzpnbv"
+          },
+          "c5": {
+            "key": "1|v11-cpu-pitch|8|pitch-melody-v2-8-1d|49|c5",
+            "dueAt": 392052,
+            "nonce": "cpu-v1-8-772tsw"
+          }
+        },
+        "settledHash": "7a60ed03eb4640d98f082e236b3269277afb9fa217c5c2c948cb1396941a444f"
+      },
+      {
+        "beforeHash": "12c817e95cf31f2d8ec608593ed99e647d7594e9c45915961c68671ddb3bfb98",
+        "answers": {
+          "a": {
+            "n1": 262.533863,
+            "n2": 375.159352,
+            "n3": 410.771719,
+            "n4": 332.880307
+          },
+          "b": {
+            "n1": 262.533863,
+            "n2": 375.159352,
+            "n3": 410.771719,
+            "n4": 332.880307
+          },
+          "c0": {
+            "n1": 274.632721,
+            "n2": 396.321213,
+            "n3": 410.771719,
+            "n4": 300.355314
+          },
+          "c1": {
+            "n1": 266.506402,
+            "n2": 431.443066,
+            "n3": 410.771719,
+            "n4": 381.2763
+          },
+          "c2": {
+            "n1": 346.815936,
+            "n2": 349.026568,
+            "n3": 410.771719,
+            "n4": 393.583623
+          },
+          "c3": {
+            "n1": 261.02178,
+            "n2": 370.208202,
+            "n3": 410.771719,
+            "n4": 326.406591
+          },
+          "c4": {
+            "n1": 292.987041,
+            "n2": 451.586865,
+            "n3": 410.771719,
+            "n4": 344.420303
+          },
+          "c5": {
+            "n1": 298.97058,
+            "n2": 425.011985,
+            "n3": 410.771719,
+            "n4": 326.218106
+          }
+        },
+        "plans": {
+          "c0": {
+            "key": "1|v11-cpu-pitch|9|pitch-melody-v2-9-1e|50|c0",
+            "dueAt": 448293,
+            "nonce": "cpu-v1-9-17i2kfv"
+          },
+          "c1": {
+            "key": "1|v11-cpu-pitch|9|pitch-melody-v2-9-1e|50|c1",
+            "dueAt": 449726,
+            "nonce": "cpu-v1-9-avn6ae"
+          },
+          "c2": {
+            "key": "1|v11-cpu-pitch|9|pitch-melody-v2-9-1e|50|c2",
+            "dueAt": 441126,
+            "nonce": "cpu-v1-9-rb8zc4"
+          },
+          "c3": {
+            "key": "1|v11-cpu-pitch|9|pitch-melody-v2-9-1e|50|c3",
+            "dueAt": 445475,
+            "nonce": "cpu-v1-9-wcq7ge"
+          },
+          "c4": {
+            "key": "1|v11-cpu-pitch|9|pitch-melody-v2-9-1e|50|c4",
+            "dueAt": 447067,
+            "nonce": "cpu-v1-9-106wnl6"
+          },
+          "c5": {
+            "key": "1|v11-cpu-pitch|9|pitch-melody-v2-9-1e|50|c5",
+            "dueAt": 447009,
+            "nonce": "cpu-v1-9-uwc953"
+          }
+        },
+        "settledHash": "317b20d0d0b1c7ea25c7a1f3fe8b7d022e4a853303115921ab5be7d29a326c9e"
+      },
+      {
+        "beforeHash": "5255a43ed6cef695347af684fba89a9285a528f3aecab0c2bbf1c3759b476201",
+        "answers": {
+          "a": {
+            "n1": 321.355506,
+            "n2": 428.710432,
+            "n3": 578.240713,
+            "n4": 688.442831
+          },
+          "b": {
+            "n1": 340.464299,
+            "n2": 428.710432,
+            "n3": 578.240713,
+            "n4": 688.442831
+          },
+          "c0": {
+            "n1": 257.874692,
+            "n2": 428.710432,
+            "n3": 525.067727,
+            "n4": 621.176617
+          },
+          "c1": {
+            "n1": 312.387528,
+            "n2": 428.710432,
+            "n3": 549.900345,
+            "n4": 615.817781
+          },
+          "c2": {
+            "n1": 336.553733,
+            "n2": 428.710432,
+            "n3": 584.959547,
+            "n4": 697.65004
+          },
+          "c3": {
+            "n1": 310.767763,
+            "n2": 428.710432,
+            "n3": 569.292538,
+            "n4": 680.535391
+          },
+          "c4": {
+            "n1": 341.449019,
+            "n2": 428.710432,
+            "n3": 617.955745,
+            "n4": 750.752231
+          },
+          "c5": {
+            "n1": 295.19539,
+            "n2": 428.710432,
+            "n3": 665.376167,
+            "n4": 719.338185
+          }
+        },
+        "plans": {
+          "c0": {
+            "key": "1|v11-cpu-pitch|10|pitch-melody-v2-10-1f|51|c0",
+            "dueAt": 492501,
+            "nonce": "cpu-v1-10-i9ranv"
+          },
+          "c1": {
+            "key": "1|v11-cpu-pitch|10|pitch-melody-v2-10-1f|51|c1",
+            "dueAt": 504904,
+            "nonce": "cpu-v1-10-16daxig"
+          },
+          "c2": {
+            "key": "1|v11-cpu-pitch|10|pitch-melody-v2-10-1f|51|c2",
+            "dueAt": 500433,
+            "nonce": "cpu-v1-10-1ujakb7"
+          },
+          "c3": {
+            "key": "1|v11-cpu-pitch|10|pitch-melody-v2-10-1f|51|c3",
+            "dueAt": 491680,
+            "nonce": "cpu-v1-10-1kj2l11"
+          },
+          "c4": {
+            "key": "1|v11-cpu-pitch|10|pitch-melody-v2-10-1f|51|c4",
+            "dueAt": 496819,
+            "nonce": "cpu-v1-10-pexdki"
+          },
+          "c5": {
+            "key": "1|v11-cpu-pitch|10|pitch-melody-v2-10-1f|51|c5",
+            "dueAt": 492928,
+            "nonce": "cpu-v1-10-sby829"
+          }
+        },
+        "settledHash": "0a3bdac2c748cb47f22c75168c764bfc160061146c2416b014260e83cd8668f2"
+      },
+      {
+        "beforeHash": "06915998f27bf3fdaa9d445c407bde3c7fdc032fc049285dfdf79d6d7758eabd",
+        "answers": {
+          "a": {
+            "n1": 548.314461,
+            "n2": 598.632328,
+            "n3": 823.443801,
+            "n4": 743.845771
+          },
+          "b": {
+            "n1": 548.314461,
+            "n2": 598.632328,
+            "n3": 823.443801,
+            "n4": 743.845771
+          },
+          "c0": {
+            "n1": 625.497242,
+            "n2": 689.636846,
+            "n3": 823.443801,
+            "n4": 774.091187
+          },
+          "c1": {
+            "n1": 646.060911,
+            "n2": 717.263653,
+            "n3": 823.443801,
+            "n4": 747.722799
+          },
+          "c2": {
+            "n1": 547.365127,
+            "n2": 616.529613,
+            "n3": 823.443801,
+            "n4": 741.700559
+          },
+          "c3": {
+            "n1": 559.512433,
+            "n2": 625.858648,
+            "n3": 823.443801,
+            "n4": 776.778637
+          },
+          "c4": {
+            "n1": 448.985916,
+            "n2": 616.529613,
+            "n3": 823.443801,
+            "n4": 671.554052
+          },
+          "c5": {
+            "n1": 487.928648,
+            "n2": 574.578306,
+            "n3": 823.443801,
+            "n4": 825.825437
+          }
+        },
+        "plans": {
+          "c0": {
+            "key": "1|v11-cpu-pitch|11|pitch-melody-v2-11-1g|52|c0",
+            "dueAt": 542440,
+            "nonce": "cpu-v1-11-18srms9"
+          },
+          "c1": {
+            "key": "1|v11-cpu-pitch|11|pitch-melody-v2-11-1g|52|c1",
+            "dueAt": 548015,
+            "nonce": "cpu-v1-11-dwuul6"
+          },
+          "c2": {
+            "key": "1|v11-cpu-pitch|11|pitch-melody-v2-11-1g|52|c2",
+            "dueAt": 550035,
+            "nonce": "cpu-v1-11-1sjgnc9"
+          },
+          "c3": {
+            "key": "1|v11-cpu-pitch|11|pitch-melody-v2-11-1g|52|c3",
+            "dueAt": 557135,
+            "nonce": "cpu-v1-11-gbkci"
+          },
+          "c4": {
+            "key": "1|v11-cpu-pitch|11|pitch-melody-v2-11-1g|52|c4",
+            "dueAt": 554286,
+            "nonce": "cpu-v1-11-xrqaob"
+          },
+          "c5": {
+            "key": "1|v11-cpu-pitch|11|pitch-melody-v2-11-1g|52|c5",
+            "dueAt": 550310,
+            "nonce": "cpu-v1-11-1o9j34e"
+          }
+        },
+        "settledHash": "1bec6d7a0a945d4e9bc232e1f2ce668ca9b9ba7e06dba33461c23c42092faeb1"
+      },
+      {
+        "beforeHash": "6d9bc247c2f2d66452837585b626948373e217514212c3b3755aa3ca5c203a5f",
+        "answers": {
+          "a": {
+            "n1": 640.4874,
+            "n2": 485.95976,
+            "n3": 367.650987,
+            "n4": 285.139951
+          },
+          "b": {
+            "n1": 604.539605,
+            "n2": 485.95976,
+            "n3": 367.650987,
+            "n4": 285.139951
+          },
+          "c0": {
+            "n1": 509.531094,
+            "n2": 520.838775,
+            "n3": 367.650987,
+            "n4": 223.071086
+          },
+          "c1": {
+            "n1": 682.109579,
+            "n2": 469.677405,
+            "n3": 367.650987,
+            "n4": 253.884125
+          },
+          "c2": {
+            "n1": 582.599121,
+            "n2": 457.890783,
+            "n3": 367.650987,
+            "n4": 273.208719
+          },
+          "c3": {
+            "n1": 619.385177,
+            "n2": 471.035847,
+            "n3": 367.650987,
+            "n4": 279.433216
+          },
+          "c4": {
+            "n1": 661.161869,
+            "n2": 578.909109,
+            "n3": 367.650987,
+            "n4": 274.632721
+          },
+          "c5": {
+            "n1": 609.448166,
+            "n2": 468.052444,
+            "n3": 367.650987,
+            "n4": 245.80317
+          }
+        },
+        "plans": {
+          "c0": {
+            "key": "1|v11-cpu-pitch|12|pitch-melody-v2-12-1h|53|c0",
+            "dueAt": 602224,
+            "nonce": "cpu-v1-12-q6uaq7"
+          },
+          "c1": {
+            "key": "1|v11-cpu-pitch|12|pitch-melody-v2-12-1h|53|c1",
+            "dueAt": 605882,
+            "nonce": "cpu-v1-12-eq5mhy"
+          },
+          "c2": {
+            "key": "1|v11-cpu-pitch|12|pitch-melody-v2-12-1h|53|c2",
+            "dueAt": 604609,
+            "nonce": "cpu-v1-12-1fq1y9b"
+          },
+          "c3": {
+            "key": "1|v11-cpu-pitch|12|pitch-melody-v2-12-1h|53|c3",
+            "dueAt": 594056,
+            "nonce": "cpu-v1-12-8lb6ue"
+          },
+          "c4": {
+            "key": "1|v11-cpu-pitch|12|pitch-melody-v2-12-1h|53|c4",
+            "dueAt": 590189,
+            "nonce": "cpu-v1-12-1742zdj"
+          },
+          "c5": {
+            "key": "1|v11-cpu-pitch|12|pitch-melody-v2-12-1h|53|c5",
+            "dueAt": 608502,
+            "nonce": "cpu-v1-12-1mrt8zf"
+          }
+        },
+        "settledHash": "437eb95c3bcfc638a19821f1ed1a4cd4bc558761a16f5528f5ccfe8a95fdea67"
+      }
+    ]
+  },
+  {
+    "initial": {
+      "version": 1,
+      "status": "playing",
+      "participants": [
+        "a",
+        "b",
+        "c0",
+        "c1",
+        "c2",
+        "c3",
+        "c4",
+        "c5"
+      ],
+      "round": 1,
+      "settledRound": 0,
+      "hpUnits": {
+        "a": 50000000,
+        "b": 50000000,
+        "c0": 50000000,
+        "c1": 50000000,
+        "c2": 50000000,
+        "c3": 50000000,
+        "c4": 50000000,
+        "c5": 50000000
+      },
+      "multiplierSchedule": {
+        "steps": [
+          1,
+          1,
+          1.3,
+          1.3,
+          1.7,
+          1.7,
+          2.2,
+          2.2,
+          3,
+          3,
+          3,
+          3
+        ]
+      },
+      "lastResult": null,
+      "winners": [],
+      "protocolVersion": 11,
+      "scoringVersion": 4,
+      "matchId": "v11-cpu-mixed",
+      "config": {
+        "capacity": 8,
+        "maxRounds": 12,
+        "startingHp": 50000,
+        "timing": {
+          "prepareMs": 3000,
+          "memorizeMs": 4000,
+          "answerMs": 25000,
+          "resultsMs": 6000
+        },
+        "initialAnswer": [
+          128,
+          128,
+          128
+        ],
+        "generation": {
+          "channelMin": 24,
+          "channelMax": 240,
+          "minLightness": 0.4,
+          "maxLightness": 0.85,
+          "minChroma": 0.06,
+          "maxChroma": 0.28,
+          "maxAttempts": 256
+        },
+        "scoring": {
+          "version": 4,
+          "tolerance": 0.2,
+          "exponent": 1.4,
+          "knee": 0.08,
+          "width": 0.1,
+          "strength": 0.35,
+          "penaltyExponent": 1.5
+        },
+        "multiplierSchedule": {
+          "steps": [
+            1,
+            1,
+            1.3,
+            1.3,
+            1.7,
+            1.7,
+            2.2,
+            2.2,
+            3,
+            3,
+            3,
+            3
+          ]
+        },
+        "autoSubmitLeadMs": 350,
+        "categoryMode": "mixed",
+        "selectionVersion": 3,
+        "categoryWeights": {
+          "color": 2,
+          "quantity": 2,
+          "pitch": 2
+        },
+        "adaptive": {
+          "version": 1,
+          "enabled": false,
+          "min": 1,
+          "max": 10,
+          "initial": 5,
+          "mappingCenter": 5,
+          "step": 0.5,
+          "low": 55,
+          "high": 85,
+          "window": 4,
+          "minRounds": 3,
+          "minObservations": 3,
+          "jitter": 0.25,
+          "initialByType": {
+            "color": 5,
+            "quantity": 5,
+            "pitch": 5
+          },
+          "mappings": {
+            "color": {
+              "easyMemorizeScale": 1.35,
+              "hardMemorizeScale": 0.7,
+              "minMemorizeMs": 1500
+            },
+            "quantity": {
+              "easyMinFraction": 0,
+              "easyMaxFraction": 0.3,
+              "hardMinFraction": 0.55,
+              "hardMaxFraction": 1,
+              "easyMemorizeScale": 1.15,
+              "hardMemorizeScale": 0.85,
+              "minMemorizeMs": 1500
+            },
+            "pitch": {
+              "threeToneThrough": 4,
+              "easyMaxInterval": 500,
+              "hardMaxInterval": 720
+            }
+          }
+        },
+        "challengeVersion": 1,
+        "challenge": {
+          "version": 1,
+          "weights": {
+            "easy": 20,
+            "normal": 60,
+            "hard": 20
+          },
+          "levels": {
+            "easy": {
+              "min": 2,
+              "max": 4
+            },
+            "normal": {
+              "min": 4,
+              "max": 7
+            },
+            "hard": {
+              "min": 7,
+              "max": 9
+            }
+          }
+        },
+        "quantity": {
+          "generation": {
+            "minCount": 30,
+            "maxCount": 150,
+            "poolSize": 220,
+            "jitter": 0.22,
+            "dotRadius": 0.009
+          },
+          "scoring": {
+            "version": 1,
+            "tolerance": 0.3,
+            "exponent": 1.5
+          },
+          "initialAnswer": 15,
+          "variantSelectionVersion": 1,
+          "multi": {
+            "version": 1,
+            "scoring": {
+              "version": 2,
+              "tolerance": 0.3,
+              "exponent": 1.5
+            },
+            "weights": {
+              "easy": {
+                "single": 4,
+                "multi2": 2,
+                "multi3": 1
+              },
+              "hard": {
+                "single": 2,
+                "multi2": 3,
+                "multi3": 3
+              }
+            },
+            "multi2": {
+              "minCount": 15,
+              "maxCount": 65,
+              "answerMax": 90,
+              "initialAnswer": 8,
+              "memorizeScale": 1.25
+            },
+            "multi3": {
+              "minCount": 10,
+              "maxCount": 45,
+              "answerMax": 60,
+              "initialAnswer": 6,
+              "memorizeScale": 1.5
+            },
+            "jitter": 0.22,
+            "dotRadius": 0.0105
+          },
+          "renderingVersion": 3,
+          "progression": {
+            "version": 1,
+            "maxStage": 3,
+            "variantWeights": {
+              "single": 3,
+              "multi2": 2,
+              "multi3": 2
+            },
+            "ranges": {
+              "single": [
+                {
+                  "minCount": 20,
+                  "maxCount": 80,
+                  "answerMax": 100
+                },
+                {
+                  "minCount": 30,
+                  "maxCount": 110,
+                  "answerMax": 140
+                },
+                {
+                  "minCount": 40,
+                  "maxCount": 150,
+                  "answerMax": 190
+                },
+                {
+                  "minCount": 50,
+                  "maxCount": 190,
+                  "answerMax": 230
+                }
+              ],
+              "multi2": [
+                {
+                  "minCount": 10,
+                  "maxCount": 35,
+                  "answerMax": 45
+                },
+                {
+                  "minCount": 15,
+                  "maxCount": 45,
+                  "answerMax": 60
+                },
+                {
+                  "minCount": 20,
+                  "maxCount": 60,
+                  "answerMax": 80
+                },
+                {
+                  "minCount": 25,
+                  "maxCount": 75,
+                  "answerMax": 100
+                }
+              ],
+              "multi3": [
+                {
+                  "minCount": 10,
+                  "maxCount": 25,
+                  "answerMax": 35
+                },
+                {
+                  "minCount": 12,
+                  "maxCount": 35,
+                  "answerMax": 45
+                },
+                {
+                  "minCount": 15,
+                  "maxCount": 45,
+                  "answerMax": 60
+                },
+                {
+                  "minCount": 18,
+                  "maxCount": 55,
+                  "answerMax": 70
+                }
+              ]
+            }
+          }
+        },
+        "pitch": {
+          "generation": {
+            "toneCount": 4,
+            "minHz": 220,
+            "maxHz": 880,
+            "minInterval": 150,
+            "maxInterval": 720
+          },
+          "scoring": {
+            "version": 1,
+            "tolerance": 180,
+            "exponent": 1.3
+          },
+          "audio": {
+            "toneMs": 550,
+            "gapMs": 160,
+            "repeatGapMs": 450,
+            "repeats": 2,
+            "leadMs": 250,
+            "volume": 0.1,
+            "attackMs": 15,
+            "releaseMs": 45
+          },
+          "timing": {
+            "memorizeMs": 8000,
+            "answerMs": 35000
+          },
+          "initialHz": 440,
+          "variantSelectionVersion": 2,
+          "variations": {
+            "version": 1,
+            "lengths": {
+              "easy": {
+                "n3": 3,
+                "n4": 4,
+                "n5": 0
+              },
+              "hard": {
+                "n3": 2,
+                "n4": 3,
+                "n5": 0
+              }
+            },
+            "references": {
+              "easy": {
+                "one": 1,
+                "two": 0
+              },
+              "hard": {
+                "one": 1,
+                "two": 0
+              }
+            },
+            "positions": {
+              "first": 1,
+              "middle": 1,
+              "last": 1,
+              "interior": 1
+            },
+            "contours": {
+              "ascending": 2,
+              "descending": 2,
+              "arch": 2,
+              "valley": 2,
+              "mixed": 4,
+              "echo": 1
+            },
+            "timing": {
+              "memoryScales": {
+                "n3": 0.9,
+                "n4": 1,
+                "n5": 1.2
+              },
+              "answerScales": {
+                "n3": 1,
+                "n4": 1,
+                "n5": 1.15
+              },
+              "easyScale": 1.15,
+              "hardScale": 0.9,
+              "safetyMs": 300
+            }
+          }
+        },
+        "color": {
+          "version": 2,
+          "variantSelectionVersion": 2,
+          "initialHsl": {
+            "h": 180,
+            "s": 50,
+            "l": 50
+          },
+          "initialHue": 180,
+          "single": {
+            "minS": 35,
+            "maxS": 90,
+            "minL": 30,
+            "maxL": 70
+          },
+          "fixed": {
+            "s": 65,
+            "l": 55
+          },
+          "weights": {
+            "easy": {
+              "single": 1,
+              "hue2": 0,
+              "hue3": 0,
+              "hue4": 0
+            },
+            "hard": {
+              "single": 1,
+              "hue2": 0,
+              "hue3": 0,
+              "hue4": 0
+            }
+          },
+          "separation": {
+            "easy": 50,
+            "hard": 18
+          },
+          "multiScoring": {
+            "version": 1,
+            "curve": {
+              "version": 3,
+              "tolerance": 0.2,
+              "exponent": 1.4,
+              "knee": 0.06,
+              "width": 0.08,
+              "strength": 0.5,
+              "penaltyExponent": 1.5
+            }
+          },
+          "hue2": {
+            "memorizeMs": 5000,
+            "answerMs": 28000
+          },
+          "hue3": {
+            "memorizeMs": 6000,
+            "answerMs": 33000
+          },
+          "hue4": {
+            "memorizeMs": 7000,
+            "answerMs": 38000
+          }
+        },
+        "cpu": {
+          "version": 1,
+          "color": {
+            "sigmaLab": [
+              0.105,
+              0.065,
+              0.038,
+              0.02
+            ],
+            "maxError": 0.5,
+            "attempts": 48,
+            "lapseRate": 0.12,
+            "lapseScale": 2.5,
+            "luckyRate": 0.06,
+            "luckyScale": 0.25
+          },
+          "quantity": {
+            "sigmaRelative": [
+              0.34,
+              0.22,
+              0.13,
+              0.065
+            ],
+            "exactRate": [
+              0.02,
+              0.03,
+              0.04,
+              0.05
+            ],
+            "lapseRate": 0.12,
+            "lapseScale": 2.5,
+            "luckyRate": 0.06,
+            "luckyScale": 0.25
+          },
+          "pitch": {
+            "sigmaCents": [
+              260,
+              160,
+              90,
+              45
+            ],
+            "commonFraction": 0.35,
+            "lapseRate": 0.12,
+            "lapseScale": 2.5,
+            "luckyRate": 0.06,
+            "luckyScale": 0.25
+          },
+          "timing": {
+            "color": {
+              "minFraction": 0.12,
+              "maxFraction": 0.68,
+              "complexityFraction": 0.015
+            },
+            "quantity": {
+              "minFraction": 0.14,
+              "maxFraction": 0.78,
+              "complexityFraction": 0.015
+            },
+            "pitch": {
+              "minFraction": 0.18,
+              "maxFraction": 0.84,
+              "complexityFraction": 0.015
+            }
+          }
+        }
+      },
+      "roster": {
+        "a": {
+          "id": "a",
+          "type": "human",
+          "controllerId": "a"
+        },
+        "b": {
+          "id": "b",
+          "type": "human",
+          "controllerId": "b"
+        },
+        "c0": {
+          "id": "c0",
+          "type": "cpu",
+          "controllerId": "a",
+          "difficulty": 1,
+          "cpuVersion": 1
+        },
+        "c1": {
+          "id": "c1",
+          "type": "cpu",
+          "controllerId": "a",
+          "difficulty": 2,
+          "cpuVersion": 1
+        },
+        "c2": {
+          "id": "c2",
+          "type": "cpu",
+          "controllerId": "a",
+          "difficulty": 3,
+          "cpuVersion": 1
+        },
+        "c3": {
+          "id": "c3",
+          "type": "cpu",
+          "controllerId": "b",
+          "difficulty": 4,
+          "cpuVersion": 1
+        },
+        "c4": {
+          "id": "c4",
+          "type": "cpu",
+          "controllerId": "b",
+          "difficulty": 1,
+          "cpuVersion": 1
+        },
+        "c5": {
+          "id": "c5",
+          "type": "cpu",
+          "controllerId": "b",
+          "difficulty": 2,
+          "cpuVersion": 1
+        }
+      },
+      "seatOrder": [
+        "a",
+        "b",
+        "c0",
+        "c1",
+        "c2",
+        "c3",
+        "c4",
+        "c5"
+      ],
+      "owners": {
+        "a": "a",
+        "b": "b",
+        "c0": "a",
+        "c1": "a",
+        "c2": "a",
+        "c3": "b",
+        "c4": "b",
+        "c5": "b"
+      },
+      "withdrawn": [],
+      "endReason": null,
+      "categoryId": "quantity",
+      "questionId": "quantity-single-v1-1-16",
+      "question": {
+        "type": "quantity",
+        "version": 1,
+        "seed": 42,
+        "target": 54,
+        "scoringVersion": 1,
+        "variant": "single",
+        "variantVersion": 1,
+        "parameters": {
+          "version": 1,
+          "generation": {
+            "minCount": 29,
+            "maxCount": 71,
+            "poolSize": 100,
+            "jitter": 0.22,
+            "dotRadius": 0.009
+          },
+          "timing": {
+            "prepareMs": 3000,
+            "memorizeMs": 4000,
+            "answerMs": 25000,
+            "resultsMs": 6000
+          },
+          "quantityProgression": {
+            "version": 1,
+            "stage": 0,
+            "stageMin": 20,
+            "stageMax": 80,
+            "answerMax": 100
+          },
+          "challenge": {
+            "version": 1,
+            "band": "normal",
+            "level": 5.0059,
+            "quantityStage": 0
+          }
+        },
+        "challenge": {
+          "version": 1,
+          "band": "normal",
+          "level": 5.0059,
+          "quantityStage": 0
+        }
+      },
+      "roundTiming": {
+        "prepareMs": 3000,
+        "memorizeMs": 4000,
+        "answerMs": 25000,
+        "resultsMs": 6000
+      },
+      "timeline": {
+        "startAt": 1000,
+        "memorizeAt": 4000,
+        "answerAt": 8000,
+        "deadline": 33000
+      },
+      "phase": "active",
+      "submissions": {},
+      "resultsAt": null,
+      "resultsUntil": null,
+      "selectionState": {
+        "version": 1,
+        "seed": 42,
+        "draw": 1,
+        "cycle": 1,
+        "remaining": {
+          "color": 2,
+          "quantity": 1,
+          "pitch": 2
+        },
+        "last": "quantity",
+        "streak": 1
+      },
+      "variantState": {
+        "quantity": {
+          "version": 1,
+          "draw": 1,
+          "last": "single",
+          "streak": 1
+        },
+        "color": {
+          "version": 1,
+          "draw": 0,
+          "last": null,
+          "streak": 0
+        },
+        "pitch": {
+          "version": 1,
+          "draw": 0,
+          "lastStructure": null,
+          "streak": 0,
+          "lastContour": null,
+          "contourStreak": 0
+        }
+      },
+      "challengeState": {
+        "version": 1,
+        "last": {
+          "version": 1,
+          "band": "normal",
+          "level": 5.0059,
+          "quantityStage": 0
+        }
+      },
+      "quantityProgress": {
+        "version": 1,
+        "stage": 0,
+        "lastRound": 0,
+        "advanced": false
+      },
+      "roundHumans": [
+        "a",
+        "b"
+      ]
+    },
+    "frames": [
+      {
+        "beforeHash": "119410f398c89898ef36cd6a5d2c92e2b9daa2d89b2ae32d73186769b9db1ceb",
+        "answers": {
+          "a": 54,
+          "b": 54,
+          "c0": 26,
+          "c1": 53,
+          "c2": 42,
+          "c3": 55,
+          "c4": 0,
+          "c5": 53
+        },
+        "plans": {
+          "c0": {
+            "key": "1|v11-cpu-mixed|1|quantity-single-v1-1-16|42|c0",
+            "dueAt": 25750,
+            "nonce": "cpu-v1-1-1jf18mj"
+          },
+          "c1": {
+            "key": "1|v11-cpu-mixed|1|quantity-single-v1-1-16|42|c1",
+            "dueAt": 16992,
+            "nonce": "cpu-v1-1-tt6lkm"
+          },
+          "c2": {
+            "key": "1|v11-cpu-mixed|1|quantity-single-v1-1-16|42|c2",
+            "dueAt": 21704,
+            "nonce": "cpu-v1-1-pd7edy"
+          },
+          "c3": {
+            "key": "1|v11-cpu-mixed|1|quantity-single-v1-1-16|42|c3",
+            "dueAt": 20275,
+            "nonce": "cpu-v1-1-2gknaa"
+          },
+          "c4": {
+            "key": "1|v11-cpu-mixed|1|quantity-single-v1-1-16|42|c4",
+            "dueAt": 21132,
+            "nonce": "cpu-v1-1-km31x7"
+          },
+          "c5": {
+            "key": "1|v11-cpu-mixed|1|quantity-single-v1-1-16|42|c5",
+            "dueAt": 14736,
+            "nonce": "cpu-v1-1-eqganp"
+          }
+        },
+        "settledHash": "a38085c508dc0ad1019bd6a5b6900f9b3f59de58d0855c5bdfc9bb291a3a27f2"
+      },
+      {
+        "beforeHash": "5658377d1fc00f215b4cce868bb6cc278b6ec1b2a6d578aa8cd9abbfe182ea94",
+        "answers": {
+          "a": {
+            "n1": 435.95227,
+            "n2": 565.686807,
+            "n3": 649.428271,
+            "n4": 828.213962
+          },
+          "b": {
+            "n1": 461.875341,
+            "n2": 565.686807,
+            "n3": 649.428271,
+            "n4": 828.213962
+          },
+          "c0": {
+            "n1": 643.082363,
+            "n2": 427.968177,
+            "n3": 649.428271,
+            "n4": 747.722799
+          },
+          "c1": {
+            "n1": 439.238198,
+            "n2": 537.340603,
+            "n3": 649.428271,
+            "n4": 759.914369
+          },
+          "c2": {
+            "n1": 433.44137,
+            "n2": 558.543712,
+            "n3": 649.428271,
+            "n4": 826.780019
+          },
+          "c3": {
+            "n1": 426.980502,
+            "n2": 541.390732,
+            "n3": 649.428271,
+            "n4": 806.031855
+          },
+          "c4": {
+            "n1": 429.702109,
+            "n2": 432.191348,
+            "n3": 649.428271,
+            "n4": 839.290465
+          },
+          "c5": {
+            "n1": 477.887221,
+            "n2": 475.409321,
+            "n3": 649.428271,
+            "n4": 615.106771
+          }
+        },
+        "plans": {
+          "c0": {
+            "key": "1|v11-cpu-mixed|2|pitch-melody-v2-2-17|43|c0",
+            "dueAt": 69562,
+            "nonce": "cpu-v1-2-ug92jo"
+          },
+          "c1": {
+            "key": "1|v11-cpu-mixed|2|pitch-melody-v2-2-17|43|c1",
+            "dueAt": 69487,
+            "nonce": "cpu-v1-2-5h44lg"
+          },
+          "c2": {
+            "key": "1|v11-cpu-mixed|2|pitch-melody-v2-2-17|43|c2",
+            "dueAt": 73319,
+            "nonce": "cpu-v1-2-q7w6tb"
+          },
+          "c3": {
+            "key": "1|v11-cpu-mixed|2|pitch-melody-v2-2-17|43|c3",
+            "dueAt": 79500,
+            "nonce": "cpu-v1-2-99nmv"
+          },
+          "c4": {
+            "key": "1|v11-cpu-mixed|2|pitch-melody-v2-2-17|43|c4",
+            "dueAt": 60506,
+            "nonce": "cpu-v1-2-1xds2tb"
+          },
+          "c5": {
+            "key": "1|v11-cpu-mixed|2|pitch-melody-v2-2-17|43|c5",
+            "dueAt": 75451,
+            "nonce": "cpu-v1-2-a5bqsa"
+          }
+        },
+        "settledHash": "dc9658cadfa5e25ea96d51d84fca7fdcd3a0725d1010ae4f6f62911086e11e8a"
+      },
+      {
+        "beforeHash": "acc615f574e9e6c6ff7a8c68c1b22e42ac1b2263f33ba9130ce685b07f76d24a",
+        "answers": {
+          "a": [
+            170,
+            199,
+            35
+          ],
+          "b": [
+            170,
+            199,
+            35
+          ],
+          "c0": [
+            194,
+            221,
+            157
+          ],
+          "c1": [
+            183,
+            194,
+            116
+          ],
+          "c2": [
+            149,
+            185,
+            68
+          ],
+          "c3": [
+            160,
+            201,
+            81
+          ],
+          "c4": [
+            121,
+            220,
+            86
+          ],
+          "c5": [
+            148,
+            221,
+            115
+          ]
+        },
+        "plans": {
+          "c0": {
+            "key": "1|v11-cpu-mixed|3|color-single-v3-3-18|44|c0",
+            "dueAt": 105706,
+            "nonce": "cpu-v1-3-wt3yq1"
+          },
+          "c1": {
+            "key": "1|v11-cpu-mixed|3|color-single-v3-3-18|44|c1",
+            "dueAt": 103407,
+            "nonce": "cpu-v1-3-1qyekz4"
+          },
+          "c2": {
+            "key": "1|v11-cpu-mixed|3|color-single-v3-3-18|44|c2",
+            "dueAt": 106687,
+            "nonce": "cpu-v1-3-7jt2aw"
+          },
+          "c3": {
+            "key": "1|v11-cpu-mixed|3|color-single-v3-3-18|44|c3",
+            "dueAt": 105234,
+            "nonce": "cpu-v1-3-12nxt21"
+          },
+          "c4": {
+            "key": "1|v11-cpu-mixed|3|color-single-v3-3-18|44|c4",
+            "dueAt": 107146,
+            "nonce": "cpu-v1-3-188gwx"
+          },
+          "c5": {
+            "key": "1|v11-cpu-mixed|3|color-single-v3-3-18|44|c5",
+            "dueAt": 110526,
+            "nonce": "cpu-v1-3-1uiuzhj"
+          }
+        },
+        "settledHash": "d000f503d5f713807d019ddfff4f83cc5d8bc48fcfbd0208a0eb1935aaaf6821"
+      },
+      {
+        "beforeHash": "706001a83a73f5c2593e405f93504223be865e6a07097c020cc7ebbfd72a7fb5",
+        "answers": {
+          "a": {
+            "circle": 17,
+            "square": 19
+          },
+          "b": {
+            "circle": 16,
+            "square": 19
+          },
+          "c0": {
+            "circle": 17,
+            "square": 16
+          },
+          "c1": {
+            "circle": 14,
+            "square": 10
+          },
+          "c2": {
+            "circle": 17,
+            "square": 18
+          },
+          "c3": {
+            "circle": 16,
+            "square": 18
+          },
+          "c4": {
+            "circle": 20,
+            "square": 12
+          },
+          "c5": {
+            "circle": 20,
+            "square": 20
+          }
+        },
+        "plans": {
+          "c0": {
+            "key": "1|v11-cpu-mixed|4|quantity-multi2-v2-4-19|45|c0",
+            "dueAt": 154106,
+            "nonce": "cpu-v1-4-1nofghe"
+          },
+          "c1": {
+            "key": "1|v11-cpu-mixed|4|quantity-multi2-v2-4-19|45|c1",
+            "dueAt": 149345,
+            "nonce": "cpu-v1-4-1fvjc90"
+          },
+          "c2": {
+            "key": "1|v11-cpu-mixed|4|quantity-multi2-v2-4-19|45|c2",
+            "dueAt": 148447,
+            "nonce": "cpu-v1-4-1c9840"
+          },
+          "c3": {
+            "key": "1|v11-cpu-mixed|4|quantity-multi2-v2-4-19|45|c3",
+            "dueAt": 153803,
+            "nonce": "cpu-v1-4-2nvl43"
+          },
+          "c4": {
+            "key": "1|v11-cpu-mixed|4|quantity-multi2-v2-4-19|45|c4",
+            "dueAt": 149955,
+            "nonce": "cpu-v1-4-1hfhd6h"
+          },
+          "c5": {
+            "key": "1|v11-cpu-mixed|4|quantity-multi2-v2-4-19|45|c5",
+            "dueAt": 145478,
+            "nonce": "cpu-v1-4-1g034ti"
+          }
+        },
+        "settledHash": "057ded3c9e9af6710dd375f7b48b8f4d804c99e94e2bdc3dbc379301effe8bf8"
+      },
+      {
+        "beforeHash": "e501a6d46325d596e93c4ccd0403083317dd6563903285a15cef12b858a60dc0",
+        "answers": {
+          "a": {
+            "n1": 685.268889,
+            "n2": 508.061634,
+            "n3": 717.263653,
+            "n4": 654.323245
+          },
+          "b": {
+            "n1": 685.268889,
+            "n2": 508.061634,
+            "n3": 717.263653,
+            "n4": 654.323245
+          },
+          "c0": {
+            "n1": 685.268889,
+            "n2": 570.609404,
+            "n3": 655.458084,
+            "n4": 694.834886
+          },
+          "c1": {
+            "n1": 685.268889,
+            "n2": 546.733152,
+            "n3": 720.585784,
+            "n4": 672.33031
+          },
+          "c2": {
+            "n1": 685.268889,
+            "n2": 493.598105,
+            "n3": 712.309151,
+            "n4": 684.873176
+          },
+          "c3": {
+            "n1": 685.268889,
+            "n2": 516.047378,
+            "n3": 684.477692,
+            "n4": 679.74966
+          },
+          "c4": {
+            "n1": 685.268889,
+            "n2": 478.716055,
+            "n3": 866.882739,
+            "n4": 721.418719
+          },
+          "c5": {
+            "n1": 685.268889,
+            "n2": 441.272607,
+            "n3": 685.268889,
+            "n4": 560.482835
+          }
+        },
+        "plans": {
+          "c0": {
+            "key": "1|v11-cpu-mixed|5|pitch-melody-v2-5-1a|46|c0",
+            "dueAt": 196599,
+            "nonce": "cpu-v1-5-gircvm"
+          },
+          "c1": {
+            "key": "1|v11-cpu-mixed|5|pitch-melody-v2-5-1a|46|c1",
+            "dueAt": 189612,
+            "nonce": "cpu-v1-5-cvy586"
+          },
+          "c2": {
+            "key": "1|v11-cpu-mixed|5|pitch-melody-v2-5-1a|46|c2",
+            "dueAt": 198238,
+            "nonce": "cpu-v1-5-1fj066b"
+          },
+          "c3": {
+            "key": "1|v11-cpu-mixed|5|pitch-melody-v2-5-1a|46|c3",
+            "dueAt": 195034,
+            "nonce": "cpu-v1-5-1ark3pl"
+          },
+          "c4": {
+            "key": "1|v11-cpu-mixed|5|pitch-melody-v2-5-1a|46|c4",
+            "dueAt": 195889,
+            "nonce": "cpu-v1-5-18vffr2"
+          },
+          "c5": {
+            "key": "1|v11-cpu-mixed|5|pitch-melody-v2-5-1a|46|c5",
+            "dueAt": 199232,
+            "nonce": "cpu-v1-5-1qq3nyz"
+          }
+        },
+        "settledHash": "6ee8d36bc4e64a2eed0c2a76bb675176f2cfff4a5117f8d3f55d28e57d32e637"
+      },
+      {
+        "beforeHash": "c97ccbc1f29e00c8238c2b0b9d7ce2929ce15df0fc4e0242bf2d5adc78445756",
+        "answers": {
+          "a": [
+            177,
+            11,
+            56
+          ],
+          "b": [
+            247,
+            11,
+            56
+          ],
+          "c0": [
+            220,
+            68,
+            163
+          ],
+          "c1": [
+            143,
+            26,
+            55
+          ],
+          "c2": [
+            148,
+            55,
+            70
+          ],
+          "c3": [
+            187,
+            9,
+            69
+          ],
+          "c4": [
+            214,
+            21,
+            39
+          ],
+          "c5": [
+            205,
+            6,
+            78
+          ]
+        },
+        "plans": {
+          "c0": {
+            "key": "1|v11-cpu-mixed|6|color-single-v3-6-1b|47|c0",
+            "dueAt": 234982,
+            "nonce": "cpu-v1-6-1fcghgc"
+          },
+          "c1": {
+            "key": "1|v11-cpu-mixed|6|color-single-v3-6-1b|47|c1",
+            "dueAt": 229321,
+            "nonce": "cpu-v1-6-ua5q9q"
+          },
+          "c2": {
+            "key": "1|v11-cpu-mixed|6|color-single-v3-6-1b|47|c2",
+            "dueAt": 235674,
+            "nonce": "cpu-v1-6-thidhi"
+          },
+          "c3": {
+            "key": "1|v11-cpu-mixed|6|color-single-v3-6-1b|47|c3",
+            "dueAt": 238307,
+            "nonce": "cpu-v1-6-1m2ycoh"
+          },
+          "c4": {
+            "key": "1|v11-cpu-mixed|6|color-single-v3-6-1b|47|c4",
+            "dueAt": 240350,
+            "nonce": "cpu-v1-6-cs3h42"
+          },
+          "c5": {
+            "key": "1|v11-cpu-mixed|6|color-single-v3-6-1b|47|c5",
+            "dueAt": 237503,
+            "nonce": "cpu-v1-6-18janhi"
+          }
+        },
+        "settledHash": "0bd9ab5f767d1921fdad731c21814d4a058726e14745843cca685db4b8ae6de0"
+      },
+      {
+        "beforeHash": "25a393f633bc9b823c6a6af102218f4a30e489eff2e251e4b42fbab81a96141a",
+        "answers": {
+          "a": [
+            136,
+            61,
+            109
+          ],
+          "b": [
+            136,
+            61,
+            109
+          ],
+          "c0": [
+            120,
+            41,
+            95
+          ],
+          "c1": [
+            142,
+            86,
+            138
+          ],
+          "c2": [
+            146,
+            48,
+            84
+          ],
+          "c3": [
+            136,
+            59,
+            102
+          ],
+          "c4": [
+            132,
+            64,
+            112
+          ],
+          "c5": [
+            96,
+            73,
+            24
+          ]
+        },
+        "plans": {
+          "c0": {
+            "key": "1|v11-cpu-mixed|7|color-single-v3-7-1c|48|c0",
+            "dueAt": 275746,
+            "nonce": "cpu-v1-7-ztomhb"
+          },
+          "c1": {
+            "key": "1|v11-cpu-mixed|7|color-single-v3-7-1c|48|c1",
+            "dueAt": 276849,
+            "nonce": "cpu-v1-7-jhmxnx"
+          },
+          "c2": {
+            "key": "1|v11-cpu-mixed|7|color-single-v3-7-1c|48|c2",
+            "dueAt": 276703,
+            "nonce": "cpu-v1-7-o513o5"
+          },
+          "c3": {
+            "key": "1|v11-cpu-mixed|7|color-single-v3-7-1c|48|c3",
+            "dueAt": 278804,
+            "nonce": "cpu-v1-7-l29dn5"
+          },
+          "c4": {
+            "key": "1|v11-cpu-mixed|7|color-single-v3-7-1c|48|c4",
+            "dueAt": 275015,
+            "nonce": "cpu-v1-7-1lqutn"
+          },
+          "c5": {
+            "key": "1|v11-cpu-mixed|7|color-single-v3-7-1c|48|c5",
+            "dueAt": 273207,
+            "nonce": "cpu-v1-7-wlk1be"
+          }
+        },
+        "settledHash": "272d98626f428319ca1a1cd38cef9fa47906474f7485756ae14f7408d3163d11"
+      },
+      {
+        "beforeHash": "0052bd2d1bb4539c1aed6f461f6270795fc85a424fd6b29c0b9853005db487b6",
+        "answers": {
+          "a": {
+            "n1": 559.189339,
+            "n2": 495.884291,
+            "n3": 417.710533,
+            "n4": 505.427276
+          },
+          "b": {
+            "n1": 592.440468,
+            "n2": 495.884291,
+            "n3": 417.710533,
+            "n4": 505.427276
+          },
+          "c0": {
+            "n1": 575.574838,
+            "n2": 495.884291,
+            "n3": 512.778885,
+            "n4": 583.609563
+          },
+          "c1": {
+            "n1": 551.490815,
+            "n2": 495.884291,
+            "n3": 503.387778,
+            "n4": 585.974083
+          },
+          "c2": {
+            "n1": 511.300058,
+            "n2": 495.884291,
+            "n3": 387.716874,
+            "n4": 567.650729
+          },
+          "c3": {
+            "n1": 572.921253,
+            "n2": 495.884291,
+            "n3": 413.867852,
+            "n4": 496.170808
+          },
+          "c4": {
+            "n1": 610.152635,
+            "n2": 495.884291,
+            "n3": 272.893278,
+            "n4": 320.058774
+          },
+          "c5": {
+            "n1": 598.978211,
+            "n2": 495.884291,
+            "n3": 546.417437,
+            "n4": 417.228254
+          }
+        },
+        "plans": {
+          "c0": {
+            "key": "1|v11-cpu-mixed|8|pitch-melody-v2-8-1d|49|c0",
+            "dueAt": 323421,
+            "nonce": "cpu-v1-8-1mxojeu"
+          },
+          "c1": {
+            "key": "1|v11-cpu-mixed|8|pitch-melody-v2-8-1d|49|c1",
+            "dueAt": 321018,
+            "nonce": "cpu-v1-8-s95plg"
+          },
+          "c2": {
+            "key": "1|v11-cpu-mixed|8|pitch-melody-v2-8-1d|49|c2",
+            "dueAt": 326301,
+            "nonce": "cpu-v1-8-kt572f"
+          },
+          "c3": {
+            "key": "1|v11-cpu-mixed|8|pitch-melody-v2-8-1d|49|c3",
+            "dueAt": 321754,
+            "nonce": "cpu-v1-8-az0re2"
+          },
+          "c4": {
+            "key": "1|v11-cpu-mixed|8|pitch-melody-v2-8-1d|49|c4",
+            "dueAt": 328789,
+            "nonce": "cpu-v1-8-vot79z"
+          },
+          "c5": {
+            "key": "1|v11-cpu-mixed|8|pitch-melody-v2-8-1d|49|c5",
+            "dueAt": 318413,
+            "nonce": "cpu-v1-8-x5tulw"
+          }
+        },
+        "settledHash": "575ba142b3d0ad6afed6a72f269a39e83369dabb161f7dde9c3bcf414f2cef59"
+      },
+      {
+        "beforeHash": "d84c779cc49c4110b49fbb99f0d72d96f4b255005cd0a2e37b1ca0e49cf4ab2d",
+        "answers": {
+          "a": {
+            "circle": 18,
+            "square": 24,
+            "triangle": 29
+          },
+          "b": {
+            "circle": 18,
+            "square": 24,
+            "triangle": 29
+          },
+          "c0": {
+            "circle": 13,
+            "square": 18,
+            "triangle": 29
+          },
+          "c1": {
+            "circle": 20,
+            "square": 21,
+            "triangle": 33
+          },
+          "c2": {
+            "circle": 21,
+            "square": 29,
+            "triangle": 27
+          },
+          "c3": {
+            "circle": 19,
+            "square": 25,
+            "triangle": 26
+          },
+          "c4": {
+            "circle": 14,
+            "square": 42,
+            "triangle": 9
+          },
+          "c5": {
+            "circle": 12,
+            "square": 22,
+            "triangle": 40
+          }
+        },
+        "plans": {
+          "c0": {
+            "key": "1|v11-cpu-mixed|9|quantity-multi3-v2-9-1e|50|c0",
+            "dueAt": 367442,
+            "nonce": "cpu-v1-9-eqdwhc"
+          },
+          "c1": {
+            "key": "1|v11-cpu-mixed|9|quantity-multi3-v2-9-1e|50|c1",
+            "dueAt": 362710,
+            "nonce": "cpu-v1-9-y4w5th"
+          },
+          "c2": {
+            "key": "1|v11-cpu-mixed|9|quantity-multi3-v2-9-1e|50|c2",
+            "dueAt": 364508,
+            "nonce": "cpu-v1-9-1oyfhhv"
+          },
+          "c3": {
+            "key": "1|v11-cpu-mixed|9|quantity-multi3-v2-9-1e|50|c3",
+            "dueAt": 372040,
+            "nonce": "cpu-v1-9-1vaeusr"
+          },
+          "c4": {
+            "key": "1|v11-cpu-mixed|9|quantity-multi3-v2-9-1e|50|c4",
+            "dueAt": 366793,
+            "nonce": "cpu-v1-9-8eq3sw"
+          },
+          "c5": {
+            "key": "1|v11-cpu-mixed|9|quantity-multi3-v2-9-1e|50|c5",
+            "dueAt": 366113,
+            "nonce": "cpu-v1-9-1a41gfr"
+          }
+        },
+        "settledHash": "9033988ad4ab5cd9bd35a1fbc436ff37a3cf7dd45cb388c906cc2cec71125f27"
+      },
+      {
+        "beforeHash": "ed9ccf518d50fdc3a8af41d6597363ac2a37a0613776abc11fd70e1f6ceeec1e",
+        "answers": {
+          "a": {
+            "n1": 804.636318,
+            "n2": 580.583481,
+            "n3": 790.813148
+          },
+          "b": {
+            "n1": 804.636318,
+            "n2": 615.106771,
+            "n3": 790.813148
+          },
+          "c0": {
+            "n1": 804.636318,
+            "n2": 573.5835,
+            "n3": 649.053255
+          },
+          "c1": {
+            "n1": 804.636318,
+            "n2": 620.45942,
+            "n3": 813.045932
+          },
+          "c2": {
+            "n1": 804.636318,
+            "n2": 698.860024,
+            "n3": 822.49307
+          },
+          "c3": {
+            "n1": 804.636318,
+            "n2": 580.583481,
+            "n3": 793.558652
+          },
+          "c4": {
+            "n1": 804.636318,
+            "n2": 553.405452,
+            "n3": 733.605026
+          },
+          "c5": {
+            "n1": 804.636318,
+            "n2": 586.651418,
+            "n3": 783.538152
+          }
+        },
+        "plans": {
+          "c0": {
+            "key": "1|v11-cpu-mixed|10|pitch-melody-v2-10-1f|51|c0",
+            "dueAt": 416142,
+            "nonce": "cpu-v1-10-1sq45ey"
+          },
+          "c1": {
+            "key": "1|v11-cpu-mixed|10|pitch-melody-v2-10-1f|51|c1",
+            "dueAt": 411208,
+            "nonce": "cpu-v1-10-1nppqz"
+          },
+          "c2": {
+            "key": "1|v11-cpu-mixed|10|pitch-melody-v2-10-1f|51|c2",
+            "dueAt": 421781,
+            "nonce": "cpu-v1-10-18bpwvr"
+          },
+          "c3": {
+            "key": "1|v11-cpu-mixed|10|pitch-melody-v2-10-1f|51|c3",
+            "dueAt": 411488,
+            "nonce": "cpu-v1-10-1lmjdyn"
+          },
+          "c4": {
+            "key": "1|v11-cpu-mixed|10|pitch-melody-v2-10-1f|51|c4",
+            "dueAt": 421392,
+            "nonce": "cpu-v1-10-1t4qo9l"
+          },
+          "c5": {
+            "key": "1|v11-cpu-mixed|10|pitch-melody-v2-10-1f|51|c5",
+            "dueAt": 425437,
+            "nonce": "cpu-v1-10-wn628z"
+          }
+        },
+        "settledHash": "b6854a997ee26a60f4ddecb007052b2ef0dea57150db26bbbe98277ee5a5d2d6"
+      },
+      {
+        "beforeHash": "9f238f4f63cde6420341316ad5c5a6ff78cca3d93901e67b93e90027e8855cc2",
+        "answers": {
+          "a": 98,
+          "b": 98,
+          "c0": 132,
+          "c1": 98,
+          "c2": 99,
+          "c3": 88,
+          "c4": 77,
+          "c5": 65
+        },
+        "plans": {
+          "c0": {
+            "key": "1|v11-cpu-mixed|11|quantity-single-v1-11-1g|52|c0",
+            "dueAt": 463251,
+            "nonce": "cpu-v1-11-b9rzo8"
+          },
+          "c1": {
+            "key": "1|v11-cpu-mixed|11|quantity-single-v1-11-1g|52|c1",
+            "dueAt": 457707,
+            "nonce": "cpu-v1-11-84czgt"
+          },
+          "c2": {
+            "key": "1|v11-cpu-mixed|11|quantity-single-v1-11-1g|52|c2",
+            "dueAt": 451416,
+            "nonce": "cpu-v1-11-1i6scjo"
+          },
+          "c3": {
+            "key": "1|v11-cpu-mixed|11|quantity-single-v1-11-1g|52|c3",
+            "dueAt": 455341,
+            "nonce": "cpu-v1-11-f4iykq"
+          },
+          "c4": {
+            "key": "1|v11-cpu-mixed|11|quantity-single-v1-11-1g|52|c4",
+            "dueAt": 459953,
+            "nonce": "cpu-v1-11-3cg4bl"
+          },
+          "c5": {
+            "key": "1|v11-cpu-mixed|11|quantity-single-v1-11-1g|52|c5",
+            "dueAt": 456854,
+            "nonce": "cpu-v1-11-kcc812"
+          }
+        },
+        "settledHash": "be44413251d36d3b8d648ee4f50bc7e612016cdb7c1f4fa2f3cc79292f3faaa5"
+      },
+      {
+        "beforeHash": "09a4c428c25d200fe9fe92d188a434e416d5d42ccc8a4fbf076977cf11fb61ff",
+        "answers": {
+          "a": [
+            203,
+            180,
+            92
+          ],
+          "b": [
+            17,
+            180,
+            92
+          ],
+          "c0": [
+            250,
+            110,
+            87
+          ],
+          "c1": [
+            203,
+            138,
+            115
+          ],
+          "c2": [
+            216,
+            185,
+            89
+          ],
+          "c3": [
+            221,
+            189,
+            89
+          ],
+          "c4": [
+            0,
+            137,
+            204
+          ],
+          "c5": [
+            237,
+            173,
+            20
+          ]
+        },
+        "plans": {
+          "c0": {
+            "key": "1|v11-cpu-mixed|12|color-single-v3-12-1h|53|c0",
+            "dueAt": 493778,
+            "nonce": "cpu-v1-12-17kmlxj"
+          },
+          "c1": {
+            "key": "1|v11-cpu-mixed|12|color-single-v3-12-1h|53|c1",
+            "dueAt": 493909,
+            "nonce": "cpu-v1-12-bjn5w2"
+          },
+          "c2": {
+            "key": "1|v11-cpu-mixed|12|color-single-v3-12-1h|53|c2",
+            "dueAt": 494736,
+            "nonce": "cpu-v1-12-31z36r"
+          },
+          "c3": {
+            "key": "1|v11-cpu-mixed|12|color-single-v3-12-1h|53|c3",
+            "dueAt": 491921,
+            "nonce": "cpu-v1-12-1v6cug3"
+          },
+          "c4": {
+            "key": "1|v11-cpu-mixed|12|color-single-v3-12-1h|53|c4",
+            "dueAt": 499438,
+            "nonce": "cpu-v1-12-1sz9jcc"
+          },
+          "c5": {
+            "key": "1|v11-cpu-mixed|12|color-single-v3-12-1h|53|c5",
+            "dueAt": 494575,
+            "nonce": "cpu-v1-12-bqvf1q"
+          }
+        },
+        "settledHash": "abd89b51f8dda53ef42795d3bc1a993a1e1d2ab0c5baa5f83b744558fac529f4"
+      }
+    ]
+  }
+]

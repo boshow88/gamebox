@@ -29,3 +29,5 @@ dist/
 # Scratch (commit messages, etc.)
 *.tmp
 .commit_msg.*
+tools/memory-analytics/credentials/
+tools/memory-analytics/exports/

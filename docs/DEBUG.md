@@ -29,11 +29,32 @@ loaded manually by opening the file. Safe to ship, but they are dev surface:
 | `tools/hashi-view.html` | Visual check for Hashi rendering: draws a generated board solved (single/double bridges), won (green), with a hint band + ghost, and a conflict (crossing bridges + over-filled island) — reuses the real CSS classes to eyeball the board vocabulary. |
 | `tools/hashi-hintview.html` | Visual check for Hashi hints: finds a board state that surfaces a grounded deduce hint (e.g. "one short of full") and a Hard assume→contradiction walk-through, then renders each with its anchor rings, ghosts and numbered chain so the hint vocabulary can be eyeballed. |
 
+## Memory checks
+
+The [maintained test reference](memory/TESTING.md) lists core and browser modes,
+calibration pages, human playtest collection and real-Firebase room checks.
+For a quick core pass:
+
+```text
+node tools/memory-check.js
+node tools/memory-room-check.js
+node tools/memory-analytics-check.js
+```
+
+[Analytics operations](memory/ANALYTICS.md#tests-and-deployment) owns the demo
+Firestore Emulator/export checks. Browser fixtures, emulator results, real
+Firebase verification and physical-device testing are separate evidence.
+Use localhost for live room testing; a website push is not required. The live
+smoke harness disables automatic analytics. Do not write synthetic analytics
+to production or deploy its Rules without explicit approval.
+
 ## Room checks
 
 ```text
 node tools/rooms-check.js
 node tools/room-traffic-check.js
+node tools/room-cleanup-check.js
+node tools/room-entry-check.js
 node tools/beam-room-check.js
 node tools/rune-room-check.js
 node tools/rtdb-room-check.js
@@ -52,9 +73,31 @@ host migration, rematches, result closing, vanished rooms and single settlement.
 The core check also covers opt-in all-ready starts. Controlled clocks cover presence,
 recovery before eviction and native disconnect/reconnect.
 
-The optional browser check loads the real pages, modules and shared UI. It covers
-creation, joining, starts, results, rematches, rejoining, input preservation,
-320px/768px layout and Beam solo settlement. Firestore stubs reject room access;
+Cleanup checks use the actual adapter with simulated clocks: ±6-minute/±24-hour
+offsets, pending/invalid calibration, clock jumps/disconnects during a pass, new
+heartbeats between scanning and deletion, collection isolation and unchanged
+60-second/20-room budgets. Entry checks execute Darts' actual async initialization
+with delayed Auth and hanging/throwing/rejected cleanup; Memory's
+`memory-online-browser-check.js --recovery` also checks recovery-before-cleanup
+and nonblocking failure behavior.
+
+Run the actual database/rule/transaction checks against a loopback demo emulator:
+
+```text
+firebase emulators:exec --project demo-gamebox --only database "node tools/room-cleanup-emulator-check.mjs"
+firebase emulators:exec --project demo-gamebox --only database "node tools/memory-rtdb-rules-check.mjs"
+```
+
+These scripts reuse the existing rules-test packages under `.cache/feedback-tests`
+and reject a missing/non-loopback emulator host. Emulator checks include real
+serverTimestamp heartbeats, stale deletion proposals interrupted by another
+client, pending calibration, skewed client clocks and batch/cooldown limits.
+Do not validate expired-room scans against production player collections.
+
+The optional browser check loads the real pages and modules. Beam's native
+`#beam-lobby` dialog covers create/join, tab identities, Ready, Start and Leave;
+Rune Stones' shared lobby also covers results, rematches, rejoining, input
+preservation and 320px/768px layout. Firestore stubs reject room access;
 profile reads/writes still work even with invalid RTDB settings. All SDK calls
 are redirected locally; these checks never access production Firebase. Pass a
 Chrome executable as the first argument if the Windows default path is unavailable.
@@ -546,11 +589,14 @@ card offscreen: only text viewed for half a second should be acknowledged. Anoth
 admin's view clears that same shared marker. The handled checkbox must remain
 unchanged, and older notes missing `adminUnread` must remain visible in All feedback.
 
-Known pre-existing check limitation: the default `rooms-browser-check.js` and its
-bare `--invalid-rtdb` UI path still expect Beam's retired `#lobby` structure.
-Both fail on the current Beam page even with the committed networking layer.
-`--account` avoids those stale UI selectors and verifies the shared network layer.
-The room-core and RTDB-model checks remain available separately.
+The shared room browser fixture uses Beam's current native lobby instead of the
+retired `#lobby` selectors, including the invalid-RTDB path. Normal runs use the
+shared Chrome/CDP result helper with real frame time; screenshot previews retain
+virtual time. The full Darts suite has a 90-second overall budget and waits for
+committed roster/revision snapshots and Ready acknowledgements before starting;
+it must not click Ready against a stale lobby version. `--account` separately checks shared
+account initialization and profile/feedback isolation, including with invalid
+RTDB configuration. All these modes replace SDK calls locally.
 
 ## Birthday checks
 
@@ -595,7 +641,11 @@ recovery checks. These checks do not use real accounts or access Firebase.
 
 The SDK checks hold Firestore or RTDB for 800 ms and require Auth delivery before
 release. The homepage must not import RTDB or room implementation modules. Checks
-also require SDK default Auth initialization, cleanup of obsolete diagnostic
+also verify Memory's restored session, custom clock, native-disconnect policy and
+shared cleanup-clock wiring after lazy loading, while other games retain their
+page identities. These fixtures supply the current Auth API, including
+`authStateReady()`; delayed restoration must not become an anonymous sign-in.
+Checks also require SDK default Auth initialization, cleanup of obsolete diagnostic
 settings without clearing scores, shared roster reads, server verification,
 transient failures/retries, permission denial, stale A→B→A responses, unsubscribe,
 and failure isolation between Auth, Firestore and RTDB.

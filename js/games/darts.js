@@ -29,7 +29,7 @@
     var Rules = window.DartsRules;
     var match = null, viewMatch = null, online = null, net = null, netUser = null;
     var room = null, lobby = null, sending = false, seenThrow = null, onlineMatchId = null;
-    var localRoom = null, onlineLoading = null, observedOnlinePhase = null, lastRoomSnapshot = null;
+    var localRoom = null, onlineLoading = null, onlineAuthLoading = null, entryCleanupUid = null, observedOnlinePhase = null, lastRoomSnapshot = null;
     var localController = 'local-controller', localSeatSerial = 0;
     var hud = null, historyView = null, throwGuide = null;
     var feedback = window.DartsFeedback.create(), feedbackState = feedback.snapshot(Date.now());
@@ -1635,8 +1635,16 @@
         })().catch(function (error) { onlineLoading = null; throw error; });
         await onlineLoading;
         if (!net.currentUser()) {
-            await net.signInGuest();
-            await new Promise(function (resolve) { net.onAuth(function (user) { if (user) { netUser = online.service.currentPlayer(); resolve(); } }); });
+            if (!onlineAuthLoading) onlineAuthLoading = (async function () {
+                await net.signInGuest();
+                await new Promise(function (resolve) { net.onAuth(function (user) { if (user) { netUser = online.service.currentPlayer(); resolve(); } }); });
+            })().finally(function () { onlineAuthLoading = null; });
+            await onlineAuthLoading;
+        }
+        if (entryCleanupUid !== net.currentUser().uid) {
+            entryCleanupUid = net.currentUser().uid;
+            var cleanupService = online.service;
+            Promise.resolve().then(function () { return cleanupService.cleanup(); }).catch(function () {});
         }
         return online;
     }
@@ -1748,6 +1756,9 @@
             var card = event.target.closest('.darts-player'); if (card) historyView.open(card.dataset.playerUid);
         });
         document.getElementById('settings-btn').addEventListener('click', function () { openLobby(); });
+        document.getElementById('invite-details').addEventListener('toggle', function () {
+            if (this.open) ensureOnline().catch(showNetError);
+        });
         document.getElementById('restart-btn').addEventListener('click', function (event) {
             if (!usesSharedMatch()) { event.stopImmediatePropagation(); restartLocal().catch(showNetError); }
         }, true);

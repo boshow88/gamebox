@@ -1,7 +1,8 @@
 /* HTTP-backed test SDK: separate browser storage contexts share only this fake RTDB. */
 'use strict';
 const sdk = `
-const control = window.__cpuNetwork = { online: true, ackDelay: 0, snapshotDelay: 15, repeats: 1, hold: false, rejectAck: false, attempts: 0 };
+const control = window.__cpuNetwork = { online: true, ackDelay: 0, snapshotDelay: 15, repeats: 1, hold: false, rejectAck: false, attempts: 0,
+    serverOffset: -Number(new URLSearchParams(location.search).get('skew') || 0) };
 const watches = new Set(), disconnects = new Map();
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
 async function request(method, path, fields) {
@@ -24,7 +25,8 @@ export function onValue(target, callback) {
     const watch = { path: target.path, callback, version: -1, active: true, busy: false }; watches.add(watch);
     async function poll() {
         if (!watch.active || watch.busy) return;
-        if (target.path === '.info/connected') { if (watch.version === -1) { watch.version = 0; callback(snapshot(target.path, control.online)); } return; }
+        if (target.path === '.info/connected') { if (watch.version === -1) { watch.version = 0; if(control.online)callback(snapshot(target.path,false));callback(snapshot(target.path, control.online)); } return; }
+        if (target.path === '.info/serverTimeOffset') { if (watch.version === -1) { watch.version = 0; callback(snapshot(target.path, control.serverOffset)); } return; }
         if (!control.online) return;
         watch.busy = true;
         try {

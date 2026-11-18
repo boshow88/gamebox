@@ -1,0 +1,5400 @@
+[
+  {
+    "initial": {
+      "version": 1,
+      "status": "playing",
+      "participants": [
+        "a",
+        "b"
+      ],
+      "round": 1,
+      "settledRound": 0,
+      "hpUnits": {
+        "a": 500000,
+        "b": 500000
+      },
+      "multiplierSchedule": {
+        "steps": [
+          1,
+          1,
+          1.3,
+          1.3,
+          1.7,
+          1.7,
+          2.2,
+          2.2,
+          3,
+          3,
+          3,
+          3
+        ]
+      },
+      "lastResult": null,
+      "winners": [],
+      "protocolVersion": 7,
+      "scoringVersion": 3,
+      "matchId": "frozen-v7-color",
+      "config": {
+        "capacity": 8,
+        "maxRounds": 12,
+        "startingHp": 500,
+        "timing": {
+          "prepareMs": 3000,
+          "memorizeMs": 4000,
+          "answerMs": 25000,
+          "resultsMs": 6000
+        },
+        "initialAnswer": [
+          128,
+          128,
+          128
+        ],
+        "generation": {
+          "channelMin": 24,
+          "channelMax": 240,
+          "minLightness": 0.4,
+          "maxLightness": 0.85,
+          "minChroma": 0.06,
+          "maxChroma": 0.28,
+          "maxAttempts": 256
+        },
+        "scoring": {
+          "version": 3,
+          "tolerance": 0.2,
+          "exponent": 1.4,
+          "knee": 0.06,
+          "width": 0.08,
+          "strength": 0.5,
+          "penaltyExponent": 1.5
+        },
+        "multiplierSchedule": {
+          "steps": [
+            1,
+            1,
+            1.3,
+            1.3,
+            1.7,
+            1.7,
+            2.2,
+            2.2,
+            3,
+            3,
+            3,
+            3
+          ]
+        },
+        "autoSubmitLeadMs": 350,
+        "categoryMode": "color",
+        "selectionVersion": 3,
+        "categoryWeights": {
+          "color": 2,
+          "quantity": 0,
+          "pitch": 0
+        },
+        "adaptive": {
+          "version": 1,
+          "enabled": true,
+          "min": 1,
+          "max": 10,
+          "initial": 5,
+          "mappingCenter": 5,
+          "step": 0.5,
+          "low": 55,
+          "high": 85,
+          "window": 4,
+          "minRounds": 3,
+          "minObservations": 3,
+          "jitter": 0.25,
+          "initialByType": {
+            "color": 5,
+            "quantity": 5,
+            "pitch": 5
+          },
+          "mappings": {
+            "color": {
+              "easyMemorizeScale": 1.35,
+              "hardMemorizeScale": 0.7,
+              "minMemorizeMs": 1500
+            },
+            "quantity": {
+              "easyMinFraction": 0,
+              "easyMaxFraction": 0.3,
+              "hardMinFraction": 0.55,
+              "hardMaxFraction": 1,
+              "easyMemorizeScale": 1.15,
+              "hardMemorizeScale": 0.85,
+              "minMemorizeMs": 1500
+            },
+            "pitch": {
+              "threeToneThrough": 4,
+              "easyMaxInterval": 500,
+              "hardMaxInterval": 720
+            }
+          }
+        },
+        "quantity": {
+          "generation": {
+            "minCount": 30,
+            "maxCount": 150,
+            "poolSize": 220,
+            "jitter": 0.22,
+            "dotRadius": 0.009
+          },
+          "scoring": {
+            "version": 1,
+            "tolerance": 0.3,
+            "exponent": 1.5
+          },
+          "initialAnswer": 15,
+          "variantSelectionVersion": 1,
+          "multi": {
+            "version": 1,
+            "scoring": {
+              "version": 2,
+              "tolerance": 0.3,
+              "exponent": 1.5
+            },
+            "weights": {
+              "easy": {
+                "single": 4,
+                "multi2": 2,
+                "multi3": 1
+              },
+              "hard": {
+                "single": 2,
+                "multi2": 3,
+                "multi3": 3
+              }
+            },
+            "multi2": {
+              "minCount": 15,
+              "maxCount": 65,
+              "answerMax": 90,
+              "initialAnswer": 8,
+              "memorizeScale": 1.25
+            },
+            "multi3": {
+              "minCount": 10,
+              "maxCount": 45,
+              "answerMax": 60,
+              "initialAnswer": 6,
+              "memorizeScale": 1.5
+            },
+            "jitter": 0.22,
+            "dotRadius": 0.0105
+          }
+        },
+        "pitch": {
+          "generation": {
+            "toneCount": 4,
+            "minHz": 220,
+            "maxHz": 880,
+            "minInterval": 150,
+            "maxInterval": 720
+          },
+          "scoring": {
+            "version": 1,
+            "tolerance": 180,
+            "exponent": 1.3
+          },
+          "audio": {
+            "toneMs": 550,
+            "gapMs": 160,
+            "repeatGapMs": 450,
+            "repeats": 2,
+            "leadMs": 250,
+            "volume": 0.1,
+            "attackMs": 15,
+            "releaseMs": 45
+          },
+          "timing": {
+            "memorizeMs": 8000,
+            "answerMs": 35000
+          },
+          "initialHz": 440,
+          "variantSelectionVersion": 1,
+          "variations": {
+            "version": 1,
+            "lengths": {
+              "easy": {
+                "n3": 3,
+                "n4": 4,
+                "n5": 2
+              },
+              "hard": {
+                "n3": 2,
+                "n4": 3,
+                "n5": 3
+              }
+            },
+            "references": {
+              "easy": {
+                "one": 4,
+                "two": 1
+              },
+              "hard": {
+                "one": 6,
+                "two": 1
+              }
+            },
+            "positions": {
+              "first": 1,
+              "middle": 1,
+              "last": 1,
+              "interior": 1
+            },
+            "contours": {
+              "ascending": 2,
+              "descending": 2,
+              "arch": 2,
+              "valley": 2,
+              "mixed": 4,
+              "echo": 1
+            },
+            "timing": {
+              "memoryScales": {
+                "n3": 0.9,
+                "n4": 1,
+                "n5": 1.2
+              },
+              "answerScales": {
+                "n3": 1,
+                "n4": 1,
+                "n5": 1.15
+              },
+              "easyScale": 1.15,
+              "hardScale": 0.9,
+              "safetyMs": 300
+            }
+          }
+        },
+        "color": {
+          "version": 1,
+          "variantSelectionVersion": 1,
+          "initialHsl": {
+            "h": 180,
+            "s": 50,
+            "l": 50
+          },
+          "initialHue": 180,
+          "single": {
+            "minS": 35,
+            "maxS": 90,
+            "minL": 30,
+            "maxL": 70
+          },
+          "fixed": {
+            "s": 65,
+            "l": 55
+          },
+          "weights": {
+            "easy": {
+              "single": 4,
+              "hue2": 2,
+              "hue3": 1,
+              "hue4": 1
+            },
+            "hard": {
+              "single": 3,
+              "hue2": 2,
+              "hue3": 2,
+              "hue4": 2
+            }
+          },
+          "separation": {
+            "easy": 50,
+            "hard": 18
+          },
+          "multiScoring": {
+            "version": 1,
+            "curve": {
+              "version": 3,
+              "tolerance": 0.2,
+              "exponent": 1.4,
+              "knee": 0.06,
+              "width": 0.08,
+              "strength": 0.5,
+              "penaltyExponent": 1.5
+            }
+          },
+          "hue2": {
+            "memorizeMs": 5000,
+            "answerMs": 28000
+          },
+          "hue3": {
+            "memorizeMs": 6000,
+            "answerMs": 33000
+          },
+          "hue4": {
+            "memorizeMs": 7000,
+            "answerMs": 38000
+          }
+        }
+      },
+      "roster": {
+        "a": {
+          "id": "a",
+          "type": "human",
+          "controllerId": "fixture-a",
+          "name": "A"
+        },
+        "b": {
+          "id": "b",
+          "type": "human",
+          "controllerId": "fixture-b",
+          "name": "B"
+        }
+      },
+      "seatOrder": [
+        "a",
+        "b"
+      ],
+      "owners": {
+        "a": "fixture-a",
+        "b": "fixture-b"
+      },
+      "withdrawn": [],
+      "endReason": null,
+      "categoryId": "color",
+      "questionId": "color-hue3-v2-1-16",
+      "question": {
+        "type": "color",
+        "version": 2,
+        "variant": "hue3",
+        "variantVersion": 1,
+        "seed": 42,
+        "answerSchema": "hues-v1",
+        "swatches": [
+          "a",
+          "b",
+          "c"
+        ],
+        "fixed": {
+          "s": 65,
+          "l": 55
+        },
+        "target": {
+          "a": 3.63,
+          "b": 90.69,
+          "c": 174.5
+        },
+        "scoringVersion": 1,
+        "difficulty": {
+          "version": 1,
+          "base": 5,
+          "variation": 0.23253238771576434,
+          "effective": 5.232532387715764
+        },
+        "parameters": {
+          "version": 1,
+          "generation": {
+            "channelMin": 24,
+            "channelMax": 240,
+            "minLightness": 0.4,
+            "maxLightness": 0.85,
+            "minChroma": 0.06,
+            "maxChroma": 0.28,
+            "maxAttempts": 256
+          },
+          "timing": {
+            "prepareMs": 3000,
+            "memorizeMs": 5900,
+            "answerMs": 33000,
+            "resultsMs": 6000
+          },
+          "color": {
+            "version": 1,
+            "separation": 34.9509959547884
+          }
+        }
+      },
+      "roundTiming": {
+        "prepareMs": 3000,
+        "memorizeMs": 5900,
+        "answerMs": 33000,
+        "resultsMs": 6000
+      },
+      "timeline": {
+        "startAt": 1000,
+        "memorizeAt": 4000,
+        "answerAt": 9900,
+        "deadline": 42900
+      },
+      "phase": "active",
+      "submissions": {},
+      "resultsAt": null,
+      "resultsUntil": null,
+      "selectionState": {
+        "version": 1,
+        "seed": 42,
+        "draw": 1,
+        "cycle": 1,
+        "remaining": {
+          "color": 1,
+          "quantity": 0,
+          "pitch": 0
+        },
+        "last": "color",
+        "streak": 1
+      },
+      "difficultyState": {
+        "version": 1,
+        "difficultyByType": {
+          "color": 5,
+          "quantity": 5,
+          "pitch": 5
+        },
+        "historyByType": {
+          "color": [],
+          "quantity": [],
+          "pitch": []
+        },
+        "lastRoundByType": {
+          "color": 0,
+          "quantity": 0,
+          "pitch": 0
+        },
+        "lastUpdate": null
+      },
+      "variantState": {
+        "quantity": {
+          "version": 1,
+          "draw": 0,
+          "last": null,
+          "streak": 0
+        },
+        "color": {
+          "version": 1,
+          "draw": 1,
+          "last": "hue3",
+          "streak": 1
+        },
+        "pitch": {
+          "version": 1,
+          "draw": 0,
+          "lastStructure": null,
+          "streak": 0,
+          "lastContour": null,
+          "contourStreak": 0
+        }
+      }
+    },
+    "rounds": [
+      {
+        "question": {
+          "type": "color",
+          "version": 2,
+          "variant": "hue3",
+          "variantVersion": 1,
+          "seed": 42,
+          "answerSchema": "hues-v1",
+          "swatches": [
+            "a",
+            "b",
+            "c"
+          ],
+          "fixed": {
+            "s": 65,
+            "l": 55
+          },
+          "target": {
+            "a": 3.63,
+            "b": 90.69,
+            "c": 174.5
+          },
+          "scoringVersion": 1,
+          "difficulty": {
+            "version": 1,
+            "base": 5,
+            "variation": 0.23253238771576434,
+            "effective": 5.232532387715764
+          },
+          "parameters": {
+            "version": 1,
+            "generation": {
+              "channelMin": 24,
+              "channelMax": 240,
+              "minLightness": 0.4,
+              "maxLightness": 0.85,
+              "minChroma": 0.06,
+              "maxChroma": 0.28,
+              "maxAttempts": 256
+            },
+            "timing": {
+              "prepareMs": 3000,
+              "memorizeMs": 5900,
+              "answerMs": 33000,
+              "resultsMs": 6000
+            },
+            "color": {
+              "version": 1,
+              "separation": 34.9509959547884
+            }
+          }
+        },
+        "questionId": "color-hue3-v2-1-16",
+        "timeline": {
+          "startAt": 1000,
+          "memorizeAt": 4000,
+          "answerAt": 9900,
+          "deadline": 42900
+        },
+        "variantState": {
+          "quantity": {
+            "version": 1,
+            "draw": 0,
+            "last": null,
+            "streak": 0
+          },
+          "color": {
+            "version": 1,
+            "draw": 1,
+            "last": "hue3",
+            "streak": 1
+          },
+          "pitch": {
+            "version": 1,
+            "draw": 0,
+            "lastStructure": null,
+            "streak": 0,
+            "lastContour": null,
+            "contourStreak": 0
+          }
+        },
+        "difficultyState": {
+          "version": 1,
+          "difficultyByType": {
+            "color": 5,
+            "quantity": 5,
+            "pitch": 5
+          },
+          "historyByType": {
+            "color": [
+              {
+                "round": 1,
+                "scores": [
+                  100,
+                  100
+                ]
+              }
+            ],
+            "quantity": [],
+            "pitch": []
+          },
+          "lastRoundByType": {
+            "color": 1,
+            "quantity": 0,
+            "pitch": 0
+          },
+          "lastUpdate": {
+            "categoryId": "color",
+            "round": 1,
+            "before": 5,
+            "after": 5,
+            "median": 100,
+            "observations": 2,
+            "rounds": 1
+          }
+        },
+        "lastResult": {
+          "round": 1,
+          "multiplier": 1,
+          "highestScoreUnits": 100000,
+          "topIds": [
+            "a",
+            "b"
+          ],
+          "rows": [
+            {
+              "id": "a",
+              "scoreUnits": 100000,
+              "damageUnits": 0,
+              "hpBeforeUnits": 500000,
+              "hpAfterUnits": 500000,
+              "top": true,
+              "eliminated": false,
+              "error": 0,
+              "missing": false,
+              "colorErrors": {
+                "a": 0,
+                "b": 0,
+                "c": 0
+              }
+            },
+            {
+              "id": "b",
+              "scoreUnits": 100000,
+              "damageUnits": 0,
+              "hpBeforeUnits": 500000,
+              "hpAfterUnits": 500000,
+              "top": true,
+              "eliminated": false,
+              "error": 0,
+              "missing": false,
+              "colorErrors": {
+                "a": 0,
+                "b": 0,
+                "c": 0
+              }
+            }
+          ],
+          "questionId": "color-hue3-v2-1-16",
+          "categoryId": "color"
+        }
+      },
+      {
+        "question": {
+          "type": "color",
+          "version": 2,
+          "variant": "hue2",
+          "variantVersion": 1,
+          "seed": 43,
+          "answerSchema": "hues-v1",
+          "swatches": [
+            "a",
+            "b"
+          ],
+          "fixed": {
+            "s": 65,
+            "l": 55
+          },
+          "target": {
+            "a": 180.9,
+            "b": 322.28
+          },
+          "scoringVersion": 1,
+          "difficulty": {
+            "version": 1,
+            "base": 5,
+            "variation": -0.1599492112873122,
+            "effective": 4.840050788712688
+          },
+          "parameters": {
+            "version": 1,
+            "generation": {
+              "channelMin": 24,
+              "channelMax": 240,
+              "minLightness": 0.4,
+              "maxLightness": 0.85,
+              "minChroma": 0.06,
+              "maxChroma": 0.28,
+              "maxAttempts": 256
+            },
+            "timing": {
+              "prepareMs": 3000,
+              "memorizeMs": 5100,
+              "answerMs": 28000,
+              "resultsMs": 6000
+            },
+            "color": {
+              "version": 1,
+              "separation": 36.34648608457711
+            }
+          }
+        },
+        "questionId": "color-hue2-v2-2-17",
+        "timeline": {
+          "startAt": 48900,
+          "memorizeAt": 51900,
+          "answerAt": 57000,
+          "deadline": 85000
+        },
+        "variantState": {
+          "quantity": {
+            "version": 1,
+            "draw": 0,
+            "last": null,
+            "streak": 0
+          },
+          "color": {
+            "version": 1,
+            "draw": 2,
+            "last": "hue2",
+            "streak": 1
+          },
+          "pitch": {
+            "version": 1,
+            "draw": 0,
+            "lastStructure": null,
+            "streak": 0,
+            "lastContour": null,
+            "contourStreak": 0
+          }
+        },
+        "difficultyState": {
+          "version": 1,
+          "difficultyByType": {
+            "color": 5,
+            "quantity": 5,
+            "pitch": 5
+          },
+          "historyByType": {
+            "color": [
+              {
+                "round": 1,
+                "scores": [
+                  100,
+                  100
+                ]
+              },
+              {
+                "round": 2,
+                "scores": [
+                  100,
+                  100
+                ]
+              }
+            ],
+            "quantity": [],
+            "pitch": []
+          },
+          "lastRoundByType": {
+            "color": 2,
+            "quantity": 0,
+            "pitch": 0
+          },
+          "lastUpdate": {
+            "categoryId": "color",
+            "round": 2,
+            "before": 5,
+            "after": 5,
+            "median": 100,
+            "observations": 4,
+            "rounds": 2
+          }
+        },
+        "lastResult": {
+          "round": 2,
+          "multiplier": 1,
+          "highestScoreUnits": 100000,
+          "topIds": [
+            "a",
+            "b"
+          ],
+          "rows": [
+            {
+              "id": "a",
+              "scoreUnits": 100000,
+              "damageUnits": 0,
+              "hpBeforeUnits": 500000,
+              "hpAfterUnits": 500000,
+              "top": true,
+              "eliminated": false,
+              "error": 0,
+              "missing": false,
+              "colorErrors": {
+                "a": 0,
+                "b": 0
+              }
+            },
+            {
+              "id": "b",
+              "scoreUnits": 100000,
+              "damageUnits": 0,
+              "hpBeforeUnits": 500000,
+              "hpAfterUnits": 500000,
+              "top": true,
+              "eliminated": false,
+              "error": 0,
+              "missing": false,
+              "colorErrors": {
+                "a": 0,
+                "b": 0
+              }
+            }
+          ],
+          "questionId": "color-hue2-v2-2-17",
+          "categoryId": "color"
+        }
+      },
+      {
+        "question": {
+          "type": "color",
+          "version": 2,
+          "variant": "hue2",
+          "variantVersion": 1,
+          "seed": 44,
+          "answerSchema": "hues-v1",
+          "swatches": [
+            "a",
+            "b"
+          ],
+          "fixed": {
+            "s": 65,
+            "l": 55
+          },
+          "target": {
+            "a": 70.7,
+            "b": 231.77
+          },
+          "scoringVersion": 1,
+          "difficulty": {
+            "version": 1,
+            "base": 5,
+            "variation": 0.015681580640375614,
+            "effective": 5.015681580640376
+          },
+          "parameters": {
+            "version": 1,
+            "generation": {
+              "channelMin": 24,
+              "channelMax": 240,
+              "minLightness": 0.4,
+              "maxLightness": 0.85,
+              "minChroma": 0.06,
+              "maxChroma": 0.28,
+              "maxAttempts": 256
+            },
+            "timing": {
+              "prepareMs": 3000,
+              "memorizeMs": 5000,
+              "answerMs": 28000,
+              "resultsMs": 6000
+            },
+            "color": {
+              "version": 1,
+              "separation": 35.722021046612
+            }
+          }
+        },
+        "questionId": "color-hue2-v2-3-18",
+        "timeline": {
+          "startAt": 91000,
+          "memorizeAt": 94000,
+          "answerAt": 99000,
+          "deadline": 127000
+        },
+        "variantState": {
+          "quantity": {
+            "version": 1,
+            "draw": 0,
+            "last": null,
+            "streak": 0
+          },
+          "color": {
+            "version": 1,
+            "draw": 3,
+            "last": "hue2",
+            "streak": 2
+          },
+          "pitch": {
+            "version": 1,
+            "draw": 0,
+            "lastStructure": null,
+            "streak": 0,
+            "lastContour": null,
+            "contourStreak": 0
+          }
+        },
+        "difficultyState": {
+          "version": 1,
+          "difficultyByType": {
+            "color": 5.5,
+            "quantity": 5,
+            "pitch": 5
+          },
+          "historyByType": {
+            "color": [
+              {
+                "round": 1,
+                "scores": [
+                  100,
+                  100
+                ]
+              },
+              {
+                "round": 2,
+                "scores": [
+                  100,
+                  100
+                ]
+              },
+              {
+                "round": 3,
+                "scores": [
+                  100,
+                  100
+                ]
+              }
+            ],
+            "quantity": [],
+            "pitch": []
+          },
+          "lastRoundByType": {
+            "color": 3,
+            "quantity": 0,
+            "pitch": 0
+          },
+          "lastUpdate": {
+            "categoryId": "color",
+            "round": 3,
+            "before": 5,
+            "after": 5.5,
+            "median": 100,
+            "observations": 6,
+            "rounds": 3
+          }
+        },
+        "lastResult": {
+          "round": 3,
+          "multiplier": 1.3,
+          "highestScoreUnits": 100000,
+          "topIds": [
+            "a",
+            "b"
+          ],
+          "rows": [
+            {
+              "id": "a",
+              "scoreUnits": 100000,
+              "damageUnits": 0,
+              "hpBeforeUnits": 500000,
+              "hpAfterUnits": 500000,
+              "top": true,
+              "eliminated": false,
+              "error": 0,
+              "missing": false,
+              "colorErrors": {
+                "a": 0,
+                "b": 0
+              }
+            },
+            {
+              "id": "b",
+              "scoreUnits": 100000,
+              "damageUnits": 0,
+              "hpBeforeUnits": 500000,
+              "hpAfterUnits": 500000,
+              "top": true,
+              "eliminated": false,
+              "error": 0,
+              "missing": false,
+              "colorErrors": {
+                "a": 0,
+                "b": 0
+              }
+            }
+          ],
+          "questionId": "color-hue2-v2-3-18",
+          "categoryId": "color"
+        }
+      },
+      {
+        "question": {
+          "type": "color",
+          "version": 2,
+          "variant": "single",
+          "variantVersion": 1,
+          "seed": 45,
+          "answerSchema": "hsl-v1",
+          "targetHsl": {
+            "h": 93.67,
+            "s": 37.83,
+            "l": 35.49
+          },
+          "target": [
+            86,
+            125,
+            56
+          ],
+          "scoringVersion": 3,
+          "difficulty": {
+            "version": 1,
+            "base": 5.5,
+            "variation": 0.0009358265670016408,
+            "effective": 5.500935826567002
+          },
+          "parameters": {
+            "version": 1,
+            "generation": {
+              "channelMin": 24,
+              "channelMax": 240,
+              "minLightness": 0.4,
+              "maxLightness": 0.85,
+              "minChroma": 0.06,
+              "maxChroma": 0.28,
+              "maxAttempts": 256
+            },
+            "timing": {
+              "prepareMs": 3000,
+              "memorizeMs": 3900,
+              "answerMs": 25000,
+              "resultsMs": 6000
+            },
+            "color": {
+              "version": 1,
+              "separation": 33.996672616650656
+            }
+          }
+        },
+        "questionId": "color-single-v2-4-19",
+        "timeline": {
+          "startAt": 133000,
+          "memorizeAt": 136000,
+          "answerAt": 139900,
+          "deadline": 164900
+        },
+        "variantState": {
+          "quantity": {
+            "version": 1,
+            "draw": 0,
+            "last": null,
+            "streak": 0
+          },
+          "color": {
+            "version": 1,
+            "draw": 4,
+            "last": "single",
+            "streak": 1
+          },
+          "pitch": {
+            "version": 1,
+            "draw": 0,
+            "lastStructure": null,
+            "streak": 0,
+            "lastContour": null,
+            "contourStreak": 0
+          }
+        },
+        "difficultyState": {
+          "version": 1,
+          "difficultyByType": {
+            "color": 6,
+            "quantity": 5,
+            "pitch": 5
+          },
+          "historyByType": {
+            "color": [
+              {
+                "round": 1,
+                "scores": [
+                  100,
+                  100
+                ]
+              },
+              {
+                "round": 2,
+                "scores": [
+                  100,
+                  100
+                ]
+              },
+              {
+                "round": 3,
+                "scores": [
+                  100,
+                  100
+                ]
+              },
+              {
+                "round": 4,
+                "scores": [
+                  100,
+                  100
+                ]
+              }
+            ],
+            "quantity": [],
+            "pitch": []
+          },
+          "lastRoundByType": {
+            "color": 4,
+            "quantity": 0,
+            "pitch": 0
+          },
+          "lastUpdate": {
+            "categoryId": "color",
+            "round": 4,
+            "before": 5.5,
+            "after": 6,
+            "median": 100,
+            "observations": 8,
+            "rounds": 4
+          }
+        },
+        "lastResult": {
+          "round": 4,
+          "multiplier": 1.3,
+          "highestScoreUnits": 100000,
+          "topIds": [
+            "a",
+            "b"
+          ],
+          "rows": [
+            {
+              "id": "a",
+              "scoreUnits": 100000,
+              "damageUnits": 0,
+              "hpBeforeUnits": 500000,
+              "hpAfterUnits": 500000,
+              "top": true,
+              "eliminated": false,
+              "error": 0,
+              "missing": false
+            },
+            {
+              "id": "b",
+              "scoreUnits": 100000,
+              "damageUnits": 0,
+              "hpBeforeUnits": 500000,
+              "hpAfterUnits": 500000,
+              "top": true,
+              "eliminated": false,
+              "error": 0,
+              "missing": false
+            }
+          ],
+          "questionId": "color-single-v2-4-19",
+          "categoryId": "color"
+        }
+      },
+      {
+        "question": {
+          "type": "color",
+          "version": 2,
+          "variant": "single",
+          "variantVersion": 1,
+          "seed": 46,
+          "answerSchema": "hsl-v1",
+          "targetHsl": {
+            "h": 216.2,
+            "s": 69.46,
+            "l": 38.62
+          },
+          "target": [
+            30,
+            84,
+            167
+          ],
+          "scoringVersion": 3,
+          "difficulty": {
+            "version": 1,
+            "base": 6,
+            "variation": 0.016302790259942412,
+            "effective": 6.016302790259942
+          },
+          "parameters": {
+            "version": 1,
+            "generation": {
+              "channelMin": 24,
+              "channelMax": 240,
+              "minLightness": 0.4,
+              "maxLightness": 0.85,
+              "minChroma": 0.06,
+              "maxChroma": 0.28,
+              "maxAttempts": 256
+            },
+            "timing": {
+              "prepareMs": 3000,
+              "memorizeMs": 3800,
+              "answerMs": 25000,
+              "resultsMs": 6000
+            },
+            "color": {
+              "version": 1,
+              "separation": 32.16425674574243
+            }
+          }
+        },
+        "questionId": "color-single-v2-5-1a",
+        "timeline": {
+          "startAt": 170900,
+          "memorizeAt": 173900,
+          "answerAt": 177700,
+          "deadline": 202700
+        },
+        "variantState": {
+          "quantity": {
+            "version": 1,
+            "draw": 0,
+            "last": null,
+            "streak": 0
+          },
+          "color": {
+            "version": 1,
+            "draw": 5,
+            "last": "single",
+            "streak": 2
+          },
+          "pitch": {
+            "version": 1,
+            "draw": 0,
+            "lastStructure": null,
+            "streak": 0,
+            "lastContour": null,
+            "contourStreak": 0
+          }
+        },
+        "difficultyState": {
+          "version": 1,
+          "difficultyByType": {
+            "color": 6.5,
+            "quantity": 5,
+            "pitch": 5
+          },
+          "historyByType": {
+            "color": [
+              {
+                "round": 2,
+                "scores": [
+                  100,
+                  100
+                ]
+              },
+              {
+                "round": 3,
+                "scores": [
+                  100,
+                  100
+                ]
+              },
+              {
+                "round": 4,
+                "scores": [
+                  100,
+                  100
+                ]
+              },
+              {
+                "round": 5,
+                "scores": [
+                  100,
+                  100
+                ]
+              }
+            ],
+            "quantity": [],
+            "pitch": []
+          },
+          "lastRoundByType": {
+            "color": 5,
+            "quantity": 0,
+            "pitch": 0
+          },
+          "lastUpdate": {
+            "categoryId": "color",
+            "round": 5,
+            "before": 6,
+            "after": 6.5,
+            "median": 100,
+            "observations": 8,
+            "rounds": 4
+          }
+        },
+        "lastResult": {
+          "round": 5,
+          "multiplier": 1.7,
+          "highestScoreUnits": 100000,
+          "topIds": [
+            "a",
+            "b"
+          ],
+          "rows": [
+            {
+              "id": "a",
+              "scoreUnits": 100000,
+              "damageUnits": 0,
+              "hpBeforeUnits": 500000,
+              "hpAfterUnits": 500000,
+              "top": true,
+              "eliminated": false,
+              "error": 0,
+              "missing": false
+            },
+            {
+              "id": "b",
+              "scoreUnits": 100000,
+              "damageUnits": 0,
+              "hpBeforeUnits": 500000,
+              "hpAfterUnits": 500000,
+              "top": true,
+              "eliminated": false,
+              "error": 0,
+              "missing": false
+            }
+          ],
+          "questionId": "color-single-v2-5-1a",
+          "categoryId": "color"
+        }
+      },
+      {
+        "question": {
+          "type": "color",
+          "version": 2,
+          "variant": "hue3",
+          "variantVersion": 1,
+          "seed": 47,
+          "answerSchema": "hues-v1",
+          "swatches": [
+            "a",
+            "b",
+            "c"
+          ],
+          "fixed": {
+            "s": 65,
+            "l": 55
+          },
+          "target": {
+            "a": 343.56,
+            "b": 62.02,
+            "c": 239.76
+          },
+          "scoringVersion": 1,
+          "difficulty": {
+            "version": 1,
+            "base": 6.5,
+            "variation": -0.09285450528841466,
+            "effective": 6.407145494711585
+          },
+          "parameters": {
+            "version": 1,
+            "generation": {
+              "channelMin": 24,
+              "channelMax": 240,
+              "minLightness": 0.4,
+              "maxLightness": 0.85,
+              "minChroma": 0.06,
+              "maxChroma": 0.28,
+              "maxAttempts": 256
+            },
+            "timing": {
+              "prepareMs": 3000,
+              "memorizeMs": 5600,
+              "answerMs": 33000,
+              "resultsMs": 6000
+            },
+            "color": {
+              "version": 1,
+              "separation": 30.77459379658103
+            }
+          }
+        },
+        "questionId": "color-hue3-v2-6-1b",
+        "timeline": {
+          "startAt": 208700,
+          "memorizeAt": 211700,
+          "answerAt": 217300,
+          "deadline": 250300
+        },
+        "variantState": {
+          "quantity": {
+            "version": 1,
+            "draw": 0,
+            "last": null,
+            "streak": 0
+          },
+          "color": {
+            "version": 1,
+            "draw": 6,
+            "last": "hue3",
+            "streak": 1
+          },
+          "pitch": {
+            "version": 1,
+            "draw": 0,
+            "lastStructure": null,
+            "streak": 0,
+            "lastContour": null,
+            "contourStreak": 0
+          }
+        },
+        "difficultyState": {
+          "version": 1,
+          "difficultyByType": {
+            "color": 7,
+            "quantity": 5,
+            "pitch": 5
+          },
+          "historyByType": {
+            "color": [
+              {
+                "round": 3,
+                "scores": [
+                  100,
+                  100
+                ]
+              },
+              {
+                "round": 4,
+                "scores": [
+                  100,
+                  100
+                ]
+              },
+              {
+                "round": 5,
+                "scores": [
+                  100,
+                  100
+                ]
+              },
+              {
+                "round": 6,
+                "scores": [
+                  100,
+                  100
+                ]
+              }
+            ],
+            "quantity": [],
+            "pitch": []
+          },
+          "lastRoundByType": {
+            "color": 6,
+            "quantity": 0,
+            "pitch": 0
+          },
+          "lastUpdate": {
+            "categoryId": "color",
+            "round": 6,
+            "before": 6.5,
+            "after": 7,
+            "median": 100,
+            "observations": 8,
+            "rounds": 4
+          }
+        },
+        "lastResult": {
+          "round": 6,
+          "multiplier": 1.7,
+          "highestScoreUnits": 100000,
+          "topIds": [
+            "a",
+            "b"
+          ],
+          "rows": [
+            {
+              "id": "a",
+              "scoreUnits": 100000,
+              "damageUnits": 0,
+              "hpBeforeUnits": 500000,
+              "hpAfterUnits": 500000,
+              "top": true,
+              "eliminated": false,
+              "error": 0,
+              "missing": false,
+              "colorErrors": {
+                "a": 0,
+                "b": 0,
+                "c": 0
+              }
+            },
+            {
+              "id": "b",
+              "scoreUnits": 100000,
+              "damageUnits": 0,
+              "hpBeforeUnits": 500000,
+              "hpAfterUnits": 500000,
+              "top": true,
+              "eliminated": false,
+              "error": 0,
+              "missing": false,
+              "colorErrors": {
+                "a": 0,
+                "b": 0,
+                "c": 0
+              }
+            }
+          ],
+          "questionId": "color-hue3-v2-6-1b",
+          "categoryId": "color"
+        }
+      },
+      {
+        "question": {
+          "type": "color",
+          "version": 2,
+          "variant": "single",
+          "variantVersion": 1,
+          "seed": 48,
+          "answerSchema": "hsl-v1",
+          "targetHsl": {
+            "h": 321.73,
+            "s": 38.22,
+            "l": 38.55
+          },
+          "target": [
+            136,
+            61,
+            109
+          ],
+          "scoringVersion": 3,
+          "difficulty": {
+            "version": 1,
+            "base": 7,
+            "variation": -0.09753063635434955,
+            "effective": 6.9024693636456504
+          },
+          "parameters": {
+            "version": 1,
+            "generation": {
+              "channelMin": 24,
+              "channelMax": 240,
+              "minLightness": 0.4,
+              "maxLightness": 0.85,
+              "minChroma": 0.06,
+              "maxChroma": 0.28,
+              "maxAttempts": 256
+            },
+            "timing": {
+              "prepareMs": 3000,
+              "memorizeMs": 3500,
+              "answerMs": 25000,
+              "resultsMs": 6000
+            },
+            "color": {
+              "version": 1,
+              "separation": 29.013442262593244
+            }
+          }
+        },
+        "questionId": "color-single-v2-7-1c",
+        "timeline": {
+          "startAt": 256300,
+          "memorizeAt": 259300,
+          "answerAt": 262800,
+          "deadline": 287800
+        },
+        "variantState": {
+          "quantity": {
+            "version": 1,
+            "draw": 0,
+            "last": null,
+            "streak": 0
+          },
+          "color": {
+            "version": 1,
+            "draw": 7,
+            "last": "single",
+            "streak": 1
+          },
+          "pitch": {
+            "version": 1,
+            "draw": 0,
+            "lastStructure": null,
+            "streak": 0,
+            "lastContour": null,
+            "contourStreak": 0
+          }
+        },
+        "difficultyState": {
+          "version": 1,
+          "difficultyByType": {
+            "color": 7.5,
+            "quantity": 5,
+            "pitch": 5
+          },
+          "historyByType": {
+            "color": [
+              {
+                "round": 4,
+                "scores": [
+                  100,
+                  100
+                ]
+              },
+              {
+                "round": 5,
+                "scores": [
+                  100,
+                  100
+                ]
+              },
+              {
+                "round": 6,
+                "scores": [
+                  100,
+                  100
+                ]
+              },
+              {
+                "round": 7,
+                "scores": [
+                  100,
+                  100
+                ]
+              }
+            ],
+            "quantity": [],
+            "pitch": []
+          },
+          "lastRoundByType": {
+            "color": 7,
+            "quantity": 0,
+            "pitch": 0
+          },
+          "lastUpdate": {
+            "categoryId": "color",
+            "round": 7,
+            "before": 7,
+            "after": 7.5,
+            "median": 100,
+            "observations": 8,
+            "rounds": 4
+          }
+        },
+        "lastResult": {
+          "round": 7,
+          "multiplier": 2.2,
+          "highestScoreUnits": 100000,
+          "topIds": [
+            "a",
+            "b"
+          ],
+          "rows": [
+            {
+              "id": "a",
+              "scoreUnits": 100000,
+              "damageUnits": 0,
+              "hpBeforeUnits": 500000,
+              "hpAfterUnits": 500000,
+              "top": true,
+              "eliminated": false,
+              "error": 0,
+              "missing": false
+            },
+            {
+              "id": "b",
+              "scoreUnits": 100000,
+              "damageUnits": 0,
+              "hpBeforeUnits": 500000,
+              "hpAfterUnits": 500000,
+              "top": true,
+              "eliminated": false,
+              "error": 0,
+              "missing": false
+            }
+          ],
+          "questionId": "color-single-v2-7-1c",
+          "categoryId": "color"
+        }
+      },
+      {
+        "question": {
+          "type": "color",
+          "version": 2,
+          "variant": "single",
+          "variantVersion": 1,
+          "seed": 49,
+          "answerSchema": "hsl-v1",
+          "targetHsl": {
+            "h": 74.75,
+            "s": 65.28,
+            "l": 67.93
+          },
+          "target": [
+            200,
+            227,
+            120
+          ],
+          "scoringVersion": 3,
+          "difficulty": {
+            "version": 1,
+            "base": 7.5,
+            "variation": -0.10815110942348838,
+            "effective": 7.391848890576512
+          },
+          "parameters": {
+            "version": 1,
+            "generation": {
+              "channelMin": 24,
+              "channelMax": 240,
+              "minLightness": 0.4,
+              "maxLightness": 0.85,
+              "minChroma": 0.06,
+              "maxChroma": 0.28,
+              "maxAttempts": 256
+            },
+            "timing": {
+              "prepareMs": 3000,
+              "memorizeMs": 3400,
+              "answerMs": 25000,
+              "resultsMs": 6000
+            },
+            "color": {
+              "version": 1,
+              "separation": 27.27342616683907
+            }
+          }
+        },
+        "questionId": "color-single-v2-8-1d",
+        "timeline": {
+          "startAt": 293800,
+          "memorizeAt": 296800,
+          "answerAt": 300200,
+          "deadline": 325200
+        },
+        "variantState": {
+          "quantity": {
+            "version": 1,
+            "draw": 0,
+            "last": null,
+            "streak": 0
+          },
+          "color": {
+            "version": 1,
+            "draw": 8,
+            "last": "single",
+            "streak": 2
+          },
+          "pitch": {
+            "version": 1,
+            "draw": 0,
+            "lastStructure": null,
+            "streak": 0,
+            "lastContour": null,
+            "contourStreak": 0
+          }
+        },
+        "difficultyState": {
+          "version": 1,
+          "difficultyByType": {
+            "color": 8,
+            "quantity": 5,
+            "pitch": 5
+          },
+          "historyByType": {
+            "color": [
+              {
+                "round": 5,
+                "scores": [
+                  100,
+                  100
+                ]
+              },
+              {
+                "round": 6,
+                "scores": [
+                  100,
+                  100
+                ]
+              },
+              {
+                "round": 7,
+                "scores": [
+                  100,
+                  100
+                ]
+              },
+              {
+                "round": 8,
+                "scores": [
+                  100,
+                  100
+                ]
+              }
+            ],
+            "quantity": [],
+            "pitch": []
+          },
+          "lastRoundByType": {
+            "color": 8,
+            "quantity": 0,
+            "pitch": 0
+          },
+          "lastUpdate": {
+            "categoryId": "color",
+            "round": 8,
+            "before": 7.5,
+            "after": 8,
+            "median": 100,
+            "observations": 8,
+            "rounds": 4
+          }
+        },
+        "lastResult": {
+          "round": 8,
+          "multiplier": 2.2,
+          "highestScoreUnits": 100000,
+          "topIds": [
+            "a",
+            "b"
+          ],
+          "rows": [
+            {
+              "id": "a",
+              "scoreUnits": 100000,
+              "damageUnits": 0,
+              "hpBeforeUnits": 500000,
+              "hpAfterUnits": 500000,
+              "top": true,
+              "eliminated": false,
+              "error": 0,
+              "missing": false
+            },
+            {
+              "id": "b",
+              "scoreUnits": 100000,
+              "damageUnits": 0,
+              "hpBeforeUnits": 500000,
+              "hpAfterUnits": 500000,
+              "top": true,
+              "eliminated": false,
+              "error": 0,
+              "missing": false
+            }
+          ],
+          "questionId": "color-single-v2-8-1d",
+          "categoryId": "color"
+        }
+      },
+      {
+        "question": {
+          "type": "color",
+          "version": 2,
+          "variant": "hue3",
+          "variantVersion": 1,
+          "seed": 50,
+          "answerSchema": "hues-v1",
+          "swatches": [
+            "a",
+            "b",
+            "c"
+          ],
+          "fixed": {
+            "s": 65,
+            "l": 55
+          },
+          "target": {
+            "a": 245.14,
+            "b": 327.34,
+            "c": 296.63
+          },
+          "scoringVersion": 1,
+          "difficulty": {
+            "version": 1,
+            "base": 8,
+            "variation": -0.19713290862273425,
+            "effective": 7.802867091377266
+          },
+          "parameters": {
+            "version": 1,
+            "generation": {
+              "channelMin": 24,
+              "channelMax": 240,
+              "minLightness": 0.4,
+              "maxLightness": 0.85,
+              "minChroma": 0.06,
+              "maxChroma": 0.28,
+              "maxAttempts": 256
+            },
+            "timing": {
+              "prepareMs": 3000,
+              "memorizeMs": 5000,
+              "answerMs": 33000,
+              "resultsMs": 6000
+            },
+            "color": {
+              "version": 1,
+              "separation": 25.8120281195475
+            }
+          }
+        },
+        "questionId": "color-hue3-v2-9-1e",
+        "timeline": {
+          "startAt": 331200,
+          "memorizeAt": 334200,
+          "answerAt": 339200,
+          "deadline": 372200
+        },
+        "variantState": {
+          "quantity": {
+            "version": 1,
+            "draw": 0,
+            "last": null,
+            "streak": 0
+          },
+          "color": {
+            "version": 1,
+            "draw": 9,
+            "last": "hue3",
+            "streak": 1
+          },
+          "pitch": {
+            "version": 1,
+            "draw": 0,
+            "lastStructure": null,
+            "streak": 0,
+            "lastContour": null,
+            "contourStreak": 0
+          }
+        },
+        "difficultyState": {
+          "version": 1,
+          "difficultyByType": {
+            "color": 8.5,
+            "quantity": 5,
+            "pitch": 5
+          },
+          "historyByType": {
+            "color": [
+              {
+                "round": 6,
+                "scores": [
+                  100,
+                  100
+                ]
+              },
+              {
+                "round": 7,
+                "scores": [
+                  100,
+                  100
+                ]
+              },
+              {
+                "round": 8,
+                "scores": [
+                  100,
+                  100
+                ]
+              },
+              {
+                "round": 9,
+                "scores": [
+                  100,
+                  100
+                ]
+              }
+            ],
+            "quantity": [],
+            "pitch": []
+          },
+          "lastRoundByType": {
+            "color": 9,
+            "quantity": 0,
+            "pitch": 0
+          },
+          "lastUpdate": {
+            "categoryId": "color",
+            "round": 9,
+            "before": 8,
+            "after": 8.5,
+            "median": 100,
+            "observations": 8,
+            "rounds": 4
+          }
+        },
+        "lastResult": {
+          "round": 9,
+          "multiplier": 3,
+          "highestScoreUnits": 100000,
+          "topIds": [
+            "a",
+            "b"
+          ],
+          "rows": [
+            {
+              "id": "a",
+              "scoreUnits": 100000,
+              "damageUnits": 0,
+              "hpBeforeUnits": 500000,
+              "hpAfterUnits": 500000,
+              "top": true,
+              "eliminated": false,
+              "error": 0,
+              "missing": false,
+              "colorErrors": {
+                "a": 0,
+                "b": 0,
+                "c": 0
+              }
+            },
+            {
+              "id": "b",
+              "scoreUnits": 100000,
+              "damageUnits": 0,
+              "hpBeforeUnits": 500000,
+              "hpAfterUnits": 500000,
+              "top": true,
+              "eliminated": false,
+              "error": 0,
+              "missing": false,
+              "colorErrors": {
+                "a": 0,
+                "b": 0,
+                "c": 0
+              }
+            }
+          ],
+          "questionId": "color-hue3-v2-9-1e",
+          "categoryId": "color"
+        }
+      },
+      {
+        "question": {
+          "type": "color",
+          "version": 2,
+          "variant": "hue2",
+          "variantVersion": 1,
+          "seed": 51,
+          "answerSchema": "hues-v1",
+          "swatches": [
+            "a",
+            "b"
+          ],
+          "fixed": {
+            "s": 65,
+            "l": 55
+          },
+          "target": {
+            "a": 115.12,
+            "b": 324.65
+          },
+          "scoringVersion": 1,
+          "difficulty": {
+            "version": 1,
+            "base": 8.5,
+            "variation": 0.19528775999788195,
+            "effective": 8.695287759997882
+          },
+          "parameters": {
+            "version": 1,
+            "generation": {
+              "channelMin": 24,
+              "channelMax": 240,
+              "minLightness": 0.4,
+              "maxLightness": 0.85,
+              "minChroma": 0.06,
+              "maxChroma": 0.28,
+              "maxAttempts": 256
+            },
+            "timing": {
+              "prepareMs": 3000,
+              "memorizeMs": 3900,
+              "answerMs": 28000,
+              "resultsMs": 6000
+            },
+            "color": {
+              "version": 1,
+              "separation": 22.638976853340864
+            }
+          }
+        },
+        "questionId": "color-hue2-v2-10-1f",
+        "timeline": {
+          "startAt": 378200,
+          "memorizeAt": 381200,
+          "answerAt": 385100,
+          "deadline": 413100
+        },
+        "variantState": {
+          "quantity": {
+            "version": 1,
+            "draw": 0,
+            "last": null,
+            "streak": 0
+          },
+          "color": {
+            "version": 1,
+            "draw": 10,
+            "last": "hue2",
+            "streak": 1
+          },
+          "pitch": {
+            "version": 1,
+            "draw": 0,
+            "lastStructure": null,
+            "streak": 0,
+            "lastContour": null,
+            "contourStreak": 0
+          }
+        },
+        "difficultyState": {
+          "version": 1,
+          "difficultyByType": {
+            "color": 9,
+            "quantity": 5,
+            "pitch": 5
+          },
+          "historyByType": {
+            "color": [
+              {
+                "round": 7,
+                "scores": [
+                  100,
+                  100
+                ]
+              },
+              {
+                "round": 8,
+                "scores": [
+                  100,
+                  100
+                ]
+              },
+              {
+                "round": 9,
+                "scores": [
+                  100,
+                  100
+                ]
+              },
+              {
+                "round": 10,
+                "scores": [
+                  100,
+                  100
+                ]
+              }
+            ],
+            "quantity": [],
+            "pitch": []
+          },
+          "lastRoundByType": {
+            "color": 10,
+            "quantity": 0,
+            "pitch": 0
+          },
+          "lastUpdate": {
+            "categoryId": "color",
+            "round": 10,
+            "before": 8.5,
+            "after": 9,
+            "median": 100,
+            "observations": 8,
+            "rounds": 4
+          }
+        },
+        "lastResult": {
+          "round": 10,
+          "multiplier": 3,
+          "highestScoreUnits": 100000,
+          "topIds": [
+            "a",
+            "b"
+          ],
+          "rows": [
+            {
+              "id": "a",
+              "scoreUnits": 100000,
+              "damageUnits": 0,
+              "hpBeforeUnits": 500000,
+              "hpAfterUnits": 500000,
+              "top": true,
+              "eliminated": false,
+              "error": 0,
+              "missing": false,
+              "colorErrors": {
+                "a": 0,
+                "b": 0
+              }
+            },
+            {
+              "id": "b",
+              "scoreUnits": 100000,
+              "damageUnits": 0,
+              "hpBeforeUnits": 500000,
+              "hpAfterUnits": 500000,
+              "top": true,
+              "eliminated": false,
+              "error": 0,
+              "missing": false,
+              "colorErrors": {
+                "a": 0,
+                "b": 0
+              }
+            }
+          ],
+          "questionId": "color-hue2-v2-10-1f",
+          "categoryId": "color"
+        }
+      },
+      {
+        "question": {
+          "type": "color",
+          "version": 2,
+          "variant": "single",
+          "variantVersion": 1,
+          "seed": 52,
+          "answerSchema": "hsl-v1",
+          "targetHsl": {
+            "h": 149.94,
+            "s": 40.06,
+            "l": 58.37
+          },
+          "target": [
+            106,
+            191,
+            149
+          ],
+          "scoringVersion": 3,
+          "difficulty": {
+            "version": 1,
+            "base": 9,
+            "variation": 0.1640953532187268,
+            "effective": 9.164095353218727
+          },
+          "parameters": {
+            "version": 1,
+            "generation": {
+              "channelMin": 24,
+              "channelMax": 240,
+              "minLightness": 0.4,
+              "maxLightness": 0.85,
+              "minChroma": 0.06,
+              "maxChroma": 0.28,
+              "maxAttempts": 256
+            },
+            "timing": {
+              "prepareMs": 3000,
+              "memorizeMs": 3000,
+              "answerMs": 25000,
+              "resultsMs": 6000
+            },
+            "color": {
+              "version": 1,
+              "separation": 20.97210541077786
+            }
+          }
+        },
+        "questionId": "color-single-v2-11-1g",
+        "timeline": {
+          "startAt": 419100,
+          "memorizeAt": 422100,
+          "answerAt": 425100,
+          "deadline": 450100
+        },
+        "variantState": {
+          "quantity": {
+            "version": 1,
+            "draw": 0,
+            "last": null,
+            "streak": 0
+          },
+          "color": {
+            "version": 1,
+            "draw": 11,
+            "last": "single",
+            "streak": 1
+          },
+          "pitch": {
+            "version": 1,
+            "draw": 0,
+            "lastStructure": null,
+            "streak": 0,
+            "lastContour": null,
+            "contourStreak": 0
+          }
+        },
+        "difficultyState": {
+          "version": 1,
+          "difficultyByType": {
+            "color": 9.5,
+            "quantity": 5,
+            "pitch": 5
+          },
+          "historyByType": {
+            "color": [
+              {
+                "round": 8,
+                "scores": [
+                  100,
+                  100
+                ]
+              },
+              {
+                "round": 9,
+                "scores": [
+                  100,
+                  100
+                ]
+              },
+              {
+                "round": 10,
+                "scores": [
+                  100,
+                  100
+                ]
+              },
+              {
+                "round": 11,
+                "scores": [
+                  100,
+                  100
+                ]
+              }
+            ],
+            "quantity": [],
+            "pitch": []
+          },
+          "lastRoundByType": {
+            "color": 11,
+            "quantity": 0,
+            "pitch": 0
+          },
+          "lastUpdate": {
+            "categoryId": "color",
+            "round": 11,
+            "before": 9,
+            "after": 9.5,
+            "median": 100,
+            "observations": 8,
+            "rounds": 4
+          }
+        },
+        "lastResult": {
+          "round": 11,
+          "multiplier": 3,
+          "highestScoreUnits": 100000,
+          "topIds": [
+            "a",
+            "b"
+          ],
+          "rows": [
+            {
+              "id": "a",
+              "scoreUnits": 100000,
+              "damageUnits": 0,
+              "hpBeforeUnits": 500000,
+              "hpAfterUnits": 500000,
+              "top": true,
+              "eliminated": false,
+              "error": 0,
+              "missing": false
+            },
+            {
+              "id": "b",
+              "scoreUnits": 100000,
+              "damageUnits": 0,
+              "hpBeforeUnits": 500000,
+              "hpAfterUnits": 500000,
+              "top": true,
+              "eliminated": false,
+              "error": 0,
+              "missing": false
+            }
+          ],
+          "questionId": "color-single-v2-11-1g",
+          "categoryId": "color"
+        }
+      },
+      {
+        "question": {
+          "type": "color",
+          "version": 2,
+          "variant": "single",
+          "variantVersion": 1,
+          "seed": 53,
+          "answerSchema": "hsl-v1",
+          "targetHsl": {
+            "h": 47.84,
+            "s": 51.35,
+            "l": 57.72
+          },
+          "target": [
+            203,
+            180,
+            92
+          ],
+          "scoringVersion": 3,
+          "difficulty": {
+            "version": 1,
+            "base": 9.5,
+            "variation": 0.1504107741639018,
+            "effective": 9.650410774163902
+          },
+          "parameters": {
+            "version": 1,
+            "generation": {
+              "channelMin": 24,
+              "channelMax": 240,
+              "minLightness": 0.4,
+              "maxLightness": 0.85,
+              "minChroma": 0.06,
+              "maxChroma": 0.28,
+              "maxAttempts": 256
+            },
+            "timing": {
+              "prepareMs": 3000,
+              "memorizeMs": 2900,
+              "answerMs": 25000,
+              "resultsMs": 6000
+            },
+            "color": {
+              "version": 1,
+              "separation": 19.242983914083904
+            }
+          }
+        },
+        "questionId": "color-single-v2-12-1h",
+        "timeline": {
+          "startAt": 456100,
+          "memorizeAt": 459100,
+          "answerAt": 462000,
+          "deadline": 487000
+        },
+        "variantState": {
+          "quantity": {
+            "version": 1,
+            "draw": 0,
+            "last": null,
+            "streak": 0
+          },
+          "color": {
+            "version": 1,
+            "draw": 12,
+            "last": "single",
+            "streak": 2
+          },
+          "pitch": {
+            "version": 1,
+            "draw": 0,
+            "lastStructure": null,
+            "streak": 0,
+            "lastContour": null,
+            "contourStreak": 0
+          }
+        },
+        "difficultyState": {
+          "version": 1,
+          "difficultyByType": {
+            "color": 10,
+            "quantity": 5,
+            "pitch": 5
+          },
+          "historyByType": {
+            "color": [
+              {
+                "round": 9,
+                "scores": [
+                  100,
+                  100
+                ]
+              },
+              {
+                "round": 10,
+                "scores": [
+                  100,
+                  100
+                ]
+              },
+              {
+                "round": 11,
+                "scores": [
+                  100,
+                  100
+                ]
+              },
+              {
+                "round": 12,
+                "scores": [
+                  100,
+                  100
+                ]
+              }
+            ],
+            "quantity": [],
+            "pitch": []
+          },
+          "lastRoundByType": {
+            "color": 12,
+            "quantity": 0,
+            "pitch": 0
+          },
+          "lastUpdate": {
+            "categoryId": "color",
+            "round": 12,
+            "before": 9.5,
+            "after": 10,
+            "median": 100,
+            "observations": 8,
+            "rounds": 4
+          }
+        },
+        "lastResult": {
+          "round": 12,
+          "multiplier": 3,
+          "highestScoreUnits": 100000,
+          "topIds": [
+            "a",
+            "b"
+          ],
+          "rows": [
+            {
+              "id": "a",
+              "scoreUnits": 100000,
+              "damageUnits": 0,
+              "hpBeforeUnits": 500000,
+              "hpAfterUnits": 500000,
+              "top": true,
+              "eliminated": false,
+              "error": 0,
+              "missing": false
+            },
+            {
+              "id": "b",
+              "scoreUnits": 100000,
+              "damageUnits": 0,
+              "hpBeforeUnits": 500000,
+              "hpAfterUnits": 500000,
+              "top": true,
+              "eliminated": false,
+              "error": 0,
+              "missing": false
+            }
+          ],
+          "questionId": "color-single-v2-12-1h",
+          "categoryId": "color"
+        }
+      }
+    ]
+  },
+  {
+    "initial": {
+      "version": 1,
+      "status": "playing",
+      "participants": [
+        "a",
+        "b"
+      ],
+      "round": 1,
+      "settledRound": 0,
+      "hpUnits": {
+        "a": 500000,
+        "b": 500000
+      },
+      "multiplierSchedule": {
+        "steps": [
+          1,
+          1,
+          1.3,
+          1.3,
+          1.7,
+          1.7,
+          2.2,
+          2.2,
+          3,
+          3,
+          3,
+          3
+        ]
+      },
+      "lastResult": null,
+      "winners": [],
+      "protocolVersion": 7,
+      "scoringVersion": 3,
+      "matchId": "frozen-v7-mixed",
+      "config": {
+        "capacity": 8,
+        "maxRounds": 12,
+        "startingHp": 500,
+        "timing": {
+          "prepareMs": 3000,
+          "memorizeMs": 4000,
+          "answerMs": 25000,
+          "resultsMs": 6000
+        },
+        "initialAnswer": [
+          128,
+          128,
+          128
+        ],
+        "generation": {
+          "channelMin": 24,
+          "channelMax": 240,
+          "minLightness": 0.4,
+          "maxLightness": 0.85,
+          "minChroma": 0.06,
+          "maxChroma": 0.28,
+          "maxAttempts": 256
+        },
+        "scoring": {
+          "version": 3,
+          "tolerance": 0.2,
+          "exponent": 1.4,
+          "knee": 0.06,
+          "width": 0.08,
+          "strength": 0.5,
+          "penaltyExponent": 1.5
+        },
+        "multiplierSchedule": {
+          "steps": [
+            1,
+            1,
+            1.3,
+            1.3,
+            1.7,
+            1.7,
+            2.2,
+            2.2,
+            3,
+            3,
+            3,
+            3
+          ]
+        },
+        "autoSubmitLeadMs": 350,
+        "categoryMode": "mixed",
+        "selectionVersion": 3,
+        "categoryWeights": {
+          "color": 2,
+          "quantity": 2,
+          "pitch": 2
+        },
+        "adaptive": {
+          "version": 1,
+          "enabled": true,
+          "min": 1,
+          "max": 10,
+          "initial": 5,
+          "mappingCenter": 5,
+          "step": 0.5,
+          "low": 55,
+          "high": 85,
+          "window": 4,
+          "minRounds": 3,
+          "minObservations": 3,
+          "jitter": 0.25,
+          "initialByType": {
+            "color": 5,
+            "quantity": 5,
+            "pitch": 5
+          },
+          "mappings": {
+            "color": {
+              "easyMemorizeScale": 1.35,
+              "hardMemorizeScale": 0.7,
+              "minMemorizeMs": 1500
+            },
+            "quantity": {
+              "easyMinFraction": 0,
+              "easyMaxFraction": 0.3,
+              "hardMinFraction": 0.55,
+              "hardMaxFraction": 1,
+              "easyMemorizeScale": 1.15,
+              "hardMemorizeScale": 0.85,
+              "minMemorizeMs": 1500
+            },
+            "pitch": {
+              "threeToneThrough": 4,
+              "easyMaxInterval": 500,
+              "hardMaxInterval": 720
+            }
+          }
+        },
+        "quantity": {
+          "generation": {
+            "minCount": 30,
+            "maxCount": 150,
+            "poolSize": 220,
+            "jitter": 0.22,
+            "dotRadius": 0.009
+          },
+          "scoring": {
+            "version": 1,
+            "tolerance": 0.3,
+            "exponent": 1.5
+          },
+          "initialAnswer": 15,
+          "variantSelectionVersion": 1,
+          "multi": {
+            "version": 1,
+            "scoring": {
+              "version": 2,
+              "tolerance": 0.3,
+              "exponent": 1.5
+            },
+            "weights": {
+              "easy": {
+                "single": 4,
+                "multi2": 2,
+                "multi3": 1
+              },
+              "hard": {
+                "single": 2,
+                "multi2": 3,
+                "multi3": 3
+              }
+            },
+            "multi2": {
+              "minCount": 15,
+              "maxCount": 65,
+              "answerMax": 90,
+              "initialAnswer": 8,
+              "memorizeScale": 1.25
+            },
+            "multi3": {
+              "minCount": 10,
+              "maxCount": 45,
+              "answerMax": 60,
+              "initialAnswer": 6,
+              "memorizeScale": 1.5
+            },
+            "jitter": 0.22,
+            "dotRadius": 0.0105
+          }
+        },
+        "pitch": {
+          "generation": {
+            "toneCount": 4,
+            "minHz": 220,
+            "maxHz": 880,
+            "minInterval": 150,
+            "maxInterval": 720
+          },
+          "scoring": {
+            "version": 1,
+            "tolerance": 180,
+            "exponent": 1.3
+          },
+          "audio": {
+            "toneMs": 550,
+            "gapMs": 160,
+            "repeatGapMs": 450,
+            "repeats": 2,
+            "leadMs": 250,
+            "volume": 0.1,
+            "attackMs": 15,
+            "releaseMs": 45
+          },
+          "timing": {
+            "memorizeMs": 8000,
+            "answerMs": 35000
+          },
+          "initialHz": 440,
+          "variantSelectionVersion": 1,
+          "variations": {
+            "version": 1,
+            "lengths": {
+              "easy": {
+                "n3": 3,
+                "n4": 4,
+                "n5": 2
+              },
+              "hard": {
+                "n3": 2,
+                "n4": 3,
+                "n5": 3
+              }
+            },
+            "references": {
+              "easy": {
+                "one": 4,
+                "two": 1
+              },
+              "hard": {
+                "one": 6,
+                "two": 1
+              }
+            },
+            "positions": {
+              "first": 1,
+              "middle": 1,
+              "last": 1,
+              "interior": 1
+            },
+            "contours": {
+              "ascending": 2,
+              "descending": 2,
+              "arch": 2,
+              "valley": 2,
+              "mixed": 4,
+              "echo": 1
+            },
+            "timing": {
+              "memoryScales": {
+                "n3": 0.9,
+                "n4": 1,
+                "n5": 1.2
+              },
+              "answerScales": {
+                "n3": 1,
+                "n4": 1,
+                "n5": 1.15
+              },
+              "easyScale": 1.15,
+              "hardScale": 0.9,
+              "safetyMs": 300
+            }
+          }
+        },
+        "color": {
+          "version": 1,
+          "variantSelectionVersion": 1,
+          "initialHsl": {
+            "h": 180,
+            "s": 50,
+            "l": 50
+          },
+          "initialHue": 180,
+          "single": {
+            "minS": 35,
+            "maxS": 90,
+            "minL": 30,
+            "maxL": 70
+          },
+          "fixed": {
+            "s": 65,
+            "l": 55
+          },
+          "weights": {
+            "easy": {
+              "single": 4,
+              "hue2": 2,
+              "hue3": 1,
+              "hue4": 1
+            },
+            "hard": {
+              "single": 3,
+              "hue2": 2,
+              "hue3": 2,
+              "hue4": 2
+            }
+          },
+          "separation": {
+            "easy": 50,
+            "hard": 18
+          },
+          "multiScoring": {
+            "version": 1,
+            "curve": {
+              "version": 3,
+              "tolerance": 0.2,
+              "exponent": 1.4,
+              "knee": 0.06,
+              "width": 0.08,
+              "strength": 0.5,
+              "penaltyExponent": 1.5
+            }
+          },
+          "hue2": {
+            "memorizeMs": 5000,
+            "answerMs": 28000
+          },
+          "hue3": {
+            "memorizeMs": 6000,
+            "answerMs": 33000
+          },
+          "hue4": {
+            "memorizeMs": 7000,
+            "answerMs": 38000
+          }
+        }
+      },
+      "roster": {
+        "a": {
+          "id": "a",
+          "type": "human",
+          "controllerId": "fixture-a",
+          "name": "A"
+        },
+        "b": {
+          "id": "b",
+          "type": "human",
+          "controllerId": "fixture-b",
+          "name": "B"
+        }
+      },
+      "seatOrder": [
+        "a",
+        "b"
+      ],
+      "owners": {
+        "a": "fixture-a",
+        "b": "fixture-b"
+      },
+      "withdrawn": [],
+      "endReason": null,
+      "categoryId": "quantity",
+      "questionId": "quantity-v1-1-16",
+      "question": {
+        "type": "quantity",
+        "version": 1,
+        "seed": 42,
+        "target": 88,
+        "scoringVersion": 1,
+        "variant": "single",
+        "variantVersion": 1,
+        "difficulty": {
+          "version": 1,
+          "base": 5,
+          "variation": 0.23253238771576434,
+          "effective": 5.232532387715764
+        },
+        "parameters": {
+          "version": 1,
+          "generation": {
+            "minCount": 61,
+            "maxCount": 106,
+            "poolSize": 220,
+            "jitter": 0.22,
+            "dotRadius": 0.009
+          },
+          "timing": {
+            "prepareMs": 3000,
+            "memorizeMs": 4000,
+            "answerMs": 25000,
+            "resultsMs": 6000
+          }
+        }
+      },
+      "roundTiming": {
+        "prepareMs": 3000,
+        "memorizeMs": 4000,
+        "answerMs": 25000,
+        "resultsMs": 6000
+      },
+      "timeline": {
+        "startAt": 1000,
+        "memorizeAt": 4000,
+        "answerAt": 8000,
+        "deadline": 33000
+      },
+      "phase": "active",
+      "submissions": {},
+      "resultsAt": null,
+      "resultsUntil": null,
+      "selectionState": {
+        "version": 1,
+        "seed": 42,
+        "draw": 1,
+        "cycle": 1,
+        "remaining": {
+          "color": 2,
+          "quantity": 1,
+          "pitch": 2
+        },
+        "last": "quantity",
+        "streak": 1
+      },
+      "difficultyState": {
+        "version": 1,
+        "difficultyByType": {
+          "color": 5,
+          "quantity": 5,
+          "pitch": 5
+        },
+        "historyByType": {
+          "color": [],
+          "quantity": [],
+          "pitch": []
+        },
+        "lastRoundByType": {
+          "color": 0,
+          "quantity": 0,
+          "pitch": 0
+        },
+        "lastUpdate": null
+      },
+      "variantState": {
+        "quantity": {
+          "version": 1,
+          "draw": 1,
+          "last": "single",
+          "streak": 1
+        },
+        "color": {
+          "version": 1,
+          "draw": 0,
+          "last": null,
+          "streak": 0
+        },
+        "pitch": {
+          "version": 1,
+          "draw": 0,
+          "lastStructure": null,
+          "streak": 0,
+          "lastContour": null,
+          "contourStreak": 0
+        }
+      }
+    },
+    "rounds": [
+      {
+        "question": {
+          "type": "quantity",
+          "version": 1,
+          "seed": 42,
+          "target": 88,
+          "scoringVersion": 1,
+          "variant": "single",
+          "variantVersion": 1,
+          "difficulty": {
+            "version": 1,
+            "base": 5,
+            "variation": 0.23253238771576434,
+            "effective": 5.232532387715764
+          },
+          "parameters": {
+            "version": 1,
+            "generation": {
+              "minCount": 61,
+              "maxCount": 106,
+              "poolSize": 220,
+              "jitter": 0.22,
+              "dotRadius": 0.009
+            },
+            "timing": {
+              "prepareMs": 3000,
+              "memorizeMs": 4000,
+              "answerMs": 25000,
+              "resultsMs": 6000
+            }
+          }
+        },
+        "questionId": "quantity-v1-1-16",
+        "timeline": {
+          "startAt": 1000,
+          "memorizeAt": 4000,
+          "answerAt": 8000,
+          "deadline": 33000
+        },
+        "variantState": {
+          "quantity": {
+            "version": 1,
+            "draw": 1,
+            "last": "single",
+            "streak": 1
+          },
+          "color": {
+            "version": 1,
+            "draw": 0,
+            "last": null,
+            "streak": 0
+          },
+          "pitch": {
+            "version": 1,
+            "draw": 0,
+            "lastStructure": null,
+            "streak": 0,
+            "lastContour": null,
+            "contourStreak": 0
+          }
+        },
+        "difficultyState": {
+          "version": 1,
+          "difficultyByType": {
+            "color": 5,
+            "quantity": 5,
+            "pitch": 5
+          },
+          "historyByType": {
+            "color": [],
+            "quantity": [
+              {
+                "round": 1,
+                "scores": [
+                  100,
+                  100
+                ]
+              }
+            ],
+            "pitch": []
+          },
+          "lastRoundByType": {
+            "color": 0,
+            "quantity": 1,
+            "pitch": 0
+          },
+          "lastUpdate": {
+            "categoryId": "quantity",
+            "round": 1,
+            "before": 5,
+            "after": 5,
+            "median": 100,
+            "observations": 2,
+            "rounds": 1
+          }
+        },
+        "lastResult": {
+          "round": 1,
+          "multiplier": 1,
+          "highestScoreUnits": 100000,
+          "topIds": [
+            "a",
+            "b"
+          ],
+          "rows": [
+            {
+              "id": "a",
+              "scoreUnits": 100000,
+              "damageUnits": 0,
+              "hpBeforeUnits": 500000,
+              "hpAfterUnits": 500000,
+              "top": true,
+              "eliminated": false,
+              "error": 0,
+              "missing": false
+            },
+            {
+              "id": "b",
+              "scoreUnits": 100000,
+              "damageUnits": 0,
+              "hpBeforeUnits": 500000,
+              "hpAfterUnits": 500000,
+              "top": true,
+              "eliminated": false,
+              "error": 0,
+              "missing": false
+            }
+          ],
+          "questionId": "quantity-v1-1-16",
+          "categoryId": "quantity"
+        }
+      },
+      {
+        "question": {
+          "type": "pitch",
+          "version": 2,
+          "variant": "melody",
+          "variationVersion": 1,
+          "answerSchema": "pitch-hz-map-v1",
+          "scoringVersion": 1,
+          "seed": 43,
+          "variation": {
+            "version": 1,
+            "toneCount": 5,
+            "fixedIndices": [
+              0
+            ],
+            "contour": "ascending"
+          },
+          "tones": [
+            "n1",
+            "n2",
+            "n3",
+            "n4",
+            "n5"
+          ],
+          "fixed": [
+            "n1"
+          ],
+          "target": {
+            "n1": 308.621134,
+            "n2": 400.463343,
+            "n3": 459.745947,
+            "n4": 586.312653,
+            "n5": 809.297529
+          },
+          "difficulty": {
+            "version": 1,
+            "base": 5,
+            "variation": -0.1599492112873122,
+            "effective": 4.840050788712688
+          },
+          "parameters": {
+            "version": 1,
+            "generation": {
+              "toneCount": 5,
+              "minHz": 220,
+              "maxHz": 880,
+              "minInterval": 150,
+              "maxInterval": 594
+            },
+            "timing": {
+              "prepareMs": 3000,
+              "memorizeMs": 9700,
+              "answerMs": 40300,
+              "resultsMs": 6000
+            },
+            "pitch": {
+              "version": 1,
+              "variation": {
+                "version": 1,
+                "toneCount": 5,
+                "fixedIndices": [
+                  0
+                ],
+                "contour": "ascending"
+              },
+              "requiredMemorizeMs": 7780,
+              "safetyMs": 300
+            }
+          }
+        },
+        "questionId": "pitch-melody-v2-2-17",
+        "timeline": {
+          "startAt": 39000,
+          "memorizeAt": 42000,
+          "answerAt": 51700,
+          "deadline": 92000
+        },
+        "variantState": {
+          "quantity": {
+            "version": 1,
+            "draw": 1,
+            "last": "single",
+            "streak": 1
+          },
+          "color": {
+            "version": 1,
+            "draw": 0,
+            "last": null,
+            "streak": 0
+          },
+          "pitch": {
+            "version": 1,
+            "draw": 1,
+            "lastStructure": "5:0",
+            "streak": 1,
+            "lastContour": "ascending",
+            "contourStreak": 1
+          }
+        },
+        "difficultyState": {
+          "version": 1,
+          "difficultyByType": {
+            "color": 5,
+            "quantity": 5,
+            "pitch": 5
+          },
+          "historyByType": {
+            "color": [],
+            "quantity": [
+              {
+                "round": 1,
+                "scores": [
+                  100,
+                  100
+                ]
+              }
+            ],
+            "pitch": [
+              {
+                "round": 2,
+                "scores": [
+                  100,
+                  100
+                ]
+              }
+            ]
+          },
+          "lastRoundByType": {
+            "color": 0,
+            "quantity": 1,
+            "pitch": 2
+          },
+          "lastUpdate": {
+            "categoryId": "pitch",
+            "round": 2,
+            "before": 5,
+            "after": 5,
+            "median": 100,
+            "observations": 2,
+            "rounds": 1
+          }
+        },
+        "lastResult": {
+          "round": 2,
+          "multiplier": 1,
+          "highestScoreUnits": 100000,
+          "topIds": [
+            "a",
+            "b"
+          ],
+          "rows": [
+            {
+              "id": "a",
+              "scoreUnits": 100000,
+              "damageUnits": 0,
+              "hpBeforeUnits": 500000,
+              "hpAfterUnits": 500000,
+              "top": true,
+              "eliminated": false,
+              "error": 0,
+              "missing": false,
+              "pitchErrors": {
+                "n2": 0,
+                "n3": 0,
+                "n4": 0,
+                "n5": 0
+              }
+            },
+            {
+              "id": "b",
+              "scoreUnits": 100000,
+              "damageUnits": 0,
+              "hpBeforeUnits": 500000,
+              "hpAfterUnits": 500000,
+              "top": true,
+              "eliminated": false,
+              "error": 0,
+              "missing": false,
+              "pitchErrors": {
+                "n2": 0,
+                "n3": 0,
+                "n4": 0,
+                "n5": 0
+              }
+            }
+          ],
+          "questionId": "pitch-melody-v2-2-17",
+          "categoryId": "pitch"
+        }
+      },
+      {
+        "question": {
+          "type": "color",
+          "version": 2,
+          "variant": "single",
+          "variantVersion": 1,
+          "seed": 44,
+          "answerSchema": "hsl-v1",
+          "targetHsl": {
+            "h": 70.7,
+            "s": 70.41,
+            "l": 45.87
+          },
+          "target": [
+            170,
+            199,
+            35
+          ],
+          "scoringVersion": 3,
+          "difficulty": {
+            "version": 1,
+            "base": 5,
+            "variation": 0.015681580640375614,
+            "effective": 5.015681580640376
+          },
+          "parameters": {
+            "version": 1,
+            "generation": {
+              "channelMin": 24,
+              "channelMax": 240,
+              "minLightness": 0.4,
+              "maxLightness": 0.85,
+              "minChroma": 0.06,
+              "maxChroma": 0.28,
+              "maxAttempts": 256
+            },
+            "timing": {
+              "prepareMs": 3000,
+              "memorizeMs": 4000,
+              "answerMs": 25000,
+              "resultsMs": 6000
+            },
+            "color": {
+              "version": 1,
+              "separation": 35.722021046612
+            }
+          }
+        },
+        "questionId": "color-single-v2-3-18",
+        "timeline": {
+          "startAt": 98000,
+          "memorizeAt": 101000,
+          "answerAt": 105000,
+          "deadline": 130000
+        },
+        "variantState": {
+          "quantity": {
+            "version": 1,
+            "draw": 1,
+            "last": "single",
+            "streak": 1
+          },
+          "color": {
+            "version": 1,
+            "draw": 1,
+            "last": "single",
+            "streak": 1
+          },
+          "pitch": {
+            "version": 1,
+            "draw": 1,
+            "lastStructure": "5:0",
+            "streak": 1,
+            "lastContour": "ascending",
+            "contourStreak": 1
+          }
+        },
+        "difficultyState": {
+          "version": 1,
+          "difficultyByType": {
+            "color": 5,
+            "quantity": 5,
+            "pitch": 5
+          },
+          "historyByType": {
+            "color": [
+              {
+                "round": 3,
+                "scores": [
+                  100,
+                  100
+                ]
+              }
+            ],
+            "quantity": [
+              {
+                "round": 1,
+                "scores": [
+                  100,
+                  100
+                ]
+              }
+            ],
+            "pitch": [
+              {
+                "round": 2,
+                "scores": [
+                  100,
+                  100
+                ]
+              }
+            ]
+          },
+          "lastRoundByType": {
+            "color": 3,
+            "quantity": 1,
+            "pitch": 2
+          },
+          "lastUpdate": {
+            "categoryId": "color",
+            "round": 3,
+            "before": 5,
+            "after": 5,
+            "median": 100,
+            "observations": 2,
+            "rounds": 1
+          }
+        },
+        "lastResult": {
+          "round": 3,
+          "multiplier": 1.3,
+          "highestScoreUnits": 100000,
+          "topIds": [
+            "a",
+            "b"
+          ],
+          "rows": [
+            {
+              "id": "a",
+              "scoreUnits": 100000,
+              "damageUnits": 0,
+              "hpBeforeUnits": 500000,
+              "hpAfterUnits": 500000,
+              "top": true,
+              "eliminated": false,
+              "error": 0,
+              "missing": false
+            },
+            {
+              "id": "b",
+              "scoreUnits": 100000,
+              "damageUnits": 0,
+              "hpBeforeUnits": 500000,
+              "hpAfterUnits": 500000,
+              "top": true,
+              "eliminated": false,
+              "error": 0,
+              "missing": false
+            }
+          ],
+          "questionId": "color-single-v2-3-18",
+          "categoryId": "color"
+        }
+      },
+      {
+        "question": {
+          "type": "quantity",
+          "version": 2,
+          "variant": "multi2",
+          "variantVersion": 1,
+          "seed": 45,
+          "groups": [
+            {
+              "id": "circle",
+              "shape": "circle",
+              "color": "#79b8ff"
+            },
+            {
+              "id": "square",
+              "shape": "square",
+              "color": "#ffa86b"
+            }
+          ],
+          "target": {
+            "circle": 29,
+            "square": 31
+          },
+          "scoringVersion": 2,
+          "difficulty": {
+            "version": 1,
+            "base": 5,
+            "variation": 0.0009358265670016408,
+            "effective": 5.000935826567002
+          },
+          "parameters": {
+            "version": 1,
+            "generation": {
+              "minCount": 27,
+              "maxCount": 46,
+              "poolSize": 90,
+              "jitter": 0.22,
+              "dotRadius": 0.0105
+            },
+            "timing": {
+              "prepareMs": 3000,
+              "memorizeMs": 5000,
+              "answerMs": 25000,
+              "resultsMs": 6000
+            }
+          }
+        },
+        "questionId": "quantity-multi2-v2-4-19",
+        "timeline": {
+          "startAt": 136000,
+          "memorizeAt": 139000,
+          "answerAt": 144000,
+          "deadline": 169000
+        },
+        "variantState": {
+          "quantity": {
+            "version": 1,
+            "draw": 2,
+            "last": "multi2",
+            "streak": 1
+          },
+          "color": {
+            "version": 1,
+            "draw": 1,
+            "last": "single",
+            "streak": 1
+          },
+          "pitch": {
+            "version": 1,
+            "draw": 1,
+            "lastStructure": "5:0",
+            "streak": 1,
+            "lastContour": "ascending",
+            "contourStreak": 1
+          }
+        },
+        "difficultyState": {
+          "version": 1,
+          "difficultyByType": {
+            "color": 5,
+            "quantity": 5,
+            "pitch": 5
+          },
+          "historyByType": {
+            "color": [
+              {
+                "round": 3,
+                "scores": [
+                  100,
+                  100
+                ]
+              }
+            ],
+            "quantity": [
+              {
+                "round": 1,
+                "scores": [
+                  100,
+                  100
+                ]
+              },
+              {
+                "round": 4,
+                "scores": [
+                  100,
+                  100
+                ]
+              }
+            ],
+            "pitch": [
+              {
+                "round": 2,
+                "scores": [
+                  100,
+                  100
+                ]
+              }
+            ]
+          },
+          "lastRoundByType": {
+            "color": 3,
+            "quantity": 4,
+            "pitch": 2
+          },
+          "lastUpdate": {
+            "categoryId": "quantity",
+            "round": 4,
+            "before": 5,
+            "after": 5,
+            "median": 100,
+            "observations": 4,
+            "rounds": 2
+          }
+        },
+        "lastResult": {
+          "round": 4,
+          "multiplier": 1.3,
+          "highestScoreUnits": 100000,
+          "topIds": [
+            "a",
+            "b"
+          ],
+          "rows": [
+            {
+              "id": "a",
+              "scoreUnits": 100000,
+              "damageUnits": 0,
+              "hpBeforeUnits": 500000,
+              "hpAfterUnits": 500000,
+              "top": true,
+              "eliminated": false,
+              "error": 0,
+              "missing": false,
+              "quantityErrors": {
+                "circle": 0,
+                "square": 0
+              }
+            },
+            {
+              "id": "b",
+              "scoreUnits": 100000,
+              "damageUnits": 0,
+              "hpBeforeUnits": 500000,
+              "hpAfterUnits": 500000,
+              "top": true,
+              "eliminated": false,
+              "error": 0,
+              "missing": false,
+              "quantityErrors": {
+                "circle": 0,
+                "square": 0
+              }
+            }
+          ],
+          "questionId": "quantity-multi2-v2-4-19",
+          "categoryId": "quantity"
+        }
+      },
+      {
+        "question": {
+          "type": "pitch",
+          "version": 2,
+          "variant": "melody",
+          "variationVersion": 1,
+          "answerSchema": "pitch-hz-map-v1",
+          "scoringVersion": 1,
+          "seed": 46,
+          "variation": {
+            "version": 1,
+            "toneCount": 4,
+            "fixedIndices": [
+              1
+            ],
+            "contour": "mixed"
+          },
+          "tones": [
+            "n1",
+            "n2",
+            "n3",
+            "n4"
+          ],
+          "fixed": [
+            "n2"
+          ],
+          "target": {
+            "n1": 684.873176,
+            "n2": 508.061634,
+            "n3": 716.849464,
+            "n4": 653.945402
+          },
+          "difficulty": {
+            "version": 1,
+            "base": 5,
+            "variation": 0.016302790259942412,
+            "effective": 5.016302790259942
+          },
+          "parameters": {
+            "version": 1,
+            "generation": {
+              "toneCount": 4,
+              "minHz": 220,
+              "maxHz": 880,
+              "minInterval": 150,
+              "maxInterval": 598
+            },
+            "timing": {
+              "prepareMs": 3000,
+              "memorizeMs": 8000,
+              "answerMs": 35000,
+              "resultsMs": 6000
+            },
+            "pitch": {
+              "version": 1,
+              "variation": {
+                "version": 1,
+                "toneCount": 4,
+                "fixedIndices": [
+                  1
+                ],
+                "contour": "mixed"
+              },
+              "requiredMemorizeMs": 6360,
+              "safetyMs": 300
+            }
+          }
+        },
+        "questionId": "pitch-melody-v2-5-1a",
+        "timeline": {
+          "startAt": 175000,
+          "memorizeAt": 178000,
+          "answerAt": 186000,
+          "deadline": 221000
+        },
+        "variantState": {
+          "quantity": {
+            "version": 1,
+            "draw": 2,
+            "last": "multi2",
+            "streak": 1
+          },
+          "color": {
+            "version": 1,
+            "draw": 1,
+            "last": "single",
+            "streak": 1
+          },
+          "pitch": {
+            "version": 1,
+            "draw": 2,
+            "lastStructure": "4:1",
+            "streak": 1,
+            "lastContour": "mixed",
+            "contourStreak": 1
+          }
+        },
+        "difficultyState": {
+          "version": 1,
+          "difficultyByType": {
+            "color": 5,
+            "quantity": 5,
+            "pitch": 5
+          },
+          "historyByType": {
+            "color": [
+              {
+                "round": 3,
+                "scores": [
+                  100,
+                  100
+                ]
+              }
+            ],
+            "quantity": [
+              {
+                "round": 1,
+                "scores": [
+                  100,
+                  100
+                ]
+              },
+              {
+                "round": 4,
+                "scores": [
+                  100,
+                  100
+                ]
+              }
+            ],
+            "pitch": [
+              {
+                "round": 2,
+                "scores": [
+                  100,
+                  100
+                ]
+              },
+              {
+                "round": 5,
+                "scores": [
+                  100,
+                  100
+                ]
+              }
+            ]
+          },
+          "lastRoundByType": {
+            "color": 3,
+            "quantity": 4,
+            "pitch": 5
+          },
+          "lastUpdate": {
+            "categoryId": "pitch",
+            "round": 5,
+            "before": 5,
+            "after": 5,
+            "median": 100,
+            "observations": 4,
+            "rounds": 2
+          }
+        },
+        "lastResult": {
+          "round": 5,
+          "multiplier": 1.7,
+          "highestScoreUnits": 100000,
+          "topIds": [
+            "a",
+            "b"
+          ],
+          "rows": [
+            {
+              "id": "a",
+              "scoreUnits": 100000,
+              "damageUnits": 0,
+              "hpBeforeUnits": 500000,
+              "hpAfterUnits": 500000,
+              "top": true,
+              "eliminated": false,
+              "error": 0,
+              "missing": false,
+              "pitchErrors": {
+                "n1": 0,
+                "n3": 0,
+                "n4": 0
+              }
+            },
+            {
+              "id": "b",
+              "scoreUnits": 100000,
+              "damageUnits": 0,
+              "hpBeforeUnits": 500000,
+              "hpAfterUnits": 500000,
+              "top": true,
+              "eliminated": false,
+              "error": 0,
+              "missing": false,
+              "pitchErrors": {
+                "n1": 0,
+                "n3": 0,
+                "n4": 0
+              }
+            }
+          ],
+          "questionId": "pitch-melody-v2-5-1a",
+          "categoryId": "pitch"
+        }
+      },
+      {
+        "question": {
+          "type": "color",
+          "version": 2,
+          "variant": "hue3",
+          "variantVersion": 1,
+          "seed": 47,
+          "answerSchema": "hues-v1",
+          "swatches": [
+            "a",
+            "b",
+            "c"
+          ],
+          "fixed": {
+            "s": 65,
+            "l": 55
+          },
+          "target": {
+            "a": 343.56,
+            "b": 62.02,
+            "c": 239.76
+          },
+          "scoringVersion": 1,
+          "difficulty": {
+            "version": 1,
+            "base": 5,
+            "variation": -0.09285450528841466,
+            "effective": 4.907145494711585
+          },
+          "parameters": {
+            "version": 1,
+            "generation": {
+              "channelMin": 24,
+              "channelMax": 240,
+              "minLightness": 0.4,
+              "maxLightness": 0.85,
+              "minChroma": 0.06,
+              "maxChroma": 0.28,
+              "maxAttempts": 256
+            },
+            "timing": {
+              "prepareMs": 3000,
+              "memorizeMs": 6000,
+              "answerMs": 33000,
+              "resultsMs": 6000
+            },
+            "color": {
+              "version": 1,
+              "separation": 36.107927129914366
+            }
+          }
+        },
+        "questionId": "color-hue3-v2-6-1b",
+        "timeline": {
+          "startAt": 227000,
+          "memorizeAt": 230000,
+          "answerAt": 236000,
+          "deadline": 269000
+        },
+        "variantState": {
+          "quantity": {
+            "version": 1,
+            "draw": 2,
+            "last": "multi2",
+            "streak": 1
+          },
+          "color": {
+            "version": 1,
+            "draw": 2,
+            "last": "hue3",
+            "streak": 1
+          },
+          "pitch": {
+            "version": 1,
+            "draw": 2,
+            "lastStructure": "4:1",
+            "streak": 1,
+            "lastContour": "mixed",
+            "contourStreak": 1
+          }
+        },
+        "difficultyState": {
+          "version": 1,
+          "difficultyByType": {
+            "color": 5,
+            "quantity": 5,
+            "pitch": 5
+          },
+          "historyByType": {
+            "color": [
+              {
+                "round": 3,
+                "scores": [
+                  100,
+                  100
+                ]
+              },
+              {
+                "round": 6,
+                "scores": [
+                  100,
+                  100
+                ]
+              }
+            ],
+            "quantity": [
+              {
+                "round": 1,
+                "scores": [
+                  100,
+                  100
+                ]
+              },
+              {
+                "round": 4,
+                "scores": [
+                  100,
+                  100
+                ]
+              }
+            ],
+            "pitch": [
+              {
+                "round": 2,
+                "scores": [
+                  100,
+                  100
+                ]
+              },
+              {
+                "round": 5,
+                "scores": [
+                  100,
+                  100
+                ]
+              }
+            ]
+          },
+          "lastRoundByType": {
+            "color": 6,
+            "quantity": 4,
+            "pitch": 5
+          },
+          "lastUpdate": {
+            "categoryId": "color",
+            "round": 6,
+            "before": 5,
+            "after": 5,
+            "median": 100,
+            "observations": 4,
+            "rounds": 2
+          }
+        },
+        "lastResult": {
+          "round": 6,
+          "multiplier": 1.7,
+          "highestScoreUnits": 100000,
+          "topIds": [
+            "a",
+            "b"
+          ],
+          "rows": [
+            {
+              "id": "a",
+              "scoreUnits": 100000,
+              "damageUnits": 0,
+              "hpBeforeUnits": 500000,
+              "hpAfterUnits": 500000,
+              "top": true,
+              "eliminated": false,
+              "error": 0,
+              "missing": false,
+              "colorErrors": {
+                "a": 0,
+                "b": 0,
+                "c": 0
+              }
+            },
+            {
+              "id": "b",
+              "scoreUnits": 100000,
+              "damageUnits": 0,
+              "hpBeforeUnits": 500000,
+              "hpAfterUnits": 500000,
+              "top": true,
+              "eliminated": false,
+              "error": 0,
+              "missing": false,
+              "colorErrors": {
+                "a": 0,
+                "b": 0,
+                "c": 0
+              }
+            }
+          ],
+          "questionId": "color-hue3-v2-6-1b",
+          "categoryId": "color"
+        }
+      },
+      {
+        "question": {
+          "type": "color",
+          "version": 2,
+          "variant": "single",
+          "variantVersion": 1,
+          "seed": 48,
+          "answerSchema": "hsl-v1",
+          "targetHsl": {
+            "h": 321.73,
+            "s": 38.22,
+            "l": 38.55
+          },
+          "target": [
+            136,
+            61,
+            109
+          ],
+          "scoringVersion": 3,
+          "difficulty": {
+            "version": 1,
+            "base": 5,
+            "variation": -0.09753063635434955,
+            "effective": 4.9024693636456504
+          },
+          "parameters": {
+            "version": 1,
+            "generation": {
+              "channelMin": 24,
+              "channelMax": 240,
+              "minLightness": 0.4,
+              "maxLightness": 0.85,
+              "minChroma": 0.06,
+              "maxChroma": 0.28,
+              "maxAttempts": 256
+            },
+            "timing": {
+              "prepareMs": 3000,
+              "memorizeMs": 4000,
+              "answerMs": 25000,
+              "resultsMs": 6000
+            },
+            "color": {
+              "version": 1,
+              "separation": 36.12455337370435
+            }
+          }
+        },
+        "questionId": "color-single-v2-7-1c",
+        "timeline": {
+          "startAt": 275000,
+          "memorizeAt": 278000,
+          "answerAt": 282000,
+          "deadline": 307000
+        },
+        "variantState": {
+          "quantity": {
+            "version": 1,
+            "draw": 2,
+            "last": "multi2",
+            "streak": 1
+          },
+          "color": {
+            "version": 1,
+            "draw": 3,
+            "last": "single",
+            "streak": 1
+          },
+          "pitch": {
+            "version": 1,
+            "draw": 2,
+            "lastStructure": "4:1",
+            "streak": 1,
+            "lastContour": "mixed",
+            "contourStreak": 1
+          }
+        },
+        "difficultyState": {
+          "version": 1,
+          "difficultyByType": {
+            "color": 5.5,
+            "quantity": 5,
+            "pitch": 5
+          },
+          "historyByType": {
+            "color": [
+              {
+                "round": 3,
+                "scores": [
+                  100,
+                  100
+                ]
+              },
+              {
+                "round": 6,
+                "scores": [
+                  100,
+                  100
+                ]
+              },
+              {
+                "round": 7,
+                "scores": [
+                  100,
+                  100
+                ]
+              }
+            ],
+            "quantity": [
+              {
+                "round": 1,
+                "scores": [
+                  100,
+                  100
+                ]
+              },
+              {
+                "round": 4,
+                "scores": [
+                  100,
+                  100
+                ]
+              }
+            ],
+            "pitch": [
+              {
+                "round": 2,
+                "scores": [
+                  100,
+                  100
+                ]
+              },
+              {
+                "round": 5,
+                "scores": [
+                  100,
+                  100
+                ]
+              }
+            ]
+          },
+          "lastRoundByType": {
+            "color": 7,
+            "quantity": 4,
+            "pitch": 5
+          },
+          "lastUpdate": {
+            "categoryId": "color",
+            "round": 7,
+            "before": 5,
+            "after": 5.5,
+            "median": 100,
+            "observations": 6,
+            "rounds": 3
+          }
+        },
+        "lastResult": {
+          "round": 7,
+          "multiplier": 2.2,
+          "highestScoreUnits": 100000,
+          "topIds": [
+            "a",
+            "b"
+          ],
+          "rows": [
+            {
+              "id": "a",
+              "scoreUnits": 100000,
+              "damageUnits": 0,
+              "hpBeforeUnits": 500000,
+              "hpAfterUnits": 500000,
+              "top": true,
+              "eliminated": false,
+              "error": 0,
+              "missing": false
+            },
+            {
+              "id": "b",
+              "scoreUnits": 100000,
+              "damageUnits": 0,
+              "hpBeforeUnits": 500000,
+              "hpAfterUnits": 500000,
+              "top": true,
+              "eliminated": false,
+              "error": 0,
+              "missing": false
+            }
+          ],
+          "questionId": "color-single-v2-7-1c",
+          "categoryId": "color"
+        }
+      },
+      {
+        "question": {
+          "type": "pitch",
+          "version": 2,
+          "variant": "melody",
+          "variationVersion": 1,
+          "answerSchema": "pitch-hz-map-v1",
+          "scoringVersion": 1,
+          "seed": 49,
+          "variation": {
+            "version": 1,
+            "toneCount": 4,
+            "fixedIndices": [
+              0,
+              3
+            ],
+            "contour": "valley"
+          },
+          "tones": [
+            "n1",
+            "n2",
+            "n3",
+            "n4"
+          ],
+          "fixed": [
+            "n1",
+            "n4"
+          ],
+          "target": {
+            "n1": 558.221177,
+            "n2": 495.884291,
+            "n3": 419.160719,
+            "n4": 504.843721
+          },
+          "difficulty": {
+            "version": 1,
+            "base": 5,
+            "variation": -0.10815110942348838,
+            "effective": 4.891848890576512
+          },
+          "parameters": {
+            "version": 1,
+            "generation": {
+              "toneCount": 4,
+              "minHz": 220,
+              "maxHz": 880,
+              "minInterval": 150,
+              "maxInterval": 595
+            },
+            "timing": {
+              "prepareMs": 3000,
+              "memorizeMs": 8100,
+              "answerMs": 35000,
+              "resultsMs": 6000
+            },
+            "pitch": {
+              "version": 1,
+              "variation": {
+                "version": 1,
+                "toneCount": 4,
+                "fixedIndices": [
+                  0,
+                  3
+                ],
+                "contour": "valley"
+              },
+              "requiredMemorizeMs": 6360,
+              "safetyMs": 300
+            }
+          }
+        },
+        "questionId": "pitch-melody-v2-8-1d",
+        "timeline": {
+          "startAt": 313000,
+          "memorizeAt": 316000,
+          "answerAt": 324100,
+          "deadline": 359100
+        },
+        "variantState": {
+          "quantity": {
+            "version": 1,
+            "draw": 2,
+            "last": "multi2",
+            "streak": 1
+          },
+          "color": {
+            "version": 1,
+            "draw": 3,
+            "last": "single",
+            "streak": 1
+          },
+          "pitch": {
+            "version": 1,
+            "draw": 3,
+            "lastStructure": "4:0,3",
+            "streak": 1,
+            "lastContour": "valley",
+            "contourStreak": 1
+          }
+        },
+        "difficultyState": {
+          "version": 1,
+          "difficultyByType": {
+            "color": 5.5,
+            "quantity": 5,
+            "pitch": 5.5
+          },
+          "historyByType": {
+            "color": [
+              {
+                "round": 3,
+                "scores": [
+                  100,
+                  100
+                ]
+              },
+              {
+                "round": 6,
+                "scores": [
+                  100,
+                  100
+                ]
+              },
+              {
+                "round": 7,
+                "scores": [
+                  100,
+                  100
+                ]
+              }
+            ],
+            "quantity": [
+              {
+                "round": 1,
+                "scores": [
+                  100,
+                  100
+                ]
+              },
+              {
+                "round": 4,
+                "scores": [
+                  100,
+                  100
+                ]
+              }
+            ],
+            "pitch": [
+              {
+                "round": 2,
+                "scores": [
+                  100,
+                  100
+                ]
+              },
+              {
+                "round": 5,
+                "scores": [
+                  100,
+                  100
+                ]
+              },
+              {
+                "round": 8,
+                "scores": [
+                  100,
+                  100
+                ]
+              }
+            ]
+          },
+          "lastRoundByType": {
+            "color": 7,
+            "quantity": 4,
+            "pitch": 8
+          },
+          "lastUpdate": {
+            "categoryId": "pitch",
+            "round": 8,
+            "before": 5,
+            "after": 5.5,
+            "median": 100,
+            "observations": 6,
+            "rounds": 3
+          }
+        },
+        "lastResult": {
+          "round": 8,
+          "multiplier": 2.2,
+          "highestScoreUnits": 100000,
+          "topIds": [
+            "a",
+            "b"
+          ],
+          "rows": [
+            {
+              "id": "a",
+              "scoreUnits": 100000,
+              "damageUnits": 0,
+              "hpBeforeUnits": 500000,
+              "hpAfterUnits": 500000,
+              "top": true,
+              "eliminated": false,
+              "error": 0,
+              "missing": false,
+              "pitchErrors": {
+                "n2": 0,
+                "n3": 0
+              }
+            },
+            {
+              "id": "b",
+              "scoreUnits": 100000,
+              "damageUnits": 0,
+              "hpBeforeUnits": 500000,
+              "hpAfterUnits": 500000,
+              "top": true,
+              "eliminated": false,
+              "error": 0,
+              "missing": false,
+              "pitchErrors": {
+                "n2": 0,
+                "n3": 0
+              }
+            }
+          ],
+          "questionId": "pitch-melody-v2-8-1d",
+          "categoryId": "pitch"
+        }
+      },
+      {
+        "question": {
+          "type": "quantity",
+          "version": 2,
+          "variant": "multi3",
+          "variantVersion": 1,
+          "seed": 50,
+          "groups": [
+            {
+              "id": "circle",
+              "shape": "circle",
+              "color": "#79b8ff"
+            },
+            {
+              "id": "square",
+              "shape": "square",
+              "color": "#ffa86b"
+            },
+            {
+              "id": "triangle",
+              "shape": "triangle",
+              "color": "#c5a0ff"
+            }
+          ],
+          "target": {
+            "circle": 20,
+            "square": 25,
+            "triangle": 29
+          },
+          "scoringVersion": 2,
+          "difficulty": {
+            "version": 1,
+            "base": 5,
+            "variation": -0.19713290862273425,
+            "effective": 4.802867091377266
+          },
+          "parameters": {
+            "version": 1,
+            "generation": {
+              "minCount": 18,
+              "maxCount": 31,
+              "poolSize": 60,
+              "jitter": 0.22,
+              "dotRadius": 0.0105
+            },
+            "timing": {
+              "prepareMs": 3000,
+              "memorizeMs": 6000,
+              "answerMs": 25000,
+              "resultsMs": 6000
+            }
+          }
+        },
+        "questionId": "quantity-multi3-v2-9-1e",
+        "timeline": {
+          "startAt": 365100,
+          "memorizeAt": 368100,
+          "answerAt": 374100,
+          "deadline": 399100
+        },
+        "variantState": {
+          "quantity": {
+            "version": 1,
+            "draw": 3,
+            "last": "multi3",
+            "streak": 1
+          },
+          "color": {
+            "version": 1,
+            "draw": 3,
+            "last": "single",
+            "streak": 1
+          },
+          "pitch": {
+            "version": 1,
+            "draw": 3,
+            "lastStructure": "4:0,3",
+            "streak": 1,
+            "lastContour": "valley",
+            "contourStreak": 1
+          }
+        },
+        "difficultyState": {
+          "version": 1,
+          "difficultyByType": {
+            "color": 5.5,
+            "quantity": 5.5,
+            "pitch": 5.5
+          },
+          "historyByType": {
+            "color": [
+              {
+                "round": 3,
+                "scores": [
+                  100,
+                  100
+                ]
+              },
+              {
+                "round": 6,
+                "scores": [
+                  100,
+                  100
+                ]
+              },
+              {
+                "round": 7,
+                "scores": [
+                  100,
+                  100
+                ]
+              }
+            ],
+            "quantity": [
+              {
+                "round": 1,
+                "scores": [
+                  100,
+                  100
+                ]
+              },
+              {
+                "round": 4,
+                "scores": [
+                  100,
+                  100
+                ]
+              },
+              {
+                "round": 9,
+                "scores": [
+                  100,
+                  100
+                ]
+              }
+            ],
+            "pitch": [
+              {
+                "round": 2,
+                "scores": [
+                  100,
+                  100
+                ]
+              },
+              {
+                "round": 5,
+                "scores": [
+                  100,
+                  100
+                ]
+              },
+              {
+                "round": 8,
+                "scores": [
+                  100,
+                  100
+                ]
+              }
+            ]
+          },
+          "lastRoundByType": {
+            "color": 7,
+            "quantity": 9,
+            "pitch": 8
+          },
+          "lastUpdate": {
+            "categoryId": "quantity",
+            "round": 9,
+            "before": 5,
+            "after": 5.5,
+            "median": 100,
+            "observations": 6,
+            "rounds": 3
+          }
+        },
+        "lastResult": {
+          "round": 9,
+          "multiplier": 3,
+          "highestScoreUnits": 100000,
+          "topIds": [
+            "a",
+            "b"
+          ],
+          "rows": [
+            {
+              "id": "a",
+              "scoreUnits": 100000,
+              "damageUnits": 0,
+              "hpBeforeUnits": 500000,
+              "hpAfterUnits": 500000,
+              "top": true,
+              "eliminated": false,
+              "error": 0,
+              "missing": false,
+              "quantityErrors": {
+                "circle": 0,
+                "square": 0,
+                "triangle": 0
+              }
+            },
+            {
+              "id": "b",
+              "scoreUnits": 100000,
+              "damageUnits": 0,
+              "hpBeforeUnits": 500000,
+              "hpAfterUnits": 500000,
+              "top": true,
+              "eliminated": false,
+              "error": 0,
+              "missing": false,
+              "quantityErrors": {
+                "circle": 0,
+                "square": 0,
+                "triangle": 0
+              }
+            }
+          ],
+          "questionId": "quantity-multi3-v2-9-1e",
+          "categoryId": "quantity"
+        }
+      },
+      {
+        "question": {
+          "type": "pitch",
+          "version": 2,
+          "variant": "melody",
+          "variationVersion": 1,
+          "answerSchema": "pitch-hz-map-v1",
+          "scoringVersion": 1,
+          "seed": 51,
+          "variation": {
+            "version": 1,
+            "toneCount": 3,
+            "fixedIndices": [
+              0
+            ],
+            "contour": "mixed"
+          },
+          "tones": [
+            "n1",
+            "n2",
+            "n3"
+          ],
+          "fixed": [
+            "n1"
+          ],
+          "target": {
+            "n1": 805.566408,
+            "n2": 573.5835,
+            "n3": 790.813148
+          },
+          "difficulty": {
+            "version": 1,
+            "base": 5.5,
+            "variation": 0.19528775999788195,
+            "effective": 5.695287759997882
+          },
+          "parameters": {
+            "version": 1,
+            "generation": {
+              "toneCount": 3,
+              "minHz": 220,
+              "maxHz": 880,
+              "minInterval": 150,
+              "maxInterval": 615
+            },
+            "timing": {
+              "prepareMs": 3000,
+              "memorizeMs": 7100,
+              "answerMs": 35000,
+              "resultsMs": 6000
+            },
+            "pitch": {
+              "version": 1,
+              "variation": {
+                "version": 1,
+                "toneCount": 3,
+                "fixedIndices": [
+                  0
+                ],
+                "contour": "mixed"
+              },
+              "requiredMemorizeMs": 4940,
+              "safetyMs": 300
+            }
+          }
+        },
+        "questionId": "pitch-melody-v2-10-1f",
+        "timeline": {
+          "startAt": 405100,
+          "memorizeAt": 408100,
+          "answerAt": 415200,
+          "deadline": 450200
+        },
+        "variantState": {
+          "quantity": {
+            "version": 1,
+            "draw": 3,
+            "last": "multi3",
+            "streak": 1
+          },
+          "color": {
+            "version": 1,
+            "draw": 3,
+            "last": "single",
+            "streak": 1
+          },
+          "pitch": {
+            "version": 1,
+            "draw": 4,
+            "lastStructure": "3:0",
+            "streak": 1,
+            "lastContour": "mixed",
+            "contourStreak": 1
+          }
+        },
+        "difficultyState": {
+          "version": 1,
+          "difficultyByType": {
+            "color": 5.5,
+            "quantity": 5.5,
+            "pitch": 6
+          },
+          "historyByType": {
+            "color": [
+              {
+                "round": 3,
+                "scores": [
+                  100,
+                  100
+                ]
+              },
+              {
+                "round": 6,
+                "scores": [
+                  100,
+                  100
+                ]
+              },
+              {
+                "round": 7,
+                "scores": [
+                  100,
+                  100
+                ]
+              }
+            ],
+            "quantity": [
+              {
+                "round": 1,
+                "scores": [
+                  100,
+                  100
+                ]
+              },
+              {
+                "round": 4,
+                "scores": [
+                  100,
+                  100
+                ]
+              },
+              {
+                "round": 9,
+                "scores": [
+                  100,
+                  100
+                ]
+              }
+            ],
+            "pitch": [
+              {
+                "round": 2,
+                "scores": [
+                  100,
+                  100
+                ]
+              },
+              {
+                "round": 5,
+                "scores": [
+                  100,
+                  100
+                ]
+              },
+              {
+                "round": 8,
+                "scores": [
+                  100,
+                  100
+                ]
+              },
+              {
+                "round": 10,
+                "scores": [
+                  100,
+                  100
+                ]
+              }
+            ]
+          },
+          "lastRoundByType": {
+            "color": 7,
+            "quantity": 9,
+            "pitch": 10
+          },
+          "lastUpdate": {
+            "categoryId": "pitch",
+            "round": 10,
+            "before": 5.5,
+            "after": 6,
+            "median": 100,
+            "observations": 8,
+            "rounds": 4
+          }
+        },
+        "lastResult": {
+          "round": 10,
+          "multiplier": 3,
+          "highestScoreUnits": 100000,
+          "topIds": [
+            "a",
+            "b"
+          ],
+          "rows": [
+            {
+              "id": "a",
+              "scoreUnits": 100000,
+              "damageUnits": 0,
+              "hpBeforeUnits": 500000,
+              "hpAfterUnits": 500000,
+              "top": true,
+              "eliminated": false,
+              "error": 0,
+              "missing": false,
+              "pitchErrors": {
+                "n2": 0,
+                "n3": 0
+              }
+            },
+            {
+              "id": "b",
+              "scoreUnits": 100000,
+              "damageUnits": 0,
+              "hpBeforeUnits": 500000,
+              "hpAfterUnits": 500000,
+              "top": true,
+              "eliminated": false,
+              "error": 0,
+              "missing": false,
+              "pitchErrors": {
+                "n2": 0,
+                "n3": 0
+              }
+            }
+          ],
+          "questionId": "pitch-melody-v2-10-1f",
+          "categoryId": "pitch"
+        }
+      },
+      {
+        "question": {
+          "type": "quantity",
+          "version": 1,
+          "seed": 52,
+          "target": 74,
+          "scoringVersion": 1,
+          "variant": "single",
+          "variantVersion": 1,
+          "difficulty": {
+            "version": 1,
+            "base": 5.5,
+            "variation": 0.1640953532187268,
+            "effective": 5.664095353218727
+          },
+          "parameters": {
+            "version": 1,
+            "generation": {
+              "minCount": 64,
+              "maxCount": 110,
+              "poolSize": 220,
+              "jitter": 0.22,
+              "dotRadius": 0.009
+            },
+            "timing": {
+              "prepareMs": 3000,
+              "memorizeMs": 3900,
+              "answerMs": 25000,
+              "resultsMs": 6000
+            }
+          }
+        },
+        "questionId": "quantity-v1-11-1g",
+        "timeline": {
+          "startAt": 456200,
+          "memorizeAt": 459200,
+          "answerAt": 463100,
+          "deadline": 488100
+        },
+        "variantState": {
+          "quantity": {
+            "version": 1,
+            "draw": 4,
+            "last": "single",
+            "streak": 1
+          },
+          "color": {
+            "version": 1,
+            "draw": 3,
+            "last": "single",
+            "streak": 1
+          },
+          "pitch": {
+            "version": 1,
+            "draw": 4,
+            "lastStructure": "3:0",
+            "streak": 1,
+            "lastContour": "mixed",
+            "contourStreak": 1
+          }
+        },
+        "difficultyState": {
+          "version": 1,
+          "difficultyByType": {
+            "color": 5.5,
+            "quantity": 6,
+            "pitch": 6
+          },
+          "historyByType": {
+            "color": [
+              {
+                "round": 3,
+                "scores": [
+                  100,
+                  100
+                ]
+              },
+              {
+                "round": 6,
+                "scores": [
+                  100,
+                  100
+                ]
+              },
+              {
+                "round": 7,
+                "scores": [
+                  100,
+                  100
+                ]
+              }
+            ],
+            "quantity": [
+              {
+                "round": 1,
+                "scores": [
+                  100,
+                  100
+                ]
+              },
+              {
+                "round": 4,
+                "scores": [
+                  100,
+                  100
+                ]
+              },
+              {
+                "round": 9,
+                "scores": [
+                  100,
+                  100
+                ]
+              },
+              {
+                "round": 11,
+                "scores": [
+                  100,
+                  100
+                ]
+              }
+            ],
+            "pitch": [
+              {
+                "round": 2,
+                "scores": [
+                  100,
+                  100
+                ]
+              },
+              {
+                "round": 5,
+                "scores": [
+                  100,
+                  100
+                ]
+              },
+              {
+                "round": 8,
+                "scores": [
+                  100,
+                  100
+                ]
+              },
+              {
+                "round": 10,
+                "scores": [
+                  100,
+                  100
+                ]
+              }
+            ]
+          },
+          "lastRoundByType": {
+            "color": 7,
+            "quantity": 11,
+            "pitch": 10
+          },
+          "lastUpdate": {
+            "categoryId": "quantity",
+            "round": 11,
+            "before": 5.5,
+            "after": 6,
+            "median": 100,
+            "observations": 8,
+            "rounds": 4
+          }
+        },
+        "lastResult": {
+          "round": 11,
+          "multiplier": 3,
+          "highestScoreUnits": 100000,
+          "topIds": [
+            "a",
+            "b"
+          ],
+          "rows": [
+            {
+              "id": "a",
+              "scoreUnits": 100000,
+              "damageUnits": 0,
+              "hpBeforeUnits": 500000,
+              "hpAfterUnits": 500000,
+              "top": true,
+              "eliminated": false,
+              "error": 0,
+              "missing": false
+            },
+            {
+              "id": "b",
+              "scoreUnits": 100000,
+              "damageUnits": 0,
+              "hpBeforeUnits": 500000,
+              "hpAfterUnits": 500000,
+              "top": true,
+              "eliminated": false,
+              "error": 0,
+              "missing": false
+            }
+          ],
+          "questionId": "quantity-v1-11-1g",
+          "categoryId": "quantity"
+        }
+      },
+      {
+        "question": {
+          "type": "color",
+          "version": 2,
+          "variant": "hue2",
+          "variantVersion": 1,
+          "seed": 53,
+          "answerSchema": "hues-v1",
+          "swatches": [
+            "a",
+            "b"
+          ],
+          "fixed": {
+            "s": 65,
+            "l": 55
+          },
+          "target": {
+            "a": 47.84,
+            "b": 107.03
+          },
+          "scoringVersion": 1,
+          "difficulty": {
+            "version": 1,
+            "base": 5.5,
+            "variation": 0.1504107741639018,
+            "effective": 5.650410774163902
+          },
+          "parameters": {
+            "version": 1,
+            "generation": {
+              "channelMin": 24,
+              "channelMax": 240,
+              "minLightness": 0.4,
+              "maxLightness": 0.85,
+              "minChroma": 0.06,
+              "maxChroma": 0.28,
+              "maxAttempts": 256
+            },
+            "timing": {
+              "prepareMs": 3000,
+              "memorizeMs": 4800,
+              "answerMs": 28000,
+              "resultsMs": 6000
+            },
+            "color": {
+              "version": 1,
+              "separation": 33.46520613630612
+            }
+          }
+        },
+        "questionId": "color-hue2-v2-12-1h",
+        "timeline": {
+          "startAt": 494100,
+          "memorizeAt": 497100,
+          "answerAt": 501900,
+          "deadline": 529900
+        },
+        "variantState": {
+          "quantity": {
+            "version": 1,
+            "draw": 4,
+            "last": "single",
+            "streak": 1
+          },
+          "color": {
+            "version": 1,
+            "draw": 4,
+            "last": "hue2",
+            "streak": 1
+          },
+          "pitch": {
+            "version": 1,
+            "draw": 4,
+            "lastStructure": "3:0",
+            "streak": 1,
+            "lastContour": "mixed",
+            "contourStreak": 1
+          }
+        },
+        "difficultyState": {
+          "version": 1,
+          "difficultyByType": {
+            "color": 6,
+            "quantity": 6,
+            "pitch": 6
+          },
+          "historyByType": {
+            "color": [
+              {
+                "round": 3,
+                "scores": [
+                  100,
+                  100
+                ]
+              },
+              {
+                "round": 6,
+                "scores": [
+                  100,
+                  100
+                ]
+              },
+              {
+                "round": 7,
+                "scores": [
+                  100,
+                  100
+                ]
+              },
+              {
+                "round": 12,
+                "scores": [
+                  100,
+                  100
+                ]
+              }
+            ],
+            "quantity": [
+              {
+                "round": 1,
+                "scores": [
+                  100,
+                  100
+                ]
+              },
+              {
+                "round": 4,
+                "scores": [
+                  100,
+                  100
+                ]
+              },
+              {
+                "round": 9,
+                "scores": [
+                  100,
+                  100
+                ]
+              },
+              {
+                "round": 11,
+                "scores": [
+                  100,
+                  100
+                ]
+              }
+            ],
+            "pitch": [
+              {
+                "round": 2,
+                "scores": [
+                  100,
+                  100
+                ]
+              },
+              {
+                "round": 5,
+                "scores": [
+                  100,
+                  100
+                ]
+              },
+              {
+                "round": 8,
+                "scores": [
+                  100,
+                  100
+                ]
+              },
+              {
+                "round": 10,
+                "scores": [
+                  100,
+                  100
+                ]
+              }
+            ]
+          },
+          "lastRoundByType": {
+            "color": 12,
+            "quantity": 11,
+            "pitch": 10
+          },
+          "lastUpdate": {
+            "categoryId": "color",
+            "round": 12,
+            "before": 5.5,
+            "after": 6,
+            "median": 100,
+            "observations": 8,
+            "rounds": 4
+          }
+        },
+        "lastResult": {
+          "round": 12,
+          "multiplier": 3,
+          "highestScoreUnits": 100000,
+          "topIds": [
+            "a",
+            "b"
+          ],
+          "rows": [
+            {
+              "id": "a",
+              "scoreUnits": 100000,
+              "damageUnits": 0,
+              "hpBeforeUnits": 500000,
+              "hpAfterUnits": 500000,
+              "top": true,
+              "eliminated": false,
+              "error": 0,
+              "missing": false,
+              "colorErrors": {
+                "a": 0,
+                "b": 0
+              }
+            },
+            {
+              "id": "b",
+              "scoreUnits": 100000,
+              "damageUnits": 0,
+              "hpBeforeUnits": 500000,
+              "hpAfterUnits": 500000,
+              "top": true,
+              "eliminated": false,
+              "error": 0,
+              "missing": false,
+              "colorErrors": {
+                "a": 0,
+                "b": 0
+              }
+            }
+          ],
+          "questionId": "color-hue2-v2-12-1h",
+          "categoryId": "color"
+        }
+      }
+    ]
+  }
+]

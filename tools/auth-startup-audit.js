@@ -4,7 +4,7 @@
 const fs = require('node:fs'), vm = require('node:vm'), assert = require('node:assert/strict');
 const { webcrypto } = require('node:crypto');
 const source = fs.readFileSync(require('node:path').join(__dirname, '../js/net/net.js'), 'utf8')
-    .replace(/^import .*;\n/gm, '').replace(/\bimport\(/g, '__import(');
+    .replace(/^import .*;\r?\n/gm, '').replace(/\bimport\(/g, '__import(');
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
 const flush = async () => { for (let i = 0; i < 4; i++) await new Promise(setImmediate); };
 const deferred = () => { let resolve, reject; const promise = new Promise((yes, no) => { resolve = yes; reject = no; }); return { promise, resolve, reject }; };
@@ -13,6 +13,8 @@ function fixture({ delayed, initial = admin, failed, holdAuth = false, legacyMod
     const gate = deferred(), started = performance.now(), events = [], downloads = [], times = {};
     let emit, emitError, reads = 0, read = async () => ({ exists: () => true, data: () => ({ members: { [admin.email]: {} } }) });
     let popupArgs, anonymousCalls = 0, restoredUser, defaultAuthCalls = 0;
+    let storeOptions, serviceOptions, roomClockOptions;
+    const cleanupClock = {};
     const authReady = deferred();
     const auth = {
         getAuth() { defaultAuthCalls++; times.authInit = Math.round(performance.now() - started); return { authStateReady: () => authReady.promise, get currentUser() { return restoredUser; } }; },
@@ -27,8 +29,9 @@ function fixture({ delayed, initial = admin, failed, holdAuth = false, legacyMod
     };
     const modules = { 'firebase-app.js': { initializeApp: () => ({}) }, 'firebase-auth.js': auth,
         'firebase-firestore.js': firestore, 'firebase-database.js': { getDatabase: () => ({}), ref: (_db, name) => name, onValue: (_ref, next) => next({ val: () => 0 }) },
-        'rooms.mjs': { createRoomService: () => ({}), createRoomPresence() {}, generateRoomCode() {} },
-        'room-lobby.mjs': { createRoomLobby() {} }, 'rtdb-rooms.mjs': { createRealtimeRoomStore: () => ({}) } };
+        'rooms.mjs': { createRoomService: (dependencies, config) => { serviceOptions = {dependencies, config}; return {}; }, createRoomPresence() {}, generateRoomCode() {} },
+        'room-lobby.mjs': { createRoomLobby() {} }, 'rtdb-rooms.mjs': { createRealtimeRoomStore: (_sdk, _db, collection, options) => { storeOptions = {collection, options}; return {}; } },
+        'rtdb-clock.mjs': { createRealtimeCleanupClock: () => cleanupClock, createRealtimeRoomClock: (_sdk, _db, options) => { roomClockOptions = options; return {}; } } };
     const storage = new Map([['gamebox:score:fixture', '42']]);
     if (legacyMode) storage.set('gamebox:auth-ab-test:v1', JSON.stringify({mode:legacyMode,events:[]}));
     const localStorage = { getItem: key => storage.get(key) || null, setItem: (key, value) => storage.set(key, value), removeItem: key => storage.delete(key) };
@@ -42,11 +45,13 @@ function fixture({ delayed, initial = admin, failed, holdAuth = false, legacyMod
         CustomEvent: class { constructor(type) { this.type = type; } },
         createRoomService: () => ({}), createRoomPresence() {}, generateRoomCode() {}, createRoomLobby() {},
         createRealtimeRoomStore: () => ({}), createFeedbackService: () => ({}), createAnnouncementService: () => ({}),
+        createAnalyticsWriter: () => async () => ({ status: 'unavailable' }),
         __import: async url => { const name = url.split('/').pop(); downloads.push(name); if (name === delayed) await gate.promise; if (name === failed) throw Error('SDK unavailable'); return modules[name]; },
     };
     const boot = vm.runInNewContext(source, context);
     return { window, boot, gate, times, events, downloads, auth, storage, emit: next => emit(next), error: e => emitError(e),
-        anonymousCalls: () => anonymousCalls, defaultAuthCalls: () => defaultAuthCalls, setRead: fn => { read = fn; }, reads: () => reads, popup: () => popupArgs };
+        anonymousCalls: () => anonymousCalls, defaultAuthCalls: () => defaultAuthCalls, setRead: fn => { read = fn; }, reads: () => reads, popup: () => popupArgs,
+        roomOptions: () => ({ storeOptions, serviceOptions, roomClockOptions, cleanupClock }) };
 }
 (async () => {
     const slow = fixture({ delayed: 'firebase-firestore.js' });
@@ -78,7 +83,25 @@ function fixture({ delayed, initial = admin, failed, holdAuth = false, legacyMod
     assert(room.times.delivered < 800);
     room.gate.resolve(); await loading;
     assert.equal(room.window.ArcadeNet.rooms.ok, true);
+    const rooms = room.window.ArcadeNet.rooms, now = () => 1234;
+    rooms.create({ collection: 'memory_rooms', identity: 'tab', sessionId: 'restored-tab', now, nativeDisconnect: false });
+    const memory = room.roomOptions();
+    assert.equal(memory.storeOptions.options.getPlayerId(), admin.uid + '_restored-tab');
+    assert.equal(memory.serviceOptions.dependencies.sessionId, 'restored-tab');
+    assert.equal(memory.storeOptions.options.now, now);
+    assert.equal(memory.serviceOptions.dependencies.now, now);
+    assert.equal(memory.storeOptions.options.nativeDisconnect, false);
+    assert.equal(memory.storeOptions.options.cleanupClock, memory.cleanupClock);
+    const clockOptions = { onError() {} }; rooms.clock(clockOptions);
+    assert.equal(room.roomOptions().roomClockOptions, clockOptions);
+    rooms.create({ collection: 'trash_toss_rooms', identity: 'tab' });
+    const firstTab = room.roomOptions().serviceOptions.dependencies.sessionId;
+    rooms.create({ collection: 'darts_rooms', identity: 'tab' });
+    assert.equal(room.roomOptions().serviceOptions.dependencies.sessionId, firstTab, 'Other games retain the shared page identity');
+    assert.notEqual(firstTab, 'restored-tab');
+    assert.equal(room.downloads.filter(name => name === 'rtdb-clock.mjs').length, 1);
     console.log('PASS: 800 ms RTDB hold does not block Auth or admin lookup:', JSON.stringify(room.times));
+    console.log('PASS: lazy room loading retains Memory recovery/clock options and other games\' page identities');
 
     const net = slow.window.ArcadeNet;
     const pending = deferred(); slow.setRead(() => pending.promise);

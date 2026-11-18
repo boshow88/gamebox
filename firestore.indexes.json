@@ -25,5 +25,10 @@
       ]
     }
   ],
-  "fieldOverrides": []
+  "fieldOverrides": [
+    { "collectionGroup": "memoryMatchAnalytics", "fieldPath": "settings", "indexes": [] },
+    { "collectionGroup": "memoryMatchAnalytics", "fieldPath": "participants", "indexes": [] },
+    { "collectionGroup": "memoryMatchAnalytics", "fieldPath": "rounds", "indexes": [] },
+    { "collectionGroup": "memoryMatchAnalytics", "fieldPath": "finalResult", "indexes": [] }
+  ]
 }

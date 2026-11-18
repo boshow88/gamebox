@@ -142,11 +142,26 @@ async function dartsJoin(f, code) {
     dartsAssert(input.value === code && input.maxLength === 4, 'Darts code normalization');
     dartsClick(f, 'join-room-btn');
     await until(() => dartsApi(f).snapshot().room && dartsApi(f).snapshot().room.code === code, 'join Darts room');
+    const peers = [...document.querySelectorAll('iframe')].filter(peer => dartsApi(peer)?.snapshot().room?.code === code);
+    await dartsLobbySynchronized(peers);
+}
+async function dartsLobbySynchronized(frames) {
+    const code = dartsApi(frames[0]).snapshot().room.code;
+    await until(() => {
+        const accepted = decode(JSON.parse(localStorage.getItem('__rooms-browser-db') || '{}')['rooms/darts_rooms/R-' + code]);
+        return accepted && frames.every(f => {
+            const state = dartsApi(f).snapshot();
+            return state.room?.code === code && state.data?.revision === accepted.revision
+                && Object.keys(state.data.players || {}).length === Object.keys(accepted.players || {}).length;
+        });
+    }, 'accepted Darts roster/revision visible on every device');
 }
 async function dartsStartOnline(host, guests, keepOpening = false) {
+    await dartsLobbySynchronized([host, ...guests]);
     for (const f of guests) {
         await until(() => !dartsDoc(f).getElementById('lobby-start-btn').disabled, 'guest Ready control');
         dartsClick(f, 'lobby-start-btn');
+        await until(() => !!dartsData(f).ready[dartsApi(f).snapshot().uid], 'accepted guest Ready');
     }
     await until(() => !dartsDoc(host).getElementById('lobby-start-btn').disabled, 'host start after every device ready');
     dartsClick(host, 'lobby-start-btn');

@@ -1,0 +1,6 @@
+{
+  "color": { "version": 4, "tolerance": 0.22, "exponent": 1.4, "knee": 0.08, "width": 0.10, "strength": 0.35, "penaltyExponent": 1.5 },
+  "quantity": { "tolerance": 0.25 },
+  "quantityMulti": { "tolerance": 0.25 },
+  "pitch": { "tolerance": 200 }
+}
