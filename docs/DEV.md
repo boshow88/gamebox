@@ -685,12 +685,9 @@ are required. `css/trash-toss.css` owns the responsive control panel.
 The launcher marks the game WIP and uses gray (`#92969e`), matching its page accent.
 Only CPU matches save personal highs, with stable `cpu-<scene>-<difficulty>` keys.
 The controller uses `canRecord()` and hides the Best HUD outside CPU mode.
-CloudSync migrates old versioned CPU buckets by taking the maximum per scene/difficulty,
-deletes non-CPU records locally and in the cloud, and normalizes older guest restores.
-The launcher also consolidates incoming old snapshots and shows only CPU records.
-This is a client-triggered migration of the authenticated account, not an admin batch
-over all users. CPU-only normalization runs on every page load and cloud merge so
-cached clients cannot permanently restore retired keys after the migration watermark advances.
+The launcher displays only current CPU keys. There is no Trash Toss-specific
+record migration, version compatibility, data deletion or repeated cleanup in CloudSync.
+Existing development/test records are managed manually outside the game.
 Launcher sorting keeps coloured cards in hue order and groups neutral colours
 (HSV saturation below 12%) at the end, so gray cards do not interrupt the spectrum.
 

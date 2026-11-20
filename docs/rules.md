@@ -642,9 +642,7 @@ predicted landing point. Previous angle and power remain visible.
   paired rounds, up to three; equal totals after round eight are a draw.
   Only Vs CPU saves the human's five-round regulation best (excluding extra rounds),
   one high score per scene and CPU difficulty. Practice, same-device games and online duels
-  do not save personal records. Existing CPU records from older rule versions consolidate
-  into the highest score for that scene/difficulty; retired modes are removed from local
-  and cloud records. Rule-version labels are not shown.
+  do not save personal records. The record list shows only CPU highs, without rule-version labels.
 - Changes are staged until New game or a new start. Offline P pauses, R returns to
   ready, M mutes. Pausing or cancelling a pointer discards a held charge.
 - **Physics QA:** start the mode, enter exact angle/power/wind/weight/rain and

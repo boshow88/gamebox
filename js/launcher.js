@@ -885,18 +885,8 @@
     function scoreGroups(P, g) {
         var d = rdLocal(P + ':scores:' + g.id), best = d && d.best;
         if (!best) return [];
-        if (g.id === 'trash-toss') {
-            // Old clients/cloud snapshots may still contain retired modes or versioned keys.
-            var cpu = {};
-            Object.keys(best).forEach(function (key) {
-                var match = /^cpu-(office|living|park|arena|construction)-(easy|normal|hard)(?:-v\d+)?$/.exec(key);
-                if (!match || typeof best[key] !== 'number' || !Number.isFinite(best[key])) return;
-                var canonical = 'cpu-' + match[1] + '-' + match[2];
-                cpu[canonical] = cpu[canonical] == null ? best[key] : Math.max(cpu[canonical], best[key]);
-            });
-            best = cpu;
-        }
         var keys = Object.keys(best).filter(function (m) { return typeof best[m] === 'number'; }), schema = REC_SCHEMA[g.id];
+        if (g.id === 'trash-toss') keys = keys.filter(function (key) { return /^cpu-(office|living|park|arena|construction)-(easy|normal|hard)$/.test(key); });
         if (!schema) return keys.length ? [genericGroup(best, keys)] : [];
         var used = {}, groups = [];
         schema.forEach(function (grp) {

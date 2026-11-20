@@ -9,14 +9,13 @@ fixtures.transformSource = (file, body) => file.endsWith(require('node:path').jo
 fixtures.runner = `<!doctype html><meta charset="utf-8"><pre id="result">RUNNING</pre><script>
 (async()=>{
  const key='arcadeGames:scores:trash-toss',best={},expected={};let score=10;
- for(const mode of ['cpu','local','online'])for(const scene of ['living','office','park','construction','arena'])for(const difficulty of ['easy','normal','hard'])for(const version of ['v5','v7','v8']){
-  const modeKey=[mode,scene,mode==='cpu'?difficulty:'standard',version].join('-');best[modeKey]=score;
-  if(mode==='cpu')expected['cpu-'+scene+'-'+difficulty]=Math.max(expected['cpu-'+scene+'-'+difficulty]||0,score);
-  score++;
+ for(const scene of ['living','office','park','construction','arena'])for(const difficulty of ['easy','normal','hard']){
+  const modeKey='cpu-'+scene+'-'+difficulty;best[modeKey]=score;expected[modeKey]=score++;
  }
- // The highest score may be from an older version; it must survive consolidation.
- best['cpu-living-easy-v5']=500;expected['cpu-living-easy']=500;
- localStorage.setItem(key,JSON.stringify({best,recent:[{mode:'online-office-standard-v8',score:999},{mode:'cpu-living-easy-v5',score:500}]}));
+ // Older data is ignored by the list; loading pages must not migrate or delete it.
+ best['cpu-living-easy-v5']=500;best['online-office-standard-v5']=999;best['local-living-standard-v5']=800;
+ const saved=JSON.stringify({best,recent:[{mode:'online-office-standard-v5',score:999}]});
+ localStorage.setItem(key,saved);
  localStorage.setItem('arcadeGames:migratedAt','1793577600000');localStorage.setItem('gamebox:lang',JSON.stringify('en'));
  const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
  async function until(test,label){for(let i=0;i<1000;i++){if(test())return;await sleep(10);}throw Error(label);}
@@ -33,11 +32,11 @@ fixtures.runner = `<!doctype html><meta charset="utf-8"><pre id="result">RUNNING
   if(game.querySelectorAll('.rec-group').length!==1||game.textContent.includes('舊版規則')||game.textContent.includes('Earlier rules')||game.textContent.includes('v8'))throw Error('Retired groups or version labels remain');
   rowsChecked+=rows.length;doc.querySelector('.modal-card .drawer-close').click();
  }
- const migrated=JSON.parse(localStorage.getItem(key));
- if(JSON.stringify(migrated.best)!==JSON.stringify(expected)||migrated.recent.some(run=>!run.mode.startsWith('cpu-')||/-v[0-9]+$/.test(run.mode)))throw Error('Stored records were not migrated');
+ if(localStorage.getItem(key)!==saved)throw Error('Loading the launcher automatically modified existing record data');
  const old=frame.contentDocument;frame.src='/games/trash-toss.html';
  await until(()=>frame.contentDocument!==old&&frame.contentWindow.__ttRecordsTest,'game did not load');
  const w=frame.contentWindow;doc=frame.contentDocument;w.ArcadeCommon.audio.setMuted(true);
+ if(localStorage.getItem(key)!==saved)throw Error('Loading the game automatically modified existing record data');
  let syncs=0;w.CloudSync.sync=()=>{syncs++;return Promise.resolve(false);};
  const shell=w.__ttRecordsTest.shell;
  for(const mode of ['local','online','practice','qa','cpu']){
@@ -55,7 +54,7 @@ fixtures.runner = `<!doctype html><meta charset="utf-8"><pre id="result">RUNNING
  if(JSON.parse(localStorage.getItem(key)).best['cpu-office-normal']!==777||syncs!==1)throw Error('A lower CPU score replaced the best');
  const other=w.ArcadeCommon.shell.create({gameId:'record-default-check'});other.start();other.gameOver({score:33});
  if(JSON.parse(localStorage.getItem('arcadeGames:scores:record-default-check')).best.default!==33)throw Error('Other games lost their default record behavior');
- document.getElementById('result').textContent='PASS: '+rowsChecked+' localized CPU high-score rows, legacy consolidation, non-CPU cleanup, five-mode save policy, best HUD visibility, cloud sync gating and default score recording for other games.';
+ document.getElementById('result').textContent='PASS: '+rowsChecked+' localized CPU high-score rows, no automatic record migration/deletion, five-mode save policy, best HUD visibility, cloud sync gating and default score recording for other games.';
 })().catch(error=>document.getElementById('result').textContent='FAIL: '+error.stack);
 </script>`;
 require('./birthday-browser-check.js');
