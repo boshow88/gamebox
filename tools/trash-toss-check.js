@@ -2,6 +2,7 @@
 'use strict';
 const assert = require('node:assert/strict');
 const R = require('../js/games/trash-toss-rules.js');
+const { findCleanThrows } = require('./helpers/trash-toss-physics.js');
 const scene = R.scenario({ mode: 'practice', scene: 'office', item: 'paper' }, 1, 42);
 const bin = scene.bins[0];
 function drop(x, item = 'paper', vy = -60) {
@@ -127,11 +128,22 @@ for (let i = 0; i < rounds.length; i++) {
 }
 assert.equal(new Set(rounds.map(s => s.phase)).size, 1, 'Actor phase never resets on a new throw or round');
 for (const s of rounds) {
-    assert.ok(s.grams >= R.ITEMS[s.item].grams * .8 && s.grams <= R.ITEMS[s.item].grams * 1.2);
+    assert.equal(s.grams, R.ITEMS[s.item].grams, 'Round trash uses its fixed native weight');
     const bird = R.obstacles(s, 20).find(o => o.id === 'bird');
     assert.deepEqual(bird, R.obstacles(rounds[0], 20).find(o => o.id === 'bird'), 'Bird position depends only on session time');
 }
-assert.ok(new Set(Array.from({ length: 8 }, (_, i) => R.scenario({ mode: 'practice', item: 'paper' }, i + 1, 42).grams)).size > 1, 'Even a fixed practice type varies in weight');
+assert.deepEqual([...new Set(Array.from({ length: 8 }, (_, i) => R.scenario({ mode: 'practice', item: 'paper' }, i + 1, 42).grams))], [8], 'Repeated paper practice always uses 8g');
+// Captured before removing random weights: reserve that draw without shifting the weather stream.
+for (const [scene, round, weather, wind, rain] of [
+    ['office', 1, 'calm', 4, 0], ['office', 4, 'breeze', -18, 0],
+    ['living', 1, 'calm', 2, 0], ['living', 4, 'breeze', -10, 0],
+    ['park', 1, 'strong', 57, 0], ['park', 4, 'storm', -48, 1.6],
+    ['arena', 1, 'strong', 40, 0], ['arena', 4, 'storm', -34, 1.6],
+    ['construction', 1, 'strong', 57, 0], ['construction', 4, 'storm', -48, 1.6],
+]) {
+    const s = R.scenario({ scene }, round, 42);
+    assert.deepEqual([s.weather, s.wind, s.rain], [weather, wind, rain], 'Fixed weights preserve existing seeded wind and rain in ' + scene);
+}
 const dry = { ...scene, wind: 0, rain: 0 }, wet = { ...dry, rain: 1.6 };
 const dryBall = R.launch(dry, 45, 70, 0), wetBall = R.launch(wet, 45, 70, 0);
 R.advance(dry, dryBall, .2); R.advance(wet, wetBall, .2);
@@ -166,7 +178,7 @@ const withBins = { ...lab, wind: 0, freeFlight: false };
 const direct = R.simulate(withBins, 45, 65, 0), traced = R.traceFlight(withBins, 45, 65, { freeFlight: false });
 assert.deepEqual(traced.ball, direct, 'QA reference uses the same bin collision setting as the actual throw');
 assert.deepEqual(R.binContents(scene, [{ x: bin.x, y: 8, radius: 8 }, { x: scene.bins[2].x, y: 12, radius: 12 }, { x: 300, y: 8, radius: 8 }]),
-    { large: { count: 1, fill: 16 / 82 }, medium: { count: 0, fill: 0 }, small: { count: 1, fill: 24 / 110 } });
+    { large: { count: 1, fill: 16 / scene.bins[0].height }, medium: { count: 0, fill: 0 }, small: { count: 1, fill: 24 / scene.bins[2].height } });
 const score = points => ({ kind: points > 0 ? 'basket' : 'miss', points });
 const cleaningScene = { ...scene, wind: 0, phase: -Math.PI / 2, cleaning: R.createCleaning() };
 const pile = [20, 44, 68].map(y => ({ x: bin.x, y, radius: 12, item: 'book', grams: 280, resting: true, result: { kind: 'basket', points: 10 } }));
@@ -196,41 +208,113 @@ const allSceneItems = Object.values(R.SCENES).flatMap(s => s.items);
 assert.equal(allSceneItems.length, 50); assert.equal(new Set(allSceneItems).size, 50, 'All four ten-item pools are disjoint');
 assert.equal(Object.keys(R.ITEMS).length, 50);
 for (const [name, layout] of Object.entries(R.SCENES)) {
+    assert.equal(layout.launchScale, 1, name + ' uses the shared throwing multiplier');
     const cycle = Array.from({ length: 10 }, (_, i) => R.scenario({ scene: name }, i + 1, 42));
     assert.equal(layout.items.length, 10);
     assert.equal(new Set(cycle.map(s => s.item)).size, 10, name + ' visits all ten items before repeating');
     assert.ok(cycle.every(s => layout.items.includes(s.item)));
     if (!layout.outdoor) assert.ok(cycle.every(s => s.rain === 0), name + ' stays indoors');
+    for (const mode of ['practice', 'cpu', 'local', 'online']) for (const seed of [0, 42, 0xffffffff]) for (let round = 1; round <= 10; round++) {
+        const s = R.scenario({ scene: name, mode }, round, seed);
+        assert.equal(s.grams, R.ITEMS[s.item].grams, name + '/' + mode + ' keeps every item weight stable across seeds and rounds');
+    }
+    const sameItem = { ...cycle[0], item: 'paper', grams: 8 };
+    for (const angle of [15, 45, 80]) for (const power of [20, 60, 100]) {
+        const actual = R.launch(sameItem, angle, power), expected = R.launch({ ...sameItem, scene: 'office', launchScale: 1 }, angle, power);
+        assert.equal(actual.vx, expected.vx, name + ' has the same horizontal launch speed at the same inputs');
+        assert.equal(actual.vy, expected.vy, name + ' has the same vertical launch speed at the same inputs');
+    }
 }
 const living = R.scenario({ scene: 'living' }, 1, 42);
-assert.equal(living.width, 600); assert.equal(R.launch(living, 45, 50, 0).y, 76);
+assert.equal(living.width, 720); assert.equal(R.launch(living, 45, 50, 0).y, 76);
+for (const name of ['office', 'park', 'arena']) {
+    assert.ok(living.width < R.SCENES[name].width && R.SCENES[name].width < construction.width, 'Short, medium and long scenes retain distinct field sizes');
+}
+for (const item of R.SCENES.living.items) for (const wind of [-10, 0, 10]) {
+    const environment = { ...living, qa: true, item, grams: R.ITEMS[item].grams, wind, rain: 0 };
+    const shots = findCleanThrows(environment, { maxPower: 75 });
+    for (const target of living.bins) assert.ok(shots[target.id], item + ' reaches living-room ' + target.id + ' cleanly within 75 power, including fan airflow');
+}
+for (const [name, wind, rain] of [['office', -18, 0], ['park', -68, 0], ['park', -48, 1.6]]) for (const item of R.SCENES[name].items) {
+    const environment = { ...R.scenario({ scene: name }, 1, 42), qa: true, item, grams: R.ITEMS[item].grams, wind, rain };
+    const shots = findCleanThrows(environment);
+    for (const target of environment.bins) assert.ok(shots[target.id], name + '/' + item + ' can reach moved ' + target.id + ' cleanly in adverse weather');
+}
 for (const id of ['baby', 'mother', 'parrot']) {
     const box = R.obstacles(living, 0).find(b => b.id === id), hit = R.launch(living, 45, 50, 0);
     Object.assign(hit, { x: box.x, y: box.y + box.height / 2, vx: 0, vy: 0 }); R.advance(living, hit, 1 / 240);
     assert.ok(hit.hits.includes(id), id + ' is a physical blocker');
 }
 assert.ok(R.obstacles(living, 1).find(b => b.id === 'parrot').y !== R.obstacles(living, 0).find(b => b.id === 'parrot').y);
+for (const seed of [0, 7, 42]) {
+    const room = R.scenario({ scene: 'living' }, 1, seed), travel = {};
+    for (let time = 0; time <= 120; time += .25) {
+        const boxes = R.obstacles(room, time);
+        for (const box of boxes) {
+            const definition = R.SCENES.living.actors.find(actor => actor.id === box.id);
+            if (definition.minX != null) assert.ok(box.x >= definition.minX && box.x <= definition.maxX, 'Living-room actors stay inside their configured patrol range');
+            const range = travel[box.id] ||= { min: Infinity, max: -Infinity };
+            range.min = Math.min(range.min, box.x); range.max = Math.max(range.max, box.x);
+        }
+        const mother = boxes.find(b => b.id === 'mother');
+        assert.equal(boxes.find(b => b.id === 'laundry').x, mother.x + 38 * mother.direction, 'The basket follows its carrier and facing through the extended route');
+    }
+    for (const id of ['mother', 'baby', 'parrot']) {
+        const definition = R.SCENES.living.actors.find(actor => actor.id === id);
+        assert.ok(travel[id].min < definition.minX + 1 && travel[id].max > definition.maxX - 1, id + ' covers its configured patrol range');
+    }
+}
 assert.equal(construction.bins.length, 5);
 for (let i = 1; i < construction.bins.length; i++) {
     assert.ok(construction.bins[i].width < construction.bins[i - 1].width);
     assert.ok(construction.bins[i].points > construction.bins[i - 1].points, 'Narrower barrels award more points');
 }
-assert.equal(R.fieldWidth(construction), 2400);
+assert.equal(R.fieldWidth(construction), 1440);
+assert.ok(construction.bins.every(b => b.x - b.width / 2 > 96 && b.x + b.width / 2 < construction.width), 'Every construction barrel fits in the shorter map');
 assert.equal(new Set(Array.from({ length: 10 }, (_, i) => R.scenario({ scene: 'construction' }, i + 1, 42).item)).size, 10);
 assert.ok(R.obstacles(construction, 0).some(o => o.id === 'worker'));
+for (let time = 0; time < 180; time++) for (const box of R.obstacles(construction, time)) {
+    assert.ok(box.x - box.width / 2 >= 0 && box.x + box.width / 2 <= construction.width, 'Workers and carried objects remain inside the shorter map');
+}
 for (const item of R.SCENES.construction.items) {
-    const lab = { ...construction, qa: true, item, grams: R.ITEMS[item].grams * 1.15, wind: -60, rain: 1.6 };
-    for (const target of lab.bins) {
-        let reachable = false;
-        for (let angle = 24; angle <= 66 && !reachable; angle += 2) for (let power = 50; power <= 100; power++) {
-            if (R.simulate(lab, angle, power, 0).result.bin === target.id) { reachable = true; break; }
-        }
-        assert.ok(reachable, item + ' can reach ' + target.id + ' even at maximum round weight in strong headwind and rain');
+    const lab = { ...construction, qa: true, item, grams: R.ITEMS[item].grams, wind: -68, rain: 1.6 };
+    const shots = findCleanThrows(lab);
+    // The two rear barrels are distance challenges; every item keeps three scoring choices.
+    for (const target of lab.bins.slice(0, 3)) {
+        assert.ok(shots[target.id], item + ' can reach ' + target.id + ' directly without a rim rebound in maximum headwind and heavy rain');
     }
+}
+for (const [wind, rain] of [[0, 0], [-68, 1.6]]) {
+    const lab = { ...construction, qa: true, item: 'screwdriver', grams: R.ITEMS.screwdriver.grams, wind, rain };
+    const shots = findCleanThrows(lab);
+    for (const target of lab.bins) assert.ok(shots[target.id], 'Every spread-out construction barrel has a clean scoring throw, including the far 30-point barrel');
 }
 for (const name of ['office', 'park']) assert.equal(R.SCENES[name].bins.length, 3, 'Medium scenes have three targets');
 const arena = { ...R.scenario({ scene: 'arena' }, 1, 42), qa: true, wind: 0, rain: 0 };
-assert.equal(arena.bins.length, 8);
+assert.equal(arena.bins.length, 12);
+assert.deepEqual(arena.bins.slice(0, 8), [
+    { id: 'large', x: 350, width: 96, height: 66, points: 5, metal: true },
+    { id: 'shelf-15', x: 475, y: 100, width: 86, height: 68, points: 15, metal: true },
+    { id: 'floor-10', x: 585, width: 90, height: 72, points: 10, metal: true },
+    { id: 'high-35', x: 650, y: 220, width: 70, height: 70, points: 35, metal: true },
+    { id: 'shelf-25', x: 735, y: 105, width: 74, height: 76, points: 25, metal: true },
+    { id: 'floor-20', x: 820, width: 66, height: 84, points: 20, metal: true },
+    { id: 'high-50', x: 850, y: 270, width: 60, height: 66, points: 50, metal: true },
+    { id: 'small', x: 920, y: 145, width: 56, height: 70, points: 40, metal: true },
+], 'The eight existing arena bins keep their positions, sizes and scores');
+const newArenaBins = arena.bins.slice(8);
+assert.ok(newArenaBins.every(bin => bin.x > 920 && bin.x + bin.width / 2 < arena.width), 'New arena targets extend the back of the field');
+assert.ok(newArenaBins.some(bin => (bin.y || 0) + bin.height > 336), 'A rear target is higher than the original highest opening');
+for (const item of ['receipt', 'bottlecap']) {
+    const shots = findCleanThrows({ ...arena, item, grams: R.ITEMS[item].grams }, { targets: newArenaBins.map(bin => bin.id) });
+    for (const target of newArenaBins) assert.ok(shots[target.id], item + ' reaches added ' + target.id + ' using actual charge frames without rim luck');
+}
+for (let i = 0; i < arena.bins.length; i++) for (let j = i + 1; j < arena.bins.length; j++) {
+    const a = arena.bins[i], b = arena.bins[j];
+    const overlapX = Math.abs(a.x - b.x) < (a.width + b.width) / 2;
+    const overlapY = (a.y || 0) < (b.y || 0) + b.height && (b.y || 0) < (a.y || 0) + a.height;
+    assert.ok(!overlapX || !overlapY, 'Arena bin bodies never overlap');
+}
 assert.ok(new Set(arena.bins.map(b => b.y || 0)).size >= 4, 'Arena has genuinely different physical levels');
 for (const target of arena.bins) {
     const isolated = { ...arena, bins: [target], item: 'sneaker', grams: R.ITEMS.sneaker.grams };

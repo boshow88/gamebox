@@ -4,7 +4,7 @@
     const AC = window.ArcadeCommon, R = window.TrashTossRules;
     const strings = {
         en: {
-            ttLaunching: 'Releasing…', ttName: 'Trash Toss', ttOnline: 'Online duel', ttRoom: 'Online room', ttArena: 'Street arena · medium', ttParrot: 'the pet parrot',
+            ttLaunching: 'Releasing…', ttName: 'Trash Toss', ttOnline: 'Online duel', ttRoom: 'Online room', ttArena: 'Street arena · multi-level', ttParrot: 'the pet parrot',
             ttInputInterrupted: 'The gesture was interrupted. Hold and release to try again.',
             ttReceipt: 'Lottery receipt', ttSpraycap: 'Spray paint cap', ttCassette: 'Tangled mixtape', ttBottlecap: 'Soda bottle cap', ttWristband: 'Expired gig wristband', ttPadlock: 'Keyless padlock', ttSkatewheel: 'Worn skate wheel', ttNoodlebox: 'Empty noodle box', ttVinyl: 'Scratched vinyl', ttSneaker: 'Retired sneaker', ttSettings: 'Game settings', ttMode: 'Mode', ttPractice: 'Practice', ttCpu: 'Vs CPU', ttLocal: 'Two players',
             ttScene: 'Scene', ttOffice: 'Office · medium', ttLiving: 'Living room · short', ttPark: 'Park · medium', ttItem: 'Object', ttPaper: 'Scrunched memo', ttCan: 'Crushed soda can', ttBook: 'Outdated comic',
@@ -44,12 +44,12 @@
             ttFinal: (a, b) => a + ' : ' + b, ttExtra: n => 'Extra ' + n, ttPending: (a, b) => a + ' → ' + b + ' · Apply with New game',
             ttHelp1: 'Set the angle, hold Space or the throw button, then release. Power cycles 0 → 100 → 0; each sweep takes 1.3 seconds. Drag the scene to pan; drag or tap the overview to view that location. Every release returns to the thrower, then follows the trash.',
             ttHelp2: 'Each bin shows its points: wider openings award fewer points. Contact with people, animals or cleaners deducts 5 once per throw, separately from a later basket. A basket counts only after the whole object passes below the opening; a later bounce out keeps those points. Full bins summon a cleaner without revoking earned points.',
-            ttHelp3: 'Each scene has ten exclusive objects and its own thrower. The living room fits on screen; office/park need a little panning; construction is long and has five barrels; the street arena has eight bins at different heights. Indoor air comes from a fan or A/C; outdoor weather transitions through drizzle. QA lists only the applied scene’s objects.',
+            ttHelp3: 'Each scene has ten exclusive objects with fixed weights and its own thrower. All scenes use the same throwing strength; the living room needs less power for its closer bins. Construction has five barrels at increasing distances; the street arena has twelve bins at different heights. Its rear high-score bins suit faster objects; choose lower targets for slower objects. Indoor air comes from a fan or A/C; outdoor weather transitions through drizzle. QA lists only the applied scene’s objects.',
             ttHelp4: 'Practice has no clock. Matches have five rounds, one throw each, and 12 seconds to release. Every round is P1 then P2/CPU. Both receive identical trash weights and weather. The shared field keeps moving through throws and handoffs.',
             ttHelp5: 'Ties add up to three extra rounds, then draw. Change settings and press New game to apply. P pauses, R returns to ready, M mutes.',
         },
         zh: {
-            ttLaunching: '準備出手…', ttName: '丟垃圾', ttOnline: '連線對戰', ttRoom: '連線房間', ttArena: '街頭競技場・中距離', ttParrot: '寵物鸚鵡',
+            ttLaunching: '準備出手…', ttName: '丟垃圾', ttOnline: '連線對戰', ttRoom: '連線房間', ttArena: '街頭競技場・多層挑戰', ttParrot: '寵物鸚鵡',
             ttInputInterrupted: '手勢已被系統中斷，請重新按住並放開投擲。',
             ttReceipt: '沒中的發票', ttSpraycap: '噴漆罐蓋', ttCassette: '卡帶混音帶', ttBottlecap: '汽水瓶蓋', ttWristband: '過期演唱會手環', ttPadlock: '沒鑰匙的掛鎖', ttSkatewheel: '磨平滑板輪', ttNoodlebox: '空炒麵盒', ttVinyl: '刮花黑膠唱片', ttSneaker: '退休球鞋', ttSettings: '遊戲設定', ttMode: '模式', ttPractice: '自由練習', ttCpu: '挑戰電腦', ttLocal: '同機雙人',
             ttScene: '場景', ttOffice: '辦公室・中距離', ttLiving: '客廳・短距離', ttPark: '公園・中距離', ttItem: '投擲物', ttPaper: '廢紙團', ttCan: '喝扁的汽水罐', ttBook: '過期漫畫',
@@ -89,7 +89,7 @@
             ttFinal: (a, b) => a + '：' + b, ttExtra: n => '加賽' + n, ttPending: (a, b) => a + ' → ' + b + '；按「新遊戲」套用',
             ttHelp1: '調整角度後，按住空白鍵或投擲按鈕蓄力，放開出手。力度０～１００來回，每趟約１．３秒。拖場景可移動畫面；拖曳或點小圖則查看該位置。每次出手先切回投擲者，再跟隨物件。',
             ttHelp2: '各桶標示分數，寬口低分、窄口高分。撞到人物、動物或清潔人員每投最多扣５分，之後入桶獨立加分。整個物件通過桶口才加分；只碰內緣又彈出不算，真正入桶後彈出不扣回。滿桶會請清潔人員清運，保留既有分數。',
-            ttHelp3: '各場景有十種獨立物件與專屬投擲角色。客廳整間可見；辦公室、公園小幅拖曳；工地是長地圖，設有五個鐵桶；街頭競技場設有八個高低不同的桶。室內有電扇或冷氣，戶外天氣先經毛毛雨再轉大雨。QA只列出目前套用場景的物件。',
+            ttHelp3: '各場景有十種固定重量的獨立物件與專屬投擲角色。所有場景使用相同投擲力量；客廳桶位較近，用較少力度即可投到。工地有五個由近到遠的鐵桶；街頭競技場設有十二個高低不同的桶，後排高分桶適合較輕快的物件，較慢物件可選中低層目標。室內有電扇或冷氣，戶外天氣先經毛毛雨再轉大雨。QA只列出目前套用場景的物件。',
             ttHelp4: '練習不限時。比賽共五回合，每人每回合一投，需在十二秒內出手。每回合固定玩家１先投，再換玩家２或電腦。同回合垃圾、重量與天氣相同，場景持續移動。',
             ttHelp5: '平手最多加賽三回合，仍同分則和局。修改設定後，按「新遊戲」套用。P暫停，R回到準備畫面，M靜音。',
         },
@@ -104,6 +104,7 @@
     const saved = R.config(Object.assign({}, prefs, { scene: 'office', item: 'mixed' }));
     Object.keys(fields).forEach(key => { fields[key].value = saved[key]; });
     const view = window.TrashTossView.create($('stage'));
+    const ANGLE_REPEAT_DELAY = .3, ANGLE_REPEAT_SPEED = 12;
     let hudAt = -Infinity, paintAt = -Infinity, nextScenario = null, nextScenarioKey = '';
     let hudState = [], hudAngle = null, hudPower = null;
     let online = null, netCache = null, netKey = '', netFinished = '', sending = false, pendingRelease = null, inputMessage = '';
@@ -111,6 +112,7 @@
     let ball = null, trail = [], ghost = [], result = null, resultTime = 0, plan = null;
     let charging = null, pointerId = null, chargeStart = 0, last = [null, null], angleCarry = 0;
     let angleHold = null;
+    let angleDirection = 0, angleHeldSeconds = 0;
     let worldTime = 0, debris = [], resultPosition = null;
     let visualRain = 0, previousThrow = null, cleaning = R.createCleaning(), feedback = [], drag = null;
     const qa = window.TrashTossQA.create({ onThrow: startQaThrow, onClear: clearQa, getScene: () => scene });
@@ -129,7 +131,7 @@
     }
     function isCpu() { return match.config.mode === 'cpu' && match.active === 1; }
     function canInput() { return shell && shell.isPlaying() && !isCpu() && !isQa() && !sending && !(online && online.isOpen()) && (match.config.mode !== 'online' || isOnline() && online.canControl()) && ['aim', 'charge'].includes(phase); }
-    function modeKey() { const c = match ? match.config : chosen(); return [c.mode, c.scene, c.mode === 'cpu' ? c.difficulty : 'standard', 'v5'].join('-'); }
+    function modeKey() { const c = match ? match.config : chosen(); return [c.mode, c.scene, c.mode === 'cpu' ? c.difficulty : 'standard', 'v8'].join('-'); }
     function setupLabel(c) { return t({ practice: 'ttPractice', cpu: 'ttCpu', local: 'ttLocal', qa: 'ttQaName', online: 'ttOnline' }[c.mode]) + ' · ' + t('tt' + c.scene[0].toUpperCase() + c.scene.slice(1)) +
         (c.mode === 'cpu' ? ' · ' + t('tt' + c.difficulty[0].toUpperCase() + c.difficulty.slice(1)) : ''); }
     function syncSettings() {
@@ -145,7 +147,7 @@
         AC.prefs.set('trash-toss', Object.assign({ version: 3, motion: undefined }, c));
     }
     function cancelCharge() {
-        angleHold = null; angleCarry = 0; charging = null; pointerId = null; power = 0;
+        angleHold = null; resetAngleRepeat(); charging = null; pointerId = null; power = 0;
         if (phase === 'charge') phase = 'aim';
     }
     function interruptCharge() {
@@ -248,17 +250,20 @@
     }
     function sync(force = true) {
         if (!match) return;
-        if (!force && (document.hidden || online && online.isOpen() || worldTime >= hudAt && worldTime - hudAt < 1 / 30 - .0001)) return;
+        if (!force && (document.hidden || online && online.isOpen())) return;
+        // Match the 60 Hz charge calculation; only the other HUD work is capped at 30 Hz.
+        if (force || hudPower !== power) {
+            if (force || Math.round(hudPower) !== Math.round(power)) $('tt-power-meter').setAttribute('aria-valuenow', Math.round(power));
+            hudPower = power; putText('tt-power-value', Math.round(power));
+            $('tt-power-fill').style.transform = 'scaleX(' + power / 100 + ')';
+        }
+        if (!force && worldTime >= hudAt && worldTime - hudAt < 1 / 30 - .0001) return;
         hudAt = worldTime;
-        // Charging/angle changes touch only their own controls, not every label.
+        // Angle changes touch only their own controls, not every label.
         const shownAngle = Math.round(angle);
         if (force || hudAngle !== shownAngle) {
             hudAngle = shownAngle; $('tt-angle').value = shownAngle;
             putText('tt-angle-value', shownAngle + '°');
-        }
-        if (force || hudPower !== power) {
-            hudPower = power; putText('tt-power-value', Math.round(power));
-            $('tt-power-fill').style.transform = 'scaleX(' + power / 100 + ')'; $('tt-power-meter').setAttribute('aria-valuenow', Math.round(power));
         }
         // Physics and the canvas keep moving; unchanged labels/attributes do not
         // need to be written again on every HUD tick.
@@ -349,15 +354,23 @@
             shell.gameOver({ score, win: match.winner === seat, meta: { scene: match.config.scene, rounds: match.round, online: true, endReason: g.endReason || 'score' } });
         }
     }
+    function resetAngleRepeat() {
+        angleCarry = 0; angleDirection = 0; angleHeldSeconds = 0;
+    }
     function adjustAngle(dt) {
         if (!canInput() || phase !== 'aim') return;
         const keys = shell.keyboard;
         const editing = document.activeElement && document.activeElement.matches('select, input, button:not(#tt-throw)');
         const direction = angleHold ? angleHold.delta : editing ? 0 : (keys.isDown('ArrowRight', 'ArrowUp') ? 1 : 0) - (keys.isDown('ArrowLeft', 'ArrowDown') ? 1 : 0);
+        if (direction !== angleDirection) { resetAngleRepeat(); angleDirection = direction; }
         if (direction) {
-            angleCarry += direction * dt * 32;
+            const previous = angleHeldSeconds;
+            angleHeldSeconds += dt;
+            // A short tap is exactly one degree; sustained input repeats after a grace period.
+            const repeatSeconds = Math.max(0, angleHeldSeconds - ANGLE_REPEAT_DELAY) - Math.max(0, previous - ANGLE_REPEAT_DELAY);
+            angleCarry += direction * repeatSeconds * ANGLE_REPEAT_SPEED;
             if (Math.abs(angleCarry) >= 1) { const delta = Math.trunc(angleCarry); angle = R.clamp(angle + delta, 15, 80); angleCarry -= delta; }
-        } else angleCarry = 0;
+        }
     }
     function update(dt) {
         if (isOnline()) {
@@ -426,7 +439,7 @@
         view.render({ scene, time: worldTime, visualRain, angle, ball, trail, ghost, reference: isQa() ? qa.baseline() : null, result: isQa() ? null : result, debris, resultPosition, feedback,
             binContents: R.binContents(scene, debris), players: isFree() ? 1 : 2, active: match.active,
             playerLabels: ['P1', match.config.mode === 'cpu' ? 'CPU' : 'P2'],
-            practice: isFree(), qa: isQa(), countLabel: n => AC.i18n.locale === 'zh' ? n + '件' : n + (n === 1 ? ' item' : ' items'),
+            practice: isFree(), qa: isQa(),
             charging: phase === 'charge', aiming: ['aim', 'charge', 'handoff', 'sending', 'launch'].includes(phase) });
     }
     // Capture before the shared shell: the Space that starts a game must not also charge it.
@@ -441,6 +454,7 @@
         if (e.key.startsWith('Arrow') && canInput()) {
             e.preventDefault();
             if (!e.repeat && phase === 'aim') {
+                resetAngleRepeat();
                 angle = R.clamp(angle + (['ArrowRight', 'ArrowUp'].includes(e.key) ? 1 : -1), 15, 80); sync();
             }
         }
@@ -449,6 +463,7 @@
         if (!e.repeat) beginCharge('key:' + e.code);
     }, true);
     window.addEventListener('keyup', e => {
+        if (e.key && e.key.startsWith('Arrow')) resetAngleRepeat();
         if (charging === 'key:' + e.code) { e.preventDefault(); release(); }
     }, true);
     shell = AC.shell.create({ gameId: 'trash-toss', mode: modeKey, step: 1 / 60, restartToReady: true,
@@ -495,10 +510,10 @@
         const button = $(id);
         button.addEventListener('pointerdown', e => {
             if (e.button !== 0 || e.isPrimary === false || !canInput() || phase !== 'aim') return;
-            e.preventDefault(); angle = R.clamp(angle + delta, 15, 80); angleCarry = 0;
+            e.preventDefault(); angle = R.clamp(angle + delta, 15, 80); resetAngleRepeat();
             angleHold = { id: e.pointerId, delta }; button.setPointerCapture(e.pointerId); sync();
         });
-        for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) button.addEventListener(type, () => { angleHold = null; angleCarry = 0; });
+        for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) button.addEventListener(type, () => { angleHold = null; resetAngleRepeat(); });
         button.addEventListener('click', e => {
             if (e.detail === 0 && canInput() && phase === 'aim') { angle = R.clamp(angle + delta, 15, 80); sync(); }
         });

@@ -9,15 +9,16 @@
         let binLayers = new WeakMap(), personLayers = new Map(), restingLayers = new WeakMap(), ruler = null;
         let portrait = false, qa = false, cameraX = 0, cameraY = 0, manual = false, lastTime = null, wasFlying = false;
         let worldWidth = W.width, layout = R.SCENES.office, overviewGrab = null;
-        const overviewHeight = 68;
+        const overviewHeight = 68, viewport = R.SCENES.construction;
         function cameraEnabled() { return !qa && worldWidth > frameWidth(); }
-        function frameWidth() { return qa ? worldWidth : Math.min(worldWidth, portrait ? layout.phoneWidth : layout.viewWidth); }
+        function frameWidth() { return qa ? worldWidth : portrait ? viewport.phoneWidth : viewport.viewWidth; }
         function frameHeight() { return qa ? Math.max(W.height, W.height * worldWidth / W.width) : W.height; }
         function fit() {
             const dpr = Math.min(root.devicePixelRatio || 1, 2);
             portrait = !qa && root.innerWidth <= 620 && root.innerHeight > root.innerWidth;
             canvas.parentElement.classList.toggle('is-portrait', portrait);
             canvas.parentElement.classList.toggle('is-camera', cameraEnabled());
+            canvas.parentElement.classList.toggle('has-overview', !qa);
             canvas.parentElement.style.maxWidth = !qa && !portrait ? frameWidth() + 'px' : '';
             canvas.parentElement.style.setProperty('--tt-map-height', ((canvas.parentElement.clientWidth - 2) * overviewHeight / frameWidth()) + 'px');
             if (!cameraEnabled()) { manual = false; cameraX = 0; cameraY = 0; }
@@ -25,7 +26,7 @@
             const displayWidth = Math.min(frameWidth(), Math.max(1, canvas.parentElement.clientWidth - 2));
             pixelScale = dpr * displayWidth / frameWidth();
             canvas.width = Math.round(frameWidth() * pixelScale);
-            canvas.height = Math.round((frameHeight() + (cameraEnabled() ? overviewHeight : 0)) * pixelScale);
+            canvas.height = Math.round((frameHeight() + (!qa ? overviewHeight : 0)) * pixelScale);
             ctx.setTransform(pixelScale, 0, 0, pixelScale, 0, 0);
             backdrop = null; backdropScene = '';
             binLayers = new WeakMap(); personLayers = new Map(); restingLayers = new WeakMap(); ruler = null;
@@ -104,7 +105,7 @@
             rect(x - 18, y - 2, 36, 34, '#c7896f', 4);
         }
         function background(scene) {
-            const arena = scene.scene === 'arena', park = scene.scene === 'park', living = scene.scene === 'living', construction = scene.scene === 'construction', field = R.fieldWidth(scene);
+            const arena = scene.scene === 'arena', park = scene.scene === 'park', living = scene.scene === 'living', construction = scene.scene === 'construction', field = Math.max(R.fieldWidth(scene), frameWidth());
             const sky = ctx.createLinearGradient(0, 0, 0, W.floor);
             sky.addColorStop(0, park || construction ? '#d7e9e5' : '#efe6d9'); sky.addColorStop(1, park || construction ? '#f3eedb' : '#e8dcca');
             ctx.fillStyle = sky; ctx.fillRect(0, 0, field, W.height);
@@ -117,8 +118,8 @@
                 line([[240, 278], [315, 214], [393, 275], [466, 203]], '#c07d8790', 14);
                 line([[260, 299], [324, 255], [401, 308], [480, 237]], '#73a6a590', 8);
                 text('THROW / REPEAT', 280, 153, 23, '#f3dfb9', 'center');
-                line([[45, 60], [915, 65]], '#6d7a75', 2);
-                for (let x = 75; x < 950; x += 96) circle(x, 63 + Math.sin(x) * 3, 5, '#efd5a0');
+                line([[45, 60], [field - 45, 65]], '#6d7a75', 2);
+                for (let x = 75; x < field - 10; x += 96) circle(x, 63 + Math.sin(x) * 3, 5, '#efd5a0');
                 rect(180, 374, 97, 55, '#6b8381', 3);
                 for (let x = 190; x < 270; x += 12) line([[x, 382], [x, 420]], '#91a29a', 3);
                 line([[185, 440], [255, 440]], '#ba8d70', 6); circle(196, 449, 5, '#657976'); circle(246, 449, 5, '#657976');
@@ -130,42 +131,73 @@
                     for (const dx of [-15, 185]) line([[x + dx, 66], [x + dx, 400]], '#899687', 5);
                     for (let y = 80; y < 390; y += 65) { line([[x - 15, y], [x + 185, y]], '#a8aa88', 4); line([[x - 15, y], [x + 185, y + 65]], '#a8aa8870', 2); }
                 }
-                line([[1760, 375], [1760, 23], [1530, 23], [2050, 23]], '#bd9c56', 13);
-                line([[1760, 26], [1950, 26], [1760, 86], [1760, 26], [1560, 26]], '#d9b771', 5);
-                line([[2020, 25], [2020, 224], [2010, 236]], '#7d8576', 3);
+                const craneX = field * .72;
+                line([[craneX, 375], [craneX, 23], [craneX - 230, 23], [craneX + 290, 23]], '#bd9c56', 13);
+                line([[craneX, 26], [craneX + 190, 26], [craneX, 86], [craneX, 26], [craneX - 200, 26]], '#d9b771', 5);
+                line([[craneX + 260, 25], [craneX + 260, 224], [craneX + 250, 236]], '#7d8576', 3);
                 for (let x = 360; x < field; x += 460) {
                     rect(x, 412, 94, 16, '#b88967', 2); rect(x + 8, 396, 78, 16, '#c79a72', 2);
                     line([[x - 35, 455], [x - 23, 422], [x - 10, 455]], '#d69958', 9);
                     rect(x - 43, 454, 41, 7, '#747b6e', 2);
                 }
             } else if (living) {
-                rect(0, 320, field, 146, '#e4cdb2'); rect(0, 316, field, 5, '#c8ac8c');
-                rect(38, 58, 128, 164, '#c7b9a1', 5); rect(46, 66, 112, 146, '#c2dcd4', 2);
-                rect(98, 66, 6, 146, '#f5ecdb'); rect(46, 135, 112, 5, '#f5ecdb');
-                rect(25, 48, 23, 189, '#c99584', 8); rect(157, 48, 23, 189, '#c99584', 8);
-                rect(186, 335, 174, 92, '#90a88f', 17); rect(170, 374, 207, 55, '#7e9b80', 12);
-                rect(190, 349, 61, 45, '#b7c6a1', 9); rect(281, 350, 60, 44, '#cda587', 9);
-                rect(185, 426, 12, 25, '#957b5c', 3); rect(348, 426, 12, 25, '#957b5c', 3);
-                rect(407, 326, 143, 13, '#b89a76', 3); rect(421, 339, 13, 77, '#a88b68', 3); rect(524, 339, 13, 77, '#a88b68', 3);
-                rect(426, 237, 105, 80, '#5c7270', 6); rect(433, 244, 91, 64, '#acc5bb', 3);
-                rect(471, 317, 15, 10, '#758a7d', 2); plant(557, 371);
-                rect(250, 81, 57, 70, '#bc9575', 3); rect(258, 89, 41, 54, '#f0ddc4', 1);
-                circle(279, 106, 10, '#d8ad8e'); rect(267, 117, 24, 19, '#9cb096', 5);
-                circle(367, 131, 27, '#d5c3a5'); circle(367, 131, 23, '#f7eddc'); line([[367, 115], [367, 131], [379, 137]], '#857f6c', 2);
-                rect(119, 446, 21, 17, '#c18b72', 2); rect(144, 452, 18, 11, '#9caf88', 2);
+                rect(0, 316, field, 150, '#e4d3bd'); rect(0, 312, field, 5, '#c9b398');
+                for (let x = 28; x < field; x += 132) rect(x, 336, 104, 104, '#d9c4a833', 5);
+                rect(0, 452, field, 14, '#bcaa90'); line([[0, 452], [field, 452]], '#f2e4cf', 3);
+                // Window and seating occupy the front third, leaving the thrower clear.
+                rect(91, 76, 148, 172, '#c7b9a1', 5); rect(99, 84, 132, 154, '#c2dcd4', 2);
+                circle(199, 116, 18, '#f4e6bc');
+                rect(161, 84, 6, 154, '#f5ecdb'); rect(99, 158, 132, 5, '#f5ecdb');
+                line([[78, 66], [252, 66]], '#a99b83', 5);
+                rect(80, 69, 23, 192, '#c99584', 7); rect(228, 69, 23, 192, '#c99584', 7);
+                rect(86, 183, 15, 8, '#e5bea1', 3); rect(230, 183, 15, 8, '#e5bea1', 3);
+                rect(171, 326, 152, 88, '#90a88f', 17); rect(156, 365, 183, 57, '#7e9b80', 12);
+                rect(175, 342, 54, 43, '#b7c6a1', 9); rect(263, 343, 54, 42, '#cda587', 9);
+                line([[178, 398], [318, 398]], '#a5b69a', 2);
+                rect(170, 420, 11, 28, '#957b5c', 3); rect(314, 420, 11, 28, '#957b5c', 3);
+                // A quiet gallery wall keeps the middle throwing lane readable.
+                for (const [x, y, color] of [[358, 124, '#a6b59a'], [435, 145, '#c8a48b']]) {
+                    rect(x, y, 59, 75, '#bc9e7d', 3); rect(x + 6, y + 6, 47, 63, '#f1e6d1', 1);
+                    circle(x + 29, y + 25, 12, color);
+                    ctx.fillStyle = color; ctx.beginPath(); ctx.moveTo(x + 9, y + 61); ctx.lineTo(x + 27, y + 37); ctx.lineTo(x + 49, y + 61); ctx.closePath(); ctx.fill();
+                }
+                circle(550, 112, 27, '#cbb99d'); circle(550, 112, 23, '#f7eddc');
+                line([[550, 96], [550, 112], [562, 118]], '#857f6c', 2);
+                rect(463, 385, 66, 9, '#b89a76', 4); rect(472, 394, 5, 48, '#a88b68'); rect(516, 394, 5, 48, '#a88b68');
+                rect(481, 374, 30, 6, '#a3b39b', 2); rect(485, 369, 26, 5, '#c4a18a', 1);
+                // TV console, reading lamp and bookcase balance the full desktop viewport.
+                rect(620, 329, 144, 15, '#b89a76', 3); rect(627, 344, 130, 83, '#c4aa86', 5);
+                rect(635, 353, 52, 61, '#b79b77', 3); rect(695, 353, 54, 61, '#d4bea0', 3);
+                circle(676, 384, 2, '#8d816b'); circle(705, 384, 2, '#8d816b');
+                rect(634, 426, 8, 20, '#9e896d'); rect(742, 426, 8, 20, '#9e896d');
+                rect(638, 239, 109, 79, '#5c7270', 6); rect(645, 246, 95, 65, '#b6cbc0', 2);
+                line([[659, 294], [684, 267], [706, 290], [726, 277]], '#a2bbad', 3);
+                rect(685, 318, 15, 10, '#758a7d', 2); rect(673, 325, 39, 4, '#758a7d', 2);
+                line([[799, 287], [799, 443]], '#a28f72', 4); rect(779, 441, 40, 6, '#a28f72', 4);
+                ctx.fillStyle = '#e0ca9e'; ctx.beginPath(); ctx.moveTo(786, 244); ctx.lineTo(812, 244); ctx.lineTo(825, 288); ctx.lineTo(773, 288); ctx.closePath(); ctx.fill();
+                rect(838, 233, 96, 213, '#b59a79', 5);
+                for (let row = 0; row < 4; row++) {
+                    const y = 244 + row * 48;
+                    rect(846, y, 80, 39, '#ddc7a8', 2);
+                    for (let i = 0; i < 5; i++) {
+                        const height = 22 + (i + row) % 3 * 5;
+                        rect(852 + i * 14, y + 36 - height, 10, height, ['#90a88f', '#c99584', '#a4abb2', '#d5b779'][(i + row) % 4], 1);
+                    }
+                }
+                plant(885, 210);
             } else if (park) {
                 circle(775, 87, 39, '#f7dd9d');
                 for (const [x, y] of [[130, 100], [450, 61], [660, 130]]) {
                     rect(x, y, 118, 18, '#ffffff80', 20); circle(x + 37, y, 24, '#ffffff80'); circle(x + 75, y + 2, 19, '#ffffff80');
                 }
                 ctx.fillStyle = '#b6ccad'; ctx.beginPath(); ctx.moveTo(0, 320);
-                ctx.bezierCurveTo(260, 180, 390, 360, 580, 275); ctx.bezierCurveTo(760, 190, 870, 250, 960, 230); ctx.lineTo(960, 466); ctx.lineTo(0, 466); ctx.fill();
+                ctx.bezierCurveTo(260, 180, 390, 360, 580, 275); ctx.bezierCurveTo(760, 190, 870, 250, field, 230); ctx.lineTo(field, 466); ctx.lineTo(0, 466); ctx.fill();
                 for (const x of [170, 525, 915]) {
                     rect(x - 7, 250, 14, 151, '#9b9e79', 4);
                     circle(x, 241, 58, '#9ab89a'); circle(x - 31, 267, 34, '#a5c2a1'); circle(x + 35, 267, 35, '#a5c2a1');
                 }
-                rect(0, 403, 960, 63, '#d5dbb9');
-                for (let x = 0; x < 960; x += 48) { rect(x, 376, 5, 69, '#b1b99a'); rect(x, 389, 48, 4, '#b1b99a'); }
+                rect(0, 403, field, 63, '#d5dbb9');
+                for (let x = 0; x < field; x += 48) { rect(x, 376, 5, 69, '#b1b99a'); rect(x, 389, 48, 4, '#b1b99a'); }
                 rect(235, 402, 115, 10, '#b79473', 3); rect(240, 378, 105, 17, '#b79473', 3);
                 line([[250, 410], [250, 444]], '#8e8c74', 5); line([[332, 410], [332, 444]], '#8e8c74', 5);
             } else {
@@ -182,7 +214,7 @@
                 line([[802, 108], [802, 126], [819, 135]], '#617a73', 3);
                 rect(748, 282, 118, 8, '#baa58b', 3);
                 for (let i = 0; i < 7; i++) rect(756 + i * 13, 238 + (i % 3) * 8, 10, 44 - (i % 3) * 8, ['#8ba99b', '#d7a485', '#a4abb2'][i % 3], 1);
-                rect(0, 353, 960, 113, '#e0d1bc'); rect(0, 350, 960, 4, '#cbb99f');
+                rect(0, 353, field, 113, '#e0d1bc'); rect(0, 350, field, 4, '#cbb99f');
                 plant(890, 397); rect(170, 384, 140, 10, '#b39b7e', 3);
                 rect(181, 394, 7, 72, '#a38f77'); rect(292, 394, 7, 72, '#a38f77');
                 rect(212, 340, 56, 40, '#6d8580', 4); rect(216, 344, 48, 31, '#bad0c5', 2); rect(236, 380, 8, 5, '#6d8580');
@@ -196,20 +228,20 @@
             if (!root.document) { background(scene); return; }
             if (!backdrop || backdropScene !== scene.scene) {
                 const layer = root.document.createElement('canvas');
-                layer.width = Math.ceil(worldWidth * pixelScale); layer.height = Math.ceil(W.height * pixelScale);
+                layer.width = Math.ceil(Math.max(worldWidth, frameWidth()) * pixelScale); layer.height = Math.ceil(W.height * pixelScale);
                 const main = ctx;
                 ctx = layer.getContext('2d'); ctx.setTransform(pixelScale, 0, 0, pixelScale, 0, 0);
                 try { background(scene); } finally { ctx = main; }
                 backdrop = layer; backdropScene = scene.scene;
             }
-            ctx.drawImage(backdrop, 0, 0, backdrop.width, backdrop.height, 0, 0, worldWidth, W.height);
+            ctx.drawImage(backdrop, 0, 0, backdrop.width, backdrop.height, 0, 0, Math.max(worldWidth, frameWidth()), W.height);
         }
         function person(box, time, thrower, charging) {
             const x = box.x, y = W.floor, boss = box.id === 'boss';
             const role = box.role || (box.id === 'mother' ? 'mother' : ''), size = role === 'child' ? .72 : 1;
             ctx.save(); ctx.translate(x, y); ctx.scale(size, size); ctx.translate(-x, -y);
             ctx.fillStyle = '#263e3420'; ctx.beginPath(); ctx.ellipse(x, y + 4, 27, 6, 0, 0, Math.PI * 2); ctx.fill();
-            const stride = thrower || box.waiting ? 0 : Math.sin(time * 5) * 9;
+            const stride = thrower || box.waiting || box.working ? 0 : Math.sin(time * 5) * 9;
             line([[x - 8, y - 42], [x - 10 - stride, y - 5]], '#465d61', 10);
             line([[x + 8, y - 42], [x + 11 + stride, y - 5]], '#465d61', 10);
             rect(x - 18 - stride, y - 7, 17, 7, '#354f51', 3); rect(x + 5 + stride, y - 7, 18, 7, '#354f51', 3);
@@ -272,16 +304,15 @@
         }
         function obstacle(box, time) {
             const x = box.x, y = W.floor - box.y;
+            ctx.save(); ctx.translate(x, y); ctx.scale(box.direction || 1, 1); ctx.translate(-x, -y);
             if (box.id === 'baby') {
-                ctx.save(); ctx.translate(x, y); ctx.scale(box.direction || 1, 1); ctx.translate(-x, -y);
-                const crawl = Math.sin(time * 7) * 5;
+                const crawl = Math.sin(time * 4) * 5;
                 ctx.fillStyle = '#617b6a24'; ctx.beginPath(); ctx.ellipse(x, y - 1, 25, 5, 0, 0, Math.PI * 2); ctx.fill();
                 line([[x - 11, y - 17], [x - 20 - crawl, y - 3]], '#d8ad8b', 7); line([[x + 7, y - 17], [x + 17 + crawl, y - 3]], '#d8ad8b', 7);
                 rect(x - 15, y - 25, 30, 18, '#e2daca', 8); circle(x + 16, y - 28, 10, '#deb58e');
                 line([[x + 15, y - 37], [x + 18, y - 40]], '#8c795e', 2); circle(x + 21, y - 29, 1.5, '#586354');
-                ctx.restore();
             } else if (box.id === 'parrot') {
-                ctx.save(); ctx.translate(x, y); ctx.scale(box.direction || 1, 1);
+                ctx.save(); ctx.translate(x, y);
                 const flap = Math.sin(time * 12) * 12;
                 line([[-5, -8], [-27, -12]], '#3c8d94', 6);
                 ctx.fillStyle = '#83a96e'; ctx.beginPath(); ctx.ellipse(0, -10, 15, 9, -.2, 0, Math.PI * 2); ctx.fill();
@@ -312,8 +343,61 @@
                 rect(x - 24, y - 45, 48, 31, '#879f94', 5); line([[x - 24, y - 41], [x - 33, y - 60]], '#657e75', 3);
                 circle(x - 14, y - 7, 7, '#5e766d'); circle(x + 14, y - 7, 7, '#5e766d');
             } else person(box, time, false, false);
+            ctx.restore();
         }
-        function bin(bin, front, contents, countLabel) {
+        function binRim(bin, front) {
+            const y = W.floor - (bin.y || 0) - bin.height;
+            const color = bin.style === 'park' ? '#72917a' : bin.metal ? '#829b96' : bin.id === 'large' ? '#5ea994' : '#d69974';
+            // The rear half sits behind trash; only the near lip belongs in front.
+            ctx.strokeStyle = color; ctx.lineWidth = 3;
+            ctx.beginPath(); ctx.ellipse(bin.x, y, bin.width / 2, 5, 0, front ? 0 : Math.PI, front ? Math.PI : Math.PI * 2); ctx.stroke();
+        }
+        function binCount(bin, contents) {
+            if (!contents || !contents.count) return;
+            const x = bin.x, y = W.floor - (bin.y || 0) + 20;
+            ctx.save(); ctx.globalAlpha = .65;
+            line([[x - 10, y - 8], [x - 5, y - 9], [x - 3, y - 4], [x - 6, y], [x - 11, y - 2], [x - 10, y - 8]], '#547367', 1.2);
+            line([[x - 9, y - 6], [x - 6, y - 4], [x - 5, y - 7]], '#547367', 1);
+            text(String(contents.count), x + 4, y, 11, '#547367'); ctx.restore();
+        }
+        function parkBin(bin, front) {
+            const x = bin.x, base = W.floor - (bin.y || 0), y = base - bin.height, width = bin.width;
+            const left = x - width / 2, frame = '#3e6557';
+            if (!front) {
+                ctx.fillStyle = '#314d3d24'; ctx.beginPath(); ctx.ellipse(x + 4, base + 7, width * .57, 9, 0, 0, Math.PI * 2); ctx.fill();
+                ctx.save(); ctx.globalAlpha = .14;
+                rect(left + 3, y + 2, width - 6, bin.height - 8, frame, [6, 6, 10, 10]); ctx.restore();
+                ctx.fillStyle = '#29483c55'; ctx.beginPath(); ctx.ellipse(x, y, width / 2 - 6, 4, 0, 0, Math.PI * 2); ctx.fill();
+                binRim(bin, false);
+            } else {
+                // Spaced wooden slats leave stored trash visible behind the front face.
+                const step = (width - 12) / 8;
+                ctx.save(); ctx.globalAlpha = .4;
+                for (let i = 0; i < 8; i++) {
+                    const sx = left + 6 + i * step;
+                    rect(sx, y + 7, step - 3, bin.height - 17, i % 2 ? '#b4986b' : '#a38860', 2);
+                    line([[sx + 2, y + 13], [sx + 2, base - 16]], '#ddc59a', 1);
+                }
+                ctx.restore();
+                line([[left + 3, y + 4], [left + 3, base - 7], [x + width / 2 - 3, base - 7], [x + width / 2 - 3, y + 4]], frame, 4);
+                for (const row of [.24, .85]) {
+                    const bandY = y + bin.height * row;
+                    rect(left + 2, bandY, width - 4, 5, frame, 2);
+                    for (const side of [-1, 1]) circle(x + side * (width / 2 - 8), bandY + 2.5, 1.2, '#b9c8ac');
+                }
+                binRim(bin, true);
+                const badgeY = y + bin.height * .56;
+                rect(x - 13, badgeY - 14, 26, 28, '#ede6ce', 4);
+                circle(x - 5, badgeY - 8, 2.2, frame);
+                line([[x - 5, badgeY - 3], [x - 5, badgeY + 2], [x - 9, badgeY + 9]], frame, 2);
+                line([[x - 5, badgeY + 2], [x - 1, badgeY + 9]], frame, 2);
+                line([[x - 5, badgeY - 3], [x + 1, badgeY]], frame, 2);
+                rect(x + 3, badgeY + 2, 6, 8, frame, 1); circle(x + 5, badgeY - 2, 1.3, frame);
+                text(String(bin.points), x, y - 12, 22, frame, 'center');
+            }
+        }
+        function bin(bin, front) {
+            if (bin.style === 'park') { parkBin(bin, front); return; }
             const x = bin.x, base = W.floor - (bin.y || 0), y = base - bin.height, width = bin.width;
             const color = bin.metal ? bin.id === 'large' ? '#718d8e' : '#9c8464' : bin.id === 'large' ? '#3c8f7d' : '#bf7955';
             if (!front) {
@@ -325,28 +409,29 @@
                 ctx.save(); ctx.globalAlpha = .12;
                 rect(x - width / 2, y, width, bin.height, color, [5, 5, 12, 12]);
                 rect(x - width / 2 + 6, y + 3, width - 12, 9, '#294a40', 4); ctx.restore();
+                binRim(bin, false);
             } else {
                 ctx.save(); ctx.globalAlpha = .16;
                 rect(x - width / 2 + 6, y + 6, width - 12, bin.height - 6, color, [0, 0, 8, 8]); ctx.restore();
                 line([[x - width / 2 + 3, y + 3], [x - width / 2 + 3, base - 6], [x + width / 2 - 3, base - 6], [x + width / 2 - 3, y + 3]], color + 'b0', 3);
                 for (let i = 1; i < 4; i++) line([[x + width / 2 - 10, y + bin.height * i / 4], [x + width / 2 - 4, y + bin.height * i / 4]], color + '90', 1.5);
-                rect(x - width / 2 - 2, y - 3, width + 4, 6, bin.metal ? '#8eaaa5' : bin.id === 'large' ? '#5ea994' : '#d69974', 3);
                 if (bin.metal) for (const row of [.3, .7]) rect(x - width / 2 + 3, y + bin.height * row, width - 6, 4, color + 'b0', 2);
-                if (bin.metal) { ctx.strokeStyle = '#829b96'; ctx.lineWidth = 3; ctx.beginPath(); ctx.ellipse(x, y, width / 2, 5, 0, 0, Math.PI * 2); ctx.stroke(); }
-                text(String(bin.points), x, y - 12, 22, color, 'center');
-                if (contents) text(countLabel(contents.count), x, base + 25, 16, '#45685b', 'center');
+                binRim(bin, true);
+                text(String(bin.points), x, bin.labelInside ? y + 27 : y - 12, 22, color, 'center');
             }
         }
-        function drawBin(b, front, contents, countLabel) {
+        function drawBin(b, front, contents) {
             if (!visible(b.x, b.width / 2 + 40)) return;
-            if (!root.document) { bin(b, front, contents, countLabel); return; }
-            let layers = binLayers.get(b);
-            if (!layers) { layers = {}; binLayers.set(b, layers); }
-            const key = front ? 'front' : 'back';
-            if (!layers[key]) layers[key] = layer(b.x - b.width / 2 - (front ? 8 : 24), W.floor - (b.y || 0) - b.height - 42,
-                b.width + (front ? 16 : 48), b.height + (front ? 52 : (b.y || 0) + 84), () => bin(b, front));
-            blit(layers[key]);
-            if (front) text(countLabel(contents.count), b.x, W.floor - (b.y || 0) + 25, 16, '#45685b', 'center');
+            if (!root.document) bin(b, front);
+            else {
+                let layers = binLayers.get(b);
+                if (!layers) { layers = {}; binLayers.set(b, layers); }
+                const key = front ? 'front' : 'back';
+                if (!layers[key]) layers[key] = layer(b.x - b.width / 2 - (front ? 8 : 24), W.floor - (b.y || 0) - b.height - 42,
+                    b.width + (front ? 16 : 48), b.height + (front ? 52 : (b.y || 0) + 84), () => bin(b, front));
+                blit(layers[key]);
+            }
+            if (front) binCount(b, contents);
         }
         function trash(item, x, y, rotation) {
             ctx.save(); ctx.translate(x, y); ctx.rotate(rotation || 0);
@@ -501,7 +586,7 @@
             ctx.restore();
         }
         function overview(model, boxes) {
-            const y = W.height, width = frameWidth(), scale = width / worldWidth;
+            const y = W.height, width = frameWidth(), scale = width / Math.max(worldWidth, width);
             rect(0, y, width, overviewHeight, '#e7e9da');
             const x = cameraX * scale;
             rect(x + 1, y + 5, width * scale - 2, 40, '#9fbdae35', 5);
@@ -527,9 +612,11 @@
             }
             for (const b of model.scene.bins) {
                 const bx = b.x * scale, color = b.id === 'large' ? '#3c8f7d' : '#bf7955';
-                const by = y + 23 - (b.y || 0) * .06;
-                rect(bx - b.width * scale / 2, by, b.width * scale, 15, color + '55', 3);
-                text(String(b.points), bx, by - 4, 19, color, 'center');
+                const arena = model.scene.scene === 'arena';
+                // Separate the dense arena targets into three rows, including stacked bins at the same x.
+                const by = arena ? y + ((b.y || 0) >= 220 ? 3 : b.y ? 16 : 29) : y + 23 - (b.y || 0) * .06;
+                rect(bx - b.width * scale / 2, by, b.width * scale, arena ? 10 : 15, color + '55', 3);
+                text(String(b.points), bx, arena ? by + 9 : by - 4, arena ? 14 : 19, color, 'center');
             }
             if (model.ball) circle(R.clamp(model.ball.x * scale, 5, width - 5), y + 37 - R.clamp(model.ball.y * .05, 0, 24), 5, '#f4b24a');
         }
@@ -594,7 +681,7 @@
                     trash(b.item, x, cameraY + 40, b.rotation);
                 }
             }
-            scene.bins.forEach(b => drawBin(b, true, model.binContents[b.id], model.countLabel));
+            scene.bins.forEach(b => drawBin(b, true, model.binContents[b.id]));
             // Actors occupy one foreground layer, never between the bin's back and front.
             boxes.forEach(box => {
                 if (!visible(box.x, box.width / 2 + 80)) return;
@@ -619,7 +706,7 @@
                 }
             }
             ctx.restore();
-            if (cameraEnabled()) overview(model, boxes);
+            if (!qa) overview(model, boxes);
         }
         fit(); return { fit, render, follow, beginPan, panBy, canPan: cameraEnabled, isPortrait: () => portrait };
     }

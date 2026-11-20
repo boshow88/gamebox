@@ -29,7 +29,7 @@ assert.equal(canvas.width, 698); assert.equal(canvas.height, 589);
 const scene = { ...R.scenario({ scene: 'office' }, 1, 42), qa: true, wind: 0, rain: 0, item: 'paper', grams: 8 };
 const model = { scene, time: 0, angle: 45, ball: null, trail: [], ghost: [], debris: [],
     binContents: R.binContents(scene, []), players: 2, active: 0, playerLabels: ['P1', 'P2'],
-    countLabel: String, overviewLabel: 'Field overview', aiming: true, practice: true, qa: false };
+    overviewLabel: 'Field overview', aiming: true, practice: true, qa: false };
 function render() {
     translations = [];
     const before = JSON.stringify(model);
@@ -53,8 +53,8 @@ for (const item of Object.keys(R.ITEMS)) for (const angle of [15, 45, 80]) {
     while (!model.ball.result) {
         R.advance(model.scene, model.ball, 1 / 60); model.time = model.ball.time;
         const x = render();
-        assert.ok(x >= 0 && x <= 240, 'Camera stays inside the physical world');
-        if (model.ball.x >= 0 && model.ball.x <= 960) assert.ok(model.ball.x >= x && model.ball.x <= x + 720, 'The moving trash stays in the portrait field');
+        assert.ok(x >= 0 && x <= model.scene.width - R.SCENES.office.phoneWidth, 'Camera stays inside the physical world');
+        if (model.ball.x >= 0 && model.ball.x <= model.scene.width) assert.ok(model.ball.x >= x && model.ball.x <= x + R.SCENES.office.phoneWidth, 'The moving trash stays in the portrait field');
     }
     model.ball = null; model.aiming = true; render();
 }
@@ -66,18 +66,26 @@ model.qa = false; render();
 assert.equal(view.isPortrait(), true, 'Normal play restores the enlarged portrait field');
 window.innerWidth = 960; window.innerHeight = 800; canvas.parentElement.clientWidth = 842; view.fit();
 assert.equal(view.isPortrait(), false); assert.equal(classes.has('is-portrait'), false);
-assert.equal(canvas.width, 1680); assert.equal(canvas.height, 1216);
+assert.equal(canvas.width, 1680); assert.equal(canvas.height, 1064);
 assert.ok(view.canPan(), 'Medium desktop maps retain a small inspection range');
 view.panBy(-5000, 100); assert.equal(render(), 120); view.follow(); render();
 model.scene = { ...R.scenario({ scene: 'living' }, 1, 42) };
 model.binContents = R.binContents(model.scene, []); render();
 assert.equal(view.canPan(), false, 'Living room is fully visible without dragging');
-assert.equal(canvas.width, 1200); assert.equal(canvas.height, 1080);
+assert.equal(canvas.width, 1680); assert.equal(canvas.height, 1064);
+assert.ok(classes.has('has-overview'), 'Short maps retain the same overview band as long maps');
 view.panBy(-5000, 100); assert.equal(render(), 0);
+for (const name of Object.keys(R.SCENES)) {
+    model.scene = R.scenario({ scene: name }, 1, 42);
+    model.binContents = R.binContents(model.scene, []); view.follow(); render();
+    assert.equal(canvas.width, 1680, name + ' retains the common desktop width');
+    assert.equal(canvas.height, 1064, name + ' retains the common frame height');
+    assert.equal(canvas.parentElement.style.maxWidth, '960px', 'Scene changes keep the same outer frame width');
+}
 model.scene = { ...R.scenario({ scene: 'construction' }, 1, 42), qa: true, wind: 0, rain: 0 };
 model.binContents = R.binContents(model.scene, []); render();
-assert.ok(view.canPan(), 'Desktop long maps also allow dragging and show the overview');
-view.panBy(-10000, 100); assert.equal(render(), 1440);
+assert.ok(view.canPan(), 'The long construction map retains dragging and the overview');
+view.panBy(-10000, 100); assert.equal(render(), 480);
 const held = render(); model.time += 1; assert.equal(render(), held, 'Manual inspection stays put while the world clock continues');
 view.follow(); render();
 assert.equal(view.beginPan(20, 280), true); view.panBy(100, 280, 120);
@@ -86,12 +94,12 @@ view.beginPan(0, 280); assert.equal(render(), 0, 'Tapping the overview selects t
 for (const item of R.SCENES.construction.items) {
     model.scene.item = item; model.scene.grams = R.ITEMS[item].grams;
     view.follow(); model.ball = R.launch(model.scene, 70, 100, model.time); model.aiming = false;
-    assert.equal(render(), 0, 'Every long-map release snaps back from dragged targets');
+    assert.equal(render(), 0, 'Every construction release snaps back from dragged targets');
     while (!model.ball.result) {
         R.advance(model.scene, model.ball, 1 / 60); model.time = model.ball.time;
         const x = render(), y = -translations[0][1], onScreenY = R.WORLD.floor - model.ball.y - y;
-        assert.ok(x >= 0 && x <= 1440);
-        if (model.ball.x >= 0 && model.ball.x <= 2400) assert.ok(model.ball.x >= x && model.ball.x <= x + 960);
+        assert.ok(x >= 0 && x <= model.scene.width - R.SCENES.construction.viewWidth);
+        if (model.ball.x >= 0 && model.ball.x <= model.scene.width) assert.ok(model.ball.x >= x && model.ball.x <= x + R.SCENES.construction.viewWidth);
         assert.ok(onScreenY >= 0 && onScreenY <= 540, 'The vertical camera keeps high construction arcs visible');
     }
     model.ball = null; model.aiming = true; render();

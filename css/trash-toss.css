@@ -54,7 +54,7 @@ body { --game-color: #92969e; }
 #tt-wind { font-variant-numeric: tabular-nums; white-space: nowrap; }
 .stage-wrap { margin-inline: auto; border: 1px solid #57786f; border-radius: 14px; overflow: hidden; }
 .stage-canvas { width: 100%; height: auto; display: block; }
-.is-camera .tt-field-debris, .is-camera .tt-field-cleaning { bottom: calc(var(--tt-map-height) + 6px); }
+.has-overview .tt-field-debris, .has-overview .tt-field-cleaning { bottom: calc(var(--tt-map-height) + 6px); }
 .tt-status-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 46px; padding: 6px 2px; font-size: .85rem; }
 #tt-status { color: var(--game-color); }
 #tt-clock { color: var(--text-muted); font-family: var(--font-mono); white-space: nowrap; }

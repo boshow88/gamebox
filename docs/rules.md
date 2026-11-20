@@ -550,24 +550,56 @@ predicted landing point. Previous angle and power remain visible.
   for both players. Rain adds air resistance. Office wind is gentler and labeled
   A/C airflow; the living room uses a fan. Wind streaks show direction/strength. Weight is inside the field, with the active player’s previous object/grams shown
   faintly alongside it, just like previous wind.
-- Objects rotate in a seeded ten-item order with slight round weight variation.
+- Objects rotate in a seeded ten-item order; each type always uses its fixed native weight.
   Each scene has its own item pool; next object and actual grams remain visible.
+  All scenes use the same launch multiplier. The living room's closer targets need less power;
+  different object properties, release heights and weather still affect flight.
 
 | Scene | Distance / thrower | Exclusive objects |
 | --- | --- | --- |
-| Living room | Short, fully visible / child | Cookie box, comic, stinky sock, remote, foot-trap brick, rubber duck, pacifier, dinosaur plush, slipper, toy robot |
+| Living room | Short, fully visible 720-unit room / child | Cookie box, comic, stinky sock, remote, foot-trap brick, rubber duck, pacifier, dinosaur plush, slipper, toy robot |
 | Office | Medium, small camera range / employee | Memo, coffee cup, laptop, mouse, rejected folder, boss curse doll, keyboard, badge, stapler, overtime alarm |
 | Park | Medium, small camera range / grandma | Soda can, bottle, banana peel, apple core, giant leaf, frisbee, shuttlecock, pet bag, pigeon snack bag, garden gnome |
-| Street arena | Medium, eight bins at ground and raised levels / street skater | Receipt, spray cap, mixtape, bottle cap, gig wristband, padlock, skate wheel, noodle box, scratched vinyl, sneaker |
-| Construction | Long, substantial camera range / foreman | Screwdriver, screw, wrench, nut, washer, bolt, offcut, tape roll, hard hat, red brick |
+| Street arena | Multi-level, twelve bins across a 1320-unit field / street skater | Receipt, spray cap, mixtape, bottle cap, gig wristband, padlock, skate wheel, noodle box, scratched vinyl, sneaker |
+| Construction | Long, 1440-unit field / foreman | Screwdriver, screw, wrench, nut, washer, bolt, offcut, tape roll, hard hat, red brick |
 
 - Living-room blockers are a crawling baby, walking mother with a laundry basket
-  and a flying pet parrot. Baby and parrot turn to face their movement. Both indoor scenes stay dry.
-- Construction has five enlarged metal barrels with decreasing widths and
-  increasing points, and stronger long-range throws. Outdoor wind/rain applies.
-- Street arena uses eight metal bins on the ground and wall brackets, scoring
-  **5/10/15/20/25/35/40/50**. Size and height both matter. Raised bins have real
-  bottoms; underneath them remains open space.
+  and a flying pet parrot. All moving people and birds face their travel direction;
+  carried objects and carts follow the carrier's facing, including their collision boxes.
+  Cleaners face the bin while working and turn for their return trip. Both indoor scenes stay dry.
+  Mother patrols x=256–736, baby x=130–650 and parrot x=150–690; the basket follows mother.
+  Baby movement and crawl animation run at about 55% of their previous speed, with the same patrol range.
+  The room has a window/seating area at the front, gallery wall and side table in the middle,
+  and TV console, reading lamp and bookcase toward the back of the desktop viewport.
+  Each scene defines its editable actors beside its bins in `SCENES.<scene>.actors`:
+  `minX`/`maxX` are absolute patrol endpoints, `speed` controls the patrol rate,
+  and `follow`/`offsetX` attach carried objects. Minimap distances equal absolute x minus 96.
+  Shared cleaner speed and timing live in `CLEANER_SETTINGS`; cleaner routes still follow full bins.
+- Bins spread toward the back of each field: living room x=400/580, office x=520/760/1000,
+  park x=520/720/920, construction x=520/730/940/1150/1360.
+  Park openings remain reachable for each native object in adverse weather.
+  Park bins use green frames, wooden slats and a litter-disposal badge.
+- Construction has five metal barrels with decreasing widths and increasing points.
+  Centers are 210 units apart; the 30-point barrel ends 20 units before the map boundary.
+  All native objects can reach the first three barrels in adverse weather; the last two are
+  distance challenges whose reach depends on the object and weather.
+  Office and park fields are 1080 units wide. Normal play uses the construction viewport
+  for every scene: 960 units on desktop, 720 in portrait, with a fixed overview band.
+  Camera width changes no physics coordinates or distances. The 720-unit living room
+  remains fully visible; its background extends into the wider desktop viewport.
+  Outdoor wind/rain applies with the same strength as before.
+- Street arena retains its original eight metal bins and adds four rear targets:
+  ground x=1005 (30 points), middle x=1100 (45 points), high x=1100 (70 points),
+  and far middle x=1220 (55 points). The high opening sits above the original highest target.
+  The 45-point opening is at height 195, near the 40-point opening at 215;
+  the 55-point opening is lower at 123, preserving a direct route past the earlier bins.
+  Faster objects such as the receipt and bottle cap can reach all four new targets in calm weather;
+  slower objects have the earlier/lower targets to choose from. Wind and rain still affect reach.
+  Size and height both matter. Raised bins have real bottoms; underneath them remains open space.
+- Bin openings have a rear rim behind the trash and a near lip in front; no solid cap
+  covers the opening. Park slats use 40% opacity so stored trash stays visible.
+  A muted trash icon and small number replace item-count text below occupied bins;
+  empty bins show no count marker.
 - Dragging the field moves the scene under the hand. Dragging the overview moves
   the preview window in the same direction as the hand; tapping selects that
   location. The overview preserves the grab offset and has no heading sentence.
@@ -609,7 +641,7 @@ predicted landing point. Previous angle and power remain visible.
 - Higher total wins after both players finish five rounds. Ties add complete
   paired rounds, up to three; equal totals after round eight are a draw.
   The local human's five-round regulation best (excluding extra rounds) is saved
-  per scene/mode and CPU strength in v5, separately from earlier versions' rules.
+  per scene/mode and CPU strength in v8, separately from earlier versions' rules.
 - Changes are staged until New game or a new start. Offline P pauses, R returns to
   ready, M mutes. Pausing or cancelling a pointer discards a held charge.
 - **Physics QA:** start the mode, enter exact angle/power/wind/weight/rain and

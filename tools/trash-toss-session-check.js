@@ -33,7 +33,7 @@ function fixture(mobile = false) {
         if (!nodes.has(id)) { const node = new Node(id); node.parentElement = { classList: node.classList }; nodes.set(id, node); }
         return nodes.get(id);
     };
-    const events = {}, prefs = { mode: 'local', scene: 'park', item: 'mixed', difficulty: 'normal', version: 2, motion: 'efficient' };
+    const events = {}, heldKeys = new Set(), prefs = { mode: 'local', scene: 'park', item: 'mixed', difficulty: 'normal', version: 2, motion: 'efficient' };
     let options, shell, model, result, wallMs = 0, renders = 0;
     const i18n = { STRINGS: { en: {}, zh: {} }, subscribe() {}, t(key, ...args) {
         const value = i18n.STRINGS.en[key]; return typeof value === 'function' ? value(...args) : value || key;
@@ -43,8 +43,8 @@ function fixture(mobile = false) {
             i18n, prefs: { get: () => prefs, set: (id, value) => Object.assign(prefs, value) }, audio: { unlock() {}, play() {}, tone() {} },
             shell: { create(opts) {
                 options = opts;
-                assert.ok(opts.mode().endsWith('-v5'), 'Record mode must be available during shell construction');
-                shell = { state: 'idle', keyboard: { isDown: () => false }, isPlaying: () => shell.state === 'playing', refreshBest() {}, refreshOverlay() {},
+                assert.ok(opts.mode().endsWith('-v8'), 'Rebalanced rules use a new record mode during shell construction');
+                shell = { state: 'idle', keyboard: { isDown: (...keys) => keys.some(key => heldKeys.has(key)) }, isPlaying: () => shell.state === 'playing', refreshBest() {}, refreshOverlay() {},
                     start() { shell.state = 'playing'; opts.onStart(); opts.render(); },
                     pause() { shell.state = 'paused'; opts.onPause(); opts.render(); },
                     resume() { shell.state = 'playing'; opts.onResume(); opts.render(); },
@@ -61,6 +61,11 @@ function fixture(mobile = false) {
     return { get, shell, model: () => model, result: () => result,
         tick(seconds) { for (let i = 0; i < Math.round(seconds * 60); i++) { if (shell.isPlaying()) options.update(1 / 60); wallMs += 1000 / 60; options.render(); } },
         renders: () => renders,
+        key(type, key, props = {}) {
+            const e = Object.assign({ target: document.activeElement, key, code: key, repeat: false, preventDefault() {}, stopImmediatePropagation() {} }, props);
+            for (const fn of events[type] || []) fn(e);
+            if (type === 'keydown') heldKeys.add(key); else heldKeys.delete(key);
+        },
         highRefresh(seconds) { for (let i = 0; i < Math.round(seconds * 120); i++) { if (i % 2 === 0 && shell.isPlaying()) options.update(1 / 60); wallMs += 1000 / 120; options.render(); } },
         pointer(type, props = {}) { if (type === 'pointerdown') get('tt-throw').fire(type, props); else for (const fn of events[type] || []) fn(Object.assign({ pointerId: 1 }, props)); },
         touchEnd() { for (const fn of events.touchend || []) fn({ touches: [] }); },
@@ -73,6 +78,17 @@ assert.ok(phone.renders() - beforePaint <= 79, 'A 120 Hz mobile screen paints at
 assert.ok(phone.renders() - beforePaint >= 77, 'Mobile animation keeps a 60 FPS target');
 assert.equal(phone.get('tt-power-value').textContent, 100, 'Charge keeps fixed 60 Hz simulation timing');
 phone.pointer('pointerup'); phone.tick(1 / 30); assert.ok(phone.model().ball, 'Mobile release still launches normally');
+const meter = fixture();
+meter.get('tt-mode').value = 'practice'; meter.get('tt-apply').fire('click'); meter.shell.start();
+meter.pointer('pointerdown');
+for (let i = 1; i <= 156; i++) {
+    meter.tick(1 / 60);
+    const expected = R.chargePower(i / 60);
+    const shown = Number(meter.get('tt-power-fill').style.transform.match(/scaleX\(([^)]+)\)/)[1]) * 100;
+    assert.ok(Math.abs(shown - expected) < 1e-8, 'Meter follows every 60 Hz step on both charge sweeps, including endpoints');
+    assert.equal(Number(meter.get('tt-power-value').textContent), Math.round(expected));
+    assert.equal(Number(meter.get('tt-power-meter').attributes['aria-valuenow']), Math.round(expected));
+}
 const touch = fixture(true);
 touch.get('tt-mode').value = 'practice'; touch.get('tt-apply').fire('click'); touch.shell.start();
 touch.pointer('pointerdown'); touch.tick(.2);
@@ -97,11 +113,22 @@ assert.equal(f.get('tt-previous-wind').hidden, true, 'A first throw has no inven
 assert.equal(f.get('tt-previous-material').hidden, true);
 const first = [f.get('tt-material').textContent, f.get('tt-wind').textContent, f.get('tt-weather-name').textContent];
 const angleBefore = Number(f.get('tt-angle').value);
+f.get('tt-angle-up').fire('pointerdown'); f.tick(.2); f.get('tt-angle-up').fire('pointerup');
+assert.equal(Number(f.get('tt-angle').value), angleBefore + 1, 'A short tap adjusts only one degree');
 f.get('tt-angle-up').fire('pointerdown'); f.tick(.5); f.get('tt-angle-up').fire('pointerup');
-assert.ok(Number(f.get('tt-angle').value) >= angleBefore + 16, 'Holding plus continuously raises angle');
+assert.equal(Number(f.get('tt-angle').value), angleBefore + 4, 'Holding plus waits 300 ms then repeats at 12 degrees per second');
 const heldAngle = f.get('tt-angle').value; f.tick(.2); assert.equal(f.get('tt-angle').value, heldAngle, 'Release stops angle repeat');
 f.get('tt-angle-down').fire('pointerdown'); f.tick(.2); f.get('tt-angle-down').fire('pointercancel');
 const cancelledAngle = f.get('tt-angle').value; f.tick(.2); assert.equal(f.get('tt-angle').value, cancelledAngle, 'Pointer cancellation stops repeat');
+f.get('tt-angle-up').fire('pointerdown'); f.tick(.2); f.get('tt-angle-up').fire('lostpointercapture');
+const captureAngle = Number(f.get('tt-angle').value); f.tick(.5);
+assert.equal(Number(f.get('tt-angle').value), captureAngle, 'Capture loss stops angle repeat');
+f.key('keydown', 'ArrowRight'); f.tick(.2); f.key('keyup', 'ArrowRight');
+assert.equal(Number(f.get('tt-angle').value), captureAngle + 1, 'A brief keyboard press also moves only one degree');
+f.key('keydown', 'ArrowLeft'); f.tick(.5); f.key('keyup', 'ArrowLeft'); f.tick(1 / 30);
+assert.equal(Number(f.get('tt-angle').value), captureAngle - 2, 'Keyboard hold uses the same delayed slow repeat');
+const keyboardAngle = f.get('tt-angle').value; f.tick(.2);
+assert.equal(f.get('tt-angle').value, keyboardAngle, 'Key release stops repeat');
 f.pointer('pointerdown'); f.tick(1.3); assert.equal(f.get('tt-power-value').textContent, 100);
 f.tick(1.3); assert.equal(f.get('tt-power-value').textContent, 0);
 f.tick(.5); f.pointer('pointerup');
@@ -140,7 +167,7 @@ assert.equal(f.model().players, 1); assert.equal(f.model().debris.length, 0); as
 assert.equal(f.get('tt-previous-wind').hidden, true, 'New game clears wind references');
 f.shell.start(); const oldItem = f.get('tt-material').textContent;
 f.pointer('pointerdown'); f.tick(.5); f.pointer('pointerup'); f.tick(6);
-assert.notEqual(f.get('tt-material').textContent, oldItem, 'Mixed practice advances item/weight');
+assert.notEqual(f.get('tt-material').textContent, oldItem, 'Mixed practice advances the object with its fixed native weight');
 assert.equal(f.result(), undefined, 'Practice never ends or submits a score');
 const retained = f.model().debris.length;
 for (const y of [20, 44, 68]) f.model().debris.push({ x: f.model().scene.bins[0].x, y, radius: 12, item: 'book', grams: 280, resting: true, result: { kind: 'basket', points: 10 } });
@@ -185,7 +212,7 @@ f.tick(6);
 assert.match(f.get('tt-status').textContent, /Bin collisions and scoring are off/, 'Free-flight results explain why buckets do not score');
 f.get('tt-qa-sweep').fire('click');
 assert.equal(f.get('tt-qa-history').children.length, 8, 'Wind comparison records five controlled experiments');
-f.get('tt-qa-freeflight').checked = false; f.get('tt-qa-wind').value = '0'; f.get('tt-qa-power').value = '81.5';
+f.get('tt-qa-freeflight').checked = false; f.get('tt-qa-wind').value = '0'; f.get('tt-qa-power').value = '94';
 for (let i = 0; i < 2; i++) {
     f.get('tt-qa-form').fire('submit');
     assert.equal(f.get('tt-score-a').textContent, 0, 'Each QA throw starts with its own test score');
@@ -209,7 +236,7 @@ for (const [name, layout] of Object.entries(R.SCENES)) {
 }
 const cpu = fixture();
 cpu.get('tt-mode').value = 'cpu'; cpu.get('tt-scene').value = 'construction'; cpu.get('tt-apply').fire('click'); cpu.shell.start();
-assert.equal(cpu.model().scene.width, 2400); assert.equal(cpu.model().players, 2);
+assert.equal(cpu.model().scene.width, 1440); assert.equal(cpu.model().players, 2);
 cpu.tick(22);
 assert.equal(cpu.get('tt-round').textContent, '2 / 5', 'A construction CPU completes its throw after the human timeout');
 assert.equal(cpu.model().active, 0);

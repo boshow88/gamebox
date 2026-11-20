@@ -143,8 +143,14 @@ score without first approaching from above.
 Cleaning regressions cover settled-only dispatch, warning/walk/collect/exit,
 physical cleaner contact followed by a basket, clearing only the targeted bin,
 and preserving already earned scores. Construction checks cover worker geometry,
-map bounds, its item cycle, and all five targets being reachable for all ten tools at
-maximum round weight with -60 headwind and heavy rain.
+map bounds, its item cycle, and all five targets being directly reachable without a rim rebound
+for all ten tools at fixed native weight with -68 headwind and heavy rain. Field checks
+preserve short/medium/long sizes at 720/1080/1440; the expanded arena has its own 1320-unit field.
+Moved targets are checked with each native item in adverse weather. The reachability helper
+uses integer angles and actual 60 Hz charge values, verifies full-scene collisions, and rejects rim rebounds.
+All scenes use the same launch
+multiplier; fixed weights are checked across modes, seeds and rounds. Captured weather
+values verify that removing random weights preserves the seeded wind/rain sequence.
 The session check runs the actual controller in a minimal DOM/shell fixture,
 advancing fixed ticks to verify the world clock survives turns and rounds,
 debris remains, handoff freezes only turn time, avatar counts follow the mode,
@@ -267,8 +273,10 @@ play, temperature, charge smoothness, rain, retained trash, camera drags and QA.
 Headless mobile dimensions cannot establish real phone thermal behavior.
 
 Trash Toss additions: check arena heights and under-bin passes, including large
-objects at narrow openings; all eight targets are reachable for every street item
-in calm base-weight QA, sometimes requiring fractional power. A partial rim dip
+objects at narrow openings. The original eight arena bins are checked for unchanged geometry;
+four new rear bins are reachable with receipt and bottle cap using actual charge frames and no rim rebound.
+The high rear tier is a faster-item challenge; choose earlier/lower targets for slower items or adverse weather.
+Inspect the 70-point label inside its barrel so the weather/material cards do not cover it. A partial rim dip
 must not score, but a whole-object entry followed by a later full-bin rebound
 keeps its points. Hold/release/cancel ± on touch and mouse; repeating must stop on
 release, blur or charge. Previous weight must belong to the active player's last

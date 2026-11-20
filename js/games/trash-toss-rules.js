@@ -58,31 +58,114 @@
         vinyl: Object.freeze({ grams: 150, drag: .11, wind: 1.3, speed: .94, radius: 14 }),
         sneaker: Object.freeze({ grams: 300, drag: .10, wind: .9, speed: .91, radius: 15 }),
     });
-    const STANDARD_BINS = Object.freeze([{ id: 'large', x: 480, width: 100, height: 82, points: 10 }, { id: 'medium', x: 660, width: 82, height: 96, points: 15 }, { id: 'small', x: 840, width: 62, height: 110, points: 25 }]);
+    // 所有地圖共用的清潔員設定；行走路線依滿桶位置自動安排。
+    const CLEANER_SETTINGS = Object.freeze({
+        speed: 220, entryMargin: 50, standOff: 30,
+        warningSeconds: 1, clearSeconds: 1.3, exitDelaySeconds: .8, cooldownSeconds: 3,
+        width: 36, height: 130,
+    });
+    // bins 的 x、actors 的 minX/maxX 都是地圖絕對座標（小地圖刻度 + 96）。
+    // actors：speed 越大往返越快；y 是離地高度，minY/maxY 控制上下活動範圍。
+    // follow 指定清單中前面的人物；offsetX 是沿人物面向方向的水平距離。
+    // easing: 'quadratic' 保留原本在左端較慢的步調，不影響 minX/maxX 的意義。
     const SCENES = Object.freeze({
-        office: Object.freeze({ width: 960, viewWidth: 840, phoneWidth: 720, launchScale: 1, launchY: 102, outdoor: false, windScale: .65, thrower: 'employee', bins: STANDARD_BINS,
+        office: Object.freeze({ width: 1080, viewWidth: 840, phoneWidth: 720, launchScale: 1, launchY: 102, outdoor: false, windScale: .65, thrower: 'employee',
+            bins: Object.freeze([
+                { id: 'large', x: 520, width: 100, height: 82, points: 10 },
+                { id: 'medium', x: 760, width: 82, height: 96, points: 15 },
+                { id: 'small', x: 1000, width: 74, height: 115, points: 25 },
+            ]),
+            actors: Object.freeze([
+                { id: 'boss', // 主管
+                    minX: 280, maxX: 780, speed: .28, easing: 'quadratic',
+                    y: 0, width: 35, height: 112 },
+                { id: 'files', // 主管手中的文件
+                    follow: 'boss', offsetX: 26,
+                    y: 95, width: 58, height: 66 },
+            ]),
             items: Object.freeze(['paper', 'cup', 'laptop', 'mouse', 'folder', 'voodoo', 'keyboard', 'badge', 'stapler', 'overtime']) }),
-        living: Object.freeze({ width: 600, viewWidth: 600, phoneWidth: 600, launchScale: .72, launchY: 76, outdoor: false, windScale: .35, thrower: 'child',
-            bins: Object.freeze([{ id: 'large', x: 365, width: 100, height: 70, points: 10 }, { id: 'small', x: 500, width: 66, height: 88, points: 25 }]),
+        living: Object.freeze({ width: 720, viewWidth: 720, phoneWidth: 720, launchScale: 1, launchY: 76, outdoor: false, windScale: .35, thrower: 'child',
+            bins: Object.freeze([
+                { id: 'large', x: 400, width: 100, height: 70, points: 10 },
+                { id: 'small', x: 580, width: 80, height: 88, points: 25 },
+            ]),
+            actors: Object.freeze([
+                { id: 'mother', // 媽媽
+                    minX: 256, maxX: 736, speed: .27,
+                    y: 0, width: 38, height: 130 },
+                { id: 'baby', // 寶寶
+                    minX: 130, maxX: 650, speed: .16,
+                    y: 0, width: 46, height: 38 },
+                { id: 'parrot', // 鸚鵡
+                    minX: 150, maxX: 690, speed: .72,
+                    minY: 141, maxY: 249, verticalSpeed: 1.4,
+                    width: 37, height: 28 },
+                { id: 'laundry', // 媽媽手中的洗衣籃
+                    follow: 'mother', offsetX: 38,
+                    y: 83, width: 46, height: 44 },
+            ]),
             items: Object.freeze(['carton', 'book', 'sock', 'remote', 'block', 'duck', 'pacifier', 'plush', 'slipper', 'robot']) }),
-        park: Object.freeze({ width: 960, viewWidth: 840, phoneWidth: 720, launchScale: 1, launchY: 102, outdoor: true, windScale: 1, thrower: 'grandma', bins: STANDARD_BINS,
+        park: Object.freeze({ width: 1080, viewWidth: 840, phoneWidth: 720, launchScale: 1, launchY: 102, outdoor: true, windScale: 1, thrower: 'grandma',
+            bins: Object.freeze([
+                { id: 'large', x: 520, width: 110, height: 82, points: 10, style: 'park' },
+                { id: 'medium', x: 720, width: 90, height: 96, points: 15, style: 'park' },
+                { id: 'small', x: 920, width: 72, height: 115, points: 25, style: 'park' },
+            ]),
+            actors: Object.freeze([
+                { id: 'walker', // 散步路人
+                    minX: 280, maxX: 780, speed: .28, easing: 'quadratic',
+                    y: 0, width: 35, height: 112 },
+                { id: 'cart', // 路人推車
+                    follow: 'walker', offsetX: 28,
+                    y: 0, width: 48, height: 50 },
+                { id: 'umbrella', // 下雨時才出現的雨傘
+                    follow: 'walker', offsetX: 0, followFacing: false, rainOnly: true,
+                    y: 165, width: 118, height: 18 },
+                { id: 'bird', // 每隔 interval 秒飛過，飛行 duration 秒
+                    motion: 'flyby', fromX: 1040, toX: -80, duration: 8, interval: 24, phaseScale: 2,
+                    levels: Object.freeze([130, 300, 390]), verticalAmplitude: 55, verticalSpeed: .85,
+                    width: 28, height: 16 },
+            ]),
             items: Object.freeze(['can', 'bottle', 'peel', 'apple', 'leaf', 'frisbee', 'shuttlecock', 'dogbag', 'seedbag', 'gnome']) }),
-        arena: Object.freeze({ width: 960, viewWidth: 840, phoneWidth: 720, launchScale: 1, launchY: 102, outdoor: true, windScale: .7, thrower: 'skater',
-            bins: Object.freeze([{ id: 'large', x: 350, width: 96, height: 66, points: 5, metal: true },
+        arena: Object.freeze({ width: 1320, viewWidth: 840, phoneWidth: 720, launchScale: 1, launchY: 102, outdoor: true, windScale: .7, thrower: 'skater',
+            bins: Object.freeze([
+                { id: 'large', x: 350, width: 96, height: 66, points: 5, metal: true },
                 { id: 'shelf-15', x: 475, y: 100, width: 86, height: 68, points: 15, metal: true },
                 { id: 'floor-10', x: 585, width: 90, height: 72, points: 10, metal: true },
                 { id: 'high-35', x: 650, y: 220, width: 70, height: 70, points: 35, metal: true },
                 { id: 'shelf-25', x: 735, y: 105, width: 74, height: 76, points: 25, metal: true },
                 { id: 'floor-20', x: 820, width: 66, height: 84, points: 20, metal: true },
                 { id: 'high-50', x: 850, y: 270, width: 60, height: 66, points: 50, metal: true },
-                { id: 'small', x: 920, y: 145, width: 56, height: 70, points: 40, metal: true }]),
+                { id: 'small', x: 920, y: 145, width: 56, height: 70, points: 40, metal: true },
+                { id: 'rear-floor', x: 1005, width: 108, height: 66, points: 30, metal: true },
+                { id: 'rear-mid', x: 1090, y: 145, width: 100, height: 60, points: 45, metal: true },
+                { id: 'deep-high', x: 1070, y: 300, width: 110, height: 58, points: 70, metal: true },
+                { id: 'deep-mid', x: 1220, y: 25, width: 104, height: 68, points: 55, metal: true },
+            ]),
+            actors: Object.freeze([]), // 競技場只有依滿桶派出的清潔員。
             items: Object.freeze(['receipt', 'spraycap', 'cassette', 'bottlecap', 'wristband', 'padlock', 'skatewheel', 'noodlebox', 'vinyl', 'sneaker']) }),
-        construction: Object.freeze({ width: 2400, viewWidth: 960, phoneWidth: 720, launchScale: 1.72, launchY: 102, outdoor: true, windScale: 1, thrower: 'foreman',
-            bins: Object.freeze([{ id: 'large', x: 880, width: 190, height: 100, points: 5, metal: true },
-                { id: 'drum-10', x: 1220, width: 160, height: 106, points: 10, metal: true },
-                { id: 'drum-15', x: 1600, width: 135, height: 112, points: 15, metal: true },
-                { id: 'drum-20', x: 1970, width: 110, height: 118, points: 20, metal: true },
-                { id: 'small', x: 2240, width: 90, height: 124, points: 30, metal: true }]),
+        construction: Object.freeze({ width: 1440, viewWidth: 960, phoneWidth: 720, launchScale: 1, launchY: 102, outdoor: true, windScale: 1, thrower: 'foreman',
+            bins: Object.freeze([
+                { id: 'large', x: 520, width: 152, height: 100, points: 5, metal: true },
+                { id: 'drum-10', x: 730, width: 144, height: 106, points: 10, metal: true },
+                { id: 'drum-15', x: 940, width: 136, height: 112, points: 15, metal: true },
+                { id: 'drum-20', x: 1150, width: 128, height: 118, points: 20, metal: true },
+                { id: 'small', x: 1360, width: 120, height: 72, points: 30, metal: true },
+            ]),
+            actors: Object.freeze([
+                { id: 'worker', // 搬木板的工人
+                    minX: 280, maxX: 680, speed: .22, easing: 'quadratic',
+                    y: 0, width: 36, height: 130 },
+                { id: 'worker-far', // 後方推車工人
+                    minX: 660, maxX: 1020, speed: .18,
+                    y: 0, width: 36, height: 130 },
+                { id: 'planks', // 工人扛的木板
+                    follow: 'worker', offsetX: 26,
+                    y: 128, width: 94, height: 24 },
+                { id: 'wheelbarrow', // 工地推車
+                    follow: 'worker-far', offsetX: 38,
+                    y: 0, width: 64, height: 50 },
+            ]),
             items: Object.freeze(['screwdriver', 'screw', 'wrench', 'nut', 'washer', 'bolt', 'offcut', 'tape', 'helmet', 'brick']) }),
     });
     function fieldWidth(scene) { return scene.width || SCENES[scene.scene].width; }
@@ -117,7 +200,9 @@
         const weatherOrder = layout.outdoor ? ['calm', 'breeze', 'strong', 'drizzle', 'rain', 'storm', 'rain', 'drizzle'] : ['calm', 'breeze'];
         const weather = weatherOrder[(round - 1 + (seed >>> 0) % weatherOrder.length) % weatherOrder.length];
         const strength = WEATHER[weather].wind * layout.windScale;
-        return { scene: c.scene, width: layout.width, launchScale: layout.launchScale, launchY: layout.launchY, thrower: layout.thrower, item, grams: Math.round(ITEMS[item].grams * (.85 + rng() * .30)), weather,
+        // Reserve the former weight draw so seeded wind keeps its existing values.
+        rng();
+        return { scene: c.scene, width: layout.width, launchScale: layout.launchScale, launchY: layout.launchY, thrower: layout.thrower, item, grams: ITEMS[item].grams, weather,
             rain: WEATHER[weather].rain, wind: Math.round((rng() < .5 ? -1 : 1) * strength * (.75 + rng() * .25)),
             phase: random(seed ^ 0x182f)() * Math.PI * 2,
             bins: layout.bins.map(bin => Object.assign({}, bin)) };
@@ -126,34 +211,39 @@
         const item = ITEMS[scene.item], grams = scene.grams || item.grams;
         return Object.assign({}, item, { grams, mass: grams / 8, speed: item.speed * Math.sqrt(item.grams / grams) });
     }
+    function actorPosition(actor, scene, time, owners) {
+        if (actor.rainOnly && !scene.rain) return null;
+        let x, y = actor.y || 0, direction;
+        if (actor.follow) {
+            const owner = owners.get(actor.follow);
+            if (!owner) return null;
+            x = owner.x + actor.offsetX * owner.direction;
+            if (actor.followFacing !== false) direction = owner.direction;
+        } else if (actor.motion === 'flyby') {
+            const clock = time + scene.phase * actor.phaseScale;
+            const pass = Math.floor(clock / actor.interval), flight = clock % actor.interval;
+            if (flight >= actor.duration) return null;
+            x = actor.fromX + flight * ((actor.toX - actor.fromX) / actor.duration);
+            direction = actor.toX >= actor.fromX ? 1 : -1;
+            y = actor.levels[pass % actor.levels.length] + Math.sin(flight * actor.verticalSpeed + scene.phase) * actor.verticalAmplitude;
+        } else {
+            const phase = time * actor.speed + scene.phase, wave = Math.sin(phase);
+            x = actor.easing === 'quadratic' ? actor.minX + Math.pow((wave + 1) / 2, 2) * (actor.maxX - actor.minX) :
+                (actor.minX + actor.maxX) / 2 + wave * ((actor.maxX - actor.minX) / 2);
+            direction = Math.cos(phase) >= 0 ? 1 : -1;
+            if (actor.minY != null) y = (actor.minY + actor.maxY) / 2 + Math.sin(time * actor.verticalSpeed + scene.phase) * ((actor.maxY - actor.minY) / 2);
+        }
+        const box = { id: actor.id, x, y, width: actor.width, height: actor.height };
+        if (direction != null) box.direction = direction;
+        return box;
+    }
     // A session clock drives actors independently of rounds, releases and device handoff.
     function obstacles(scene, time) {
         if (scene.qa) return [];
-        const janitor = cleaner(scene, time), extra = janitor ? [janitor] : [];
-        const phase = scene.phase;
-        if (scene.scene === 'living') {
-            const mother = { id: 'mother', x: 330 + Math.sin(time * .38 + phase) * 170, y: 0, width: 38, height: 130 };
-            return [...extra, mother, { id: 'baby', x: 205 + Math.sin(time * .52 + phase) * 145, direction: Math.cos(time * .52 + phase) >= 0 ? 1 : -1, y: 0, width: 46, height: 38 },
-                { id: 'parrot', x: 320 + Math.sin(time * .95 + phase) * 205, direction: Math.cos(time * .95 + phase) >= 0 ? 1 : -1, y: 195 + Math.sin(time * 1.4 + phase) * 54, width: 37, height: 28 },
-                { id: 'laundry', x: mother.x + 38, y: 83, width: 46, height: 44 }];
-        }
-        if (scene.scene === 'arena') return extra;
-        if (scene.scene === 'construction') {
-            const worker = { id: 'worker', x: 610 + Math.pow((Math.sin(time * .22 + phase) + 1) / 2, 2) * 740, y: 0, width: 36, height: 130 };
-            const far = { id: 'worker-far', x: 1620 + Math.sin(time * .18 + phase) * 360, y: 0, width: 36, height: 130 };
-            return [...extra, worker, far, { id: 'planks', x: worker.x + 26, y: 128, width: 94, height: 24 },
-                { id: 'wheelbarrow', x: far.x + 38, y: 0, width: 64, height: 50 }];
-        }
-        const human = { id: scene.scene === 'office' ? 'boss' : 'walker',
-            x: 280 + Math.pow((Math.sin(time * .28 + phase) + 1) / 2, 2) * 500, y: 0, width: 35, height: 112 };
-        const out = [...extra, human];
-        if (scene.scene === 'office') out.push({ id: 'files', x: human.x + 26, y: 95, width: 58, height: 66 });
-        else {
-            out.push({ id: 'cart', x: human.x + 28, y: 0, width: 48, height: 50 });
-            if (scene.rain) out.push({ id: 'umbrella', x: human.x, y: 165, width: 118, height: 18 });
-            const clock = time + phase * 2, pass = Math.floor(clock / 24), flight = clock % 24;
-            if (flight < 8) out.push({ id: 'bird', x: 1040 - flight * 140,
-                y: [130, 300, 390][pass % 3] + Math.sin(flight * .85 + phase) * 55, width: 28, height: 16 });
+        const janitor = cleaner(scene, time), out = janitor ? [janitor] : [], owners = new Map();
+        for (const actor of SCENES[scene.scene].actors) {
+            const box = actorPosition(actor, scene, time, owners);
+            if (box) { out.push(box); owners.set(box.id, box); }
         }
         return out;
     }
@@ -306,7 +396,8 @@
         const progress = time < job.arriveAt ? (time - job.startAt) / job.travel :
             time > job.leaveAt ? 1 - (time - job.leaveAt) / job.travel : 1;
         return { id: 'cleaner', x: job.from + (job.to - job.from) * clamp(progress, 0, 1),
-            y: 0, width: 36, height: 130, working: time >= job.arriveAt && time < job.leaveAt, reach: job.height || 0, carrying: time >= job.clearAt };
+            direction: (job.to >= job.from ? 1 : -1) * (time < job.leaveAt ? 1 : -1),
+            y: 0, width: CLEANER_SETTINGS.width, height: CLEANER_SETTINGS.height, working: time >= job.arriveAt && time < job.leaveAt, reach: job.height || 0, carrying: time >= job.clearAt };
     }
     function advanceCleaning(scene, state, debris, time) {
         if (scene.qa) return;
@@ -317,16 +408,16 @@
                 for (const scrap of debris) if (Math.abs(scrap.x - bin.x) <= bin.width / 2 - 6 && scrap.y >= (bin.y || 0) && scrap.y <= (bin.y || 0) + bin.height) scrap.removed = true;
                 job.cleared = true;
             }
-            if (time >= job.endAt) { state.active = null; state.readyAt = time + 3; }
+            if (time >= job.endAt) { state.active = null; state.readyAt = time + CLEANER_SETTINGS.cooldownSeconds; }
             return;
         }
         if (time < state.readyAt) return;
         const contents = binContents(scene, debris.filter(b => b.resting));
         const full = scene.bins.find(b => contents[b.id].count >= 3 && (contents[b.id].fill >= .72 || contents[b.id].count >= 10));
         if (!full) return;
-        const from = full.x < fieldWidth(scene) / 2 ? -50 : fieldWidth(scene) + 50;
-        const to = full.x + (from < 0 ? -1 : 1) * (full.width / 2 + 30), travel = Math.abs(to - from) / 220;
-        const startAt = time + 1, arriveAt = startAt + travel, clearAt = arriveAt + 1.3, leaveAt = clearAt + .8;
+        const from = full.x < fieldWidth(scene) / 2 ? -CLEANER_SETTINGS.entryMargin : fieldWidth(scene) + CLEANER_SETTINGS.entryMargin;
+        const to = full.x + (from < 0 ? -1 : 1) * (full.width / 2 + CLEANER_SETTINGS.standOff), travel = Math.abs(to - from) / CLEANER_SETTINGS.speed;
+        const startAt = time + CLEANER_SETTINGS.warningSeconds, arriveAt = startAt + travel, clearAt = arriveAt + CLEANER_SETTINGS.clearSeconds, leaveAt = clearAt + CLEANER_SETTINGS.exitDelaySeconds;
         state.active = { height: full.y || 0, bin: full.id, points: full.points, from, to, travel, startAt, arriveAt, clearAt, leaveAt, endAt: leaveAt + travel, cleared: false };
     }
     function cpuPlan(scene, difficulty, seed, worldTime, debris) {
@@ -364,5 +455,5 @@
         }
         return next;
     }
-    return { WORLD, ITEMS, SCENES, WEATHER, fieldWidth, createCleaning, advanceCleaning, cleaner, clamp, random, config, chargePower, scenario, properties, obstacles, launch, acceleration, advance, simulate, traceFlight, binContents, cpuPlan, createMatch, settle };
+    return { WORLD, ITEMS, SCENES, CLEANER_SETTINGS, WEATHER, fieldWidth, createCleaning, advanceCleaning, cleaner, clamp, random, config, chargePower, scenario, properties, obstacles, launch, acceleration, advance, simulate, traceFlight, binContents, cpuPlan, createMatch, settle };
 });

@@ -22,7 +22,13 @@
         </header>
         <section class="tt-settings" data-i18n-aria-label="ttSettings" aria-label="Game settings">
             <label><span data-i18n="ttMode">Mode</span><select id="tt-mode"><option value="practice" data-i18n="ttPractice">Practice</option><option value="cpu" data-i18n="ttCpu">Vs CPU</option><option value="local" data-i18n="ttLocal">Two players</option><option value="online" data-i18n="ttOnline">Online duel</option><option value="qa" data-i18n="ttQaName">Physics QA</option></select></label>
-            <label><span data-i18n="ttScene">Scene</span><select id="tt-scene"><option value="office" data-i18n="ttOffice">Office</option><option value="living" data-i18n="ttLiving">Living room · short</option><option value="park" data-i18n="ttPark">Park</option><option value="arena" data-i18n="ttArena">Street arena · medium</option><option value="construction" data-i18n="ttConstruction">Construction · long range</option></select></label>
+            <label><span data-i18n="ttScene">Scene</span><select id="tt-scene">
+                <option value="living" data-i18n="ttLiving">Living room · short</option>
+                <option value="park" data-i18n="ttPark">Park · medium</option>
+                <option value="office" data-i18n="ttOffice">Office · medium</option>
+                <option value="construction" data-i18n="ttConstruction">Construction · long</option>
+                <option value="arena" data-i18n="ttArena">Street arena · multi-level</option>
+            </select></label>
             <label id="tt-difficulty-field" hidden><span data-i18n="ttStrength">CPU strength</span><select id="tt-difficulty"><option value="easy" data-i18n="ttEasy">Easy</option><option value="normal" data-i18n="ttNormal">Normal</option><option value="hard" data-i18n="ttHard">Hard</option></select></label>
             <button class="btn" type="button" id="tt-apply" data-i18n="ttNew">New game</button>
             <button class="btn" type="button" id="tt-online-room" data-i18n="ttRoom">Online room</button>
@@ -85,7 +91,7 @@
         <section class="game-footer"><h4 data-i18n="howToPlay">How to play</h4><ul>
             <li data-i18n="ttHelp1">Set an angle, hold to charge, release to throw. Power cycles 0 → 100 → 0, with each sweep taking 1.3 seconds.</li>
             <li data-i18n="ttHelp2">Large bins score 10, small bins 25. Hit a moving obstacle for −5. Earlier trash stays and can block future throws.</li>
-            <li data-i18n="ttHelp3">Eight types of trash have visible weights. Weather changes between rounds; rain increases air resistance.</li>
+            <li data-i18n="ttHelp3">Each scene has ten exclusive objects with fixed weights. All scenes use the same throwing strength. Construction has five barrels at increasing distances. Weather changes between rounds; rain increases air resistance.</li>
             <li data-i18n="ttHelp4">Practice has no clock. Matches have five rounds and 12 seconds to release. Both players get identical trash and weather per round. The field and moving obstacles continue through turns.</li>
             <li data-i18n="ttHelp5">Ties add up to three extra rounds, then draw. Change settings and press New game to apply. P pauses, R returns to ready, M mutes.</li>
         </ul></section>
