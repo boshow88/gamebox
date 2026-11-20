@@ -126,6 +126,9 @@ The record checks exercise real local/cloud migrations, explicit cloud-field del
 guest restore, account isolation, bilingual CPU-only lists, and actual shell score saving.
 They verify other games still record normally and non-CPU Trash Toss modes finish without
 writing scores or triggering high-score sync.
+The migration fixture also reintroduces retired local/cloud keys after the watermark is
+current, checks that the next load/sync removes them while keeping higher CPU scores,
+and verifies unrelated accounts are untouched until their own authenticated sync.
 It also checks capture-loss/touchend release and removal of the former FPS setting.
 The two-page online fixture adds 200 ms snapshot delay, ack-before-snapshot input
 locking, continuous held-object rendering, temporary disconnect/submit retry,

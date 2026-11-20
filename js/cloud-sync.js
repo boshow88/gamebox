@@ -81,6 +81,14 @@
         });
         return kept;
     }
+    function trashTossCpuRecord(data) {
+        var cleaned = Object.assign({}, data, { best: trashTossCpuScores(data.best) });
+        if (Array.isArray(data.recent)) {
+            cleaned.recent = data.recent.filter(function (run) { return run && trashTossCpuKey(run.mode); })
+                .map(function (run) { return Object.assign({}, run, { mode: trashTossCpuKey(run.mode) }); });
+        }
+        return cleaned;
+    }
     function scoreGames() {
         var out = [], p = PREFIX + ':scores:';
         for (var i = 0; i < localStorage.length; i++) {
@@ -101,11 +109,8 @@
             var games = {}; scoreGames().forEach(function (g) { if (!EXCLUDE[g]) games[g] = 1; }); Object.keys(obj || {}).forEach(function (g) { games[g] = 1; });
             Object.keys(games).forEach(function (g) {
                 var key = PREFIX + ':scores:' + g, d = rd(key, { best: {}, recent: [] }) || { best: {}, recent: [] };
-                d.best = g === 'trash-toss' ? trashTossCpuScores(obj && obj[g]) : (obj && obj[g]) || {};
-                if (g === 'trash-toss' && Array.isArray(d.recent)) {
-                    d.recent = d.recent.filter(function (run) { return run && trashTossCpuKey(run.mode); })
-                        .map(function (run) { return Object.assign({}, run, { mode: trashTossCpuKey(run.mode) }); });
-                }
+                d.best = (obj && obj[g]) || {};
+                if (g === 'trash-toss') d = trashTossCpuRecord(d);
                 wr(key, d);
             });
         },
@@ -227,8 +232,14 @@
         });
         return Object.keys(out).length ? out : null;
     }
-    // Run pending migrations on the LIVE localStorage high scores (guest, or an account's working copy). Idempotent + watermarked.
+    // Enforce the active record policy on every load; apply historical migrations once per watermark.
     function migrateLiveScores() {
+        // Cached clients can reintroduce retired keys even after a one-time migration.
+        var key = PREFIX + ':scores:trash-toss', trash = rd(key, null);
+        if (trash) {
+            var cleaned = trashTossCpuRecord(trash);
+            if (JSON.stringify(cleaned) !== JSON.stringify(trash)) wr(key, cleaned);
+        }
         var from = 0; try { from = +(localStorage.getItem(MIGR_MARK) || 0) || 0; } catch (e) { from = 0; }
         if (from >= migrationsLatestAt()) return;
         var d = DESCRIPTORS[0], res = migrateScoresMap(d.read(), from);
@@ -271,10 +282,12 @@
             DESCRIPTORS.forEach(function (d, i) {
                 var local = d.read(), cloud = d.fromProfile(prof);
                 var merged = d.merge(local, cloud);
-                if (i === 0 && runMigr) {   // generic high scores: run any pending record migrations on the merged map
+                if (i === 0) {
                     var before = {}; Object.keys(merged).forEach(function (g) { before[g] = Object.assign({}, merged[g]); });
-                    merged = migrateScoresMap(merged, cloudMark).map;
-                    dels = scoreDeletes(before, merged);   // keys the migration removed → explicit cloud field deletions
+                    if (runMigr) merged = migrateScoresMap(merged, cloudMark).map;
+                    // Enforce the active account's CPU-only policy on every sync, not just its first migration.
+                    if (merged['trash-toss']) merged['trash-toss'] = trashTossCpuScores(merged['trash-toss']);
+                    dels = scoreDeletes(before, merged);
                 }
                 d.write(merged);
                 if (JSON.stringify(merged) !== JSON.stringify(local)) changed = true;

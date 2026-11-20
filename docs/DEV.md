@@ -688,6 +688,9 @@ The controller uses `canRecord()` and hides the Best HUD outside CPU mode.
 CloudSync migrates old versioned CPU buckets by taking the maximum per scene/difficulty,
 deletes non-CPU records locally and in the cloud, and normalizes older guest restores.
 The launcher also consolidates incoming old snapshots and shows only CPU records.
+This is a client-triggered migration of the authenticated account, not an admin batch
+over all users. CPU-only normalization runs on every page load and cloud merge so
+cached clients cannot permanently restore retired keys after the migration watermark advances.
 Launcher sorting keeps coloured cards in hue order and groups neutral colours
 (HSV saturation below 12%) at the end, so gray cards do not interrupt the spectrum.
 
