@@ -640,8 +640,11 @@ predicted landing point. Previous angle and power remain visible.
   the match. Results return to the same room; host resets, guest readies again.
 - Higher total wins after both players finish five rounds. Ties add complete
   paired rounds, up to three; equal totals after round eight are a draw.
-  The local human's five-round regulation best (excluding extra rounds) is saved
-  per scene/mode and CPU strength in v8, separately from earlier versions' rules.
+  Only Vs CPU saves the human's five-round regulation best (excluding extra rounds),
+  one high score per scene and CPU difficulty. Practice, same-device games and online duels
+  do not save personal records. Existing CPU records from older rule versions consolidate
+  into the highest score for that scene/difficulty; retired modes are removed from local
+  and cloud records. Rule-version labels are not shown.
 - Changes are staged until New game or a new start. Offline P pauses, R returns to
   ready, M mutes. Pausing or cancelling a pointer discards a held charge.
 - **Physics QA:** start the mode, enter exact angle/power/wind/weight/rain and

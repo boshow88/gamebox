@@ -131,7 +131,7 @@
     }
     function isCpu() { return match.config.mode === 'cpu' && match.active === 1; }
     function canInput() { return shell && shell.isPlaying() && !isCpu() && !isQa() && !sending && !(online && online.isOpen()) && (match.config.mode !== 'online' || isOnline() && online.canControl()) && ['aim', 'charge'].includes(phase); }
-    function modeKey() { const c = match ? match.config : chosen(); return [c.mode, c.scene, c.mode === 'cpu' ? c.difficulty : 'standard', 'v8'].join('-'); }
+    function modeKey() { const c = match ? match.config : chosen(); return [c.mode, c.scene, c.mode === 'cpu' ? c.difficulty : 'standard'].join('-'); }
     function setupLabel(c) { return t({ practice: 'ttPractice', cpu: 'ttCpu', local: 'ttLocal', qa: 'ttQaName', online: 'ttOnline' }[c.mode]) + ' · ' + t('tt' + c.scene[0].toUpperCase() + c.scene.slice(1)) +
         (c.mode === 'cpu' ? ' · ' + t('tt' + c.difficulty[0].toUpperCase() + c.difficulty.slice(1)) : ''); }
     function syncSettings() {
@@ -281,7 +281,7 @@
         putText('tt-round', practice ? '∞' : match.round > 5 ? t('ttExtra', match.round - 5) : match.round + ' / 5');
         putText('tt-score-a', isQa() ? result ? result.points : 0 : scores[0]); putText('tt-score-b', scores[1]);
         putText('tt-player-label', isQa() ? t('ttQaScore') : playerName(0)); putText('tt-rival-label', playerName(1));
-        $('tt-rival-stat').hidden = practice; $('tt-best-stat').hidden = practice;
+        $('tt-rival-stat').hidden = practice; $('tt-best-stat').hidden = match.config.mode !== 'cpu';
         $('tt-score-a').parentElement.classList.toggle('is-active', match.active === 0);
         $('tt-rival-stat').classList.toggle('is-active', match.active === 1);
         putText('tt-turn', isQa() ? t('ttQaName') : practice ? t('ttPractice') : t('ttTurn', playerName(match.active)));
@@ -467,6 +467,7 @@
         if (charging === 'key:' + e.code) { e.preventDefault(); release(); }
     }, true);
     shell = AC.shell.create({ gameId: 'trash-toss', mode: modeKey, step: 1 / 60, restartToReady: true,
+        canRecord: () => match.config.mode === 'cpu',
         preventKeys: [], update, render, reset, canPause: () => !isOnline(), canRestart: () => !(online && online.inRoom()),
         onStart() {
             if (isOnline()) { applyOnline(); sync(); return; }

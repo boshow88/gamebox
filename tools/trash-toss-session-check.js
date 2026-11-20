@@ -43,7 +43,7 @@ function fixture(mobile = false) {
             i18n, prefs: { get: () => prefs, set: (id, value) => Object.assign(prefs, value) }, audio: { unlock() {}, play() {}, tone() {} },
             shell: { create(opts) {
                 options = opts;
-                assert.ok(opts.mode().endsWith('-v8'), 'Rebalanced rules use a new record mode during shell construction');
+                assert.match(opts.mode(), /^(practice|cpu|local|online|qa)-(office|living|park|arena|construction)-(standard|easy|normal|hard)$/, 'Record modes use stable scene/difficulty keys without rule-version suffixes');
                 shell = { state: 'idle', keyboard: { isDown: (...keys) => keys.some(key => heldKeys.has(key)) }, isPlaying: () => shell.state === 'playing', refreshBest() {}, refreshOverlay() {},
                     start() { shell.state = 'playing'; opts.onStart(); opts.render(); },
                     pause() { shell.state = 'paused'; opts.onPause(); opts.render(); },

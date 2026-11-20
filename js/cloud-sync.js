@@ -68,6 +68,19 @@
     // for shell bookkeeping but own a bespoke descriptor below (Beam, and Rune Stones'
     // Sandbag) — EXCLUDE stops them being counted or offered twice.
     var EXCLUDE = { 'beam': 1, 'rune-stones': 1 };
+    function trashTossCpuKey(mode) {
+        var match = /^cpu-(office|living|park|arena|construction)-(easy|normal|hard)(?:-v\d+)?$/.exec(mode);
+        return match ? 'cpu-' + match[1] + '-' + match[2] : null;
+    }
+    function trashTossCpuScores(scores) {
+        var kept = {};
+        Object.keys(scores || {}).forEach(function (mode) {
+            var key = trashTossCpuKey(mode), score = scores[mode];
+            if (!key || typeof score !== 'number' || !Number.isFinite(score)) return;
+            kept[key] = kept[key] == null ? score : Math.max(kept[key], score);
+        });
+        return kept;
+    }
     function scoreGames() {
         var out = [], p = PREFIX + ':scores:';
         for (var i = 0; i < localStorage.length; i++) {
@@ -88,7 +101,11 @@
             var games = {}; scoreGames().forEach(function (g) { if (!EXCLUDE[g]) games[g] = 1; }); Object.keys(obj || {}).forEach(function (g) { games[g] = 1; });
             Object.keys(games).forEach(function (g) {
                 var key = PREFIX + ':scores:' + g, d = rd(key, { best: {}, recent: [] }) || { best: {}, recent: [] };
-                d.best = (obj && obj[g]) || {};
+                d.best = g === 'trash-toss' ? trashTossCpuScores(obj && obj[g]) : (obj && obj[g]) || {};
+                if (g === 'trash-toss' && Array.isArray(d.recent)) {
+                    d.recent = d.recent.filter(function (run) { return run && trashTossCpuKey(run.mode); })
+                        .map(function (run) { return Object.assign({}, run, { mode: trashTossCpuKey(run.mode) }); });
+                }
                 wr(key, d);
             });
         },
@@ -99,7 +116,7 @@
         listGames: function (recs) { return Object.keys(recs || {}).map(function (g) { return { key: g, display: g }; }); },
         subset: function (recs, keys) { var o = {}; Object.keys(recs || {}).forEach(function (g) { if (keys[g]) o[g] = recs[g]; }); return o; },
         without: function (recs, keys) { var o = {}; Object.keys(recs || {}).forEach(function (g) { if (!keys[g]) o[g] = recs[g]; }); return o; },
-        toProfile: function (obj) { var games = {}; Object.keys(obj || {}).forEach(function (g) { if (!isEmpty(obj[g])) games[g] = { bests: obj[g] }; }); return { games: games }; },
+        toProfile: function (obj) { var games = {}; Object.keys(obj || {}).forEach(function (g) { if (!isEmpty(obj[g])) games[g] = { bests: g === 'trash-toss' ? trashTossCpuScores(obj[g]) : obj[g] }; }); return { games: games }; },
         fromProfile: function (prof) { var o = {}, games = (prof && prof.games) || {}; Object.keys(games).forEach(function (g) { if (EXCLUDE[g]) return; var b = games[g] && games[g].bests; if (b && !isEmpty(b)) o[g] = Object.assign({}, b); }); return o; },
     });
 
@@ -179,6 +196,15 @@
                 });
                 var kept = {}; Object.keys(pz).forEach(function (k) { if (valid[k]) kept[k] = pz[k]; });
                 map['prime-zuma'] = kept;
+                return map;
+            },
+        },
+        {
+            at: 1795219200000,   // 2026-11-21: Trash Toss retains CPU highs only, without rule-version buckets.
+            note: 'trash-toss: remove non-CPU scores and keep the best per scene and CPU difficulty',
+            scores: function (map) {
+                var scores = map && map['trash-toss']; if (!scores) return map;
+                map['trash-toss'] = trashTossCpuScores(scores);
                 return map;
             },
         },

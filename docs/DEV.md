@@ -95,6 +95,8 @@ score reset — see below), `step`, `preventKeys`, `update`, `render`, `reset`,
 `onStart` / `onPause` / `onResume` / `onGameOver`, `restartToReady`
 (Restart → ready screen), and `overlayContent(state, result)` returning
 `{ badge, title, message, button, hint }`.
+Optional `canRecord()` returns false to finish a run without saving its score or
+triggering high-score cloud sync. Games that omit it retain normal score recording.
 
 **Resetting everyone's high scores once**: set `scoreEpoch` to an integer in
 `shell.create` (we just use the date, e.g. `20261009`). Each save is stamped
@@ -681,6 +683,11 @@ on its page) and scale the backing store by `devicePixelRatio` in a
 preferences and generic CloudSync best-score descriptor. No packages or assets
 are required. `css/trash-toss.css` owns the responsive control panel.
 The launcher marks the game WIP and uses gray (`#92969e`), matching its page accent.
+Only CPU matches save personal highs, with stable `cpu-<scene>-<difficulty>` keys.
+The controller uses `canRecord()` and hides the Best HUD outside CPU mode.
+CloudSync migrates old versioned CPU buckets by taking the maximum per scene/difficulty,
+deletes non-CPU records locally and in the cloud, and normalizes older guest restores.
+The launcher also consolidates incoming old snapshots and shows only CPU records.
 Launcher sorting keeps coloured cards in hue order and groups neutral colours
 (HSV saturation below 12%) at the end, so gray cards do not interrupt the spectrum.
 
@@ -852,10 +859,11 @@ refinement (277 candidates instead of 858), then apply
 seeded angle/power error once. There is no post-launch correction. Pausing, blur
 and pointer cancellation discard a charge. Settings apply on New game/Start/restart.
 
-Competitive bests count the local human's five regulation rounds (P1 offline, the owned seat online) and use
-`<cpu|local|online>-<office|living|park|construction|arena>-<easy|normal|hard|standard>-v5` buckets. The earlier rules'
-records remain separate and are labeled in the launcher. Practice never submits a
-record. Generic bests are personal records, not a public leaderboard. Online matches use the existing shared RTDB service and lobby:
+Only CPU bests count the local human's five regulation rounds and use
+`cpu-<office|living|park|construction|arena>-<easy|normal|hard>` buckets.
+Older CPU buckets consolidate by maximum score; other Trash Toss modes do not
+save records. Generic bests are personal records, not a public leaderboard.
+Online matches use the existing shared RTDB service and lobby:
 `trash-toss-room.js` owns DOM-free room policy, accepted turn inputs and replay;
 `trash-toss-online.js` owns lazy room setup, auth, lobby presentation and polling.
 Network inputs reserve a shared launch about 400 ms in the future so peers have

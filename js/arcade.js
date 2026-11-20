@@ -779,6 +779,7 @@
     //   reset()      set up a fresh run (called right before playing)
     //   onStart()    fired after reset when a run begins
     //   onPause() / onResume()
+    //   canRecord()  optional; returning false skips score persistence for this run
     //   onGameOver(result)
     //   overlayContent(state, result) -> { badge, title, message, button, hint }
     //
@@ -954,7 +955,8 @@
             lastResult = result || {};
             // Persist the score to the high-score table.
             const score = lastResult.score || 0;
-            const rec = submitScore(gameId, modeFn(), score, lastResult.meta);
+            const rec = opts.canRecord && !opts.canRecord() ? { best: 0, isNewBest: false } :
+                submitScore(gameId, modeFn(), score, lastResult.meta);
             lastResult.best = rec.best;
             lastResult.isNewBest = rec.isNewBest;
             refreshBest();

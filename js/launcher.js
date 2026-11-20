@@ -228,7 +228,7 @@
             'trash-toss_name': 'Trash Toss',
             'trash-toss_tagline': 'Find your angle. Make the toss.',
             'trash-toss_body': 'Set an angle, hold to charge, and toss past moving obstacles. Practise, challenge a CPU, or take turns with a friend.',
-            ttRecOnline: 'Online duel', ttRecArena: 'Street arena', ttRecCpu: 'Vs CPU', ttRecLocal: 'Two players', ttRecOffice: 'Office', ttRecPark: 'Park', ttRecConstruction: 'Construction', ttRecLiving: 'Living room', ttRecLegacy: 'Earlier rules',
+            ttRecArena: 'Street arena', ttRecCpu: 'Vs CPU', ttRecOffice: 'Office', ttRecPark: 'Park', ttRecConstruction: 'Construction', ttRecLiving: 'Living room',
             'beam_name': 'Beam',
             'beam_tagline': 'Memorise the mirrors, trace the laser.',
             'beam_body': 'Mirrors appear then vanish; a laser fires in and you tap where it exits in time.',
@@ -371,7 +371,7 @@
             'trash-toss_name': '丟垃圾',
             'trash-toss_tagline': '找準角度，蓄力入桶。',
             'trash-toss_body': '調整角度，按住蓄力，避開人物與飛鳥，把垃圾丟進桶裡。自由練習、挑戰電腦，或和朋友輪流較量。',
-            ttRecOnline: '連線對戰', ttRecArena: '街頭競技場', ttRecCpu: '挑戰電腦', ttRecLocal: '同機雙人', ttRecOffice: '辦公室', ttRecPark: '公園', ttRecConstruction: '工地', ttRecLiving: '客廳', ttRecLegacy: '舊版規則',
+            ttRecArena: '街頭競技場', ttRecCpu: '挑戰電腦', ttRecOffice: '辦公室', ttRecPark: '公園', ttRecConstruction: '工地', ttRecLiving: '客廳',
             'beam_name': '追光',
             'beam_tagline': '記住鏡子，追蹤雷射。',
             'beam_body': '鏡子出現後消失，雷射射入，在時間內點出它射出的邊界位置。',
@@ -871,9 +871,7 @@
     // label(key)→text, compact? }. The ONE place that describes a game's record layout.
     var REC_SCHEMA = {
         'trash-toss': [
-            { title: 'ttRecCpu', match: function (k) { return k.indexOf('cpu-') === 0; }, label: function (k) { var p = k.split('-'); return t(p[1] === 'arena' ? 'ttRecArena' : p[1] === 'living' ? 'ttRecLiving' : p[1] === 'construction' ? 'ttRecConstruction' : p[1] === 'park' ? 'ttRecPark' : 'ttRecOffice') + ' · ' + diffLabel(p[2]) + (p[3] === 'v8' ? '' : ' · ' + t('ttRecLegacy')); } },
-            { title: 'ttRecLocal', match: function (k) { return k.indexOf('local-') === 0; }, label: function (k) { var p = k.split('-'); return t(p[1] === 'arena' ? 'ttRecArena' : p[1] === 'living' ? 'ttRecLiving' : p[1] === 'construction' ? 'ttRecConstruction' : p[1] === 'park' ? 'ttRecPark' : 'ttRecOffice') + (p[3] === 'v8' ? '' : ' · ' + t('ttRecLegacy')); } },
-            { title: 'ttRecOnline', match: function (k) { return k.indexOf('online-') === 0; }, label: function (k) { var p = k.split('-'); return t(p[1] === 'arena' ? 'ttRecArena' : p[1] === 'living' ? 'ttRecLiving' : p[1] === 'construction' ? 'ttRecConstruction' : p[1] === 'park' ? 'ttRecPark' : 'ttRecOffice') + (p[3] === 'v8' ? '' : ' · ' + t('ttRecLegacy')); } },
+            { title: 'ttRecCpu', match: function (k) { return k.indexOf('cpu-') === 0; }, label: function (k) { var p = k.split('-'); return t(p[1] === 'arena' ? 'ttRecArena' : p[1] === 'living' ? 'ttRecLiving' : p[1] === 'construction' ? 'ttRecConstruction' : p[1] === 'park' ? 'ttRecPark' : 'ttRecOffice') + ' · ' + diffLabel(p[2]); } },
         ],
         'prime-zuma': [
             { title: 'pzrec_levels', compact: true, match: function (k) { return k.charAt(0) === 'L'; }, label: function (k) { return k.slice(1); } },
@@ -887,6 +885,17 @@
     function scoreGroups(P, g) {
         var d = rdLocal(P + ':scores:' + g.id), best = d && d.best;
         if (!best) return [];
+        if (g.id === 'trash-toss') {
+            // Old clients/cloud snapshots may still contain retired modes or versioned keys.
+            var cpu = {};
+            Object.keys(best).forEach(function (key) {
+                var match = /^cpu-(office|living|park|arena|construction)-(easy|normal|hard)(?:-v\d+)?$/.exec(key);
+                if (!match || typeof best[key] !== 'number' || !Number.isFinite(best[key])) return;
+                var canonical = 'cpu-' + match[1] + '-' + match[2];
+                cpu[canonical] = cpu[canonical] == null ? best[key] : Math.max(cpu[canonical], best[key]);
+            });
+            best = cpu;
+        }
         var keys = Object.keys(best).filter(function (m) { return typeof best[m] === 'number'; }), schema = REC_SCHEMA[g.id];
         if (!schema) return keys.length ? [genericGroup(best, keys)] : [];
         var used = {}, groups = [];

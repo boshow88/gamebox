@@ -111,6 +111,8 @@ node tools/trash-toss-check.js
 node tools/trash-toss-session-check.js
 node tools/trash-toss-view-check.js
 node tools/trash-toss-room-check.js
+node tools/trash-toss-records-check.js
+node tools/trash-toss-records-browser-check.js /usr/bin/google-chrome
 node tools/trash-toss-render-browser-check.js /usr/bin/google-chrome
 node tools/trash-toss-performance-check.js --output=/tmp/trash-performance.json
 node tools/trash-toss-network-performance-check.js
@@ -120,6 +122,10 @@ node tools/trash-toss-performance-check.js --online --throttle=1 --output=/tmp/t
 For measured hotspots, comparisons with the former 60 FPS and 30 FPS versions,
 and limits of desktop measurements, see [Trash Toss performance](TRASH-TOSS-PERFORMANCE.md).
 The real-canvas check compares cached artwork with direct vector rendering.
+The record checks exercise real local/cloud migrations, explicit cloud-field deletion,
+guest restore, account isolation, bilingual CPU-only lists, and actual shell score saving.
+They verify other games still record normally and non-CPU Trash Toss modes finish without
+writing scores or triggering high-score sync.
 It also checks capture-loss/touchend release and removal of the former FPS setting.
 The two-page online fixture adds 200 ms snapshot delay, ack-before-snapshot input
 locking, continuous held-object rendering, temporary disconnect/submit retry,
