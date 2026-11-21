@@ -694,6 +694,10 @@ Launcher sorting keeps coloured cards in hue order and groups neutral colours
 - `js/games/trash-toss-rules.js`: DOM-free browser/CommonJS module owning world
   geometry, seeded round conditions, object properties, fixed-step flight,
   collisions, synthetic CPU controls and immutable match settlement.
+- `js/games/trash-toss-cpu.js`: lazy classic Worker entry and planning client.
+  It runs the same deterministic CPU search off the main thread. If workers
+  cannot load, the search generator yields between batches of at most eight
+  candidates / approximately 4 ms. Turn changes cancel obsolete searches.
 - `js/games/trash-toss-view.js`: Canvas 2D artwork. It consumes the rules' world
   coordinates and obstacle bounds; it never decides collisions or scores.
 - `js/games/trash-toss.js`: staged configuration, shell lifecycle, keyboard/
@@ -708,6 +712,14 @@ The former 30 FPS option is removed; saving local preferences drops its obsolete
 `motion` field. Physics and charge still update at 60 Hz; canvas rendering,
 HUD refresh and simulation clocks are separate. Frame deadlines are accumulated
 to avoid losing an entire frame to small RAF timing jitter.
+Moving bodies and the camera target interpolate between captured physics ticks
+using the shell's accumulator fraction. Actors and camera easing share that
+presentation time. This adds up to one tick of visual delay without modifying
+collision/scoring state. Online rendering samples the shared clock with the same
+one-tick delay; turn changes and long catch-up gaps snap to current state. Missed
+paint deadlines retain the 60 Hz schedule rather than resetting its phase.
+The deadline admits up to a quarter interval of RAF timing jitter (about 4.2 ms),
+so early 60 Hz callbacks are not mistaken for high-refresh intermediate frames.
 Canvas backing dimensions follow its displayed CSS width at up to 2x density,
 rather than logical map width times device density. This also bounds long-map QA
 backing pixels on phones. The fully painted stage uses an opaque context. Static

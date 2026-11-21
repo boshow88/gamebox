@@ -85,6 +85,20 @@ fixtures.runner = `<!doctype html><meta charset="utf-8"><pre id="result">RUNNING
  const frame=document.createElement('iframe');frame.style.width='375px';frame.src='/games/trash-toss.html';document.body.append(frame);
  const w=()=>frame.contentWindow,d=()=>frame.contentDocument;
  await until(()=>w().__ttTestState,'real controller');
+ // Load the actual classic worker URL through the local static server. A
+ // fallback-only test would miss importScripts/path/loading regressions.
+ let workerStarts=0,workerMessages=0,workerErrors=0,pulses=0;
+ const Worker=w().Worker;
+ const planner=w().TrashTossCPU.create({Worker:class extends Worker{
+  constructor(url){super(url);workerStarts++;this.addEventListener('message',()=>workerMessages++);this.addEventListener('error',()=>workerErrors++);}
+ }});
+ const workerArgs=[R.scenario({scene:'construction'},1,42),'hard',42,0,[]],expectedPlan=R.cpuPlan(...workerArgs);
+ const heartbeat=setInterval(()=>pulses++,1);
+ try{
+  const planned=await new Promise(resolve=>planner.plan(...workerArgs,resolve));
+  if(JSON.stringify(planned)!==JSON.stringify(expectedPlan))throw Error('Worker strategy differs from rules');
+  if(workerStarts!==1||workerMessages!==1||workerErrors||!pulses)throw Error('Real worker did not finish while main-thread timers continued');
+ }finally{clearInterval(heartbeat);planner.destroy();}
  w().ArcadeCommon.audio.setMuted(true);d().getElementById('overlay-btn').click();
  w().dispatchEvent(new (w().KeyboardEvent)('keydown',{key:' ',code:'Space'}));
  if(w().__ttTestState().phase!=='charge')throw Error('Real charge input failed');
@@ -119,7 +133,7 @@ fixtures.runner = `<!doctype html><meta charset="utf-8"><pre id="result">RUNNING
    expected=size;
   }
  }
- document.getElementById('result').textContent='PASS: '+checks+' real-canvas comparisons, '+rimChecks+' rim occlusion checks and '+facingChecks+' actor reflection checks across five scenes, all 50 resting item sprites, cache reuse/invalidation, players/poses, panning and QA resize; max pixel MAE='+maxMae.toFixed(3)+', pixels differing >32='+(maxDifferent*100).toFixed(2)+'%; real charge/flight, retired FPS preference removal, mobile layout and stable frame dimensions across scene switches at phone/desktop widths';
+ document.getElementById('result').textContent='PASS: '+checks+' real-canvas comparisons, '+rimChecks+' rim occlusion checks and '+facingChecks+' actor reflection checks across five scenes, all 50 resting item sprites, cache reuse/invalidation, players/poses, panning and QA resize; max pixel MAE='+maxMae.toFixed(3)+', pixels differing >32='+(maxDifferent*100).toFixed(2)+'%; real CPU worker with responsive main thread, charge/flight, retired FPS preference removal, mobile layout and stable frame dimensions across scene switches at phone/desktop widths';
 })().catch(error=>document.getElementById('result').textContent='FAIL: '+error.stack);
 </script>`;
 require('./birthday-browser-check.js');

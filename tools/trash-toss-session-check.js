@@ -34,11 +34,16 @@ function fixture(mobile = false) {
         return nodes.get(id);
     };
     const events = {}, heldKeys = new Set(), prefs = { mode: 'local', scene: 'park', item: 'mixed', difficulty: 'normal', version: 2, motion: 'efficient' };
-    let options, shell, model, result, wallMs = 0, renders = 0;
+    let options, shell, model, result, wallMs = 0, renders = 0, accumulator = 0;
+    let timerId = 0;
+    const tasks = new Map(), runTasks = () => {
+        const pending = [...tasks]; tasks.clear();
+        for (const [, run] of pending) run();
+    };
     const i18n = { STRINGS: { en: {}, zh: {} }, subscribe() {}, t(key, ...args) {
         const value = i18n.STRINGS.en[key]; return typeof value === 'function' ? value(...args) : value || key;
     } };
-    const window = { innerWidth: mobile ? 375 : 960, performance: { now: () => wallMs }, TrashTossRules: R, TrashTossView: { create: () => ({ fit() {}, follow() {}, beginPan() { return false; }, panBy() {}, canPan: () => false, isPortrait: () => false, render(value) { model = value; renders++; } }) },
+    const window = { innerWidth: mobile ? 375 : 960, performance: { now: () => wallMs }, setTimeout(run) { tasks.set(++timerId, run); return timerId; }, clearTimeout(id) { tasks.delete(id); }, TrashTossRules: R, TrashTossView: { create: () => ({ fit() {}, follow() {}, beginPan() { return false; }, panBy() {}, canPan: () => false, isPortrait: () => false, render(value) { model = value; renders++; } }) },
         addEventListener(type, fn) { (events[type] ||= []).push(fn); }, ArcadeCommon: {
             i18n, prefs: { get: () => prefs, set: (id, value) => Object.assign(prefs, value) }, audio: { unlock() {}, play() {}, tone() {} },
             shell: { create(opts) {
@@ -56,11 +61,20 @@ function fixture(mobile = false) {
     const document = { getElementById: get, activeElement: new Node('body'), createElement: tag => new Node(tag) };
     class Clock extends Date { static now() { return 42; } }
     const context = vm.createContext({ window, document, Element: Node, Date: Clock });
+    vm.runInContext(fs.readFileSync(require.resolve('../js/games/trash-toss-cpu.js'), 'utf8'), context);
     vm.runInContext(fs.readFileSync(require.resolve('../js/games/trash-toss-qa.js'), 'utf8'), context);
     vm.runInContext(fs.readFileSync(require.resolve('../js/games/trash-toss.js'), 'utf8'), context);
     return { get, shell, model: () => model, result: () => result,
-        tick(seconds) { for (let i = 0; i < Math.round(seconds * 60); i++) { if (shell.isPlaying()) options.update(1 / 60); wallMs += 1000 / 60; options.render(); } },
+        tick(seconds) { for (let i = 0; i < Math.round(seconds * 60); i++) { runTasks(); if (shell.isPlaying()) options.update(1 / 60); wallMs += 1000 / 60; options.render(); } },
         renders: () => renders,
+        frame(milliseconds) {
+            runTasks(); wallMs += milliseconds; accumulator += milliseconds / 1000;
+            while (accumulator >= 1 / 60) {
+                if (shell.isPlaying()) options.update(1 / 60);
+                accumulator -= 1 / 60;
+            }
+            options.render(accumulator * 60);
+        },
         key(type, key, props = {}) {
             const e = Object.assign({ target: document.activeElement, key, code: key, repeat: false, preventDefault() {}, stopImmediatePropagation() {} }, props);
             for (const fn of events[type] || []) fn(e);
@@ -78,6 +92,20 @@ assert.ok(phone.renders() - beforePaint <= 79, 'A 120 Hz mobile screen paints at
 assert.ok(phone.renders() - beforePaint >= 77, 'Mobile animation keeps a 60 FPS target');
 assert.equal(phone.get('tt-power-value').textContent, 100, 'Charge keeps fixed 60 Hz simulation timing');
 phone.pointer('pointerup'); phone.tick(1 / 30); assert.ok(phone.model().ball, 'Mobile release still launches normally');
+const jitter = fixture(true);
+jitter.get('tt-mode').value = 'practice'; jitter.get('tt-apply').fire('click'); jitter.shell.start();
+jitter.pointer('pointerdown'); jitter.tick(.8); jitter.pointer('pointerup');
+const beforeJitter = jitter.renders();
+for (let i = 1; i <= 120; i++) {
+    jitter.frame(1000 / 60 + (i % 2 ? -1.6 : 1.6));
+    if (i < 15 && jitter.model().ball) {
+        const shown = jitter.model(), old = shown.previous.bodies.get(shown.ball);
+        assert.ok(shown.alpha >= 0 && shown.alpha < 1, 'Controller forwards the shell accumulator fraction');
+        if (old) assert.notEqual(old.x, shown.ball.x, 'Captured positions survive mutation of the live ball');
+    }
+}
+assert.ok(jitter.renders() - beforeJitter >= 118, 'Small 60 Hz RAF jitter must not discard normal paint callbacks');
+assert.ok(jitter.renders() - beforeJitter <= 120, 'Jitter tolerance does not add paints beyond RAF callbacks');
 const meter = fixture();
 meter.get('tt-mode').value = 'practice'; meter.get('tt-apply').fire('click'); meter.shell.start();
 meter.pointer('pointerdown');
@@ -237,7 +265,15 @@ for (const [name, layout] of Object.entries(R.SCENES)) {
 const cpu = fixture();
 cpu.get('tt-mode').value = 'cpu'; cpu.get('tt-scene').value = 'construction'; cpu.get('tt-apply').fire('click'); cpu.shell.start();
 assert.equal(cpu.model().scene.width, 1440); assert.equal(cpu.model().players, 2);
-cpu.tick(22);
+cpu.tick(12.6);
+assert.equal(cpu.model().active, 1, 'CPU starts planning after the human timeout');
+assert.equal(cpu.model().ball, null, 'The field keeps updating while CPU planning is pending');
+cpu.tick(9.4);
 assert.equal(cpu.get('tt-round').textContent, '2 / 5', 'A construction CPU completes its throw after the human timeout');
 assert.equal(cpu.model().active, 0);
+const cancelledCpu = fixture();
+cancelledCpu.get('tt-mode').value = 'cpu'; cancelledCpu.get('tt-apply').fire('click'); cancelledCpu.shell.start(); cancelledCpu.tick(12.6);
+assert.equal(cancelledCpu.model().active, 1);
+cancelledCpu.get('tt-mode').value = 'practice'; cancelledCpu.get('tt-apply').fire('click'); cancelledCpu.shell.start(); cancelledCpu.tick(2);
+assert.equal(cancelledCpu.model().active, 0); assert.equal(cancelledCpu.model().ball, null, 'New game cancels pending CPU work without a late throw');
 console.log('PASS: controller clock continuity, collection lifecycle, separate penalty/basket feedback, construction CPU turn, handoff/pause/cancel, fixed AB order, per-player wind references and numeric QA.');

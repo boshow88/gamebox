@@ -10,33 +10,38 @@ const revision = option('revision', '');
 const roomRevision = option('room-revision', '');
 const chrome = option('chrome', '/usr/bin/google-chrome'), throttle = Number(option('throttle', '4'));
 const dpr = Number(option('dpr', '2'));
+const desktop = args.includes('--desktop'), cpuMode = args.includes('--cpu');
 const boot = `<script>
-window.__ttPerf = { stats:{}, events:{}, frames:[], mutations:0,
+window.__ttPerf = { stats:{}, events:{}, frames:[], motion:[], longTasks:[], mutations:0,
  wrap(name, fn) { return function(...args) { const start = performance.now(); try { return fn.apply(this,args); } finally { const stat = __ttPerf.stats[name] ||= {calls:0,ms:0,max:0}; const dt=performance.now()-start; stat.calls++; stat.ms+=dt; stat.max=Math.max(stat.max,dt); if(name==='view') __ttPerf.frames.push(performance.now()); } }; },
- clear() { this.stats={}; this.events={}; this.frames=[]; this.mutations=0; },
+ clear() { this.stats={}; this.events={}; this.frames=[]; this.motion=[]; this.longTasks=[]; this.mutations=0; },
 };
+new PerformanceObserver(list=>__ttPerf.longTasks.push(...list.getEntries().map(entry=>entry.duration))).observe({type:'longtask'});
 const savedSetItem=Storage.prototype.setItem;
 Storage.prototype.setItem=function(...args){__ttPerf.events.storageWrites=(__ttPerf.events.storageWrites||0)+1;return savedSetItem.apply(this,args);};
 addEventListener('DOMContentLoaded', () => new MutationObserver(records => __ttPerf.mutations+=records.length).observe(document.querySelector('.tt-hud').parentElement,{subtree:true,attributes:true,childList:true,characterData:true}));
 </script>`;
 function instrument(file, body) {
     if (file.endsWith('trash-toss.html')) return body.replace('<head>', '<head>' + boot);
-    if (file.endsWith('trash-toss-rules.js')) return body + `\nfor(const name of ['obstacles','advance','advanceCleaning','binContents','cpuPlan']) TrashTossRules[name]=__ttPerf.wrap(name,TrashTossRules[name]);`;
+    if (file.endsWith('trash-toss-rules.js')) return body + `\nif(typeof __ttPerf!=='undefined') for(const name of ['obstacles','advance','advanceCleaning','binContents','cpuPlan']) TrashTossRules[name]=__ttPerf.wrap(name,TrashTossRules[name]);`;
     if (file.endsWith('trash-toss-room.js')) return body + `\nTrashTossRoom.project=__ttPerf.wrap('project',TrashTossRoom.project);`;
-    if (file.endsWith('trash-toss-view.js')) return body.replace('fit(); return { fit, render',
+    if (file.endsWith('trash-toss-view.js')) return body.replace('const width = track(model);', `const width = track(model);
+        if(model.ball) __ttPerf.motion.push({at:performance.now(),time:model.time,x:model.ball.x,cameraX,maxCamera:R.fieldWidth(model.scene)-width});`)
+        .replace('fit(); return { fit, render',
         ['background','drawBackground','person','obstacle','bin','body','overview'].filter(name => body.includes('function '+name+'(')).map(name => `${name}=__ttPerf.wrap('${name}',${name});`).join('') + `render=__ttPerf.wrap('view',render); fit(); return { fit, render`);
     if (file.endsWith('trash-toss.js')) return body.replace('onChange(data) {', `onChange(data) { __ttPerf.events.gameChanges=(__ttPerf.events.gameChanges||0)+1;`)
         .replace('    shell = AC.shell.create', `    sync=__ttPerf.wrap('hud',sync); update=__ttPerf.wrap('update',update); render=__ttPerf.wrap('render',render);\n    shell = AC.shell.create`)
         .replace('    reset(); render();', `
     window.__ttPerf.setup = function(id, mode) {
-        fields.scene.value=id; fields.mode.value='practice'; shell.goIdle();
+        fields.scene.value=id; fields.mode.value=mode==='cpu-flight'?'cpu':'practice'; shell.goIdle();
+        if(mode==='cpu-flight') { match=R.createMatch(chosen(),42); match.active=1; match.turn=1; beginTurn(false); }
         scene=R.scenario(match.config,1,42); scene.cleaning=cleaning; visualRain=scene.rain;
         if(mode==='debris') for(let i=0;i<40;i++) { const b=R.launch(scene,45,30,0); b.x=120+i*(R.fieldWidth(scene)-200)/40; b.y=b.radius; b.resting=true; debris.push(b); }
         if(mode!=='idle') shell.start();
         if(mode==='charge') beginCharge('benchmark');
         if(mode==='flight') { phase='charge'; power=85; angle=65; release(); }
         sync(); render(true);
-    }; reset(); render();`);
+    }; window.__ttPerf.state=()=>({phase,active:match.active}); reset(); render();`);
     return body;
 }
 (async () => {
@@ -86,25 +91,37 @@ function instrument(file, body) {
         }
         await command('Page.enable');
         await command('Performance.enable');
-        await command('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:dpr,mobile:true});
+        await command('Emulation.setDeviceMetricsOverride',{width:desktop?1200:390,height:desktop?900:844,deviceScaleFactor:dpr,mobile:!desktop});
         await command('Emulation.setCPUThrottlingRate',{rate:throttle});
         await command('Page.navigate',{url:'http://127.0.0.1:'+server.address().port+'/games/trash-toss.html'});
         for(let i=0;i<150;i++){if(await evaluate('!!window.__ttPerf?.setup')) break;if(i===149)throw Error('Game did not initialize');await pause(100);}
         const rows=[];
-        for(const [scene,mode] of [['office','idle'],['office','aim'],['office','charge'],['office','flight'],['arena','debris'],['construction','debris']]) {
-            await evaluate(`__ttPerf.setup('${scene}','${mode}')`); await pause(350);
+        const cases = cpuMode ? [['office','cpu-flight'],['construction','cpu-flight']] : args.includes('--motion') ? [['office','flight'],['construction','flight']] :
+            [['office','idle'],['office','aim'],['office','charge'],['office','flight'],['arena','debris'],['construction','debris']];
+        for(const [scene,mode] of cases) {
+            await evaluate(`__ttPerf.clear(); __ttPerf.setup('${scene}','${mode}')`);
+            if (mode === 'cpu-flight') {
+                const deadline = Date.now() + 15000;
+                while (!await evaluate("__ttPerf.state().phase==='flight'")) {
+                    if (Date.now() > deadline) throw Error('CPU did not release its planned throw');
+                    await pause(10);
+                }
+            } else await pause(350);
+            const warmupLongTasks = await evaluate('__ttPerf.longTasks.slice()');
             const beforeMetrics = Object.fromEntries((await command('Performance.getMetrics')).metrics.map(item => [item.name, item.value]));
             const result=await evaluate(`(async()=>{
                 __ttPerf.clear(); const start=performance.now();
                 await new Promise(resolve=>setTimeout(resolve,2000));
                 const ms=performance.now()-start, stats=structuredClone(__ttPerf.stats), frames=__ttPerf.frames.slice(), mutations=__ttPerf.mutations;
-                const canvas=document.getElementById('stage');
+                const canvas=document.getElementById('stage'), moving=__ttPerf.motion.filter(frame=>frame.cameraX>1&&frame.cameraX<frame.maxCamera-1);
+                const repeated=moving.slice(1).filter((frame,i)=>Math.abs(frame.cameraX-moving[i].cameraX)<1e-8).length;
                 const intervals=frames.slice(1).map((v,i)=>v-frames[i]).sort((a,b)=>a-b);
-                return {ms,fps:frames.length/ms*1000,p95FrameMs:intervals[Math.floor(intervals.length*.95)]||0,mutations,stats,pixels:canvas.width*canvas.height};
+                return {ms,fps:frames.length/ms*1000,p95FrameMs:intervals[Math.floor(intervals.length*.95)]||0,mutations,stats,pixels:canvas.width*canvas.height,
+                    motion:{samples:moving.length,repeatedCameraFrames:repeated,frames:__ttPerf.motion}};
             })()`);
             const afterMetrics = Object.fromEntries((await command('Performance.getMetrics')).metrics.map(item => [item.name, item.value]));
             result.browserMs = Object.fromEntries(['ScriptDuration','LayoutDuration','RecalcStyleDuration','TaskDuration'].map(name => [name,(afterMetrics[name]-beforeMetrics[name])*1000]));
-            rows.push({scene,mode,...result});
+            rows.push({scene,mode,warmupLongTasks,...result});
             console.log(scene,mode,JSON.stringify({fps:+result.fps.toFixed(1),viewMs:+(result.stats.view?.ms||0).toFixed(1),updateMs:+(result.stats.update?.ms||0).toFixed(1),hudMs:+(result.stats.hud?.ms||0).toFixed(1),mutations:result.mutations}));
         }
         await evaluate("__ttPerf.setup('office','idle')");
@@ -114,7 +131,7 @@ function instrument(file, body) {
             return {scene:id,ms:performance.now()-start,candidates:277,frequency:'once per CPU turn, not per frame'};
         })`);
         console.log('CPU planning:',JSON.stringify(cpuPlanning));
-        const report={baseline:revision||baseline||'working tree',environment:{browser:'headless Chrome',viewport:'390x844 @'+dpr+'x',targetFPS:60,cpuThrottle:throttle,sampleMs:2000,notes:'Nested timings overlap. Canvas timings measure command submission, not GPU energy or iPhone temperature. Fixed scenario seed 42. Debris cases place 40 resting items across the map. Historical versions retain their own FPS policy.'},rows,cpuPlanning};
+        const report={baseline:revision||baseline||'working tree',environment:{browser:'headless Chrome',viewport:(desktop?'1200x900':'390x844')+' @'+dpr+'x',targetFPS:60,cpuThrottle:throttle,sampleMs:2000,notes:'Nested timings overlap. Canvas timings measure command submission, not GPU energy or iPhone temperature. Fixed scenario seed 42. Debris cases place 40 resting items across the map. CPU-flight cases wait for a real CPU turn to launch; warmupLongTasks includes planning/startup work before that flight. Historical versions retain their own FPS policy.'},rows,cpuPlanning};
         fs.writeFileSync(output,JSON.stringify(report,null,2)+'\n'); console.log('Report:',output);
     } finally {
         socket?.close();

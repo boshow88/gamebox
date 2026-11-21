@@ -104,4 +104,21 @@ for (const item of R.SCENES.construction.items) {
     }
     model.ball = null; model.aiming = true; render();
 }
-console.log('PASS: manual camera inspection, release reset, household/tool tracking, visible high arcs, isolated overview transforms, immutable model and desktop restoration.');
+// Compare fixed-step rendering under RAF jitter against a continuously sampled
+// reference. Both the camera and its target must use the same presentation time.
+window.innerWidth = 375; window.innerHeight = 812;
+const smooth = window.TrashTossView.create(canvas), reference = window.TrashTossView.create(canvas);
+const moving = R.launch(scene, 45, 100, 0), velocity = 120;
+const motion = { ...model, scene, qa: false, ball: moving, aiming: false, debris: [], trail: [] };
+function camera(view, value) { translations = []; view.render(value); return -translations[0][0]; }
+for (let i = 2; i < 120; i++) {
+    const at = i / 60 + (i % 2 ? .001 : -.001), tick = Math.floor(at * 60) / 60;
+    Object.assign(moving, { x: 500 + velocity * tick, y: 200 });
+    const previous = { time: tick - 1 / 60, bodies: new Map([[moving, { x: 500 + velocity * (tick - 1 / 60), y: 200, rotation: moving.rotation }]]) };
+    Object.assign(motion, { time: tick, previous, alpha: (at - tick) * 60 });
+    const before = JSON.stringify(moving), expectedTime = at - 1 / 60;
+    const expected = { ...motion, time: expectedTime, ball: { ...moving, x: 500 + velocity * expectedTime }, previous: null };
+    assert.ok(Math.abs(camera(smooth, motion) - camera(reference, expected)) < 1e-7, 'Jittered RAF keeps the camera on a continuous timeline');
+    assert.equal(JSON.stringify(moving), before, 'Presentation interpolation never moves the physical ball');
+}
+console.log('PASS: manual camera inspection, release reset, household/tool tracking, visible high arcs, isolated overview transforms, immutable model, desktop restoration and interpolated camera motion under RAF jitter.');

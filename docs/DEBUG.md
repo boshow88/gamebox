@@ -108,19 +108,31 @@ Firebase rule evaluator or a live-project check after publishing rules.
 
 ```text
 node tools/trash-toss-check.js
+node tools/trash-toss-cpu-check.js
 node tools/trash-toss-session-check.js
 node tools/trash-toss-view-check.js
 node tools/trash-toss-room-check.js
 node tools/trash-toss-records-browser-check.js /usr/bin/google-chrome
 node tools/trash-toss-render-browser-check.js /usr/bin/google-chrome
 node tools/trash-toss-performance-check.js --output=/tmp/trash-performance.json
+node tools/trash-toss-performance-check.js --motion --throttle=1 --output=/tmp/trash-motion.json
+node tools/trash-toss-performance-check.js --desktop --cpu --throttle=1 --dpr=1 --output=/tmp/trash-desktop-cpu.json
 node tools/trash-toss-network-performance-check.js
 node tools/trash-toss-performance-check.js --online --throttle=1 --output=/tmp/trash-online.json
 ```
 
 For measured hotspots, comparisons with the former 60 FPS and 30 FPS versions,
 and limits of desktop measurements, see [Trash Toss performance](TRASH-TOSS-PERFORMANCE.md).
-The real-canvas check compares cached artwork with direct vector rendering.
+The real-canvas check compares cached artwork with direct vector rendering and
+loads the actual CPU worker URL, checking its result and main-thread responsiveness.
+The CPU check also covers cancellation, failed worker creation and cooperative
+fallback against the canonical strategy. The view check compares camera motion
+under jittered RAF times to a continuously sampled reference without changing physics.
+The controller check also replays early/late 60 Hz callbacks through a real
+accumulator, checks the paint rate and captured body positions, and retains the
+120 Hz paint-cap regression.
+The motion benchmark records displayed object/camera coordinates and repeated
+camera frames separately from average draw FPS; headless results are not a real-device guarantee.
 The record browser check verifies bilingual CPU-only lists and actual shell score saving.
 Opening the launcher/game must leave existing record data unchanged; there is no
 Trash Toss migration or cleanup on load/login. Other games still record normally,
@@ -148,11 +160,16 @@ score without first approaching from above.
 Cleaning regressions cover settled-only dispatch, warning/walk/collect/exit,
 physical cleaner contact followed by a basket, clearing only the targeted bin,
 and preserving already earned scores. Construction checks cover worker geometry,
-map bounds, its item cycle, and all five targets being directly reachable without a rim rebound
-for all ten tools at fixed native weight with -68 headwind and heavy rain. Field checks
+map bounds, its item cycle, and the first three targets being directly reachable without a rim rebound
+for all ten tools at fixed native weight with -68 headwind and heavy rain. The screwdriver
+also reaches all five in those conditions. Field checks
 preserve short/medium/long sizes at 720/1080/1440; the expanded arena has its own 1320-unit field.
 Moved targets are checked with each native item in adverse weather. The reachability helper
 uses integer angles and actual 60 Hz charge values, verifies full-scene collisions, and rejects rim rebounds.
+It simulates each candidate once without a free-flight aperture prefilter; that
+prefilter could reject a legal later entry as the center moved across the opening.
+The park leaf/storm case preserves this regression. Arena receipt/bottle-cap checks
+require clean entry into all four rear targets through the complete twelve-bin scene.
 All scenes use the same launch
 multiplier; fixed weights are checked across modes, seeds and rounds. Captured weather
 values verify that removing random weights preserves the seeded wind/rain sequence.

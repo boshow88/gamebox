@@ -104,6 +104,7 @@
     const saved = R.config(Object.assign({}, prefs, { scene: 'office', item: 'mixed' }));
     Object.keys(fields).forEach(key => { fields[key].value = saved[key]; });
     const view = window.TrashTossView.create($('stage'));
+    const cpu = window.TrashTossCPU.create();
     const ANGLE_REPEAT_DELAY = .3, ANGLE_REPEAT_SPEED = 12;
     let hudAt = -Infinity, paintAt = -Infinity, nextScenario = null, nextScenarioKey = '';
     let hudState = [], hudAngle = null, hudPower = null;
@@ -115,6 +116,7 @@
     let angleDirection = 0, angleHeldSeconds = 0;
     let worldTime = 0, debris = [], resultPosition = null;
     let visualRain = 0, previousThrow = null, cleaning = R.createCleaning(), feedback = [], drag = null;
+    let previousFrame = null;
     const qa = window.TrashTossQA.create({ onThrow: startQaThrow, onClear: clearQa, getScene: () => scene });
     function isOnline() { return !!(online && online.game()); }
     function isQa() { return match && match.config.mode === 'qa'; }
@@ -155,6 +157,7 @@
         cancelCharge(); inputMessage = t('ttInputInterrupted'); sync(); render(true);
     }
     function beginTurn(handoff) {
+        cpu.cancel();
         cancelCharge(); time = 0; ball = null; trail = []; result = null; pendingMatch = null;
         previousThrow = last[match.active];
         scene = R.scenario(match.config, match.round, match.seed);
@@ -163,10 +166,22 @@
         if (worldTime === 0 || isQa()) visualRain = scene.rain;
         angle = last[match.active] ? last[match.active].angle : 45;
         phase = handoff ? 'handoff' : 'aim';
-        plan = isCpu() ? R.cpuPlan(scene, match.config.difficulty, match.seed + match.round * 101 + match.active, worldTime, debris) : null;
+        plan = null;
+        if (isCpu()) {
+            const turn = match;
+            cpu.plan(scene, match.config.difficulty, match.seed + match.round * 101 + match.active, worldTime, debris, value => {
+                if (match !== turn || !isCpu() || phase !== 'aim') return;
+                plan = value;
+                // A slow worker may finish after its intended release. Give the
+                // CPU a visible release instead of firing during this callback.
+                plan.releaseAt = Math.max(plan.releaseAt, time + .15);
+                sync();
+            });
+        }
         sync();
     }
     function reset() {
+        cpu.cancel(); previousFrame = null;
         hudAt = -Infinity; paintAt = -Infinity;
         pendingRelease = null; sending = false; inputMessage = '';
         if (isOnline()) { applyOnline(); return; }
@@ -327,12 +342,14 @@
         const key = g.matchId + ':' + g.seq;
         const changed = key !== netKey;
         if (changed) {
+            previousFrame = null;
             pendingRelease = null; sending = false; inputMessage = '';
             cancelCharge(); netKey = key; netCache = null; result = null; trail = []; feedback = [];
             if (g.status === 'flight') { drag = null; view.follow(); AC.audio.play('click'); }
         }
         const now = online.now();
         const wasLaunched = netCache && netCache.launched;
+        if (netCache && Math.floor((now - g.originAt) * .06 + 1e-7) > netCache.world.tick) rememberFrame();
         netCache = window.TrashTossRoom.project(g, now, netCache);
         if (netCache.launched && !wasLaunched) paintAt = -Infinity;
         match = g.match; last = g.last; previousThrow = last[match.active];
@@ -372,13 +389,21 @@
             if (Math.abs(angleCarry) >= 1) { const delta = Math.trunc(angleCarry); angle = R.clamp(angle + delta, 15, 80); angleCarry -= delta; }
         }
     }
+    function rememberFrame() {
+        const bodies = new Map();
+        for (const body of ball ? [...debris, ball] : debris) if (!body.resting && !body.removed) {
+            bodies.set(body, { x: body.x, y: body.y, rotation: body.rotation });
+        }
+        previousFrame = { time: worldTime, bodies };
+    }
     function update(dt) {
         if (isOnline()) {
             // Room deadlines/presence keep running, but a covered/hidden field
             // needs no local replay. Reconstruct it exactly when shown again.
             if (document.hidden || online.isOpen()) return;
-            applyOnline(); adjustAngle(dt); sync(false); return;
+            adjustAngle(dt); return;
         }
+        rememberFrame();
         worldTime += dt;
         const rainStep = dt * .65;
         visualRain += R.clamp(scene.rain - visualRain, -rainStep, rainStep);
@@ -412,7 +437,7 @@
             trail.push({ x: ball.x, y: ball.y });
             if (ball.result) finish(ball.result);
         } else {
-            if (isCpu()) {
+            if (isCpu() && plan) {
                 angle = plan.angle;
                 if (phase === 'aim' && time >= plan.releaseAt - plan.power / 100 * R.WORLD.chargeSeconds) {
                     phase = 'charge'; chargeStart = plan.releaseAt - plan.power / 100 * R.WORLD.chargeSeconds;
@@ -432,11 +457,24 @@
         if (document.hidden || online && online.isOpen()) return;
         const now = window.performance ? window.performance.now() : worldTime * 1000;
         const interval = 1000 / 60;
-        if (force !== true && now >= paintAt && now - paintAt < interval - .5) return;
-        // Anchor the schedule instead of losing a whole frame to small RAF jitter.
-        paintAt = force !== true && now >= paintAt && now - paintAt < interval * 2 ? paintAt + interval : now;
+        // At 60 Hz, +/-1 ms RAF jitter must not discard every early callback.
+        // A quarter interval tolerates jitter while still skipping 120 Hz's
+        // intermediate callbacks, which arrive half an interval apart.
+        const tolerance = interval / 4;
+        if (force !== true && now < paintAt + interval - tolerance) return;
+        // Retain the RAF phase even after a missed deadline; do not reset it at
+        // two intervals and turn one late callback into repeated dropped frames.
+        paintAt = force !== true && Number.isFinite(paintAt) && now >= paintAt ?
+            paintAt + Math.max(1, Math.floor((now - paintAt + tolerance) / interval)) * interval : now;
+        if (isOnline() && shell && shell.isPlaying()) { applyOnline(); sync(false); }
         if (shell && !shell.isPlaying()) sync();
+        let alpha = typeof force === 'number' ? R.clamp(force, 0, 1) : 1;
+        if (isOnline() && previousFrame && worldTime > previousFrame.time) {
+            const target = (online.now() - online.game().originAt) / 1000 - 1 / 60;
+            alpha = R.clamp((target - previousFrame.time) / (worldTime - previousFrame.time), 0, 1);
+        }
         view.render({ scene, time: worldTime, visualRain, angle, ball, trail, ghost, reference: isQa() ? qa.baseline() : null, result: isQa() ? null : result, debris, resultPosition, feedback,
+            previous: shell && shell.isPlaying() && force !== true ? previousFrame : null, alpha,
             binContents: R.binContents(scene, debris), players: isFree() ? 1 : 2, active: match.active,
             playerLabels: ['P1', match.config.mode === 'cpu' ? 'CPU' : 'P2'],
             practice: isFree(), qa: isQa(),
@@ -533,6 +571,7 @@
     $('tt-throw').addEventListener('contextmenu', e => e.preventDefault());
     window.addEventListener('blur', () => { drag = null; if (phase === 'charge') interruptCharge(); else cancelCharge(); if (shell.isPlaying()) shell.pause(); });
     window.addEventListener('resize', () => { view.fit(); render(true); });
+    window.addEventListener('pagehide', event => { if (!event.persisted) cpu.destroy(); });
     if (window.createTrashTossOnline) {
         online = window.createTrashTossOnline({ settings: chosen,
             message: text => { inputMessage = text; sync(); },

@@ -140,7 +140,7 @@
                 { id: 'rear-floor', x: 1005, width: 108, height: 66, points: 30, metal: true },
                 { id: 'rear-mid', x: 1090, y: 145, width: 100, height: 60, points: 45, metal: true },
                 { id: 'deep-high', x: 1070, y: 300, width: 110, height: 58, points: 70, metal: true },
-                { id: 'deep-mid', x: 1220, y: 25, width: 104, height: 68, points: 55, metal: true },
+                { id: 'deep-mid', x: 1220, y: 175, width: 104, height: 68, points: 55, metal: true },
             ]),
             actors: Object.freeze([]), // 競技場只有依滿桶派出的清潔員。
             items: Object.freeze(['receipt', 'spraycap', 'cassette', 'bottlecap', 'wristband', 'padlock', 'skatewheel', 'noodlebox', 'vinyl', 'sneaker']) }),
@@ -420,7 +420,7 @@
         const startAt = time + CLEANER_SETTINGS.warningSeconds, arriveAt = startAt + travel, clearAt = arriveAt + CLEANER_SETTINGS.clearSeconds, leaveAt = clearAt + CLEANER_SETTINGS.exitDelaySeconds;
         state.active = { height: full.y || 0, bin: full.id, points: full.points, from, to, travel, startAt, arriveAt, clearAt, leaveAt, endAt: leaveAt + travel, cleared: false };
     }
-    function cpuPlan(scene, difficulty, seed, worldTime, debris) {
+    function* cpuPlanSteps(scene, difficulty, seed, worldTime, debris) {
         const rng = random(seed), target = difficulty === 'easy' ? scene.bins[0] : rng() < .25 ? scene.bins[Math.floor(rng() * scene.bins.length)] : scene.bins.reduce((best, bin) => bin.points > best.points ? bin : best);
         let best = null;
         function evaluate(angle, power, releaseAt) {
@@ -429,13 +429,23 @@
                     -Math.abs((shot.crossing == null ? shot.x : shot.crossing) - target.x) - (shot.result.kind === 'obstacle' ? 400 : 0);
                 if (!best || value > best.value) best = { angle, power, releaseAt, value };
         }
-        for (const at of [1.4, 2.2]) for (let angle = 30; angle <= 78; angle += 6) for (let power = 35; power <= 100; power += 5) evaluate(angle, power, at);
+        for (const at of [1.4, 2.2]) for (let angle = 30; angle <= 78; angle += 6) for (let power = 35; power <= 100; power += 5) {
+            evaluate(angle, power, at); yield;
+        }
         const coarse = Object.assign({}, best);
-        for (let a = -4; a <= 4; a += 2) for (let p = -4; p <= 4; p += 2) evaluate(clamp(coarse.angle + a, 15, 80), clamp(coarse.power + p, 0, 100), coarse.releaseAt);
+        for (let a = -4; a <= 4; a += 2) for (let p = -4; p <= 4; p += 2) {
+            evaluate(clamp(coarse.angle + a, 15, 80), clamp(coarse.power + p, 0, 100), coarse.releaseAt); yield;
+        }
         const error = { easy: [7, 10], normal: [3, 4], hard: [0.8, 1.2] }[difficulty] || [3, 4];
         // One imperfect input, with no post-launch correction or retry.
         return { angle: clamp(best.angle + (rng() * 2 - 1) * error[0], 15, 80),
             power: clamp(best.power + (rng() * 2 - 1) * error[1], 1, 100), releaseAt: best.releaseAt };
+    }
+    function cpuPlan(...args) {
+        const steps = cpuPlanSteps(...args);
+        let next;
+        do { next = steps.next(); } while (!next.done);
+        return next.value;
     }
     function createMatch(settings, seed) {
         return { config: config(settings), seed: seed >>> 0, round: 1, turn: 0, active: 0,
@@ -455,5 +465,5 @@
         }
         return next;
     }
-    return { WORLD, ITEMS, SCENES, CLEANER_SETTINGS, WEATHER, fieldWidth, createCleaning, advanceCleaning, cleaner, clamp, random, config, chargePower, scenario, properties, obstacles, launch, acceleration, advance, simulate, traceFlight, binContents, cpuPlan, createMatch, settle };
+    return { WORLD, ITEMS, SCENES, CLEANER_SETTINGS, WEATHER, fieldWidth, createCleaning, advanceCleaning, cleaner, clamp, random, config, chargePower, scenario, properties, obstacles, launch, acceleration, advance, simulate, traceFlight, binContents, cpuPlanSteps, cpuPlan, createMatch, settle };
 });

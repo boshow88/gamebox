@@ -2,6 +2,23 @@
 (function (root) {
     'use strict';
     const R = root.TrashTossRules, W = R.WORLD;
+    function interpolate(model) {
+        const previous = model.previous, dt = previous && model.time - previous.time;
+        if (!(dt > 0 && dt <= .05) || !(model.alpha >= 0 && model.alpha < 1)) return model;
+        const alpha = model.alpha;
+        function body(current) {
+            const old = current && previous.bodies.get(current);
+            if (!old) return current;
+            return Object.assign({}, current, {
+                x: old.x + (current.x - old.x) * alpha,
+                y: old.y + (current.y - old.y) * alpha,
+                rotation: old.rotation + (current.rotation - old.rotation) * alpha,
+            });
+        }
+        const ball = body(model.ball);
+        return Object.assign({}, model, { time: previous.time + dt * alpha, ball, debris: model.debris.map(body),
+            trail: ball && ball !== model.ball && model.trail.length ? model.trail.slice(0, -1).concat({ x: ball.x, y: ball.y }) : model.trail });
+    }
     function create(canvas) {
         // The stage is fully painted; an opaque canvas avoids an alpha compositing layer.
         let ctx = canvas.getContext('2d', { alpha: false });
@@ -621,6 +638,7 @@
             if (model.ball) circle(R.clamp(model.ball.x * scale, 5, width - 5), y + 37 - R.clamp(model.ball.y * .05, 0, 24), 5, '#f4b24a');
         }
         function render(model) {
+            model = interpolate(model);
             const scene = model.scene;
             if (!scene) return;
             if (qa !== !!model.qa || worldWidth !== R.fieldWidth(scene) || layout !== R.SCENES[scene.scene]) { qa = !!model.qa; worldWidth = R.fieldWidth(scene); layout = R.SCENES[scene.scene]; fit(); }

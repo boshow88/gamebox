@@ -96,9 +96,41 @@ FPS 是 Canvas 實際繪圖呼叫頻率，不是實體螢幕呈現率。每幀�
 ## 另一個一次性重工作：電腦思考
 
 `cpuPlan()` 每個電腦回合模擬 277 個候選投擲，測得辦公室約 0.42 秒、工地約 0.76 秒
-（同樣為四倍 CPU 降速環境）。它不是每幀執行，但仍可能造成電腦換手時的短暫停頓。
-本次保留其既有策略及物理結果；這項成本獨立列在 JSON 的 `cpuPlanning`，
-沒有用平均 FPS 掩蓋，也沒有把它誤當成持續繪圖的熱源。
+（同樣為四倍 CPU 降速環境）。這是先前同步實作的量測，不是每幀執行的成本。
+目前改由 `trash-toss-cpu.js` 背景 Worker 執行同一套搜尋；無法載入 Worker 時，
+使用規則模組的 generator，每批最多八個候選或約 4 ms 後交還主執行緒。
+回合切換或重開會取消舊工作；搜尋使用送出時的場景與垃圾快照。
+若計算晚於原預定出手時間，保留 0.15 秒可見的出手準備，仍受十二秒回合上限限制。
+JSON 的 `cpuPlanning` 保留直接呼叫同步規則的成本，用來觀察搜尋工作量，
+不代表遊戲主執行緒仍同步執行整段搜尋。
+
+## 飛行橫移與畫面時間
+
+平均 Canvas 繪圖頻率達到 60 FPS，仍可能因固定物理步進與 RAF 時序抖動，
+出現重複位置後再跳兩步。先前控制器未使用 shell 傳入的剩餘時間比例。
+目前對移動物件與鏡頭目標做顯示插值，人物動畫與鏡頭緩動也使用相同的顯示時間。
+物理、碰撞與計分仍保持 60 Hz／240 Hz 小步；線上使用共享時鐘做相同的顯示處理。
+這會增加最多約一個物理 tick（16.7 ms）的顯示延遲，不會更改投擲輸入。
+繪圖截止時間在漏幀後仍維持累積，不再重新設定排程相位。
+原本只有 0.5 ms 的提早容許量，會把正常 60 Hz 的較早回呼誤判成應跳過的幀。
+目前容許四分之一間隔（約 4.2 ms），仍跳過 120 Hz 的中間回呼。
+控制器重播兩秒、120 次輕微早晚交錯的 RAF 回呼：舊版繪圖 102 次（約 51 FPS），
+修正版 120 次（60 FPS）；這是可重現的人工時序，不是使用者裝置的實測。
+
+```bash
+node tools/trash-toss-performance-check.js --motion --revision=HEAD --throttle=1 --output=/tmp/trash-motion-before.json
+node tools/trash-toss-performance-check.js --motion --throttle=1 --output=/tmp/trash-motion-after.json
+node tools/trash-toss-performance-check.js --desktop --cpu --throttle=1 --dpr=1 --output=/tmp/trash-desktop-cpu.json
+node tools/trash-toss-view-check.js
+node tools/trash-toss-cpu-check.js
+```
+
+比較前應將 `HEAD` 換成預定比較的舊版本。motion 數據另記錄顯示時間、物件與鏡頭座標，
+以及未抵達鏡頭邊界時的重複鏡頭幀，避免僅用平均 FPS 推論平順度。
+view check 使用正負 1 ms 的 RAF 時序抖動，與連續時間參考畫面比較。
+穩定的桌面 headless RAF 無法代表 iPhone、Safari、120 Hz 顯示器或真機發熱時的表現。
+`--desktop --cpu` 使用 1200×900 畫面，等待真正的電腦回合自行選招、蓄力、出手後取樣，
+並另外記錄出手前的主執行緒 long tasks，區分換手卡頓與飛行橫移。
 
 ## 真機確認
 

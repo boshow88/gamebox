@@ -240,6 +240,11 @@ for (const [name, wind, rain] of [['office', -18, 0], ['park', -68, 0], ['park',
     const shots = findCleanThrows(environment);
     for (const target of environment.bins) assert.ok(shots[target.id], name + '/' + item + ' can reach moved ' + target.id + ' cleanly in adverse weather');
 }
+const leafStorm = { ...R.scenario({ scene: 'park' }, 1, 42), qa: true, item: 'leaf', grams: 6, wind: -48, rain: 1.6 };
+const leafShot = R.simulate(leafStorm, 32, 100, 0);
+assert.equal(leafShot.result.bin, 'small'); assert.equal(leafShot.rim, false);
+assert.ok(findCleanThrows(leafStorm, { targets: ['small'], minPower: 100 }).small,
+    'Reachability includes legal entry after the center advances horizontally below the initial approach height');
 for (const id of ['baby', 'mother', 'parrot']) {
     const box = R.obstacles(living, 0).find(b => b.id === id), hit = R.launch(living, 45, 50, 0);
     Object.assign(hit, { x: box.x, y: box.y + box.height / 2, vx: 0, vy: 0 }); R.advance(living, hit, 1 / 240);

@@ -589,10 +589,11 @@ predicted landing point. Previous angle and power remain visible.
   remains fully visible; its background extends into the wider desktop viewport.
   Outdoor wind/rain applies with the same strength as before.
 - Street arena retains its original eight metal bins and adds four rear targets:
-  ground x=1005 (30 points), middle x=1100 (45 points), high x=1100 (70 points),
+  ground x=1005 (30 points), middle x=1090 (45 points), high x=1070 (70 points),
   and far middle x=1220 (55 points). The high opening sits above the original highest target.
-  The 45-point opening is at height 195, near the 40-point opening at 215;
-  the 55-point opening is lower at 123, preserving a direct route past the earlier bins.
+  The 45-point opening is at height 205, near the 40-point opening at 215;
+  the 55-point bin starts at height 175 with its opening at 243, allowing direct
+  entry past the earlier bins instead of requiring a rim rebound.
   Faster objects such as the receipt and bottle cap can reach all four new targets in calm weather;
   slower objects have the earlier/lower targets to choose from. Wind and rain still affect reach.
   Size and height both matter. Raised bins have real bottoms; underneath them remains open space.
