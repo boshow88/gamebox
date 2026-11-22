@@ -80,7 +80,7 @@ rather than leaving several competing explanations of the current system.
 | [DEBUG.md](DEBUG.md) | Test commands, fixtures and debugging procedures |
 | [rules.md](rules.md) | Current player-facing rules and controls |
 | [ROOMS.md](ROOMS.md) | Shared room API, network policies and Firebase deployment |
-| [UNSHACKLE.md](UNSHACKLE.md) | Isolated 3D subsystem contracts |
+| [unshackle/](unshackle/README.md) | Isolated 3D subsystem contracts |
 | [impressions/](impressions/README.md) | Maintained Impressions implementation, tests/tools and analytics operations |
 
 Update the owning reference instead of creating one report per phase or feature.

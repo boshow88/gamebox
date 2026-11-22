@@ -1,4 +1,4 @@
-/** Real touch regression: node tools/unshackle-input-check.js <Chrome CDP WebSocket URL>.
+/** Real touch regression: node tools/unshackle/input-check.js <Chrome CDP WebSocket URL>.
  * Uses Node 22+ and an existing debugging browser. Serves only this checkout,
  * creates/closes its own browser tab, and never loads a production website. Add --dense for the 48-piece case only.
  */
@@ -7,7 +7,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const http = require('node:http');
 const path = require('node:path');
-const root = path.resolve(__dirname, '..');
+const root = path.resolve(__dirname, '../..');
 const endpoint = process.argv[2];
 if (!endpoint || !/^wss?:\/\//.test(endpoint)) throw new Error('Pass the browser CDP WebSocket URL as the first argument');
 const server = http.createServer((request, response) => {

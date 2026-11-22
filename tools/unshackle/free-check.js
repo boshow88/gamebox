@@ -1,10 +1,10 @@
-/** Run with node tools/unshackle-free-check.js [samples per size]. */
+/** Run with node tools/unshackle/free-check.js [samples per size]. */
 'use strict';
 const assert = require('node:assert/strict');
 const { createHash } = require('node:crypto');
-require('../js/games/unshackle/engine.js');
-require('../js/generators/unshackle.js');
-require('../js/games/unshackle/free.js');
+require('../../js/games/unshackle/engine.js');
+require('../../js/generators/unshackle.js');
+require('../../js/games/unshackle/free.js');
 const F = globalThis.UnshackleFree, E = globalThis.UnshackleEngine;
 const samples = Number(process.argv[2] || 3);
 assert(Number.isInteger(samples) && samples > 0);

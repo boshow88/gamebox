@@ -295,7 +295,7 @@ resetting. Reset replays the exact puzzle, and Share identifies the running mode
 size, difficulty and seed even when different settings are staged. Undo retains
 64 actions so a complete 48-piece removal sequence can be reversed.
 
-Run `node tools/unshackle-match-check.js`. By default it checks 120 puzzles across the six current
+Run `node tools/unshackle/match-check.js`. By default it checks 120 puzzles across the six current
 settings, verified solution prefixes, rejected capacity moves, direct matching
 at capacity, exact replay, geometric graph agreement and continuation hints.
 An independent exhaustive dynamic program checks minimum capacity and decision
@@ -322,7 +322,7 @@ versioned URLs and the transition from a legacy link to a new game.
 
 ## Checks
 
-Run `node tools/unshackle-check.js` with no packages. It checks mid-motion contact,
+Run `node tools/unshackle/classic-check.js` with no packages. It checks mid-motion contact,
 clearance, degenerate sweeps, distant obstacles, cycles, sampled-distance agreement,
 all 15 Classic settings across 40 seeds, exact replay with/without progress callbacks,
 duplicate fingerprints, structural variation, independently recomputed graphs,
@@ -424,7 +424,7 @@ attempts. The optional construction profile asks for one accepted assembly per
 16 attempts. Solves use `solves:unshackle-free`. Undo, reset, framing and input are
 shared with the page; Reset view refits current poses to recover offscreen parts.
 
-Run `node tools/unshackle-free-check.js [samples per size]`. It independently
+Run `node tools/unshackle/free-check.js [samples per size]`. It independently
 sweeps every witness motion, checks both sides of the opening tolerance, rejects
 an end-cap-only grazing fixture, verifies tight body-connected cores and physical
 shoulders, checks exact seeded replay, hints, fractional positions and contacts.
@@ -505,7 +505,7 @@ continue to use the unchanged version-4/5 generator through `generateLegacy`;
 New Game switches to version 6. Both the worker and the no-worker path respect
 the share version. Other modes remove `fv` from their URLs.
 
-`node tools/unshackle-free-check.js 10` passed 80 boards and 2,400 independently
+`node tools/unshackle/free-check.js 10` passed 80 boards and 2,400 independently
 swept witness motions, including 60 new relay boards across all six count/tier
 settings. The checks prove the A/B/C dependency sequence, retained partial
 coordinates, fractional dragging, opening tolerance, exact replay, verified hints
@@ -551,7 +551,7 @@ matching, returns, undo, seeds and score namespaces are unchanged. Transverse dr
 in Classic/Match and empty-space drags still rotate the camera. Two-finger input
 cancels a part preview before zooming. No external slider or drawn axis is used.
 
-`node tools/unshackle-input-check.js <Chrome-CDP-WebSocket-URL>` runs real touch
+`node tools/unshackle/input-check.js <Chrome-CDP-WebSocket-URL>` runs real touch
 checks with Node 22+ and an existing Chrome debugging session. The dependency-free
 runner serves this checkout on an ephemeral local port and owns only its test tab.
 It checks nearby taps/drags in all three modes, real WebGL material uniforms,

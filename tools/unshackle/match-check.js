@@ -1,7 +1,7 @@
-/** Run with `node tools/unshackle-match-check.js [size|all] [difficulty|all] [samples]`. */
+/** Run with `node tools/unshackle/match-check.js [size|all] [difficulty|all] [samples]`. */
 'use strict';
-require('../js/games/unshackle/engine.js');
-require('../js/generators/unshackle.js');
+require('../../js/games/unshackle/engine.js');
+require('../../js/generators/unshackle.js');
 const assert = require('node:assert/strict');
 const E = globalThis.UnshackleEngine, Match = globalThis.PuzzleGenerators.unshackleMatch;
 let puzzles = 0, prefixes = 0, capacityChecks = 0;

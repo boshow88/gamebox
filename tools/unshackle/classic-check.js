@@ -1,7 +1,7 @@
-/** Run with `node tools/unshackle-check.js`. No packages required. */
+/** Run with `node tools/unshackle/classic-check.js`. No packages required. */
 'use strict';
-require('../js/games/unshackle/engine.js');
-require('../js/generators/unshackle.js');
+require('../../js/games/unshackle/engine.js');
+require('../../js/generators/unshackle.js');
 const E = globalThis.UnshackleEngine;
 let checks = 0;
 function assert(ok, label) { checks++; if (!ok) throw new Error(label); }

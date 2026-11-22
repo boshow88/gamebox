@@ -51,7 +51,7 @@ docs/
   DEV.md              Architecture, shared conventions & implementation
   DEBUG.md            Test commands, fixtures & debugging/reset procedures
   ROOMS.md            Shared online rooms, policies & Firebase deployment
-  UNSHACKLE.md        Isolated 3D engine, generation & compatibility
+  unshackle/          Isolated 3D engine, generation & compatibility
 ```
 
 ## Documentation
@@ -60,7 +60,7 @@ Start with [CONVENTION.md](docs/CONVENTION.md) for organization and refactoring,
 [DEV.md](docs/DEV.md) for implementation and engine/UI conventions,
 [DEBUG.md](docs/DEBUG.md) for checks, or [rules.md](docs/rules.md) for game rules.
 The [room reference](docs/ROOMS.md) owns online-room APIs and Firebase setup;
-[Unshackle](docs/UNSHACKLE.md) owns the isolated 3D engine. Feature changes update
+[Unshackle](docs/unshackle/README.md) owns the isolated 3D engine. Feature changes update
 these references rather than creating a document per feature.
 
 ## Themes
