@@ -39,18 +39,21 @@ js/
   birthday.js         Birthday-only homepage entry (see docs/DEV.md#birthday-personalization)
   birthday-cake.js    Reusable directional candle interaction
   birthday-settings.js Optional manual birthday account settings
-  games/*.js          Game entries and game-owned modules
-  games/unshackle/    Unshackle's 3D engine, renderer, UI and continuous sliding
+  games/*.js          Single-file game entries
+  games/<game>/       Larger games' modules, entry game.js (Darts, Impressions, Trash Toss, Unshackle)
   generators/*.js     Puzzle generators & solvers
 games/*.html          One page per game (each sets <body data-theme="…">)
 tools/*.html          Puzzle dev tools (generators/solvers test harnesses)
-tools/*.js            Node.js checks (run with node, no packages required)
+tools/*.js            Shared and room Node.js/browser checks (no packages required)
+tools/<game>/         Game-owned checks, diagnostic pages, helpers and fixtures
 docs/
   rules.md            Full player-facing rules for every game (merged)
   CONVENTION.md       Organization, module boundaries & refactoring method
   DEV.md              Architecture, shared conventions & implementation
   DEBUG.md            Test commands, fixtures & debugging/reset procedures
   ROOMS.md            Shared online rooms, policies & Firebase deployment
+  impressions/        Impressions implementation, tests/tools & analytics operations
+  trash-toss/         Trash Toss feel, performance and room-fix references
   unshackle/          Isolated 3D engine, generation & compatibility
 ```
 

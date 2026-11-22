@@ -9,8 +9,8 @@ refactor. Engine/UI-specific conventions remain in [DEV.md](DEV.md).
 
 Before adding a file or abstraction, inspect comparable games and identify the
 current owner of the behavior. Darts separates rules, room, HUD, history and CPU
-modules; Unshackle groups `engine.js`, `view.js` and `game.js` under
-`js/games/unshackle/`. Both are valid: use responsibility and dependency boundaries
+modules under `js/games/darts/`; Unshackle groups `engine.js`, `view.js` and
+`game.js` under `js/games/unshackle/`. Both are valid: use responsibility and dependency boundaries
 to choose, rather than requiring one file per game or one file per feature phase.
 
 Extend an existing owner when the responsibility is unchanged. Split when the
@@ -40,15 +40,17 @@ framework or introduce dependencies solely to reorganize files.
 
 ## Directories and entry points
 
-Small games can retain the existing `js/games/<game>.js` entry. As a game grows,
-related implementation modules can live under `js/games/<game>/`; keep its public
-entry easy to find. Larger diagnostic/admin tool sets belong under
-`tools/<game>/`, and substantial game documentation under `docs/<game>/`.
-Shared engines and transports remain in their shared locations.
+Small games keep a single `js/games/<game>.js` entry. Games with several modules
+live under `js/games/<game>/` with the page entry named `game.js`; Darts,
+Impressions, Trash Toss and Unshackle use this layout. Inside a game directory,
+filenames omit the game prefix (`js/games/impressions/color.js`,
+`tools/darts/room-check.js`). Game-owned checks, diagnostic pages, helpers and
+fixtures belong under `tools/<game>/` (with `helpers/` and `fixtures/` as needed),
+and substantial game documentation under `docs/<game>/`. Shared engines,
+transports and room/infrastructure checks remain in their shared locations.
 
-This is a direction for deliberate changes, not an instruction to move existing
-Impressions/Darts files now. Existing flat modules can stay until a focused migration
-is justified. Directory names and filenames describe responsibilities, not phase
+Move a growing flat game into its directory in a focused migration rather than
+alongside gameplay changes. Directory names and filenames describe responsibilities, not phase
 numbers, dates or `new`/`final`/`v2-final` development iterations. Explicit version
 names are appropriate when they represent a real supported data/algorithm contract.
 
@@ -82,6 +84,7 @@ rather than leaving several competing explanations of the current system.
 | [ROOMS.md](ROOMS.md) | Shared room API, network policies and Firebase deployment |
 | [unshackle/](unshackle/README.md) | Isolated 3D subsystem contracts |
 | [impressions/](impressions/README.md) | Maintained Impressions implementation, tests/tools and analytics operations |
+| [trash-toss/](trash-toss/PERFORMANCE.md) | Trash Toss feel tuning, performance measurements and room fixes |
 
 Update the owning reference instead of creating one report per phase or feature.
 Give substantial independent topics a dedicated directory and a small set of
