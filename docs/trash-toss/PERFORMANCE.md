@@ -33,16 +33,16 @@ Canvas 的靜態圖形快取、適當畫布尺寸與不需要透明時使用不�
 
 ```bash
 # 發燙問題優化前：原先目標 60 FPS、畫布過大且每幀畫完整場景
-node tools/trash-toss-performance-check.js --revision=df0f60a --output=/tmp/trash-original60.json
+node tools/trash-toss/performance-check.js --revision=df0f60a --output=/tmp/trash-original60.json
 # 昨天的手機限速版本：30 FPS
-node tools/trash-toss-performance-check.js --revision=7f094e8 --output=/tmp/trash-before30.json
+node tools/trash-toss/performance-check.js --revision=7f094e8 --output=/tmp/trash-before30.json
 # 目前版本：固定 60 FPS
-node tools/trash-toss-performance-check.js --output=/tmp/trash-current60.json
+node tools/trash-toss/performance-check.js --output=/tmp/trash-current60.json
 # 遊戲行為及實際像素比較
-node tools/trash-toss-session-check.js
-node tools/trash-toss-view-check.js
-node tools/trash-toss-render-browser-check.js /usr/bin/google-chrome
-node tools/trash-toss-room-check.js
+node tools/trash-toss/session-check.js
+node tools/trash-toss/view-check.js
+node tools/trash-toss/render-browser-check.js /usr/bin/google-chrome
+node tools/trash-toss/room-check.js
 ```
 
 Chrome 路徑可用 `--chrome=/path/to/chrome`，CPU 倍率可用 `--throttle=4`，
@@ -79,7 +79,7 @@ CPU 降速是[瀏覽器的效能測試工具](https://developer.chrome.com/docs/
 狀態列 DOM 變更（每兩秒）：昨天的瞄準狀態約 900 次 → 0 次；蓄力約 1,200 次 → 180 次。
 這是單次短測，時間數字有執行環境波動，應用來定位成本與比較方向。
 
-原始數據在 [trash-toss-performance-results.json](trash-toss-performance-results.json)。
+原始數據在 [performance-results.json](performance-results.json)。
 FPS 是 Canvas 實際繪圖呼叫頻率，不是實體螢幕呈現率。每幀成本是 JavaScript
 提交繪圖指令的時間；巢狀計時不可全部相加。瀏覽器 TaskDuration 也包含其他主執行緒工作，
 但不等於整支手機 CPU/GPU、瓦數或溫度。
@@ -97,7 +97,7 @@ FPS 是 Canvas 實際繪圖呼叫頻率，不是實體螢幕呈現率。每幀�
 
 `cpuPlan()` 每個電腦回合模擬 277 個候選投擲，測得辦公室約 0.42 秒、工地約 0.76 秒
 （同樣為四倍 CPU 降速環境）。這是先前同步實作的量測，不是每幀執行的成本。
-目前改由 `trash-toss-cpu.js` 背景 Worker 執行同一套搜尋；無法載入 Worker 時，
+目前改由 `js/games/trash-toss/cpu.js` 背景 Worker 執行同一套搜尋；無法載入 Worker 時，
 使用規則模組的 generator，每批最多八個候選或約 4 ms 後交還主執行緒。
 回合切換或重開會取消舊工作；搜尋使用送出時的場景與垃圾快照。
 若計算晚於原預定出手時間，保留 0.15 秒可見的出手準備，仍受十二秒回合上限限制。
@@ -118,11 +118,11 @@ JSON 的 `cpuPlanning` 保留直接呼叫同步規則的成本，用來觀察搜
 修正版 120 次（60 FPS）；這是可重現的人工時序，不是使用者裝置的實測。
 
 ```bash
-node tools/trash-toss-performance-check.js --motion --revision=HEAD --throttle=1 --output=/tmp/trash-motion-before.json
-node tools/trash-toss-performance-check.js --motion --throttle=1 --output=/tmp/trash-motion-after.json
-node tools/trash-toss-performance-check.js --desktop --cpu --throttle=1 --dpr=1 --output=/tmp/trash-desktop-cpu.json
-node tools/trash-toss-view-check.js
-node tools/trash-toss-cpu-check.js
+node tools/trash-toss/performance-check.js --motion --revision=HEAD --throttle=1 --output=/tmp/trash-motion-before.json
+node tools/trash-toss/performance-check.js --motion --throttle=1 --output=/tmp/trash-motion-after.json
+node tools/trash-toss/performance-check.js --desktop --cpu --throttle=1 --dpr=1 --output=/tmp/trash-desktop-cpu.json
+node tools/trash-toss/view-check.js
+node tools/trash-toss/cpu-check.js
 ```
 
 比較前應將 `HEAD` 換成預定比較的舊版本。motion 數據另記錄顯示時間、物件與鏡頭座標，
@@ -152,9 +152,9 @@ view check 使用正負 1 ms 的 RAF 時序抖動，與連續時間參考畫面�
 這些改動沒有降低碰撞頻率、延長心跳間隔或省略同步資料。物理移動時仍逐格模擬。
 
 ```bash
-node tools/trash-toss-network-performance-check.js --output=/tmp/trash-network.json
-node tools/trash-toss-performance-check.js --online --room-revision=7f094e8 --throttle=1 --output=/tmp/trash-online-before.json
-node tools/trash-toss-performance-check.js --online --throttle=1 --output=/tmp/trash-online-after.json
+node tools/trash-toss/network-performance-check.js --output=/tmp/trash-network.json
+node tools/trash-toss/performance-check.js --online --room-revision=7f094e8 --throttle=1 --output=/tmp/trash-online-before.json
+node tools/trash-toss/performance-check.js --online --throttle=1 --output=/tmp/trash-online-after.json
 ```
 
 固定資料的差異測試涵蓋五個場景、靜止與移動垃圾、桶滿清潔、浮點時間邊界與飛行，
@@ -166,8 +166,8 @@ node tools/trash-toss-performance-check.js --online --throttle=1 --output=/tmp/t
 房主開啟房間視窗的採樣期間，其場地繪圖與當地重播皆為 0；對手仍約 60 FPS。
 開房、加入、準備、出手、回合／分數一致、離開判勝與房間換圖都通過；首次可見出手位置為 x=96、age=0。
 
-多人數據在 [trash-toss-network-performance-results.json](trash-toss-network-performance-results.json)。
+多人數據在 [network-performance-results.json](network-performance-results.json)。
 這是同一桌面 Chrome 裡的兩個 375×812 頁面、DPR 2，沒有 CPU 降速；不能當成兩台 iPhone 的實測。
 單機表格的四倍降速數字應獨立解讀。
 
-後續的再戰、出手手勢及斷線提示修正見 [房間與輸入修正紀錄](TRASH-TOSS-ROOM-FIXES.md)。
+後續的再戰、出手手勢及斷線提示修正見 [房間與輸入修正紀錄](ROOM-FIXES.md)。

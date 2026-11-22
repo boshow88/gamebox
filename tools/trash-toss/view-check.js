@@ -3,7 +3,7 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
-const R = require('../js/games/trash-toss-rules.js');
+const R = require('../../js/games/trash-toss/rules.js');
 let translations = [], depth = 0, blits = 0;
 const layers = [];
 const ctx = new Proxy({
@@ -22,7 +22,7 @@ const window = { TrashTossRules: R, innerWidth: 375, innerHeight: 812, devicePix
         layers.push(layer); return layer;
     } },
 };
-vm.runInNewContext(fs.readFileSync(require.resolve('../js/games/trash-toss-view.js'), 'utf8'), { window });
+vm.runInNewContext(fs.readFileSync(require.resolve('../../js/games/trash-toss/view.js'), 'utf8'), { window });
 const view = window.TrashTossView.create(canvas);
 assert.equal(view.isPortrait(), true); assert.ok(classes.has('is-portrait'));
 assert.equal(canvas.width, 698); assert.equal(canvas.height, 589);

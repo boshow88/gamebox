@@ -1,7 +1,7 @@
 /* Verify facing against actual movement, carried collision boxes and cleaner round trips. */
 'use strict';
 const assert = require('node:assert/strict');
-const R = require('../js/games/trash-toss-rules.js');
+const R = require('../../js/games/trash-toss/rules.js');
 const actors = new Set(['mother', 'baby', 'parrot', 'boss', 'walker', 'worker', 'worker-far', 'bird']);
 const seen = new Map();
 const carried = { laundry: ['mother', 38], files: ['boss', 26], cart: ['walker', 28], planks: ['worker', 26], wheelbarrow: ['worker-far', 38] };

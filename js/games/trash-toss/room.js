@@ -1,7 +1,7 @@
 /* Trash Toss online policy and deterministic replay; no DOM or Firebase dependency. */
 (function (root, factory) {
     'use strict';
-    if (typeof module === 'object' && module.exports) module.exports = factory(require('./trash-toss-rules.js'));
+    if (typeof module === 'object' && module.exports) module.exports = factory(require('./rules.js'));
     else root.TrashTossRoom = factory(root.TrashTossRules);
 })(typeof window === 'object' ? window : globalThis, function (R) {
     'use strict';

@@ -47,7 +47,7 @@ pointerup 的備援，兩事件相繼發生也只出手一次。真正的 pointe
 也會影響落點。相同蓄力數字並不代表不同場景的初速相同。
 
 以下表格保留當時的地圖設定；2026-11-19 已固定物件重量、統一倍率為 1，並將工地調整為 1440。
-目前設定與調整依據見 [操作與手感評估](TRASH-TOSS-FEEL.md)。
+目前設定與調整依據見 [操作與手感評估](FEEL.md)。
 
 | 場景 | 當時世界寬度 | 當時初速倍率 launchScale | 出手高度 |
 | --- | ---: | ---: | ---: |
@@ -64,12 +64,12 @@ pointerup 的備援，兩事件相繼發生也只出手一次。真正的 pointe
 ## 驗證與重跑
 
 ```bash
-node tools/trash-toss-session-check.js
-node tools/trash-toss-render-browser-check.js /usr/bin/google-chrome
-node tools/trash-toss-room-check.js
+node tools/trash-toss/session-check.js
+node tools/trash-toss/render-browser-check.js /usr/bin/google-chrome
+node tools/trash-toss/room-check.js
 node tools/rooms-check.js
-node tools/trash-toss-network-performance-check.js
-node tools/trash-toss-performance-check.js --online --throttle=1 --output=/tmp/trash-toss-room-fixes.json
+node tools/trash-toss/network-performance-check.js
+node tools/trash-toss/performance-check.js --online --throttle=1 --output=/tmp/trash-toss-room-fixes.json
 ```
 
 控制器檢查涵蓋 120 Hz 裝置上的 60 FPS 排程、capture loss、touchend 備援、

@@ -107,22 +107,22 @@ Firebase rule evaluator or a live-project check after publishing rules.
 ## Trash Toss checks
 
 ```text
-node tools/trash-toss-check.js
-node tools/trash-toss-cpu-check.js
-node tools/trash-toss-session-check.js
-node tools/trash-toss-view-check.js
-node tools/trash-toss-room-check.js
-node tools/trash-toss-records-browser-check.js /usr/bin/google-chrome
-node tools/trash-toss-render-browser-check.js /usr/bin/google-chrome
-node tools/trash-toss-performance-check.js --output=/tmp/trash-performance.json
-node tools/trash-toss-performance-check.js --motion --throttle=1 --output=/tmp/trash-motion.json
-node tools/trash-toss-performance-check.js --desktop --cpu --throttle=1 --dpr=1 --output=/tmp/trash-desktop-cpu.json
-node tools/trash-toss-network-performance-check.js
-node tools/trash-toss-performance-check.js --online --throttle=1 --output=/tmp/trash-online.json
+node tools/trash-toss/rules-check.js
+node tools/trash-toss/cpu-check.js
+node tools/trash-toss/session-check.js
+node tools/trash-toss/view-check.js
+node tools/trash-toss/room-check.js
+node tools/trash-toss/records-browser-check.js /usr/bin/google-chrome
+node tools/trash-toss/render-browser-check.js /usr/bin/google-chrome
+node tools/trash-toss/performance-check.js --output=/tmp/trash-performance.json
+node tools/trash-toss/performance-check.js --motion --throttle=1 --output=/tmp/trash-motion.json
+node tools/trash-toss/performance-check.js --desktop --cpu --throttle=1 --dpr=1 --output=/tmp/trash-desktop-cpu.json
+node tools/trash-toss/network-performance-check.js
+node tools/trash-toss/performance-check.js --online --throttle=1 --output=/tmp/trash-online.json
 ```
 
 For measured hotspots, comparisons with the former 60 FPS and 30 FPS versions,
-and limits of desktop measurements, see [Trash Toss performance](TRASH-TOSS-PERFORMANCE.md).
+and limits of desktop measurements, see [Trash Toss performance](trash-toss/PERFORMANCE.md).
 The real-canvas check compares cached artwork with direct vector rendering and
 loads the actual CPU worker URL, checking its result and main-thread responsiveness.
 The CPU check also covers cancellation, failed worker creation and cooperative
@@ -141,7 +141,7 @@ It also checks capture-loss/touchend release and removal of the former FPS setti
 The two-page online fixture adds 200 ms snapshot delay, ack-before-snapshot input
 locking, continuous held-object rendering, temporary disconnect/submit retry,
 one-click rematch scene selection and explicit removed-room recovery; see
-[the room and input fixes](TRASH-TOSS-ROOM-FIXES.md).
+[the room and input fixes](trash-toss/ROOM-FIXES.md).
 
 The dependency-free check executes the actual rules: reproducible flight and CPU
 intent, fixed substeps, descending whole-object aperture crossings, rim/side
@@ -205,9 +205,9 @@ For real page/lobby/controller integration, run a static server on 8000 and a
 headless Chrome with `--remote-debugging-port=9377`, then:
 
 ```text
-node tools/trash-toss-online-browser-check.js 9377 http://127.0.0.1:8000
+node tools/trash-toss/online-browser-check.js 9377 http://127.0.0.1:8000
 # Optional guest-lobby screenshot at /tmp/trash-toss-lobby-preview.png:
-node tools/trash-toss-online-browser-check.js 9377 http://127.0.0.1:8000 --lobby-preview
+node tools/trash-toss/online-browser-check.js 9377 http://127.0.0.1:8000 --lobby-preview
 ```
 
 This opens and closes its own test target containing two real game pages. It

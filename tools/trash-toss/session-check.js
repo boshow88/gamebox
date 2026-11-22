@@ -3,7 +3,7 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
-const R = require('../js/games/trash-toss-rules.js');
+const R = require('../../js/games/trash-toss/rules.js');
 function fixture(mobile = false) {
     class Node {
         constructor(id) {
@@ -61,9 +61,9 @@ function fixture(mobile = false) {
     const document = { getElementById: get, activeElement: new Node('body'), createElement: tag => new Node(tag) };
     class Clock extends Date { static now() { return 42; } }
     const context = vm.createContext({ window, document, Element: Node, Date: Clock });
-    vm.runInContext(fs.readFileSync(require.resolve('../js/games/trash-toss-cpu.js'), 'utf8'), context);
-    vm.runInContext(fs.readFileSync(require.resolve('../js/games/trash-toss-qa.js'), 'utf8'), context);
-    vm.runInContext(fs.readFileSync(require.resolve('../js/games/trash-toss.js'), 'utf8'), context);
+    vm.runInContext(fs.readFileSync(require.resolve('../../js/games/trash-toss/cpu.js'), 'utf8'), context);
+    vm.runInContext(fs.readFileSync(require.resolve('../../js/games/trash-toss/qa.js'), 'utf8'), context);
+    vm.runInContext(fs.readFileSync(require.resolve('../../js/games/trash-toss/game.js'), 'utf8'), context);
     return { get, shell, model: () => model, result: () => result,
         tick(seconds) { for (let i = 0; i < Math.round(seconds * 60); i++) { runTasks(); if (shell.isPlaying()) options.update(1 / 60); wallMs += 1000 / 60; options.render(); } },
         renders: () => renders,

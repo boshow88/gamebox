@@ -1,8 +1,8 @@
 /* Real game rules: deterministic flight, collision, fair turns and bounded ties. */
 'use strict';
 const assert = require('node:assert/strict');
-const R = require('../js/games/trash-toss-rules.js');
-const { findCleanThrows } = require('./helpers/trash-toss-physics.js');
+const R = require('../../js/games/trash-toss/rules.js');
+const { findCleanThrows } = require('./helpers/physics.js');
 const scene = R.scenario({ mode: 'practice', scene: 'office', item: 'paper' }, 1, 42);
 const bin = scene.bins[0];
 function drop(x, item = 'paper', vy = -60) {

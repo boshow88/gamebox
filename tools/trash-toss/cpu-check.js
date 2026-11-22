@@ -2,14 +2,14 @@
 'use strict';
 const assert = require('node:assert/strict');
 const { Worker: Thread } = require('node:worker_threads');
-const R = require('../js/games/trash-toss-rules.js');
-const CPU = require('../js/games/trash-toss-cpu.js');
-const entry = require.resolve('../js/games/trash-toss-cpu.js');
+const R = require('../../js/games/trash-toss/rules.js');
+const CPU = require('../../js/games/trash-toss/cpu.js');
+const entry = require.resolve('../../js/games/trash-toss/cpu.js');
 class Worker {
     constructor() {
         this.thread = new Thread(`
             const {parentPort}=require('node:worker_threads');
-            global.importScripts=()=>{ global.TrashTossRules=require(${JSON.stringify(require.resolve('../js/games/trash-toss-rules.js'))}); };
+            global.importScripts=()=>{ global.TrashTossRules=require(${JSON.stringify(require.resolve('../../js/games/trash-toss/rules.js'))}); };
             global.postMessage=data=>parentPort.postMessage(data);
             require(${JSON.stringify(entry)});
             parentPort.on('message',data=>global.onmessage({data}));

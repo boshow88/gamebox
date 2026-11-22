@@ -1,10 +1,10 @@
 /* Actual launcher/arcade/controller checks; never contacts production Firebase. */
-// node tools/trash-toss-records-browser-check.js /usr/bin/google-chrome
+// node tools/trash-toss/records-browser-check.js /usr/bin/google-chrome
 'use strict';
-const fixtures = require('./helpers/birthday-browser-fixtures.js');
+const fixtures = require('../helpers/birthday-browser-fixtures.js');
 fixtures.fixedClock = '';
 fixtures.accountStub = "window.ArcadeNet={ok:false};dispatchEvent(new CustomEvent('arcade-net-ready'));";
-fixtures.transformSource = (file, body) => file.endsWith(require('node:path').join('js', 'games', 'trash-toss.js'))
+fixtures.transformSource = (file, body) => file.endsWith(require('node:path').join('js', 'games', 'trash-toss', 'game.js'))
     ? body.toString().replace('    reset(); render();', '    window.__ttRecordsTest={shell}; reset(); render();') : body;
 fixtures.runner = `<!doctype html><meta charset="utf-8"><pre id="result">RUNNING</pre><script>
 (async()=>{
@@ -57,4 +57,4 @@ fixtures.runner = `<!doctype html><meta charset="utf-8"><pre id="result">RUNNING
  document.getElementById('result').textContent='PASS: '+rowsChecked+' localized CPU high-score rows, no automatic record migration/deletion, five-mode save policy, best HUD visibility, cloud sync gating and default score recording for other games.';
 })().catch(error=>document.getElementById('result').textContent='FAIL: '+error.stack);
 </script>`;
-require('./birthday-browser-check.js');
+require('../birthday-browser-check.js');

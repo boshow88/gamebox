@@ -691,18 +691,18 @@ Existing development/test records are managed manually outside the game.
 Launcher sorting keeps coloured cards in hue order and groups neutral colours
 (HSV saturation below 12%) at the end, so gray cards do not interrupt the spectrum.
 
-- `js/games/trash-toss-rules.js`: DOM-free browser/CommonJS module owning world
+- `js/games/trash-toss/rules.js`: DOM-free browser/CommonJS module owning world
   geometry, seeded round conditions, object properties, fixed-step flight,
   collisions, synthetic CPU controls and immutable match settlement.
-- `js/games/trash-toss-cpu.js`: lazy classic Worker entry and planning client.
+- `js/games/trash-toss/cpu.js`: lazy classic Worker entry and planning client.
   It runs the same deterministic CPU search off the main thread. If workers
   cannot load, the search generator yields between batches of at most eight
   candidates / approximately 4 ms. Turn changes cancel obsolete searches.
-- `js/games/trash-toss-view.js`: Canvas 2D artwork. It consumes the rules' world
+- `js/games/trash-toss/view.js`: Canvas 2D artwork. It consumes the rules' world
   coordinates and obstacle bounds; it never decides collisions or scores.
-- `js/games/trash-toss.js`: staged configuration, shell lifecycle, keyboard/
+- `js/games/trash-toss/game.js`: staged configuration, shell lifecycle, keyboard/
   captured pointer input (including continuous ±32°/s angle-button holds), turn presentation, practice feedback and HUD.
-- `js/games/trash-toss-qa.js`: optional numeric lab, controlled wind comparisons,
+- `js/games/trash-toss/qa.js`: optional numeric lab, controlled wind comparisons,
   no-wind reference trace, live diagnostics and a ten-experiment table.
 
 Angles are 15–80 degrees. Charge uses a triangle wave, 0–100–0, with 1.3 seconds
@@ -747,7 +747,7 @@ text/blit calls fell from 19,440 to 12,360 for the sampled scene. These measure
 render workload in a desktop browser with mobile dimensions, not iPhone power
 consumption, Safari performance or temperature. Physical-device thermal checks
 remain necessary.
-See [the subsequent 2026-11-17 measurements](TRASH-TOSS-PERFORMANCE.md) for current
+See [the subsequent 2026-11-17 measurements](trash-toss/PERFORMANCE.md) for current
 results, historical 30/60 FPS comparisons, image equivalence checks and reproducible tools.
 
 Gravity and launch speeds are increased together for roughly 1.6x faster flight
@@ -876,8 +876,8 @@ Only CPU bests count the local human's five regulation rounds and use
 Older CPU buckets consolidate by maximum score; other Trash Toss modes do not
 save records. Generic bests are personal records, not a public leaderboard.
 Online matches use the existing shared RTDB service and lobby:
-`trash-toss-room.js` owns DOM-free room policy, accepted turn inputs and replay;
-`trash-toss-online.js` owns lazy room setup, auth, lobby presentation and polling.
+`js/games/trash-toss/room.js` owns DOM-free room policy, accepted turn inputs and replay;
+`js/games/trash-toss/online.js` owns lazy room setup, auth, lobby presentation and polling.
 Network inputs reserve a shared launch about 400 ms in the future so peers have
 time to receive the event before flight begins. During both `sending` and `launch`
 presentation phases controls are locked and the object stays at the hand while
@@ -902,7 +902,7 @@ opens scene selection; the guest readies and the host starts. Player-facing text
 uses Room. Transient submit/watch/poll failures remain inline, connection recovery
 does not reset a match, and a removed room explicitly offers create/join recovery.
 The existing 15-second presence grace remains; result reasons distinguish leaving
-from presence expiry. See [the room fixes](TRASH-TOSS-ROOM-FIXES.md) for regression
+from presence expiry. See [the room fixes](trash-toss/ROOM-FIXES.md) for regression
 coverage and the unchanged scene-dependent range calculation.
 See [ROOMS.md](ROOMS.md#trash-toss-rooms) for protocol and deployment requirements. Checks live in [DEBUG.md](DEBUG.md#trash-toss-checks).
 

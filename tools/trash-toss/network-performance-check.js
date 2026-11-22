@@ -1,10 +1,10 @@
 // Differential replay check and operation counts against the pre-optimization policy.
-// node tools/trash-toss-network-performance-check.js [--output=/tmp/trash-network.json]
+// node tools/trash-toss/network-performance-check.js [--output=/tmp/trash-network.json]
 'use strict';
 const fs = require('node:fs'), vm = require('node:vm'), assert = require('node:assert/strict');
 const path = require('node:path'), { execFileSync } = require('node:child_process');
-const root = path.resolve(__dirname, '..'), R = require('../js/games/trash-toss-rules.js');
-const source = fs.readFileSync(path.join(root,'js/games/trash-toss-room.js'),'utf8');
+const root = path.resolve(__dirname, '../..'), R = require('../../js/games/trash-toss/rules.js');
+const source = fs.readFileSync(path.join(root,'js/games/trash-toss/room.js'),'utf8');
 const reference = execFileSync('git',['show','7f094e8:js/games/trash-toss-room.js'],{cwd:root,encoding:'utf8'});
 function load(text) {
     const context={module:{exports:{}},require:()=>R}; vm.runInNewContext(text,context); return context.module.exports;

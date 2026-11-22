@@ -1,6 +1,6 @@
 /* Real pages/lobbies/controller over the shared room service with an in-memory store.
  * Start a static server on 8000 and Chrome with --remote-debugging-port=9377 first.
- * node tools/trash-toss-online-browser-check.js [CDP port] [HTTP origin]
+ * node tools/trash-toss/online-browser-check.js [CDP port] [HTTP origin]
  */
 'use strict';
 const assert = require('node:assert/strict');

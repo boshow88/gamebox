@@ -1,11 +1,11 @@
 /* Two real room clients over the native RTDB fixture, with real Trash Toss physics. */
 'use strict';
 const assert = require('node:assert/strict');
-const R = require('../js/games/trash-toss-rules.js');
-const Room = require('../js/games/trash-toss-room.js');
+const R = require('../../js/games/trash-toss/rules.js');
+const Room = require('../../js/games/trash-toss/room.js');
 (async () => {
-    const modules = Object.assign({}, await import('../js/net/rooms.mjs'), await import('../js/net/rtdb-rooms.mjs'), await import('../js/net/rtdb-values.mjs'));
-    const db = require('./helpers/rtdb-fixtures.js').realtimeGameBackend(modules);
+    const modules = Object.assign({}, await import('../../js/net/rooms.mjs'), await import('../../js/net/rtdb-rooms.mjs'), await import('../../js/net/rtdb-values.mjs'));
+    const db = require('../helpers/rtdb-fixtures.js').realtimeGameBackend(modules);
     let clock = 1000, serial = 0;
     const errors = [];
     function make() {

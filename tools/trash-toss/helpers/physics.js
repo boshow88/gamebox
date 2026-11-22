@@ -1,6 +1,6 @@
 // Find real, clean baskets using the angle steps and 60 Hz charge values available to players.
 'use strict';
-const R = require('../../js/games/trash-toss-rules.js');
+const R = require('../../../js/games/trash-toss/rules.js');
 function findCleanThrows(scene, options = {}) {
     const targets = scene.bins.filter(bin => !options.targets || options.targets.includes(bin.id));
     const missing = new Set(targets.map(bin => bin.id)), found = {};

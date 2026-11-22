@@ -1,15 +1,15 @@
 // Compare cached artwork with direct vector rendering in a real Canvas browser.
-// node tools/trash-toss-render-browser-check.js /usr/bin/google-chrome
+// node tools/trash-toss/render-browser-check.js /usr/bin/google-chrome
 'use strict';
-const fixtures = require('./helpers/birthday-browser-fixtures.js');
+const fixtures = require('../helpers/birthday-browser-fixtures.js');
 fixtures.fixedClock = '';
 fixtures.accountStub = `window.ArcadeNet={ok:false}; dispatchEvent(new CustomEvent('arcade-net-ready'));`;
-fixtures.transformSource = (file, body) => file.endsWith(require('node:path').join('js','games','trash-toss.js'))
+fixtures.transformSource = (file, body) => file.endsWith(require('node:path').join('js','games','trash-toss','game.js'))
     ? body.toString().replace('    reset(); render();', '    window.__ttTestState=()=>({phase,time:worldTime,seed:match.seed,age:ball&&ball.age}); reset(); render();') : body;
 fixtures.runner = `<!doctype html><meta charset="utf-8"><pre id="result">RUNNING</pre>
-<script src="/js/games/trash-toss-rules.js"></script><script>
+<script src="/js/games/trash-toss/rules.js"></script><script>
 (async()=>{
- const source=await(await fetch('/js/games/trash-toss-view.js')).text(), R=TrashTossRules;
+ const source=await(await fetch('/js/games/trash-toss/view.js')).text(), R=TrashTossRules;
  const make=(cached,code=source)=>{
   const parent=document.createElement('div');parent.style.width='351px';
   const canvas=document.createElement('canvas');parent.append(canvas);document.body.append(parent);
@@ -136,4 +136,4 @@ fixtures.runner = `<!doctype html><meta charset="utf-8"><pre id="result">RUNNING
  document.getElementById('result').textContent='PASS: '+checks+' real-canvas comparisons, '+rimChecks+' rim occlusion checks and '+facingChecks+' actor reflection checks across five scenes, all 50 resting item sprites, cache reuse/invalidation, players/poses, panning and QA resize; max pixel MAE='+maxMae.toFixed(3)+', pixels differing >32='+(maxDifferent*100).toFixed(2)+'%; real CPU worker with responsive main thread, charge/flight, retired FPS preference removal, mobile layout and stable frame dimensions across scene switches at phone/desktop widths';
 })().catch(error=>document.getElementById('result').textContent='FAIL: '+error.stack);
 </script>`;
-require('./birthday-browser-check.js');
+require('../birthday-browser-check.js');

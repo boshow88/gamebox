@@ -2,7 +2,7 @@
 (function (root) {
     'use strict';
     if (typeof importScripts === 'function') {
-        importScripts('trash-toss-rules.js');
+        importScripts('rules.js');
         root.onmessage = event => {
             const { id, args } = event.data;
             root.postMessage({ id, plan: root.TrashTossRules.cpuPlan(...args) });

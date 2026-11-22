@@ -1,9 +1,9 @@
 // Local real-canvas benchmark. Test-only instrumentation; no Firebase or shipping hooks.
-// node tools/trash-toss-performance-check.js [--revision=7f094e8] [--output=/tmp/report.json]
+// node tools/trash-toss/performance-check.js [--revision=7f094e8] [--output=/tmp/report.json]
 'use strict';
 const fs = require('node:fs'), path = require('node:path'), os = require('node:os'), http = require('node:http');
 const { spawn, execFileSync } = require('node:child_process');
-const root = path.resolve(__dirname, '..'), args = process.argv.slice(2);
+const root = path.resolve(__dirname, '../..'), args = process.argv.slice(2);
 const option = (name, fallback) => args.find(arg => arg.startsWith('--' + name + '='))?.split('=').slice(1).join('=') || fallback;
 const baseline = option('baseline', ''), output = option('output', '/tmp/trash-toss-performance.json');
 const revision = option('revision', '');
@@ -21,15 +21,28 @@ const savedSetItem=Storage.prototype.setItem;
 Storage.prototype.setItem=function(...args){__ttPerf.events.storageWrites=(__ttPerf.events.storageWrites||0)+1;return savedSetItem.apply(this,args);};
 addEventListener('DOMContentLoaded', () => new MutationObserver(records => __ttPerf.mutations+=records.length).observe(document.querySelector('.tt-hud').parentElement,{subtree:true,attributes:true,childList:true,characterData:true}));
 </script>`;
-function instrument(file, body) {
-    if (file.endsWith('trash-toss.html')) return body.replace('<head>', '<head>' + boot);
-    if (file.endsWith('trash-toss-rules.js')) return body + `\nif(typeof __ttPerf!=='undefined') for(const name of ['obstacles','advance','advanceCleaning','binContents','cpuPlan']) TrashTossRules[name]=__ttPerf.wrap(name,TrashTossRules[name]);`;
-    if (file.endsWith('trash-toss-room.js')) return body + `\nTrashTossRoom.project=__ttPerf.wrap('project',TrashTossRoom.project);`;
-    if (file.endsWith('trash-toss-view.js')) return body.replace('const width = track(model);', `const width = track(model);
+// Revisions and --baseline checkouts before the js/games/trash-toss/ move use these paths.
+const legacyPaths = {
+    'js/games/trash-toss/game.js': 'js/games/trash-toss.js', 'js/games/trash-toss/rules.js': 'js/games/trash-toss-rules.js',
+    'js/games/trash-toss/view.js': 'js/games/trash-toss-view.js', 'js/games/trash-toss/room.js': 'js/games/trash-toss-room.js',
+    'js/games/trash-toss/online.js': 'js/games/trash-toss-online.js', 'js/games/trash-toss/cpu.js': 'js/games/trash-toss-cpu.js',
+    'js/games/trash-toss/qa.js': 'js/games/trash-toss-qa.js',
+};
+const currentPath = relative => Object.keys(legacyPaths).find(key => legacyPaths[key] === relative) || relative;
+function showAt(revision, relative) {
+    try { return execFileSync('git',['show',revision+':'+relative],{cwd:root,encoding:'utf8',stdio:['ignore','pipe','ignore']}); }
+    catch (error) { if (!legacyPaths[relative]) throw error; return execFileSync('git',['show',revision+':'+legacyPaths[relative]],{cwd:root,encoding:'utf8'}); }
+}
+function instrument(relative, body) {
+    const file = currentPath(relative);
+    if (file === 'games/trash-toss.html') return body.replace('<head>', '<head>' + boot);
+    if (file === 'js/games/trash-toss/rules.js') return body + `\nif(typeof __ttPerf!=='undefined') for(const name of ['obstacles','advance','advanceCleaning','binContents','cpuPlan']) TrashTossRules[name]=__ttPerf.wrap(name,TrashTossRules[name]);`;
+    if (file === 'js/games/trash-toss/room.js') return body + `\nTrashTossRoom.project=__ttPerf.wrap('project',TrashTossRoom.project);`;
+    if (file === 'js/games/trash-toss/view.js') return body.replace('const width = track(model);', `const width = track(model);
         if(model.ball) __ttPerf.motion.push({at:performance.now(),time:model.time,x:model.ball.x,cameraX,maxCamera:R.fieldWidth(model.scene)-width});`)
         .replace('fit(); return { fit, render',
         ['background','drawBackground','person','obstacle','bin','body','overview'].filter(name => body.includes('function '+name+'(')).map(name => `${name}=__ttPerf.wrap('${name}',${name});`).join('') + `render=__ttPerf.wrap('view',render); fit(); return { fit, render`);
-    if (file.endsWith('trash-toss.js')) return body.replace('onChange(data) {', `onChange(data) { __ttPerf.events.gameChanges=(__ttPerf.events.gameChanges||0)+1;`)
+    if (file === 'js/games/trash-toss/game.js') return body.replace('onChange(data) {', `onChange(data) { __ttPerf.events.gameChanges=(__ttPerf.events.gameChanges||0)+1;`)
         .replace('    shell = AC.shell.create', `    sync=__ttPerf.wrap('hud',sync); update=__ttPerf.wrap('update',update); render=__ttPerf.wrap('render',render);\n    shell = AC.shell.create`)
         .replace('    reset(); render();', `
     window.__ttPerf.setup = function(id, mode) {
@@ -47,16 +60,16 @@ function instrument(file, body) {
 (async () => {
     const server = http.createServer((req, res) => {
         const url = new URL(req.url, 'http://localhost'), file = path.resolve(root, '.' + url.pathname);
-        if (!file.startsWith(root + path.sep) || url.pathname.split('/').some(part => part.startsWith('.')) || !fs.existsSync(file) || !fs.statSync(file).isFile()) { res.writeHead(404).end(); return; }
+        const old = baseline && path.join(baseline, url.pathname), isFile = name => fs.existsSync(name) && fs.statSync(name).isFile();
+        if (!file.startsWith(root + path.sep) || url.pathname.split('/').some(part => part.startsWith('.')) || !(isFile(file) || old && isFile(old))) { res.writeHead(404).end(); return; }
         let body;
         if (url.pathname === '/js/net/net.js') body = `window.ArcadeNet={ok:false}; dispatchEvent(new CustomEvent('arcade-net-ready'));`;
         else {
-            const old = baseline && path.join(baseline, url.pathname);
             const relative = path.relative(root, file).split(path.sep).join('/');
-            const compareFile = ['js/games/trash-toss.js', 'js/games/trash-toss-view.js', 'js/games/trash-toss-rules.js', 'css/trash-toss.css'].includes(relative);
-            const comparedRoom = roomRevision && ['js/games/trash-toss-room.js','js/games/trash-toss-online.js'].includes(relative);
+            const compareFile = ['js/games/trash-toss/game.js', 'js/games/trash-toss/view.js', 'js/games/trash-toss/rules.js', 'css/trash-toss.css'].includes(relative);
+            const comparedRoom = roomRevision && ['js/games/trash-toss/room.js','js/games/trash-toss/online.js'].includes(relative);
             const selectedRevision = comparedRoom ? roomRevision : revision && compareFile ? revision : '';
-            body = instrument(file, selectedRevision ? execFileSync('git',['show',selectedRevision+':'+relative],{cwd:root,encoding:'utf8'}) : fs.readFileSync(old && fs.existsSync(old) ? old : file, 'utf8'));
+            body = instrument(relative, selectedRevision ? showAt(selectedRevision, relative) : fs.readFileSync(old && isFile(old) ? old : file, 'utf8'));
         }
         res.writeHead(200, {'Content-Type': file.endsWith('.html') ? 'text/html' : file.endsWith('.css') ? 'text/css' : 'text/javascript', 'Cache-Control':'no-store'}); res.end(body);
     });
@@ -79,7 +92,7 @@ function instrument(file, body) {
         const command=(method,params={})=>new Promise((resolve,reject)=>{const id=++serial;tasks.set(id,{resolve,reject});socket.send(JSON.stringify({id,method,params}));});
         const evaluate=async expression=>{const r=await command('Runtime.evaluate',{expression,awaitPromise:true,returnByValue:true});if(r.exceptionDetails)throw Error(r.exceptionDetails.exception?.description||r.exceptionDetails.text);return r.result.value;};
         if(args.includes('--online')) {
-            const child=spawn(process.execPath,[path.join(root,'tools/trash-toss-online-browser-check.js'),port,
+            const child=spawn(process.execPath,[path.join(root,'tools/trash-toss/online-browser-check.js'),port,
                 'http://127.0.0.1:'+server.address().port,'--perf','--throttle='+throttle,'--output='+output,
                 ...(!roomRevision?['--expect-optimized']:['--legacy-room-flow'])],{stdio:'inherit'});
             const code=await new Promise((resolve,reject)=>{child.once('error',reject);child.once('exit',resolve);});

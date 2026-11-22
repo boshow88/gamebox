@@ -836,7 +836,7 @@ again to prepare the same room and open scene selection directly. The guest
 readies again and the next start gets a fresh `matchId` and field. Player-facing
 Trash Toss text uses Room rather than Lobby.
 
-`trash-toss-room.js` is DOM-free; `trash-toss-online.js` uses the shared lobby,
+`js/games/trash-toss/room.js` is DOM-free; `js/games/trash-toss/online.js` uses the shared lobby,
 adds its scene selector, and rebuilds visible lobby UI only when displayed
 configuration/readiness/availability changes. Hidden lobby heartbeat snapshots
 do not rebuild DOM. Trash Toss scopes its room styles with `tt-room-lobby`:
@@ -889,7 +889,7 @@ shared service. Session detach invalidates old callbacks and page exit closes
 owned listeners. Online play cannot be paused/restarted via the offline shell.
 Transient watch/poll/throw errors show an inline message and permit reconnect or
 retry, without opening the create/join panel. A deleted room and permission errors
-open recovery with specific messages. See [the regression checks](TRASH-TOSS-ROOM-FIXES.md).
+open recovery with specific messages. See [the regression checks](trash-toss/ROOM-FIXES.md).
 
 **Deployment:** `database.rules.json` adds `trash_toss_rooms` to the existing
 RTDB collection allowlist. Publish this updated file in Firebase Console's
