@@ -1,8 +1,8 @@
 'use strict';
 const assert = require('node:assert/strict');
 const Recovery = require('../../js/games/impressions/recovery.js');
-const createRoom = require('../../js/games/impressions-room.js');
-const Match = require('../../js/games/impressions-match.js');
+const createRoom = require('../../js/games/impressions/room.js');
+const Match = require('../../js/games/impressions/match.js');
 const clone = value => structuredClone(value);
 function storage() { const values = new Map(); return { getItem: k => values.get(k) || null, setItem: (k, v) => values.set(k, v), values }; }
 function locks() {

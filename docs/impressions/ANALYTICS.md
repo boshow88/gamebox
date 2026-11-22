@@ -7,7 +7,7 @@ is in [README.md](README.md), and other diagnostics in [TESTING.md](TESTING.md).
 
 ## Capture contract
 
-`js/games/impressions-analytics.js` automatically observes accepted online snapshots
+`js/games/impressions/analytics.js` automatically observes accepted online snapshots
 for the current controller's frozen match, without `?playtest=1`. It caches
 question/timeline/receipt data by match and round, then pairs results by round,
 question ID and category. Previous `lastResult` and current `question` must not
@@ -105,9 +105,9 @@ identity. Read-only IAM suffices for export; deletion additionally needs delete
 permission. The tool always requires an explicit project.
 
 ```text
-npm ci --prefix tools/impressions-analytics
+npm ci --prefix tools/impressions/analytics
 gcloud auth application-default login
-node tools/impressions-analytics/export.cjs --project games-7e19b --out .cache/impressions-export --page-size 200
+node tools/impressions/analytics/export.cjs --project games-7e19b --out .cache/impressions-export --page-size 200
 ```
 
 Exports stream in cursor batches ordered by `createdAt` and document ID:
@@ -121,15 +121,15 @@ explicitly confirm deletion of this collection only:
 
 ```powershell
 $analyticsCutoff = (Get-Date).AddDays(-90).ToUniversalTime().ToString('o')
-node tools/impressions-analytics/export.cjs --project games-7e19b --delete-before $analyticsCutoff
-node tools/impressions-analytics/export.cjs --project games-7e19b --delete-before $analyticsCutoff --confirm-delete
+node tools/impressions/analytics/export.cjs --project games-7e19b --delete-before $analyticsCutoff
+node tools/impressions/analytics/export.cjs --project games-7e19b --delete-before $analyticsCutoff --confirm-delete
 ```
 
 ## Offline analysis
 
 ```text
-node tools/impressions-analytics/analyze.cjs --input .cache/impressions-export/matches.ndjson
-node tools/impressions-analytics/analyze.cjs --input .cache/impressions-export/matches.ndjson --rescore tools/impressions-analytics/candidate.example.json --rescored .cache/impressions-rescored.ndjson
+node tools/impressions/analytics/analyze.cjs --input .cache/impressions-export/matches.ndjson
+node tools/impressions/analytics/analyze.cjs --input .cache/impressions-export/matches.ndjson --rescore tools/impressions/analytics/candidate.example.json --rescored .cache/impressions-rescored.ndjson
 ```
 
 Reports group category/variant, human/CPU and CPU difficulty, missing rates,
@@ -146,9 +146,9 @@ survivorship/connection bias and cannot measure all abandoned matches.
 ## Tests and deployment
 
 ```text
-node tools/impressions-analytics-check.js
-node tools/impressions-analytics-tools-check.js
-firebase emulators:exec --config firebase.json --only firestore --project demo-gamebox "node tools/impressions-analytics-emulator-checks.cjs"
+node tools/impressions/analytics-check.js
+node tools/impressions/analytics-tools-check.js
+firebase emulators:exec --config firebase.json --only firestore --project demo-gamebox "node tools/impressions/analytics-emulator-checks.cjs"
 ```
 
 The emulator needs Java/Firebase CLI and the local npm dependencies above.

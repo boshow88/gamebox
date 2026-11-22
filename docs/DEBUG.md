@@ -36,9 +36,9 @@ calibration pages, human playtest collection and real-Firebase room checks.
 For a quick core pass:
 
 ```text
-node tools/impressions-check.js
-node tools/impressions-room-check.js
-node tools/impressions-analytics-check.js
+node tools/impressions/color-check.js
+node tools/impressions/room-check.js
+node tools/impressions/analytics-check.js
 ```
 
 [Analytics operations](impressions/ANALYTICS.md#tests-and-deployment) owns the demo
@@ -78,14 +78,14 @@ offsets, pending/invalid calibration, clock jumps/disconnects during a pass, new
 heartbeats between scanning and deletion, collection isolation and unchanged
 60-second/20-room budgets. Entry checks execute Darts' actual async initialization
 with delayed Auth and hanging/throwing/rejected cleanup; Impressions's
-`impressions-online-browser-check.js --recovery` also checks recovery-before-cleanup
+`tools/impressions/online-browser-check.js --recovery` also checks recovery-before-cleanup
 and nonblocking failure behavior.
 
 Run the actual database/rule/transaction checks against a loopback demo emulator:
 
 ```text
 firebase emulators:exec --project demo-gamebox --only database "node tools/room-cleanup-emulator-check.mjs"
-firebase emulators:exec --project demo-gamebox --only database "node tools/impressions-rtdb-rules-check.mjs"
+firebase emulators:exec --project demo-gamebox --only database "node tools/impressions/rtdb-rules-check.mjs"
 ```
 
 These scripts reuse the existing rules-test packages under `.cache/feedback-tests`

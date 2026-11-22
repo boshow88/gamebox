@@ -50,19 +50,19 @@ stage ranges in [player rules](../rules.md#quantity-memory).
 
 ## Implementation ownership
 
-| Files under `js/games/` | Responsibility |
+| Files under `js/games/impressions/` | Responsibility |
 |---|---|
-| `impressions.js`, `impressions-online.js` | Local view/state, online snapshot coordination and room UI |
-| `impressions-match.js`, `impressions-rules.js` | Pure versioned match reducer, deadlines, fixed-point HP/damage |
-| `impressions-room.js` | Host/Ready/ownership policies over shared `js/net/rooms.mjs` and RTDB adapter |
-| `impressions-categories.js` | Shared category validation, grading and configuration dispatch |
-| `impressions-challenge.js`, `impressions-progression.js` | Current seeded challenge policy and retained legacy adaptation/selection |
-| `impressions-color.js`, `impressions-color-single.js`, `impressions-color-variants.js` | Oklab/scoring, current RGB8 questions, retained HSL/Hue variants |
-| `impressions-quantity*.js`, `impressions-dots.js` | Count questions/scoring, exact-count stages, groups and rendering |
-| `impressions-pitch*.js`, `impressions-audio*.js` | Melody questions/scoring/controls, playback and audio readiness |
-| `impressions-cpu.js` | Seeded CPU answers/delays; never awards scores or changes HP |
-| `impressions-results.js`, `impressions-results-view.js` | Completed-round capture, rankings, presentation and review |
-| `impressions-playtest.js`, `impressions-analytics.js` | Separate opt-in local diagnostics and automatic best-effort analytics |
+| `game.js`, `online.js` | Local view/state, online snapshot coordination and room UI |
+| `match.js`, `rules.js` | Pure versioned match reducer, deadlines, fixed-point HP/damage |
+| `room.js`, `recovery.js` | Host/Ready/ownership policies over shared `js/net/rooms.mjs` and RTDB adapter |
+| `categories.js` | Shared category validation, grading and configuration dispatch |
+| `challenge.js`, `progression.js` | Current seeded challenge policy and retained legacy adaptation/selection |
+| `color.js`, `color-single.js`, `color-variants.js`, `color-view.js` | Oklab/scoring, current RGB8 questions, retained HSL/Hue variants |
+| `quantity*.js`, `dots.js` | Count questions/scoring, exact-count stages, groups and rendering |
+| `pitch*.js`, `audio*.js`, `wheel.js` | Melody questions/scoring/controls, playback and audio readiness |
+| `cpu.js` | Seeded CPU answers/delays; never awards scores or changes HP |
+| `results.js`, `results-view.js` | Completed-round capture, rankings, presentation and review |
+| `playtest.js`, `analytics.js` | Separate opt-in local diagnostics and automatic best-effort analytics |
 
 Pure modules work in CommonJS tests and the browser. Reuse them in tools;
 do not duplicate grading or settlement formulas. New gameplay changes must
@@ -113,9 +113,9 @@ leaders take zero damage; attacks do not stack. Default round multipliers are
 ## Same-tab recovery
 
 `js/games/impressions/recovery.js` owns the browser session location/identity;
-`impressions-online.js` awaits shared lazy `rooms.ready()` initialization and Firebase
+`js/games/impressions/online.js` awaits shared lazy `rooms.ready()` initialization and Firebase
 Auth restoration before using it, and
-`impressions-room.js` resumes membership transactionally. The sessionStorage key
+`js/games/impressions/room.js` resumes membership transactionally. The sessionStorage key
 `gamebox:memory:recovery:v1` stores only `{version, uid, sessionId, room}`. The UID
 binds the random controller suffix to the restored account; it is not a credential.
 No tokens, questions, snapshots, answers, CPU plans or audio confirmation are

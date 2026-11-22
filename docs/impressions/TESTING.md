@@ -7,18 +7,18 @@ counts, screenshots and synthetic score tables are not maintained here.
 
 ## Core checks
 
-| Area | Node scripts under `tools/` |
+| Area | Node scripts |
 |---|---|
-| Scoring/Color | `impressions-check.js`, `impressions-v4-check.js`, `impressions-color-variants-check.js`, `impressions-color-map-check.js` |
-| Quantity | `impressions-quantity-check.js`, `impressions-quantity-groups-check.js`, `impressions-challenge-check.js` |
-| Pitch/audio | `impressions-pitch-check.js`, `impressions-pitch-variations-check.js`, `impressions-audio-check.js`, `impressions-pitch-initialization-check.js` |
-| Match/room/CPU | `impressions-room-check.js`, `impressions-cpu-check.js`, `impressions-progression-check.js`, `impressions/recovery-check.cjs` |
-| UX/results | `impressions-ux-check.js`, `impressions-flow-check.js`, `impressions-ranking-check.js`, `impressions-rematch-ux-check.js` |
-| Diagnostics/analytics | `impressions-playtest-check.js`, `impressions-focused-check.js`, `impressions-analytics-check.js`, `impressions-analytics-tools-check.js` |
+| Scoring/Color | `tools/impressions/color-check.js`, `tools/impressions/color-v4-check.js`, `tools/impressions/color-variants-check.js`, `tools/impressions/color-map-check.js` |
+| Quantity | `tools/impressions/quantity-check.js`, `tools/impressions/quantity-groups-check.js`, `tools/impressions/challenge-check.js` |
+| Pitch/audio | `tools/impressions/pitch-check.js`, `tools/impressions/pitch-variations-check.js`, `tools/impressions/audio-check.js`, `tools/impressions/pitch-initialization-check.js` |
+| Match/room/CPU | `tools/impressions/room-check.js`, `tools/impressions/cpu-check.js`, `tools/impressions/progression-check.js`, `tools/impressions/recovery-check.cjs` |
+| UX/results | `tools/impressions/ux-check.js`, `tools/impressions/flow-check.js`, `tools/impressions/ranking-check.js`, `tools/impressions/rematch-ux-check.js` |
+| Diagnostics/analytics | `tools/impressions/playtest-check.js`, `tools/impressions/focused-check.js`, `tools/impressions/analytics-check.js`, `tools/impressions/analytics-tools-check.js` |
 
-For example: `node tools/impressions-check.js`. Add `--diagnostics` to supported
+For example: `node tools/impressions/color-check.js`. Add `--diagnostics` to supported
 scoring/variant checks for representative pairs, not human-performance evidence.
-Frozen regression data lives in `tools/fixtures/impressions-v*-frozen.json`.
+Frozen regression data lives in `tools/impressions/fixtures/v*-frozen.json`.
 
 ## Browser checks
 
@@ -28,15 +28,15 @@ The offline browser check also follows the old `games/memory.html` bookmark and
 verifies that query/fragment context survives the redirect to Impressions.
 
 ```text
-node tools/impressions-browser-check.js
-node tools/impressions-online-browser-check.js
-node tools/impressions-online-browser-check.js --flow --screenshots
-node tools/impressions-online-browser-check.js --ranking --screenshots
-node tools/impressions-online-browser-check.js --rematch --screenshots
-node tools/impressions-online-browser-check.js --analytics
-node tools/impressions-online-browser-check.js --analytics --disable-recorder
-node tools/impressions-online-browser-check.js --analytics --throw-recorder
-node tools/impressions-online-browser-check.js --recovery --screenshots
+node tools/impressions/browser-check.js
+node tools/impressions/online-browser-check.js
+node tools/impressions/online-browser-check.js --flow --screenshots
+node tools/impressions/online-browser-check.js --ranking --screenshots
+node tools/impressions/online-browser-check.js --rematch --screenshots
+node tools/impressions/online-browser-check.js --analytics
+node tools/impressions/online-browser-check.js --analytics --disable-recorder
+node tools/impressions/online-browser-check.js --analytics --throw-recorder
+node tools/impressions/online-browser-check.js --recovery --screenshots
 ```
 
 Other focused online modes: `--groups`, `--color-variants`, `--pitch`, `--mixed`,
@@ -67,7 +67,7 @@ connection disconnection. Existing frozen scoring/CPU/match suites must also pas
 For a real environment smoke test, explicitly run:
 
 ```text
-node tools/impressions-live-smoke.js --live --recovery
+node tools/impressions/live-smoke.js --live --recovery
 ```
 
 This serves local assets, uses two isolated real anonymous Auth/RTDB contexts,
@@ -83,17 +83,17 @@ the site. Physical phone/browser suspension behavior still needs human testing.
 Open directly or through the normal static server; these tools need no Firebase.
 They reuse game modules and do not change production settings.
 
-| Page under `tools/` | Purpose |
+| Page | Purpose |
 |---|---|
-| `impressions-color-map.html` | Same-target/scale V1–V4 curves, real-score contours, Oklab slices, gamut omissions and RGB8 pair samples |
-| `impressions-scoring.html` | Color pair diagnostics |
-| `impressions-color-variants.html` | Retained HSL/Hue variants |
-| `impressions-quantity-groups.html` | Shape/pool geometry and count-error comparison |
-| `impressions-pitch-variations.html` | References, contours and playback |
-| `impressions-pitch-initialization.html` | Initial-frequency experiment; production stays 440 Hz |
-| `impressions-difficulty.html` | Seeded challenge/stage settings and retained legacy adaptation |
-| `impressions-cpu.html` | CPU profile/model diagnostics and synthetic samples |
-| `impressions-playtest.html` | Import and summarize opt-in playtest JSON |
+| `tools/impressions/color-map.html` | Same-target/scale V1–V4 curves, real-score contours, Oklab slices, gamut omissions and RGB8 pair samples |
+| `tools/impressions/scoring.html` | Color pair diagnostics |
+| `tools/impressions/color-variants.html` | Retained HSL/Hue variants |
+| `tools/impressions/quantity-groups.html` | Shape/pool geometry and count-error comparison |
+| `tools/impressions/pitch-variations.html` | References, contours and playback |
+| `tools/impressions/pitch-initialization.html` | Initial-frequency experiment; production stays 440 Hz |
+| `tools/impressions/difficulty.html` | Seeded challenge/stage settings and retained legacy adaptation |
+| `tools/impressions/cpu.html` | CPU profile/model diagnostics and synthetic samples |
+| `tools/impressions/playtest.html` | Import and summarize opt-in playtest JSON |
 
 Color contour radii use the real continuous scorer's inverse search; gamut-invalid
 colors are not silently clipped. Equal-distance contours in fixed-L Oklab are
@@ -112,7 +112,7 @@ synthetic data, never evidence of human performance or grounds for auto-tuning.
 4. Export JSON/CSV regularly; the developer recorder is page memory only, with a
    2,000-question limit. Refresh/close loses unexported data. It is distinct from
    the automatic Firestore recorder and has a different export format.
-5. Import JSON into `tools/impressions-playtest.html`. Human summaries exclude CPU and
+5. Import JSON into `tools/impressions/playtest.html`. Human summaries exclude CPU and
    declared synthetic/automated data by default. Compare category/variant errors,
    scores, answer timing, missing rates, within-round spreads, damage and stages.
 
@@ -127,9 +127,9 @@ average score alone does not establish unfair damage: compare score gaps too.
 Localhost can connect to real Auth/RTDB without a website push. Explicitly run:
 
 ```text
-node tools/impressions-live-smoke.js --live --rematch
-node tools/impressions-live-smoke.js --live --flow
-node tools/impressions-live-smoke.js --live --ranking
+node tools/impressions/live-smoke.js --live --rematch
+node tools/impressions/live-smoke.js --live --flow
+node tools/impressions/live-smoke.js --live --ranking
 ```
 
 Other live modes include `--connect-only`, `--pitch`, `--focused --playtest`,
@@ -140,7 +140,7 @@ No production analytics test write is part of these room smoke tests.
 
 For Firestore analytics Rules/export tests use the **demo loopback emulator**
 commands in [ANALYTICS.md](ANALYTICS.md#tests-and-deployment). Existing
-`tools/impressions-rtdb-rules-check.mjs` tests the separate RTDB policy; its emulator
+`tools/impressions/rtdb-rules-check.mjs` tests the separate RTDB policy; its emulator
 setup follows the shared [room checks](../DEBUG.md#room-checks).
 
 Report fixtures, emulator, real Firebase, deployed website and physical-device
