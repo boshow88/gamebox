@@ -1,11 +1,11 @@
-/** node tools/darts-room-check.js — persistent Darts rooms on the real RTDB adapter. */
+/** node tools/darts/room-check.js — persistent Darts rooms on the real RTDB adapter. */
 'use strict';
 const assert = require('node:assert/strict');
-const R = require('../js/games/darts-rules.js');
-const createRoom = require('../js/games/darts-room.js');
+const R = require('../../js/games/darts/rules.js');
+const createRoom = require('../../js/games/darts/room.js');
 (async () => {
-    const modules = Object.assign({}, await import('../js/net/rooms.mjs'), await import('../js/net/rtdb-rooms.mjs'), await import('../js/net/rtdb-values.mjs'));
-    const db = require('./helpers/rtdb-fixtures.js').realtimeGameBackend(modules);
+    const modules = Object.assign({}, await import('../../js/net/rooms.mjs'), await import('../../js/net/rtdb-rooms.mjs'), await import('../../js/net/rtdb-values.mjs'));
+    const db = require('../helpers/rtdb-fixtures.js').realtimeGameBackend(modules);
     let clock = 1000, session = 0;
     const errors = [], clients = {};
     function make(displayName) {

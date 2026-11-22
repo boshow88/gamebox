@@ -1,5 +1,5 @@
 /* Darts — deterministic throwing physics with separate rules and shared RTDB rooms.
- * Rules live in darts-rules.js; room policy lives in darts-room.js.
+ * Rules live in rules.js; room policy lives in room.js.
  *
  * The gesture is RELATIVE. The press point is the virtual hand origin (0,0,0); only the
  * subsequent motion matters, so an identical flick started anywhere on the screen throws

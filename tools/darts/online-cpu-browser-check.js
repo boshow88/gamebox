@@ -6,9 +6,9 @@ const http = require('node:http');
 const os = require('node:os');
 const path = require('node:path');
 const { spawn } = require('node:child_process');
-const root = path.resolve(__dirname, '..'), pause = ms => new Promise(resolve => setTimeout(resolve, ms));
-const backend = require('./helpers/network-rtdb-fixture.js')();
-const Rules = require('../js/games/darts-rules.js');
+const root = path.resolve(__dirname, '../..'), pause = ms => new Promise(resolve => setTimeout(resolve, ms));
+const backend = require('../helpers/network-rtdb-fixture.js')();
+const Rules = require('../../js/games/darts/rules.js');
 const auth = `export const getAuth=()=>({}), onAuthStateChanged=(_auth,cb)=>queueMicrotask(()=>cb({uid:'same-account',displayName:'Player',isAnonymous:true}));
 export class GoogleAuthProvider {} export const signInAnonymously=async()=>{},signOut=async()=>{},signInWithPopup=async()=>{};`;
 const firestore = `export const getFirestore=()=>({}),doc=(_db,...parts)=>parts.join('/'),getDoc=async()=>({exists:()=>false}),getDocs=async()=>({docs:[]}),setDoc=async()=>{},updateDoc=async()=>{},deleteDoc=async()=>{},serverTimestamp=()=>Date.now(),deleteField=()=>null,collection=()=>'',query=()=>'',orderBy=()=>'',limit=n=>n;`;
@@ -47,7 +47,7 @@ class Protocol {
     }
 }
 (async () => {
-    const codec = await import('../js/net/rtdb-values.mjs');
+    const codec = await import('../../js/net/rtdb-values.mjs');
     const server = http.createServer(async (request, response) => {
         try {
             const url = new URL(request.url, 'http://localhost');
@@ -63,8 +63,8 @@ class Protocol {
                 body = fs.readFileSync(file, 'utf8');
                 if (file.endsWith('firebase-config.js')) body += '\nwindow.FIREBASE_ROOMS={databaseURL:"https://fixture.firebaseio.com"};';
                 if (file.endsWith('net.js')) body = body.replace('const BASE = `https://www.gstatic.com/firebasejs/${SDK}`;', "const BASE=location.origin+'/__sdk';");
-                if (file.endsWith('darts.js')) body = instrument(body);
-                if (file.endsWith('darts-cpu-strategy.js')) body += '\nconst choose=window.DartsCpuStrategy.choose;window.DartsCpuStrategy.choose=(...args)=>{window.__cpuChoices=(window.__cpuChoices||0)+1;return choose(...args);};';
+                if (file.endsWith(path.join('darts', 'game.js'))) body = instrument(body);
+                if (file.endsWith(path.join('darts', 'cpu-strategy.js'))) body += '\nconst choose=window.DartsCpuStrategy.choose;window.DartsCpuStrategy.choose=(...args)=>{window.__cpuChoices=(window.__cpuChoices||0)+1;return choose(...args);};';
                 if (file.endsWith('.html')) {
                     type = 'text/html'; body = body.replace('<head>', '<head><script>window.__cpuAutoBlocked=true;window.__clock=100000;Date.now=()=>window.__clock;window.__pageErrors=[];addEventListener("error",e=>__pageErrors.push(e.message));addEventListener("unhandledrejection",e=>__pageErrors.push(String(e.reason)));</script>');
                 } else if (file.endsWith('.css')) type = 'text/css';

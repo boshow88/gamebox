@@ -1,7 +1,7 @@
 /* Persistent Darts rooms: connections use the shared service; participants own seats. */
 (function (root, factory) {
     'use strict';
-    if (typeof module === 'object' && module.exports) module.exports = factory(require('./darts-rules.js'), require('./darts-opening.js'), require('./darts-cpu-difficulty.js'));
+    if (typeof module === 'object' && module.exports) module.exports = factory(require('./rules.js'), require('./opening.js'), require('./cpu-difficulty.js'));
     else root.createDartsRoom = factory(root.DartsRules, root.DartsOpening, root.DartsCpuDifficulty);
 })(typeof window === 'object' ? window : globalThis, function (Rules, Opening, Difficulty) {
     'use strict';

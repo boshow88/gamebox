@@ -1,14 +1,14 @@
 /* CPU intent -> synthetic logical pointer samples. Human analysis and physics stay authoritative. */
 (function (root, factory) {
     'use strict';
-    var api = factory(typeof module === 'object' && module.exports ? require('./darts-cpu-difficulty.js') : root.DartsCpuDifficulty);
+    var api = factory(typeof module === 'object' && module.exports ? require('./cpu-difficulty.js') : root.DartsCpuDifficulty);
     if (typeof module === 'object' && module.exports) module.exports = api;
     else root.DartsCpuGesture = api;
 })(typeof window === 'object' ? window : globalThis, function (Difficulty) {
     'use strict';
     // Velocity is raw logical px/s; timing is relative duration deviation and shape
     // changes the acceleration exponent. Rare lapses have broad execution error.
-    // Ordinary 25/50 scoring calibration is reproducible in darts-cpu-physics-check.js.
+    // Ordinary 25/50 scoring calibration is reproducible in tools/darts/cpu-physics-check.js.
     var PROFILES = Object.assign({}, Difficulty.profiles);
     Object.keys(Difficulty.legacy).forEach(function (key) { PROFILES[key] = PROFILES[Difficulty.legacy[key]]; });
     Object.freeze(PROFILES);

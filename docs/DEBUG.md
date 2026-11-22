@@ -308,16 +308,16 @@ glasses and raised-bin contents/cleaning.
 ## Darts checks
 
 ```text
-node tools/darts-rules-check.js
-node tools/darts-room-check.js
-node tools/darts-feedback-check.js
-node tools/darts-opening-check.js
-node tools/darts-hud-check.js
-node tools/darts-cpu-physics-check.js
-node tools/darts-cpu-strategy-check.js
-node tools/darts-cpu-difficulty-check.js
-node tools/darts-cpu-calibrate.js
-node tools/darts-cpu-calibrate.js --all-levels
+node tools/darts/rules-check.js
+node tools/darts/room-check.js
+node tools/darts/feedback-check.js
+node tools/darts/opening-check.js
+node tools/darts/hud-check.js
+node tools/darts/cpu-physics-check.js
+node tools/darts/cpu-strategy-check.js
+node tools/darts/cpu-difficulty-check.js
+node tools/darts/cpu-calibrate.js
+node tools/darts/cpu-calibrate.js --all-levels
 node tools/rooms-browser-check.js --darts
 node tools/rooms-browser-check.js --darts-cpu
 node tools/rooms-browser-check.js --darts-opening
@@ -391,7 +391,7 @@ custom names on invitation creation, and sign-out clearing the name hint.
 
 The browser check loads real pages, physics, canvas, the unified lobby and modules
 with only Firebase SDK imports redirected to local fakes. Its V2 scenarios live
-in `tools/helpers/darts-browser-v2.js`, injected by the local server; game test
+in `tools/darts/helpers/browser-v2.js`, injected by the local server; game test
 hooks are never shipped in the production page. Scenarios cover immediate
 offline Practice/Count-Up without loading networking, mode minimums, promotion
 preserving local slots, two players per device, four remote controllers,
@@ -461,13 +461,13 @@ purpose including ties and final-impact holds. No test hook ships in the game.
 Optional `--darts-cpu --darts-mobile`, `--darts-cpu --darts-desktop` and
 `--darts-cpu --darts-lobby --darts-mobile` write ignored CPU screenshots in `.cache`.
 
-`node tools/darts-online-cpu-check.js` exercises device-owned CPU lobby edits,
+`node tools/darts/online-cpu-check.js` exercises device-owned CPU lobby edits,
 revision/Ready invalidation, locked participants, the real gesture/physics
 pipeline, all X01 starting scores and In/Out combinations, both Cricket variants,
 all Cork contexts with physical ties, competing controller attempts, queued
 deadline expiry, stale requests and host departure on the existing RTDB fixture.
 
-`node tools/darts-online-cpu-browser-check.js` uses separate Chrome browser
+`node tools/darts/online-cpu-browser-check.js` uses separate Chrome browser
 contexts (isolated storage) at mobile/desktop sizes. A local HTTP CAS fixture
 replaces only the Firebase SDK and shares room state between contexts, with
 delayed/repeated snapshots, delayed acknowledgements and connection controls.
@@ -490,7 +490,7 @@ The same actual samples are replayed through physics to compare human impacts.
 These cases also run in `--darts`. Add `--darts-mobile` or `--darts-desktop` to
 write ignored `.cache/darts-guide-mobile.png` or `darts-guide-desktop.png` previews.
 
-`node tools/darts-opening-check.js` covers the random starter's accepted selection,
+`node tools/darts/opening-check.js` covers the random starter's accepted selection,
 timestamp-derived draw/reveal, full first-turn deadline, reduced motion, lifecycle
 cleanup and Practice/solo/Cork exclusions. `--darts-opening` exercises the real
 browser UI at 320/390/1200px, early-input rejection, two-device agreement,

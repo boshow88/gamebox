@@ -1,8 +1,8 @@
-/** node tools/darts-feedback-check.js — accepted-event feedback and handoff checks. */
+/** node tools/darts/feedback-check.js — accepted-event feedback and handoff checks. */
 'use strict';
 const assert = require('node:assert/strict');
-const R = require('../js/games/darts-rules.js');
-const F = require('../js/games/darts-feedback.js');
+const R = require('../../js/games/darts/rules.js');
+const F = require('../../js/games/darts/feedback.js');
 const players = ['A', 'B', 'C', 'D'];
 const owners = { A: 'device1', B: 'device1', C: 'device2', D: 'device2' };
 const create = (mode = '501', ids = players, extra = {}) => Object.assign(R.create({ mode,

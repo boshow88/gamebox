@@ -1,7 +1,7 @@
 /* Execute Darts' actual async entry functions with delayed Auth and failed cleanup. */
 'use strict';
 const assert = require('node:assert/strict'), fs = require('node:fs'), vm = require('node:vm');
-const source = fs.readFileSync(require.resolve('../js/games/darts.js'), 'utf8');
+const source = fs.readFileSync(require.resolve('../js/games/darts/game.js'), 'utf8');
 const start = source.indexOf('    async function ensureOnline() {'), end = source.indexOf('    async function leaveRoom() {', start);
 assert(start > 0 && end > start);
 const entry = source.slice(start, end);

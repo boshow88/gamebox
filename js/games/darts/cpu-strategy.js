@@ -1,7 +1,7 @@
 /* CPU tactics select physical targets only. Throwing errors and results belong to the shared physics/rules. */
 (function (root, factory) {
     'use strict';
-    var strategy = factory(typeof module === 'object' && module.exports ? require('./darts-cpu-difficulty.js') : root.DartsCpuDifficulty);
+    var strategy = factory(typeof module === 'object' && module.exports ? require('./cpu-difficulty.js') : root.DartsCpuDifficulty);
     if (typeof module === 'object' && module.exports) module.exports = strategy;
     else root.DartsCpuStrategy = strategy;
 })(typeof window === 'object' ? window : globalThis, function (Difficulty) {

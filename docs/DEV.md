@@ -1028,13 +1028,13 @@ Update these maintained references instead of appending development-phase report
 ## Darts implementation
 
 The existing relative mouse/touch flick, release smoothing, ballistics and camera
-remain in `js/games/darts.js`. `darts-rules.js` owns canonical dartboard results,
-mode rules and immutable turn/leg/match transitions. `darts-room.js` supplies the
+remain in `js/games/darts/game.js`. `js/games/darts/rules.js` owns canonical dartboard results,
+mode rules and immutable turn/leg/match transitions. `js/games/darts/room.js` supplies the
 game policy for the existing `ArcadeNet.rooms` service and RTDB adapter.
-`darts-hud.js` maps shared state into player/turn/mode presentation data and renders
+`js/games/darts/hud.js` maps shared state into player/turn/mode presentation data and renders
 the components; responsive composition lives in `css/darts.css`.
-`darts-history.js` owns the accessible, scrollable player/all-player history dialog.
-`darts-lobby.js` presents the unified local/online room, participant editing,
+`js/games/darts/history.js` owns the accessible, scrollable player/all-player history dialog.
+`js/games/darts/lobby.js` presents the unified local/online room, participant editing,
 contextual configuration and per-controller Ready/Start actions.
 
 ### Room, participant and match lifetimes
@@ -1184,7 +1184,7 @@ identity. Match start clones every participant's type/name/difficulty/owner into
 `game.participants`, and local result uploads also validate that locked snapshot.
 The existing rules engine remains independent of participant skill/type.
 
-`darts-cpu-difficulty.js` owns the shared 0–15 scale (Easy/Normal/Hard/Insane,
+`js/games/darts/cpu-difficulty.js` owns the shared 0–15 scale (Easy/Normal/Hard/Insane,
 I–IV within each tier), strict validation and translated labels. New CPU slots
 default to 6 (Normal III). Legacy `easy`/`normal`/`hard`/`insane` values resolve to
 1/6/11/14 (Easy II / Normal III / Hard IV / Insane III). Existing snapshots can
@@ -1220,7 +1220,7 @@ is clamped to the board; edge doubles can still miss naturally. A seeded
 32.97% at D16 for Insane IV, with lapse position-error p95 around 50–53 mm. These
 are sampled results, not a guarantee that an inner target can never miss.
 
-`darts-cpu-strategy.js` chooses physical target centres. X01 uses bounded legal
+`js/games/darts/cpu-strategy.js` chooses physical target centres. X01 uses bounded legal
 checkout lookahead, actual In/Out/Bull qualification and safe setup targets;
 Cricket weighs closure and attacks differently for Standard and Cut-Throat.
 At low strengths the policy chooses broad single beds, then blends toward Bull
@@ -1228,7 +1228,7 @@ and eventually T20 as strength increases. The stronger reference policies prefer
 Bull under 50/50 scoring after measured expected-score comparison. Cork always
 aims at physical centre and checks current eligibility.
 
-`darts-cpu-gesture.js` calibrates a 17-sample accelerating gesture through the
+`js/games/darts/cpu-gesture.js` calibrates a 17-sample accelerating gesture through the
 actual `analyseGesture`, `computeThrow` and `computeImpact` callbacks. A small
 two-variable numerical solve needs about 5–8 evaluations for a new target; cached
 targets need no new search. This solves the intended input before execution
@@ -1275,7 +1275,7 @@ physics or anti-cheat validation; all game-policy validation runs in clients.
 analysis, launch, impact, physical result and target error for test injection;
 these diagnostics are not written into ordinary throw history or a new overlay.
 
-Seed version 1 calibration (`node tools/darts-cpu-calibrate.js`) uses 6,000 accepted
+Seed version 1 calibration (`node tools/darts/cpu-calibrate.js`) uses 6,000 accepted
 ordinary darts per tier, 25/50 Bull, Open In and 1,000 remaining without checkout
 pressure. PPR is total physical points / accepted darts × 3; real misses count,
 and invalid gestures are reported separately. This benchmark is distinct from
@@ -1289,7 +1289,7 @@ complete-game net PPR with Bust and checkout effects.
 | Insane III | 83.50 | 0.02% | 13.78 mm | 3.45 |
 
 The default calibration retains the original four string seeds for historical
-comparison. `node tools/darts-cpu-calibrate.js --all-levels` reports all sixteen
+comparison. `node tools/darts/cpu-calibrate.js --all-levels` reports all sixteen
 numeric levels with their own seeds. Ordinary PPR is approximately:
 
 | Tier | I | II | III | IV |
@@ -1383,7 +1383,7 @@ camera. `handYOffset` sets the release height relative to the Bull in millimetre
 Detailed Count-Up statistics are expandable
 after a Leg inside the lobby.
 
-`darts-throw-guide.js` is a presentation-only first-use guide. It outlines only
+`js/games/darts/throw-guide.js` is a presentation-only first-use guide. It outlines only
 the existing board surface and mode panel, with touch/mouse instructions and
 below/right wording matching the layout. It waits for `canThrow` on a local
 human turn, yields to notices, handoff, dialogs and active gestures, and uses a
@@ -1408,7 +1408,7 @@ flying so its score cannot be applied to a newly advanced slot. Online clients
 present the accepted throw before showing its updated score/history; presentation
 does not apply a second physical pitch transformation.
 
-`darts-opening.js` presents the already selected random starter once, at the start
+`js/games/darts/opening.js` presents the already selected random starter once, at the start
 of a competitive Match with two or more players. Local Start and the shared room's
 atomic start patch record the chosen slot and timestamp, then delay `readyAt` and
 `turnStartedAt` by 1900 ms. Player cards cycle for 1000 ms and the accepted starter
@@ -1418,7 +1418,7 @@ full timer afterward. Shared clients derive the display from the accepted timest
 so repeated/delayed snapshots do not restart it. Practice, solo Count-Up, opening
 Cork and later-Leg rotation retain their existing behavior.
 
-`darts-feedback.js` coordinates local presentation only. A transition between two
+`js/games/darts/feedback.js` coordinates local presentation only. A transition between two
 different slots owned by this device requires Ready to Throw; no handoff appears
 for solo play, consecutive darts or a remote-to-local transition. A pending
 handoff cancels gestures and blocks board/mode-panel input until confirmation,

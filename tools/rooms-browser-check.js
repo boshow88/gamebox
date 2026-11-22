@@ -227,7 +227,7 @@ async function check(game, group, prefix) {
     if (!b.contentDocument.getElementById('lobby').hidden || b.contentDocument.getElementById('overlay').hidden) throw new Error('Closing results must restore the solo ready screen');
     a.remove(); b.remove(); await sleep(50);
 }
-${dartsOnly ? fs.readFileSync(path.join(__dirname, 'helpers/darts-browser-v2.js'), 'utf8') : ''}
+${dartsOnly ? fs.readFileSync(path.join(__dirname, 'darts/helpers/browser-v2.js'), 'utf8') : ''}
 
 (async () => {
     if (accountOnly) {
@@ -317,7 +317,7 @@ async function main() {
             if (file.endsWith('firebase-config.js')) body = body.toString()
                 + '\nwindow.FIREBASE_ROOMS = ' + JSON.stringify({ databaseURL: mode === 'invalid' ? '' : 'https://demo-local-test.firebaseio.com' }) + ';';
             if (file.endsWith('net.js')) body = body.toString().replace('const BASE = `https://www.gstatic.com/firebasejs/${SDK}`;', "const BASE = location.origin + '/__sdk';");
-            if (file.endsWith('darts.js') && dartsOnly) body = body.toString().replace(/\}\)\(\);\s*$/, `
+            if (file.endsWith(path.join('darts', 'game.js')) && dartsOnly) body = body.toString().replace(/\}\)\(\);\s*$/, `
                 window.__dartsTest = {
                     gesture: function () { if (!canThrow()) return false; if (G.dartState === 'landed') freshDart(); launchThrow(analyseGesture([{t:0,x:0,y:0},{t:.05,x:0,y:50},{t:.1,x:0,y:140},{t:.15,x:0,y:230}])); return true; },
                     land: function () { update(1); }, controller: function () { return online; },

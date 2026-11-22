@@ -1,7 +1,7 @@
 /* One presentation model; CSS composes it into a portrait or landscape viewport. */
 (function (root, factory) {
     'use strict';
-    if (typeof module === 'object' && module.exports) module.exports = factory(require('./darts-rules.js'), require('./darts-cpu-difficulty.js'));
+    if (typeof module === 'object' && module.exports) module.exports = factory(require('./rules.js'), require('./cpu-difficulty.js'));
     else root.DartsHud = factory(root.DartsRules, root.DartsCpuDifficulty);
 })(typeof window === 'object' ? window : globalThis, function (Rules, Difficulty) {
     'use strict';

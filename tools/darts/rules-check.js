@@ -1,9 +1,9 @@
-/** node tools/darts-rules-check.js — pure rules and unmodified throw-physics regression checks. */
+/** node tools/darts/rules-check.js — pure rules and unmodified throw-physics regression checks. */
 'use strict';
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
-const R = require('../js/games/darts-rules.js');
+const R = require('../../js/games/darts/rules.js');
 const hit = R.hit, miss = hit(0, 0);
 // Existing unlimited Standard fixtures remain explicit while V2 defaults are checked below.
 const create = (mode = '501', bestOf = 1, players = ['A', 'B']) => R.create({ mode, bestOf,
@@ -586,10 +586,10 @@ assert.equal(legacy.mode, 'x01'); assert.equal(legacy.startingScore, 501); asser
 
 // Execute the real physics independently of DOM/rendering and compare with the original
 // implementation's expected trajectory. This catches accidental changes to the skill mechanic.
-const sandbox = { window: { DartsRules: R, DartsFeedback: require('../js/games/darts-feedback.js'), ArcadeCommon: { i18n: { STRINGS: { en: {}, zh: {} }, t: k => k },
+const sandbox = { window: { DartsRules: R, DartsFeedback: require('../../js/games/darts/feedback.js'), ArcadeCommon: { i18n: { STRINGS: { en: {}, zh: {} }, t: k => k },
     math: { clamp: (v, a, b) => Math.max(a, Math.min(b, v)) } } },
     document: { readyState: 'loading', addEventListener() {}, getElementById: id => id === 'stage' ? { getContext: () => ({}) } : null } };
-let source = fs.readFileSync(require('node:path').join(__dirname, '../js/games/darts.js'), 'utf8');
+let source = fs.readFileSync(require('node:path').join(__dirname, '../../js/games/darts/game.js'), 'utf8');
 source = source.replace(/\}\)\(\);\s*$/, 'window.physics = { analyseGesture, computeThrow, computeImpact, scoreAt, TUNING }; })();');
 vm.runInNewContext(source, sandbox);
 const physics = sandbox.window.physics;

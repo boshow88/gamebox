@@ -1,17 +1,17 @@
 /** Device-owned CPU policy checks on the real room service/RTDB adapter, using local fixtures. */
 'use strict';
 const assert = require('node:assert/strict');
-const Rules = require('../js/games/darts-rules.js');
-const createRoom = require('../js/games/darts-room.js');
-const physics = require('./helpers/darts-physics.js')();
-const gestures = require('../js/games/darts-cpu-gesture.js').create(physics);
-const strategy = require('../js/games/darts-cpu-strategy.js');
-const random = require('../js/games/darts-cpu-gesture.js').seeded(92381);
+const Rules = require('../../js/games/darts/rules.js');
+const createRoom = require('../../js/games/darts/room.js');
+const physics = require('./helpers/physics.js')();
+const gestures = require('../../js/games/darts/cpu-gesture.js').create(physics);
+const strategy = require('../../js/games/darts/cpu-strategy.js');
+const random = require('../../js/games/darts/cpu-gesture.js').seeded(92381);
 
 (async () => {
-    const modules = Object.assign({}, await import('../js/net/rooms.mjs'), await import('../js/net/rtdb-rooms.mjs'));
-    Object.assign(modules, await import('../js/net/rtdb-values.mjs'));
-    const db = require('./helpers/rtdb-fixtures.js').realtimeGameBackend(modules);
+    const modules = Object.assign({}, await import('../../js/net/rooms.mjs'), await import('../../js/net/rtdb-rooms.mjs'));
+    Object.assign(modules, await import('../../js/net/rtdb-values.mjs'));
+    const db = require('../helpers/rtdb-fixtures.js').realtimeGameBackend(modules);
     let clock = 1000, serial = 0;
     const clients = new Map(), errors = [], holds = new Map();
     function make(sessionId = 'cpu-tab-' + ++serial) {

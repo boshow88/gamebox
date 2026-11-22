@@ -1,8 +1,8 @@
-/* node tools/darts-cpu-strategy-check.js -- target decisions checked against the actual game rules. */
+/* node tools/darts/cpu-strategy-check.js -- target decisions checked against the actual game rules. */
 'use strict';
 const assert = require('node:assert/strict');
-const Rules = require('../js/games/darts-rules.js');
-const CPU = require('../js/games/darts-cpu-strategy.js');
+const Rules = require('../../js/games/darts/rules.js');
+const CPU = require('../../js/games/darts/cpu-strategy.js');
 const fixed = () => 0.5;
 const choose = (s, difficulty = 'insane') => CPU.choose(s, s.active, difficulty, fixed);
 function game(config = {}) { return Rules.create({ mode: 'x01', roundLimit: 0, ...config }, ['A', 'B'], 1000); }

@@ -1,11 +1,11 @@
 /* Seeded developer simulations: chosen target -> samples -> real human physics -> real Match rules. */
 'use strict';
 const assert = require('node:assert/strict');
-const Rules = require('../js/games/darts-rules.js');
-const Gesture = require('../js/games/darts-cpu-gesture.js');
-const Strategy = require('../js/games/darts-cpu-strategy.js');
-const physics = require('./helpers/darts-physics.js')();
-const Difficulty = require('../js/games/darts-cpu-difficulty.js');
+const Rules = require('../../js/games/darts/rules.js');
+const Gesture = require('../../js/games/darts/cpu-gesture.js');
+const Strategy = require('../../js/games/darts/cpu-strategy.js');
+const physics = require('./helpers/physics.js')();
+const Difficulty = require('../../js/games/darts/cpu-difficulty.js');
 const cpu = Gesture.create(physics), levels = process.argv.includes('--all-levels') ? Difficulty.values : Object.keys(Difficulty.legacy);
 const samples = 6000, games = 20, started = Date.now();
 const pct = (n, total) => +(100 * n / Math.max(1, total)).toFixed(2);

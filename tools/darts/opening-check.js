@@ -1,9 +1,9 @@
 /** Pure first-starter presentation checks. Selection, scoring and later Leg rotation stay in Rules. */
 'use strict';
 const assert = require('node:assert/strict');
-const Rules = require('../js/games/darts-rules.js');
-const Opening = require('../js/games/darts-opening.js');
-const Feedback = require('../js/games/darts-feedback.js');
+const Rules = require('../../js/games/darts/rules.js');
+const Opening = require('../../js/games/darts/opening.js');
+const Feedback = require('../../js/games/darts/feedback.js');
 const total = Opening.TIMING.draw + Opening.TIMING.reveal;
 for (const count of [2, 3, 4]) for (let index = 0; index < count; index++) {
     const ids = ['A', 'B', 'C', 'D'].slice(0, count);

@@ -1,7 +1,7 @@
 /* Accepted-state feedback and local handoff gating. No DOM, game rules or timers. */
 (function (root, factory) {
     'use strict';
-    var feedback = factory(typeof module === 'object' && module.exports ? require('./darts-opening.js') : root.DartsOpening);
+    var feedback = factory(typeof module === 'object' && module.exports ? require('./opening.js') : root.DartsOpening);
     if (typeof module === 'object' && module.exports) module.exports = feedback;
     else root.DartsFeedback = feedback;
 })(typeof window === 'object' ? window : globalThis, function (Opening) {

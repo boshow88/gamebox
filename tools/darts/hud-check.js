@@ -1,10 +1,10 @@
-/** node tools/darts-hud-check.js — accepted match results and presentation model. */
+/** node tools/darts/hud-check.js — accepted match results and presentation model. */
 'use strict';
 const assert = require('node:assert/strict');
-const R = require('../js/games/darts-rules.js');
-const H = require('../js/games/darts-hud.js');
-const F = require('../js/games/darts-feedback.js');
-const O = require('../js/games/darts-opening.js');
+const R = require('../../js/games/darts/rules.js');
+const H = require('../../js/games/darts/hud.js');
+const F = require('../../js/games/darts/feedback.js');
+const O = require('../../js/games/darts/opening.js');
 const tr = (key, ...args) => [key, ...args];
 const miss = R.hit(0, 0);
 function model(state, effects) {

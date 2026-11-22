@@ -1,9 +1,9 @@
-/* node tools/darts-cpu-physics-check.js -- real gesture feasibility and seeded execution calibration. */
+/* node tools/darts/cpu-physics-check.js -- real gesture feasibility and seeded execution calibration. */
 'use strict';
 const assert = require('node:assert/strict');
-const G = require('../js/games/darts-cpu-gesture.js');
-const Rules = require('../js/games/darts-rules.js');
-const loadPhysics = require('./helpers/darts-physics.js');
+const G = require('../../js/games/darts/cpu-gesture.js');
+const Rules = require('../../js/games/darts/rules.js');
+const loadPhysics = require('./helpers/physics.js');
 const physics = loadPhysics(), cpu = G.create(physics);
 const tuning = JSON.stringify(physics.TUNING);
 function point(base, mult) {

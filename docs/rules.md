@@ -904,7 +904,7 @@ the lobby does not pause a running timer; a genuinely new match starts fresh his
 
 ### Tuning
 
-Everything lives in `TUNING` at the top of `js/games/darts.js` — gesture sampling
+Everything lives in `TUNING` at the top of `js/games/darts/game.js` — gesture sampling
 and the release window, the gesture-to-world X / Y scales, the forward distance and
 base speed, the compressed tempo range, gravity, the hand height, the board
 geometry, and the perspective. The throw maths (`analyseGesture`, `computeThrow`,

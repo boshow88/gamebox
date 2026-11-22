@@ -1,11 +1,11 @@
 /* Compatibility and actual physical skill progression across the sixteen CPU levels. */
 'use strict';
 const assert = require('node:assert/strict');
-const Difficulty = require('../js/games/darts-cpu-difficulty.js');
-const Gesture = require('../js/games/darts-cpu-gesture.js');
-const Strategy = require('../js/games/darts-cpu-strategy.js');
-const Rules = require('../js/games/darts-rules.js');
-const physics = require('./helpers/darts-physics.js')(), cpu = Gesture.create(physics);
+const Difficulty = require('../../js/games/darts/cpu-difficulty.js');
+const Gesture = require('../../js/games/darts/cpu-gesture.js');
+const Strategy = require('../../js/games/darts/cpu-strategy.js');
+const Rules = require('../../js/games/darts/rules.js');
+const physics = require('./helpers/physics.js')(), cpu = Gesture.create(physics);
 assert.deepEqual(Difficulty.profiles[0], { velocity: 380, timing: .055, shape: .12, lapse: .13, lapseVelocity: 650 }, 'Easy I retains its original physical difficulty');
 assert.deepEqual(Difficulty.profiles[15], { velocity: 45 * .80, timing: .009 * .80, shape: .015 * .80, lapse: .004, lapseVelocity: 45 * .80 * 2.5 }, 'Insane IV targets roughly 100 PPR while retaining softer lapses');
 assert.equal(Difficulty.strength(0), 0); assert.equal(Difficulty.strength(15), 15);
