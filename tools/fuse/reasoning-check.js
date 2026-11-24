@@ -135,10 +135,29 @@ for (let n = 0; n < 12; n++) {
     assert.equal(m.searchSteps, m.levelCounts[6]);
     assert.ok(m.plans >= 1 && m.plans <= 50);
     assert.ok(m.randomWin > 0 && m.randomWin <= 1);
+    // Skipping only merges that are certainly lost can never lower the win chance.
+    assert.ok(m.casualWin >= m.randomWin - 1e-12 && m.casualWin <= 1);
+    assert.ok(Math.abs(m.casualWin - casualReference(built.board)) < 1e-9, 'casual win matches a solver-free recursion');
+}
+// The casual player, recomputed without the solver: random among merges whose result shows
+// no dead end or level <= 2 contradiction, falling back to any merge.
+function casualReference(board, memo = new Map()) {
+    const n = R.tileCount(board);
+    if (n <= 1) return n;
+    const key = R.key(board);
+    if (memo.has(key)) return memo.get(key);
+    const kids = R.legalMoves(board).map((m) => R.applyMerge(board, m));
+    const fine = kids.filter((c) => { const d = Reasoning.explainDead(R, c); return !d || d.level > 2; });
+    const pool = fine.length ? fine : kids;
+    const v = pool.length ? pool.reduce((s, c) => s + casualReference(c, memo), 0) / pool.length : 0;
+    memo.set(key, v);
+    return v;
 }
 const lost = Reasoning.evaluate(R, R.parse('2 2 1'));
 assert.equal(lost.solvable, false);
 assert.equal(lost.path.length, 0);
+assert.equal(Reasoning.casualWin(R, R.parse('2 2 1'), Solver.createSolver(R)), 0);
+assert.equal(Reasoning.casualWin(R, R.parse('2 2'), Solver.createSolver(R)), 1);
 
 // Other tile types: number-specific techniques stay silent, every hint still wins, and
 // anything not explained by generic techniques is labelled search.

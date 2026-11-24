@@ -244,6 +244,29 @@
         };
     }
 
+    // Chance that a casual player wins: merges are picked at random, but never one whose result
+    // is visibly lost (a contradiction of level <= `sees`, or a dead end).
+    function casualWin(R, board, solver, sees) {
+        const limit = sees || 2, memo = new Map();
+        function p(b) {
+            const n = R.tileCount(b);
+            if (n <= 1) return n;
+            const k = R.key(b);
+            if (memo.has(k)) return memo.get(k);
+            let v = 0;
+            if (solver.isSolvable(b)) {
+                const kids = R.legalMoves(b).map((m) => R.applyMerge(b, m));
+                const fine = kids.filter((c) => { const d = explainDead(R, c); return !d || d.level > limit; });
+                const pool = fine.length ? fine : kids;
+                for (const c of pool) v += p(c);
+                v /= pool.length;
+            }
+            memo.set(k, v);
+            return v;
+        }
+        return p(board);
+    }
+
     // Difficulty metrics: follow the easiest human step from the start and record what it
     // needed, plus exact-search measures of how many merges are traps.
     function evaluate(R, board, options) {
@@ -256,7 +279,7 @@
             tiles: R.tileCount(board), firstMoves: start.moves.length,
             winningFirstMoves: start.moves.filter((m) => m.outcome === 'win').length,
             maxLevel: 0, levelCounts, cost: 0, span: 0, searchSteps: 0, decisionPoints: 0, trapRate: 0,
-            uses: {}, path: [], randomWin: null, plans: null,
+            uses: {}, path: [], randomWin: null, casualWin: null, plans: null,
         };
         if (start.status !== 'solvable') return metrics;
         let b = board, trapSum = 0;
@@ -282,9 +305,10 @@
         }
         metrics.trapRate = metrics.path.length ? trapSum / metrics.path.length : 0;
         metrics.randomWin = solver.randomPlayWin(board);
+        metrics.casualWin = casualWin(R, board, solver, 2);
         metrics.plans = solver.countPlans(board, o.planCap);
         return metrics;
     }
 
-    return { SEARCH, LEVELS, COSTS, explainDead, forcedPairs, refute, candidates, nextStep, evaluate };
+    return { SEARCH, LEVELS, COSTS, explainDead, forcedPairs, refute, candidates, nextStep, casualWin, evaluate };
 });
