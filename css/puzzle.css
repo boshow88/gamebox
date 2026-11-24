@@ -1494,6 +1494,88 @@
 .hashi-reveal-line { stroke: var(--game-color, #8a5a2c); opacity: 0.35; stroke-linecap: round; }
 
 /* ----------------------------------------------------------------
+   Fuse
+   ---------------------------------------------------------------- */
+.fuse-status { flex-wrap: wrap; justify-content: flex-start; gap: 4px 16px; }
+.fuse-status .fuse-code { margin-left: auto; font-size: 0.78rem; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.fuse-status .fuse-tiles { font-variant-numeric: tabular-nums; }
+/* overflow: the win pop scales outlined edge tiles slightly past the viewBox. */
+.board-svg.fuse-board { max-width: 420px; outline: none; border-radius: var(--radius-md); overflow: visible; }
+.board-svg.fuse-board:focus-visible { outline: 2px solid var(--game-color); outline-offset: 4px; }
+
+/* Cells: occupied slots sit under the tiles; vacated cells read as permanent holes;
+   blocked cells (not used by current puzzles) are solid. */
+.fuse-slot { fill: #e6eeec; }
+.fuse-slot.empty { fill: #f7f9f9; stroke: #c9d6d3; stroke-width: 2; stroke-dasharray: 7 6; }
+.fuse-slot.block { fill: #4b5563; }
+.fuse-hole { fill: #c9d6d3; pointer-events: none; }
+.fuse-tile rect { stroke: rgba(15, 79, 73, 0.16); stroke-width: 2; }
+.fuse-num { font-family: var(--font-body); font-weight: 700; text-anchor: middle; dominant-baseline: central; pointer-events: none; user-select: none; }
+.fuse-tile.selected rect { stroke: #0f172a; stroke-width: 5; }
+.fuse-tile.lifted { filter: drop-shadow(0 6px 6px rgba(15, 23, 42, 0.25)); pointer-events: none; }
+.fuse-tile.dim { opacity: 0.5; }
+.fuse-target { fill: none; stroke: var(--game-color); stroke-width: 4; stroke-dasharray: 10 7; pointer-events: none; animation: fuse-target-pulse 1.2s ease-in-out infinite; }
+.fuse-target.over { stroke-dasharray: none; stroke-width: 7; animation: none; }
+.fuse-cursor { fill: none; stroke: #f59e0b; stroke-width: 4; pointer-events: none; }
+.fuse-hint-ring { fill: none; stroke: #f59e0b; stroke-width: 5; pointer-events: none; animation: zip-hint-pulse 1.15s ease-in-out infinite; }
+
+/* Hint arrows: the suggested merge (theme), refuted merges (dashed red; the worked
+   example is bold). */
+.fuse-arrow { stroke: #0f172a; stroke-width: 7; stroke-linecap: round; pointer-events: none; }
+.fuse-arrow-head { fill: #0f172a; stroke: #ffffff; stroke-width: 1.5; pointer-events: none; }
+.fuse-arrow.refuted { stroke: var(--accent-danger); stroke-width: 4; stroke-dasharray: 7 6; stroke-linecap: butt; opacity: 0.75; }
+.fuse-arrow.refuted.example { stroke-width: 7; opacity: 1; }
+.fuse-arrow-head.refuted { fill: var(--accent-danger); }
+
+/* Analysis: one marker per directed merge, on the source side of the shared edge. */
+.fuse-chev { stroke: #ffffff; stroke-width: 2; pointer-events: none; }
+.fuse-chev.win { fill: #16a34a; }
+.fuse-chev.lose { fill: var(--accent-danger); }
+.fuse-chev.unknown { fill: #94a3b8; }
+
+/* Merge: the source slides into the destination, which pops with its new value. The
+   inner tile group is centred on 0,0, so scaling pivots on the tile centre. */
+.fuse-tile.fuse-ghost { pointer-events: none; animation: fuse-slide 190ms ease-in forwards; }
+.fuse-tile.pop { animation: fuse-pop 280ms ease-out; }
+.fuse-board.won .fuse-tile:not(.fuse-ghost) { animation: fuse-win 700ms ease-out both; }
+.fuse-board.won .fuse-tile:not(.fuse-ghost) rect { stroke: var(--accent-success); stroke-width: 6; }
+@keyframes fuse-slide { to { transform: translate(var(--dx), var(--dy)); opacity: 0.15; } }
+@keyframes fuse-pop { 0% { transform: scale(0.86); } 55% { transform: scale(1.1); } 100% { transform: scale(1); } }
+@keyframes fuse-win { 0% { transform: scale(1); } 35% { transform: scale(1.18); } 70% { transform: scale(0.97); } 100% { transform: scale(1); } }
+@keyframes fuse-target-pulse { 50% { opacity: 0.45; } }
+@media (prefers-reduced-motion: reduce) {
+    .fuse-tile.fuse-ghost { display: none; }
+    .fuse-tile.pop, .fuse-board.won .fuse-tile:not(.fuse-ghost), .fuse-target, .fuse-hint-ring { animation: none; }
+}
+
+.fuse-feedback { min-height: 2.6em; margin: var(--space-sm) 0; text-align: center; font-size: 0.88rem; color: var(--text-secondary); }
+.fuse-feedback.bad { color: var(--accent-danger); }
+.fuse-sr { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+.fuse-panel {
+    display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: var(--space-sm) var(--space-md);
+    margin-bottom: var(--space-sm); padding: var(--space-sm) var(--space-md);
+    border: 1px solid var(--border-color); border-radius: var(--radius-md); background: var(--bg-secondary);
+    font-size: 0.9rem; text-align: center;
+}
+.fuse-panel.dead { border-color: color-mix(in srgb, var(--accent-danger) 40%, white); background: color-mix(in srgb, var(--accent-danger) 6%, white); }
+.fuse-panel.win { border-color: color-mix(in srgb, var(--accent-success) 40%, white); background: color-mix(in srgb, var(--accent-success) 7%, white); }
+.fuse-panel-actions { display: inline-flex; gap: var(--space-sm); }
+.fuse-win-text { display: inline-flex; flex-direction: column; gap: 2px; }
+.fuse-win-text strong { font-size: 1.15rem; color: var(--accent-success); }
+.fuse-win-text span { color: var(--text-secondary); font-size: 0.85rem; }
+.hint-banner .hint-tier.fuse-level { background: color-mix(in srgb, var(--game-color) 18%, white); color: var(--text-primary); }
+.hint-banner .hint-tier.fuse-search { background: #64748b; }
+.hint-banner .fuse-hint-action { margin-left: var(--space-sm); padding: 4px 12px; font-size: 0.85rem; }
+.fuse-analysis {
+    margin-bottom: var(--space-sm); padding: var(--space-sm) var(--space-md);
+    border: 1px dashed var(--border-strong); border-radius: var(--radius-sm, 6px);
+    font-size: 0.85rem; line-height: 1.5; color: var(--text-secondary);
+}
+.fuse-analysis strong { color: var(--text-primary); margin-right: var(--space-sm); }
+.fuse-analysis-note { color: var(--text-muted); }
+.fuse-analysis ul { margin: 4px 0 0 var(--space-lg); }
+
+/* ----------------------------------------------------------------
    Help / footer hints
    ---------------------------------------------------------------- */
 
