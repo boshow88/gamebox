@@ -1496,8 +1496,15 @@
 /* ----------------------------------------------------------------
    Fuse
    ---------------------------------------------------------------- */
-/* overflow: the win pop scales outlined edge tiles slightly past the viewBox. */
-.board-svg.fuse-board { max-width: 420px; outline: none; border-radius: var(--radius-md); overflow: visible; }
+/* overflow: the win pop scales outlined edge tiles slightly past the viewBox. Boards may be
+   rectangular: --fuse-aspect (width / height, set by the renderer) keeps their proportions
+   inside the same 420px square. */
+.board-svg.fuse-board {
+    --fuse-aspect: 1;
+    aspect-ratio: var(--fuse-aspect);
+    max-width: min(420px, calc(420px * var(--fuse-aspect)));
+    outline: none; border-radius: var(--radius-md); overflow: visible;
+}
 .board-svg.fuse-board:focus-visible { outline: 2px solid var(--game-color); outline-offset: 4px; }
 
 /* Cells: occupied slots sit under the tiles; vacated cells read as permanent holes;
@@ -1516,6 +1523,14 @@
 .fuse-cursor { fill: none; stroke: #f59e0b; stroke-width: 4; pointer-events: none; }
 .fuse-hint-ring { fill: none; stroke: #f59e0b; stroke-width: 5; pointer-events: none; animation: zip-hint-pulse 1.15s ease-in-out infinite; }
 .fuse-hint-ring.error { stroke: var(--accent-danger); }
+
+/* ×2 cells: a violet badge (distinct from the teal tiles, amber hints and green reveal) that
+   flashes when a merge lands on it. */
+.fuse-bonus { pointer-events: none; }
+.fuse-bonus rect { fill: #7c3aed; stroke: #ffffff; stroke-width: 2; }
+.fuse-bonus text { fill: #ffffff; font-family: var(--font-body); font-size: 21px; font-weight: 700; text-anchor: middle; dominant-baseline: central; user-select: none; }
+.fuse-bonus.used { animation: fuse-bonus-flash 420ms ease-out; }
+@keyframes fuse-bonus-flash { 0% { transform: scale(1); } 40% { transform: scale(1.35); } 100% { transform: scale(1); } }
 
 /* Hint arrows: the suggested merge, and a failing merge the explanation refers to (red). */
 .fuse-arrow { stroke: #0f172a; stroke-width: 7; stroke-linecap: round; pointer-events: none; }
@@ -1543,7 +1558,7 @@
 @keyframes fuse-nope { 20% { transform: translateX(-6px); } 40% { transform: translateX(6px); } 60% { transform: translateX(-4px); } 80% { transform: translateX(3px); } }
 @media (prefers-reduced-motion: reduce) {
     .fuse-tile.fuse-ghost { display: none; }
-    .fuse-tile.pop, .fuse-tile.nope, .fuse-board.won .fuse-tile:not(.fuse-ghost), .fuse-target, .fuse-hint-ring { animation: none; }
+    .fuse-tile.pop, .fuse-tile.nope, .fuse-board.won .fuse-tile:not(.fuse-ghost), .fuse-target, .fuse-hint-ring, .fuse-bonus.used { animation: none; }
 }
 .fuse-sr { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 

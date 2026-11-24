@@ -67,25 +67,60 @@ assert.equal(R.numberTotal(R.parse('# 8/4 4')), 16);
 assert.equal(R.tileGroups(R.parse('2 # 2')).length, 2, 'a blocked cell separates groups');
 assert.ok(R.contradictions(R.parse('2 # 2')).some((c) => c.id === 'split'));
 
-// Random play: every merge keeps the number total, removes exactly one tile, empties its
-// source for good, and never touches an empty or blocked cell.
+// Bonus cells: a ×2 cell doubles every merge that lands on it. The layout is fixed for the
+// puzzle, shared by its positions and part of every position's key.
+const lay = R.parse('2 2 4/4 . .;x2=1,3');
+assert.equal(R.serialize(lay), '2 2 4/4 . .;x2=1,3');
+assert.equal(R.serialize(R.parse(R.serialize(lay))), R.serialize(lay));
+assert.deepEqual(R.parse('2 2 4/4 . .;x2=3;x2=1').layout.bonusCells, [1, 3], 'parts may repeat');
+assert.equal(R.serialize(R.parse('2 2;x4=0;x2=1')), '2 2;x2=1;x4=0');
+assert.equal(R.serialize(R.applyMerge(lay, { from: 0, to: 1 })), '. 8 4/4 . .;x2=1,3', '2 + 2 on ×2 makes 8');
+assert.equal(R.serialize(R.applyMerge(lay, { from: 1, to: 0 })), '4 . 4/4 . .;x2=1,3', 'merging away from it is plain');
+assert.equal(R.serialize(R.applyMerge(R.parse('2 2;x4=1'), { from: 0, to: 1 })), '. 16;x4=1');
+assert.equal(R.applyMerge(lay, { from: 0, to: 1 }).layout, lay.layout, 'positions share the layout');
+assert.equal(R.bonusAt(lay, 1), 2);
+assert.equal(R.bonusAt(lay, 0), 1);
+assert.notEqual(R.key(R.parse('2 2')), R.key(R.parse('2 2;x2=1')));
+assert.notEqual(R.key(R.parse('2 2;x2=0')), R.key(R.parse('2 2;x2=1')));
+assert.equal(R.key(R.parse('2 2;x2=')), R.key(R.parse('2 2')), 'an empty layout is no layout');
+assert.equal(R.parse('2 2/2 2').layout, undefined);
+assert.deepEqual(R.layoutSpec(lay), { bonus: { 1: 2, 3: 2 } });
+assert.equal(R.key(R.createBoard(2, 3, lay.cells, R.layoutSpec(lay))), R.key(lay));
+assert.equal(R.bonusLive(R.parse('2 2;x2=1')), true);
+assert.equal(R.bonusLive(R.parse('2 .;x2=1')), false, 'an emptied bonus cell no longer counts');
+assert.ok(R.contradictions(R.parse('4 16 4/. 8 .')).some((c) => c.id === 'half'));
+assert.ok(!R.contradictions(R.parse('4 16 4/. 8 .;x2=4')).some((c) => c.id === 'half'), 'no fixed total while a bonus is live');
+assert.ok(R.contradictions(R.parse('2 2 8/4 4 .')).some((c) => c.id === 'subtotal'));
+assert.ok(!R.contradictions(R.parse('2 2 8/4 4 .;x2=1')).some((c) => c.id === 'subtotal'), 'a group with a bonus can skip a value');
+assert.throws(() => R.parse('2 2;x3=0'), RangeError);
+assert.throws(() => R.parse('2 2;x2=5'), RangeError);
+assert.throws(() => R.parse('2 2;wall=0-1'), SyntaxError);
+
+// Random play: every merge multiplies the destination by 2 × its bonus (so the number total
+// only changes on bonus cells), removes exactly one tile, empties its source for good, and
+// never touches an empty or blocked cell. Reverse-built solutions replay to one tile.
 const rng = Gen.makeRng(99);
-for (let n = 0; n < 300; n++) {
-    const built = Gen.reverseBuild(rng, 2 + Math.floor(rng() * 2), 3, 3 + Math.floor(rng() * 4), ['even', 'mixed', 'deep'][n % 3]);
+for (let n = 0; n < 400; n++) {
+    const rows = 2 + Math.floor(rng() * 2), layout = Gen.bonusLayout(rng, rows, 3, n % 3);
+    const built = Gen.reverseBuild(rng, rows, 3, 3 + Math.floor(rng() * 4), ['even', 'mixed', 'deep'][n % 3], layout);
     if (!built) continue;
-    let b = built.board;
-    const total = R.numberTotal(b), emptied = new Set();
+    let replay = built.board;
+    for (const m of built.solution) replay = R.applyMerge(replay, m);
+    assert.equal(R.status(replay), 'won', 'the construction is a solution');
+    let b = built.board, total = R.numberTotal(b);
+    const emptied = new Set();
     while (R.status(b) === 'playing') {
         const moves = R.legalMoves(b);
         for (const m of moves) {
             assert.ok(R.isTile(b.cells[m.from]) && R.isTile(b.cells[m.to]));
             assert.ok(!emptied.has(m.from) && !emptied.has(m.to));
         }
-        const m = moves[Math.floor(rng() * moves.length)], next = R.applyMerge(b, m);
+        const m = moves[Math.floor(rng() * moves.length)], next = R.applyMerge(b, m), bonus = R.bonusAt(b, m.to);
+        assert.equal(next.cells[m.to].value, b.cells[m.to].value * 2 * bonus);
+        total += b.cells[m.to].value * 2 * (bonus - 1);
         assert.equal(R.numberTotal(next), total);
         assert.equal(R.tileCount(next), R.tileCount(b) - 1);
         assert.equal(next.cells[m.from], R.EMPTY);
-        assert.equal(next.cells[m.to].value, b.cells[m.to].value * 2);
         emptied.add(m.from);
         for (const i of emptied) assert.equal(next.cells[i], R.EMPTY);
         b = next;
@@ -113,23 +148,24 @@ function bruteSolvable(b) {
     if (R.tileCount(b) === 1) return true;
     return R.legalMoves(b).some((m) => bruteSolvable(R.applyMerge(b, m)));
 }
-let checked = 0;
+let checked = 0, checkedLayout = 0;
 const values = [1, 1, 1, 2, 2, 2, 4, 4, 8, 16];
-for (let n = 0; n < 4000; n++) {
+for (let n = 0; n < 8000; n++) {
     const rows = 2 + Math.floor(rng() * 2), cols = 2 + Math.floor(rng() * 2);
     const cells = [];
-    for (let i = 0; i < rows * cols; i++) cells.push(rng() < 0.2 ? '.' : String(values[Math.floor(rng() * values.length)]));
-    if (!cells.some((c) => c !== '.')) continue;
-    const grid = [];
-    for (let r = 0; r < rows; r++) grid.push(cells.slice(r * cols, (r + 1) * cols).join(' '));
-    const b = R.parse(grid.join('/'));
+    for (let i = 0; i < rows * cols; i++) cells.push(rng() < 0.2 ? R.EMPTY : R.num(values[Math.floor(rng() * values.length)]));
+    if (!cells.some((c) => c !== R.EMPTY)) continue;
+    const layout = n % 2 ? Gen.bonusLayout(rng, rows, cols, 1 + Math.floor(rng() * 2)) : null;
+    const b = R.createBoard(rows, cols, cells, layout);
     if (R.tileCount(b) > 7) continue;
     for (const c of R.contradictions(b)) {
         assert.equal(bruteSolvable(b), false, `${c.id} claimed on solvable ${R.serialize(b)}`);
         checked++;
+        if (b.layout) checkedLayout++;
     }
 }
-assert.ok(checked > 500, `contradictions were exercised (${checked})`);
+assert.ok(checked > 1000, `contradictions were exercised (${checked})`);
+assert.ok(checkedLayout > 500, `contradictions were exercised with bonus cells (${checkedLayout})`);
 
 // Extensibility: a test-only tile type plugs into the same validation. Number-specific
 // conditions switch off once other tile types are present; connectivity still applies.
@@ -149,4 +185,4 @@ assert.equal(X.contradictions(xb).some((c) => c.id === 'stuck'), false, 'number-
 assert.equal(X.findContradiction(X.parse('* . 2')).id, 'split');
 assert.throws(() => R.parse('*'), SyntaxError, 'the default rules do not know test-only tiles');
 
-console.log(`fuse rules: ok (${checked} contradiction claims cross-checked)`);
+console.log(`fuse rules: ok (${checked} contradiction claims cross-checked, ${checkedLayout} with bonus cells)`);

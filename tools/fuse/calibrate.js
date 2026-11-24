@@ -1,6 +1,15 @@
-/* Fuse developer calibration: sample reverse-built boards, profile the human-solver metrics
- * that drive the difficulty tiers, and spot-check reasoning soundness on reachable states.
- * Usage: node tools/fuse/calibrate.js [samples=300] [depth=3] [--size=3] [--exp=4,5,6,7] [--sound] */
+/* Fuse developer calibration: how hard each board shape is, and what the generator delivers.
+ * Usage: node tools/fuse/calibrate.js [samples=60] [seeds per tier=20] [--skip-shapes] [--skip-generate] [--cost]
+ *   shapes    random reverse-built boards per shape and bonus count (as the generator draws
+ *             them): how many are solvable by reasoning alone, their waste (merges made and
+ *             undone by trial and error, Reasoning.trialMerges) and each tier's hit rate
+ *   cost      `samples` hard 4×4 candidates: solver states for the largest analysis along the
+ *             reasoning path (one hint's cost), to set the generator's SEARCH_BUDGET
+ *   combos    `samples` 4×4 boards per exponent, style and bonus count: how often each
+ *             yields a hard puzzle and the generator time per hit
+ *   generate  the real generator per tier: time per puzzle, attempts, curated fallbacks, the
+ *             shapes served, waste, and how often the "smart habit" (skip visibly lost merges,
+ *             merge the smallest pair first) wins on the first try */
 'use strict';
 const Rules = require('../../js/games/fuse/rules.js');
 const Solver = require('../../js/games/fuse/solver.js');
@@ -8,106 +17,131 @@ const Reasoning = require('../../js/games/fuse/reasoning.js');
 const Gen = require('../../js/generators/fuse.js');
 
 const R = Rules.DEFAULT;
-const args = process.argv.slice(2).filter((a) => !a.startsWith('--'));
-const samples = Number(args[0] || 300), depth = Number(args[1] || 3), sound = process.argv.includes('--sound');
-const flag = (name) => { const a = process.argv.find((x) => x.startsWith(`--${name}=`)); return a ? a.slice(name.length + 3) : null; };
-const size = Number(flag('size') || 3);
-const exponents = flag('exp') ? flag('exp').split(',').map(Number) : (Gen.PLAN[size] || Gen.PLAN[3]).exponents;
-const rng = Gen.makeRng(777), styles = Object.keys(Gen.STYLES);
-const quantile = (values, p) => { const s = values.slice().sort((a, b) => a - b); return s[Math.min(s.length - 1, Math.floor(p * s.length))]; };
-const spread = (rows, fn) => [0.1, 0.5, 0.9].map((p) => quantile(rows.map(fn), p)).join('/');
+const [samples = 60, seeds = 20] = process.argv.slice(2).filter((a) => !a.startsWith('--')).map(Number);
+const q = (xs, f) => { const s = xs.slice().sort((a, b) => a - b); return s.length ? s[Math.min(s.length - 1, Math.floor(f * s.length))] : NaN; };
+const spread = (xs) => [0.1, 0.5, 0.75, 0.9].map((f) => Math.round(q(xs, f))).join('/');
+const pct = (x) => Math.round(100 * x);
+const inRange = (waste, tier) => waste >= Gen.DIFFICULTY[tier].min && waste <= Gen.DIFFICULTY[tier].max;
 
-const rows = [], started = Date.now();
-let slowest = 0;
-for (let i = 0; i < samples; i++) {
-    const exponent = exponents[Math.floor(rng() * exponents.length)];
-    const style = styles[Math.floor(rng() * styles.length)];
-    const built = Gen.reverseBuild(rng, size, size, exponent, style);
-    if (!built) continue;
-    const t = Date.now();
-    const m = Reasoning.evaluate(R, built.board, { solver: Solver.createSolver(R), depth });
-    slowest = Math.max(slowest, Date.now() - t);
-    const values = new Set(R.tiles(built.board).map((i) => built.board.cells[i].value)).size;
-    rows.push({ exponent, style, m, values, board: R.serialize(built.board), tier: Gen.classify(m, size) || '-' });
+// Win chance on the first try with the smart habit (random among equally small merges).
+function smartWin(board) {
+    const solver = Solver.createSolver(R), memo = new Map();
+    function p(b) {
+        const n = R.tileCount(b);
+        if (n <= 1) return n;
+        const k = R.key(b);
+        if (memo.has(k)) return memo.get(k);
+        let v = 0;
+        if (solver.isSolvable(b)) {
+            let moves = R.legalMoves(b);
+            const fine = moves.filter((m) => !Reasoning.visiblyLost(R, R.applyMerge(b, m)));
+            if (fine.length) moves = fine;
+            const low = Math.min(...moves.map((m) => b.cells[m.from].value));
+            const pool = moves.filter((m) => b.cells[m.from].value === low);
+            for (const m of pool) v += p(R.applyMerge(b, m));
+            v /= pool.length;
+        }
+        memo.set(k, v);
+        return v;
+    }
+    return p(board);
 }
-console.log(`depth ${depth}: ${rows.length} boards in ${Date.now() - started} ms (slowest ${slowest} ms)`);
 
-const groups = {};
-for (const r of rows) { const k = r.m.searchSteps ? 'search' : 'L' + r.m.maxLevel; (groups[k] = groups[k] || []).push(r); }
-for (const k of Object.keys(groups).sort()) {
-    const g = groups[k];
-    console.log(k.padEnd(7), 'n', String(g.length).padStart(4),
-        '| L2 steps', spread(g, (r) => r.m.levelCounts[2]), '| L3-4', spread(g, (r) => r.m.levelCounts[3] + r.m.levelCounts[4]),
-        '| L5', spread(g, (r) => r.m.levelCounts[5]), '| span', spread(g, (r) => r.m.span), '| cost', spread(g, (r) => r.m.cost),
-        '| plans', spread(g, (r) => r.m.plans), '| decisions', spread(g, (r) => r.m.decisionPoints),
-        '| randomWin%', spread(g, (r) => Math.round(1000 * r.m.randomWin) / 10));
-}
-const hist = {};
-for (const r of rows) {
-    for (const p of r.m.path) {
-        if (p.level < 5) continue;
-        const k = `${p.technique}@${p.tiles} tiles c${p.cost}`;
-        hist[k] = (hist[k] || 0) + 1;
+if (!process.argv.includes('--skip-shapes')) {
+    const kinds = [[3, 3, 0], [3, 4, 0], [4, 4, 0], [4, 4, 1], [4, 4, 2]];
+    console.log(`waste among boards solvable by reasoning: p10/p50/p75/p90; hit = share of all boards each tier accepts`);
+    for (const [rows, cols, bonus] of kinds) {
+        const rng = Gen.makeRng(rows * 100 + cols * 10 + bonus), styles = Object.keys(Gen.STYLES), exps = Gen.EXPONENTS[rows * cols];
+        const rowsOut = [], seen = new Set(), ms = { trial: 0, path: 0 };
+        for (let tries = 0; rowsOut.length < samples && tries < samples * 20; tries++) {
+            const built = Gen.reverseBuild(rng, rows, cols, exps[Math.floor(rng() * exps.length)] + bonus, styles[Math.floor(rng() * styles.length)], Gen.bonusLayout(rng, rows, cols, bonus));
+            if (!built || seen.has(R.key(built.board))) continue;
+            seen.add(R.key(built.board));
+            let t = Date.now();
+            const waste = Reasoning.trialMerges(R, built.board, 20000) - (R.tileCount(built.board) - 1);
+            ms.trial += Date.now() - t; t = Date.now();
+            const reason = Reasoning.humanPath(R, built.board, { stopAtSearch: true }).complete;
+            ms.path += Date.now() - t;
+            rowsOut.push({ waste, reason });
+        }
+        const ok = rowsOut.filter((r) => r.reason);
+        const hits = Gen.TIERS.map((tier) => `${tier} ${pct(ok.filter((r) => inRange(r.waste, tier)).length / rowsOut.length)}%`).join(', ');
+        console.log(`${rows}×${cols}${bonus ? ' x2×' + bonus : '     '} n ${rowsOut.length} | reason ${pct(ok.length / rowsOut.length)}% | waste ${spread(ok.map((r) => r.waste))} | hit ${hits} | ms per board: trial ${Math.round(ms.trial / rowsOut.length)}, path ${Math.round(ms.path / rowsOut.length)}`);
     }
 }
-console.log('L5+ steps', Object.entries(hist).sort((a, b) => b[1] - a[1]).map(([k, n]) => `${k}: ${n}`).join(', '));
-const tiers = {}, uses = {};
-for (const r of rows) {
-    tiers[r.tier] = (tiers[r.tier] || 0) + 1;
-    for (const k in r.m.uses) uses[k] = (uses[k] || 0) + r.m.uses[k];
-}
-console.log('tiers', JSON.stringify(tiers));
-console.log('technique uses', JSON.stringify(uses));
-for (const tier of Gen.TIERS) {
-    const g = rows.filter((r) => r.tier === tier);
-    if (!g.length) continue;
-    console.log(tier.padEnd(7), 'n', String(g.length).padStart(4), '| cost', spread(g, (r) => r.m.cost), '| span', spread(g, (r) => r.m.span),
-        '| plans', spread(g, (r) => r.m.plans), '| winning first merges', spread(g, (r) => r.m.winningFirstMoves),
-        '| first merges', spread(g, (r) => r.m.firstMoves), '| randomWin%', spread(g, (r) => Math.round(1000 * r.m.randomWin) / 10),
-        '| trap%', spread(g, (r) => Math.round(100 * r.m.trapRate)), '| casual%', spread(g, (r) => Math.round(100 * r.m.casualWin)),
-        '| values', spread(g, (r) => r.values));
-    console.log('  ', g.slice(0, 8).map((r) => `${r.board} (c${r.m.cost} s${r.m.span} p${r.m.plans} w${Math.round(100 * r.m.casualWin)})`).join(' | '));
-}
-const buckets = size > 3 ? [0, 0.01, 0.02, 0.04, 0.08, 0.15, 0.3, 1.01] : [0, 0.05, 0.15, 0.3, 0.5, 0.75, 1.01];
-for (const key of ['exponent', 'style']) {
-    const by = {};
-    for (const r of rows) if (!r.m.searchSteps) (by[r[key]] = by[r[key]] || []).push(r);
-    console.log(`no-search boards by ${key}:`, Object.keys(by).sort().map((k) => `${k} n${by[k].length} casual% ${spread(by[k], (r) => Math.round(100 * r.m.casualWin))} L2 ${by[k].filter((r) => r.m.maxLevel <= 2).length}`).join(' | '));
-}
-console.log('casual win % by technique level (search = needs search):');
-for (let i = 0; i + 1 < buckets.length; i++) {
-    const g = rows.filter((r) => r.m.casualWin >= buckets[i] && r.m.casualWin < buckets[i + 1]);
-    const by = {};
-    for (const r of g) { const k = r.m.searchSteps ? 'search' : 'L' + r.m.maxLevel; by[k] = (by[k] || 0) + 1; }
-    console.log(`  ${Math.round(100 * buckets[i])}-${Math.min(100, Math.round(100 * buckets[i + 1]))}%`.padEnd(10), String(g.length).padStart(4), JSON.stringify(by),
-        '| plans', g.length ? spread(g, (r) => r.m.plans) : '-', '| values', g.length ? spread(g, (r) => r.values) : '-');
+
+// Exact-search cost of hard candidates (`--cost`): the largest single analysis along the
+// reasoning path, which is also what one hint costs in the game.
+if (process.argv.includes('--cost')) {
+    const rng = Gen.makeRng(4242), styles = Object.keys(Gen.STYLES), hard = Gen.DIFFICULTY.hard, rowsOut = [];
+    for (let tries = 0; rowsOut.length < samples && tries < samples * 200; tries++) {
+        const bonus = rng() < 0.5 ? 0 : 1 + Math.floor(rng() * 2), exps = Gen.EXPONENTS[16];
+        const built = Gen.reverseBuild(rng, 4, 4, exps[Math.floor(rng() * exps.length)] + bonus, styles[Math.floor(rng() * styles.length)], Gen.bonusLayout(rng, 4, 4, bonus));
+        if (!built) continue;
+        const minimum = R.tileCount(built.board) - 1;
+        if (Reasoning.trialMerges(R, built.board, minimum + hard.min) - minimum < hard.min) continue;
+        const solver = Solver.createSolver(R), analyze = solver.analyze;
+        let peak = 0, peakMs = 0;
+        solver.analyze = (b) => {
+            const before = solver.stats().explored, t = Date.now(), v = analyze(b);
+            peak = Math.max(peak, solver.stats().explored - before); peakMs = Math.max(peakMs, Date.now() - t);
+            return v;
+        };
+        const t = Date.now(), complete = Reasoning.humanPath(R, built.board, { stopAtSearch: true, solver }).complete;
+        rowsOut.push({ complete, peak, peakMs, ms: Date.now() - t });
+    }
+    const ok = rowsOut.filter((r) => r.complete), bad = rowsOut.filter((r) => !r.complete);
+    console.log(`hard candidates ${rowsOut.length}, reason-solvable ${ok.length}`);
+    console.log(`  peak states p10/p50/p75/p90: solvable ${spread(ok.map((r) => r.peak))}, rejected ${spread(bad.map((r) => r.peak))}`);
+    console.log(`  peak analyze ms: solvable ${spread(ok.map((r) => r.peakMs))}, worst ${Math.max(...rowsOut.map((r) => r.peakMs))}; path ms worst ${Math.max(...rowsOut.map((r) => r.ms))}`);
+    console.log(`  most states for a solvable board ${Math.max(...ok.map((r) => r.peak))}`);
+    for (const budget of [2000, 3000, 5000, 10000]) {
+        const kept = ok.filter((r) => r.peak <= budget).length;
+        console.log(`  budget ${budget}: keeps ${kept}/${ok.length} solvable (${pct(kept / ok.length)}%), slowest kept analyze ${Math.max(0, ...ok.filter((r) => r.peak <= budget).map((r) => r.peakMs))} ms`);
+    }
 }
 
-if (sound) {
-    // Every candidate step must win and every refuted merge must lose, at every state reachable
-    // from the first boards.
-    let states = 0, bugs = 0;
-    for (const r of rows.slice(0, 80)) {
-        const solver = Solver.createSolver(R), seen = new Set(), stack = [R.parse(r.board)];
-        while (stack.length) {
-            const b = stack.pop(), k = R.key(b);
-            if (seen.has(k)) continue;
-            seen.add(k);
-            const a = solver.analyze(b);
-            if (a.status !== 'solvable' && a.status !== 'unsolvable') continue;
-            states++;
-            const outcome = (m) => (a.moves.find((x) => Rules.sameMove(x, m)) || {}).outcome;
-            const dead = Reasoning.explainDead(R, b);
-            if (dead && a.status === 'solvable') { bugs++; console.log('BUG dead', dead.id, R.serialize(b)); }
-            if (a.status !== 'solvable') { for (const m of a.moves) stack.push(R.applyMerge(b, m)); continue; }
-            for (const s of Reasoning.candidates(R, b, outcome, { depth })) {
-                if (outcome(s.move) !== 'win') { bugs++; console.log('BUG step', s.technique, R.serialize(b), JSON.stringify(s.move)); }
-                for (const ref of s.refuted || []) {
-                    if (outcome(ref.move) !== 'lose') { bugs++; console.log('BUG refute', ref.reason.id, R.serialize(b), JSON.stringify(ref.move)); }
+// Hard-tier yield per construction choice (`--combos`): `samples` 4×4 boards per exponent,
+// style and bonus count, each judged exactly as the generator does.
+if (process.argv.includes('--combos')) {
+    const rng = Gen.makeRng(777), out = [];
+    for (const e of Gen.EXPONENTS[16]) {
+        for (const style of Object.keys(Gen.STYLES)) {
+            for (const [bonus] of Gen.BONUS[16]) {
+                let ms = 0, hits = 0, n = 0;
+                for (let k = 0; k < samples; k++) {
+                    const built = Gen.reverseBuild(rng, 4, 4, e + bonus, style, Gen.bonusLayout(rng, 4, 4, bonus));
+                    if (!built) continue;
+                    const t = Date.now();
+                    if (Gen.judge(built.board, 'hard')) hits++;
+                    ms += Date.now() - t; n++;
                 }
+                out.push({ combo: `e${e} ${style} x2×${bonus}`, rate: hits / n, ms: ms / n, perHit: hits ? ms / hits : Infinity });
             }
-            for (const m of a.moves) stack.push(R.applyMerge(b, m));
         }
     }
-    console.log(`soundness: ${states} states, ${bugs} problems`);
+    out.sort((a, b) => a.perHit - b.perHit);
+    for (const r of out) console.log(`${r.combo.padEnd(18)} | hit ${pct(r.rate)}% | ms per try ${Math.round(r.ms)} | ms per hit ${Math.round(r.perHit)}`);
+}
+
+if (!process.argv.includes('--skip-generate')) {
+    for (const tier of Gen.TIERS) {
+        const times = [], tries = [], shapes = {}, wastes = [], wins = [], picks = [];
+        let curated = 0;
+        for (let seed = 1; seed <= seeds; seed++) {
+            const t = Date.now();
+            const p = Gen.generate({ difficulty: tier, seed });
+            times.push(Date.now() - t);
+            tries.push(p.attempts);
+            if (p.source === 'curated') { curated++; continue; }
+            const board = R.parse(p.board), shape = `${p.rows}×${p.cols}${p.metrics.bonusCells ? ' x2×' + p.metrics.bonusCells : ''}`;
+            shapes[shape] = (shapes[shape] || 0) + 1;
+            wastes.push(Reasoning.trialMerges(R, board, 20000) - (R.tileCount(board) - 1));
+            wins.push(smartWin(board));
+            if (picks.length < 4 && !picks.some((x) => x.shape === shape)) picks.push({ shape, text: p.board });
+        }
+        console.log(`${tier.padEnd(6)} | ms median ${Math.round(q(times, 0.5))}, p90 ${q(times, 0.9)}, worst ${Math.max(...times)} | attempts median ${q(tries, 0.5)}, worst ${Math.max(...tries)} | curated ${curated}/${seeds}`);
+        console.log(`       shapes ${JSON.stringify(shapes)} | waste ${spread(wastes)} | smart first-try win% ${spread(wins.map((w) => 100 * w))}`);
+        for (const pick of picks) console.log(`       '${pick.text}',  // ${pick.shape}`);
+    }
 }

@@ -71,58 +71,121 @@
             throw new SyntaxError('Unknown cell token: ' + s);
         }
 
-        function createBoard(rows, cols, cells) {
-            if (!(rows >= 1 && cols >= 1) || cells.length !== rows * cols) throw new RangeError('Board dimensions do not match its cells');
-            for (const cell of cells) if (cell !== EMPTY) typeOf(cell);
-            return { rows, cols, cells: cells.slice() };
-        }
-        // Rows of numbers (0/null/'.' = empty, '#' = blocked) or tile objects.
-        function fromRows(grid) {
-            const rows = grid.length, cols = grid[0].length, cells = [];
-            for (const row of grid) {
-                if (row.length !== cols) throw new RangeError('Ragged board');
-                for (const v of row) cells.push(v && typeof v === 'object' ? v : parseToken(v == null ? '.' : v));
-            }
-            return createBoard(rows, cols, cells);
-        }
-        // `1 1 2/2 4 ./# 8 8` — rows separated by '/', cells by spaces or commas.
-        function parse(text) {
-            return fromRows(String(text).trim().split('/').map((row) => row.trim().split(/[\s,]+/)));
-        }
-        function serialize(board) {
-            const out = [];
-            for (let r = 0; r < board.rows; r++) out.push(board.cells.slice(r * board.cols, (r + 1) * board.cols).map(token).join(' '));
-            return out.join('/');
-        }
-        function key(board) {
-            let k = '';
-            for (const cell of board.cells) k += token(cell) + ',';
-            return k;
-        }
-
-        function neighbors(board, i) {
-            const id = board.rows + 'x' + board.cols;
+        // Neighbour lists of a rows × cols grid, cached per shape.
+        function gridNeighbors(rows, cols) {
+            const id = rows + 'x' + cols;
             let table = neighborCache.get(id);
             if (!table) {
                 table = [];
-                for (let r = 0; r < board.rows; r++) for (let c = 0; c < board.cols; c++) {
+                for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
                     const list = [];
                     for (const [dr, dc] of offsets) {
                         const rr = r + dr, cc = c + dc;
-                        if (rr >= 0 && rr < board.rows && cc >= 0 && cc < board.cols) list.push(rr * board.cols + cc);
+                        if (rr >= 0 && rr < rows && cc >= 0 && cc < cols) list.push(rr * cols + cc);
                     }
                     table.push(list);
                 }
                 neighborCache.set(id, table);
             }
-            return table[i];
+            return table;
         }
+
+        // A layout holds the fixed features of a puzzle's grid, shared by all of its positions:
+        // bonus cells, whose multiplier applies to every merge landing on them (×2 turns
+        // 4 + 4 into 16). Spec: { bonus: { cell: multiplier } }. null when there is none.
+        function createLayout(rows, cols, spec) {
+            if (!spec) return null;
+            if (typeof spec.sig === 'string') return spec;
+            const n = rows * cols, bonus = new Array(n).fill(1);
+            for (const i of Object.keys(spec.bonus || {})) {
+                const m = spec.bonus[i];
+                if (!(i >= 0 && i < n) || !isPowerOfTwo(m)) throw new RangeError('A bonus multiplies by a power of two: ' + i + '×' + m);
+                bonus[i] = m;
+            }
+            const bonusCells = [];
+            for (let i = 0; i < n; i++) if (bonus[i] > 1) bonusCells.push(i);
+            if (!bonusCells.length) return null;
+            return Object.freeze({
+                bonus: Object.freeze(bonus), bonusCells: Object.freeze(bonusCells),
+                sig: bonusCells.map((i) => i + '*' + bonus[i]).join(','),
+            });
+        }
+        function layoutSpec(board) {
+            const lay = board.layout;
+            if (!lay) return null;
+            const bonus = {};
+            for (const i of lay.bonusCells) bonus[i] = lay.bonus[i];
+            return { bonus };
+        }
+        // A board sharing `board`'s grid and layout with new cells.
+        function withCells(board, cells) {
+            const out = { rows: board.rows, cols: board.cols, cells };
+            if (board.layout) out.layout = board.layout;
+            return out;
+        }
+
+        function createBoard(rows, cols, cells, layout) {
+            if (!(rows >= 1 && cols >= 1) || cells.length !== rows * cols) throw new RangeError('Board dimensions do not match its cells');
+            for (const cell of cells) if (cell !== EMPTY) typeOf(cell);
+            return withCells({ rows, cols, layout: createLayout(rows, cols, layout) }, cells.slice());
+        }
+        // Rows of numbers (0/null/'.' = empty, '#' = blocked) or tile objects.
+        function fromRows(grid, layout) {
+            const rows = grid.length, cols = grid[0].length, cells = [];
+            for (const row of grid) {
+                if (row.length !== cols) throw new RangeError('Ragged board');
+                for (const v of row) cells.push(v && typeof v === 'object' ? v : parseToken(v == null ? '.' : v));
+            }
+            return createBoard(rows, cols, cells, layout);
+        }
+        // `1 1 2/2 4 ./# 8 8` — rows separated by '/', cells by spaces or commas. Bonus cells
+        // follow after ';' by multiplier: `4 4/8 16;x2=1,2`.
+        function parse(text) {
+            const [grid, ...extras] = String(text).trim().split(';');
+            let layout = null;
+            for (const part of extras) {
+                const m = /^\s*x(\d+)\s*=\s*([\d,\s]*)$/.exec(part);
+                if (!m) throw new SyntaxError('Unknown layout part: ' + part);
+                layout = layout || { bonus: {} };
+                for (const item of m[2].split(',').map((s) => s.trim()).filter(Boolean)) layout.bonus[Number(item)] = Number(m[1]);
+            }
+            return fromRows(grid.trim().split('/').map((row) => row.trim().split(/[\s,]+/)), layout);
+        }
+        function serialize(board) {
+            const out = [];
+            for (let r = 0; r < board.rows; r++) out.push(board.cells.slice(r * board.cols, (r + 1) * board.cols).map(token).join(' '));
+            let text = out.join('/');
+            const lay = board.layout;
+            if (lay) {
+                const groups = new Map();
+                for (const i of lay.bonusCells) groups.set(lay.bonus[i], (groups.get(lay.bonus[i]) || []).concat(i));
+                for (const [m, cells] of [...groups].sort((x, y) => x[0] - y[0])) text += ';x' + m + '=' + cells.join(',');
+            }
+            return text;
+        }
+        function key(board) {
+            let k = '';
+            for (const cell of board.cells) k += token(cell) + ',';
+            return board.layout ? k + '|' + board.layout.sig : k;
+        }
+
+        function neighbors(board, i) { return gridNeighbors(board.rows, board.cols)[i]; }
         function adjacent(board, a, b) { return neighbors(board, a).includes(b); }
+        function bonusAt(board, i) { return board.layout ? board.layout.bonus[i] : 1; }
+        // A tile still sits on a bonus cell, so the number total can still change.
+        function bonusLive(board) {
+            return !!board.layout && board.layout.bonusCells.some((i) => isTile(board.cells[i]));
+        }
 
         function mergeResult(src, dst) {
             if (!isTile(src) || !isTile(dst)) return null;
             const handler = merges[src.type + '>' + dst.type];
             return handler ? handler(src, dst) || null : null;
+        }
+        // The tile a merge leaves at `to`, including that cell's bonus.
+        function mergeAt(board, from, to) {
+            const out = mergeResult(board.cells[from], board.cells[to]), m = bonusAt(board, to);
+            return out && m > 1 && out.type === 'num' ? num(out.value * m) : out;
         }
         function canMerge(board, from, to) {
             return Number.isInteger(from) && Number.isInteger(to) && from !== to
@@ -132,9 +195,9 @@
         function applyMerge(board, move) {
             if (!move || !canMerge(board, move.from, move.to)) throw new RangeError('Illegal merge ' + JSON.stringify(move));
             const cells = board.cells.slice();
-            cells[move.to] = mergeResult(cells[move.from], cells[move.to]);
+            cells[move.to] = mergeAt(board, move.from, move.to);
             cells[move.from] = EMPTY;
-            return { rows: board.rows, cols: board.cols, cells };
+            return withCells(board, cells);
         }
         function legalMoves(board) {
             const moves = [];
@@ -262,7 +325,9 @@
             {
                 // Tiles below v only merge with equal (hence also below-v) neighbours until they
                 // reach exactly v, so each connected group of below-v tiles must add up to a
-                // multiple of v. (v = 2 × smallest is the odd-group rule.)
+                // multiple of v. (v = 2 × smallest is the odd-group rule.) A group holding a
+                // bonus cell can jump past v, so it is not checked; totals never shrink, so
+                // bonuses elsewhere keep the argument.
                 id: 'subtotal', numbersOnly: true,
                 check(board, ts) {
                     const total = numberTotal(board);
@@ -273,16 +338,17 @@
                         for (const start of ts) {
                             if (board.cells[start].value >= v || seen.has(start)) continue;
                             const group = [start];
-                            let sum = board.cells[start].value;
+                            let sum = board.cells[start].value, bonus = bonusAt(board, start) > 1;
                             seen.add(start);
                             for (let k = 0; k < group.length; k++) {
                                 for (const j of neighbors(board, group[k])) {
                                     if (!seen.has(j) && isTile(board.cells[j]) && board.cells[j].value < v) {
                                         seen.add(j); group.push(j); sum += board.cells[j].value;
+                                        if (bonusAt(board, j) > 1) bonus = true;
                                     }
                                 }
                             }
-                            if (sum % v) return { cells: group, sum, below: v };
+                            if (sum % v && !bonus) return { cells: group, sum, below: v };
                         }
                     }
                     return null;
@@ -290,10 +356,11 @@
             },
             {
                 // A tile worth half the total can only take part in the final merge, so every
-                // other tile must combine without passing through its cell.
+                // other tile must combine without passing through its cell. Needs a fixed
+                // total: skipped while a tile still sits on a bonus cell.
                 id: 'half', numbersOnly: true,
                 check(board, ts) {
-                    if (ts.length < 3) return null;
+                    if (ts.length < 3 || bonusLive(board)) return null;
                     const total = numberTotal(board);
                     for (const i of ts) {
                         if (board.cells[i].value * 2 !== total) continue;
@@ -324,8 +391,8 @@
 
         return {
             adjacency: cfg.adjacency, EMPTY, BLOCK, num,
-            isTile, token, parseToken, createBoard, fromRows, parse, serialize, key,
-            neighbors, adjacent, mergeResult, canMerge, applyMerge, legalMoves,
+            isTile, token, parseToken, createBoard, createLayout, layoutSpec, withCells, fromRows, parse, serialize, key,
+            neighbors, adjacent, bonusAt, bonusLive, mergeResult, mergeAt, canMerge, applyMerge, legalMoves,
             tiles, tileCount, status, numbersOnly, numberTotal, tileGroups,
             contradictions: (board) => contradictions(board, true), findContradiction,
             conditionIds: CONDITIONS.map((c) => c.id),

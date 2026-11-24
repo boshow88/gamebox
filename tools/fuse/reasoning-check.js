@@ -10,6 +10,7 @@ const R = Rules.DEFAULT;
 
 const same = (a, b) => Rules.sameMove(a, b);
 const winsOf = (a) => a.moves.filter((m) => m.outcome === 'win');
+const rankOf = (s) => s.level * 1000 + (s.verifiedBySearch ? 100 : 0) + s.cost;
 function replay(board, moves) {
     let b = board;
     for (const m of moves) { assert.ok(R.canMerge(b, m.from, m.to), 'chain move is legal'); b = R.applyMerge(b, m); }
@@ -53,11 +54,13 @@ assert.equal(Reasoning.refute({ R, maxLevel: 5, depth: 3, trialDepth: 8 }, R.par
 // Every reachable state of generated boards: every candidate step on a solvable board wins,
 // every refuted merge loses, explainDead never fires on a solvable board, and nextStep only
 // recommends winning merges with all equivalent alternatives listed.
-const rng = Gen.makeRng(4242), styles = Object.keys(Gen.STYLES), exps = Gen.PLAN[3].exponents;
+// A third of the 3×3 boards carry ×2 bonus cells; the last is a 3×4 board.
+const rng = Gen.makeRng(4242), styles = Object.keys(Gen.STYLES), exps = Gen.EXPONENTS[9];
 const techniques = {}, reasons = {};
-let states = 0, unsolvableStates = 0, unexplained = 0;
-for (let n = 0; n < 18; n++) {
-    const built = Gen.reverseBuild(rng, 3, 3, exps[n % exps.length], styles[n % styles.length]);
+let states = 0, unsolvableStates = 0, unexplained = 0, bonusStates = 0;
+for (let n = 0; n < 19; n++) {
+    const cols = n === 18 ? 4 : 3, bonus = n % 3 === 2 ? 1 + (n % 2) : 0;
+    const built = Gen.reverseBuild(rng, 3, cols, (cols === 4 ? 6 : exps[n % exps.length]) + bonus, styles[n % styles.length], Gen.bonusLayout(rng, 3, cols, bonus));
     if (!built) continue;
     const solver = Solver.createSolver(R);
     const seen = new Set();
@@ -68,18 +71,26 @@ for (let n = 0; n < 18; n++) {
         seen.add(k);
         if (R.tileCount(b) < 2) continue;
         states++;
+        if (R.bonusLive(b)) bonusStates++;
         const exact = solver.analyze(b);
         const outcome = (m) => { const hit = exact.moves.find((x) => same(x, m)); return hit ? hit.outcome : 'lose'; };
         const dead = Reasoning.explainDead(R, b);
         if (exact.status === 'solvable') {
             assert.equal(dead, null, 'explainDead on solvable ' + R.serialize(b));
-            for (const step of Reasoning.candidates(R, b, outcome)) {
+            const valid = Reasoning.candidates(R, b).filter((s) => !s.verifiedBySearch || s.alternatives.every((m) => outcome(m) === 'win'));
+            for (const step of valid) {
                 assert.equal(outcome(step.move), 'win', `${step.technique} on ${R.serialize(b)}`);
                 for (const r of step.refuted || []) assert.equal(outcome(r.move), 'lose', `refuted by ${r.reason.id} on ${R.serialize(b)}`);
                 for (const alt of step.alternatives || []) assert.equal(outcome(alt), 'win');
                 if (step.technique === 'trial') assert.equal(R.status(replay(b, step.chain)), 'won', 'trial chain wins');
             }
             const step = Reasoning.nextStep(R, b, { solver });
+            // The easiest valid candidate; trials only count when nothing below level 5 holds.
+            const easy = valid.filter((s) => s.level < 5);
+            const expected = (easy.length ? easy : valid).sort((x, y) => rankOf(x) - rankOf(y))[0];
+            if (R.tileCount(b) === 2) assert.equal(step.technique, 'final');
+            else if (expected) assert.deepEqual([step.technique, step.move], [expected.technique, expected.move], 'nextStep picks the easiest valid step on ' + R.serialize(b));
+            else assert.equal(step.technique, 'search');
             techniques[step.technique] = (techniques[step.technique] || 0) + 1;
             for (const r of step.refuted || []) reasons[r.reason.id] = (reasons[r.reason.id] || 0) + 1;
             assert.equal(step.validated, true);
@@ -109,6 +120,7 @@ for (let n = 0; n < 18; n++) {
     }
 }
 assert.ok(states > 2000, `states checked (${states})`);
+assert.ok(bonusStates > 300, `states with a live bonus cell checked (${bonusStates})`);
 for (const id of ['final', 'lone', 'only-pair', 'forced-pair', 'trial', 'search']) assert.ok(techniques[id] > 0, `technique ${id} exercised`);
 for (const id of ['dead-end', 'stuck']) assert.ok(reasons[id] > 0, `reason ${id} exercised`);
 
@@ -116,48 +128,62 @@ for (const id of ['dead-end', 'stuck']) assert.ok(reasons[id] > 0, `reason ${id}
 {
     let built = null;
     for (let seed = 5; !built; seed++) built = Gen.reverseBuild(Gen.makeRng(seed), 3, 3, 6, 'deep');
-    const board = built.board, solver = Solver.createSolver(R);
-    const capped = Reasoning.evaluate(R, board, { solver, maxLevel: 2 });
-    assert.ok(capped.path.every((p) => p.level <= 2 || p.level === Reasoning.SEARCH));
+    const capped = Reasoning.humanPath(R, built.board, { maxLevel: 2 });
+    assert.ok(capped.steps.every((s) => s.level <= 2 || s.level === Reasoning.SEARCH));
 }
 
-// Evaluate: the path is the replayable easiest-step walk and the metrics summarise it.
-for (let n = 0; n < 12; n++) {
-    const built = Gen.reverseBuild(rng, 3, 3, exps[n % exps.length], styles[(n + 1) % styles.length]);
+// Trial merges recomputed from the definition: smallest first (board order among equals),
+// skipping results with a dead end or a level <= 2 contradiction, undoing when stuck,
+// remembering failed positions.
+function trialReference(board) {
+    const failed = new Set();
+    let merges = 0;
+    const solve = (b) => {
+        if (R.tileCount(b) === 1) return true;
+        if (failed.has(R.key(b))) return false;
+        const options = R.legalMoves(b).map((m, i) => ({ i, value: b.cells[m.from].value, next: R.applyMerge(b, m) }))
+            .filter((o) => { const d = Reasoning.explainDead(R, o.next); return !d || d.level > 2; })
+            .sort((x, y) => x.value - y.value || x.i - y.i);
+        for (const o of options) { merges++; if (solve(o.next)) return true; }
+        failed.add(R.key(b));
+        return false;
+    };
+    solve(board);
+    return merges;
+}
+
+// Human path: the replayable easiest-step walk. Trial merges: as defined, at least the
+// minimum on a solvable board, reproducible, capped, and finite on lost boards.
+let backtracked = 0;
+for (let n = 0; n < 40; n++) {
+    const bonus = n % 3 === 0 ? 1 : 0;
+    const built = Gen.reverseBuild(rng, 3, 3, exps[n % exps.length] + bonus, styles[(n + 1) % styles.length], Gen.bonusLayout(rng, 3, 3, bonus));
     if (!built) continue;
-    const m = Reasoning.evaluate(R, built.board);
-    assert.equal(m.solvable, true);
-    assert.equal(R.status(replay(built.board, m.path.map((p) => p.move))), 'won');
-    assert.equal(m.path.length, R.tileCount(built.board) - 1);
-    assert.equal(m.maxLevel, Math.max(...m.path.map((p) => p.level)));
-    assert.equal(m.span, Math.max(...m.path.map((p) => p.span)));
-    assert.equal(Object.values(m.levelCounts).reduce((a, b) => a + b, 0), m.path.length);
-    assert.equal(m.searchSteps, m.levelCounts[6]);
-    assert.ok(m.plans >= 1 && m.plans <= 50);
-    assert.ok(m.randomWin > 0 && m.randomWin <= 1);
-    // Skipping only merges that are certainly lost can never lower the win chance.
-    assert.ok(m.casualWin >= m.randomWin - 1e-12 && m.casualWin <= 1);
-    assert.ok(Math.abs(m.casualWin - casualReference(built.board)) < 1e-9, 'casual win matches a solver-free recursion');
+    const path = Reasoning.humanPath(R, built.board);
+    assert.equal(path.complete, true);
+    assert.equal(R.status(replay(built.board, path.steps.map((s) => s.move))), 'won');
+    assert.equal(path.steps.length, R.tileCount(built.board) - 1);
+    assert.equal(path.maxLevel, Math.max(...path.steps.map((s) => s.level)));
+    assert.equal(path.searchSteps, path.steps.filter((s) => s.level === Reasoning.SEARCH).length);
+    const stopped = Reasoning.humanPath(R, built.board, { stopAtSearch: true });
+    assert.equal(stopped.complete, path.searchSteps === 0);
+    const merges = Reasoning.trialMerges(R, built.board);
+    assert.equal(merges, trialReference(built.board), 'trial merges follow the definition on ' + R.serialize(built.board));
+    assert.ok(merges >= R.tileCount(built.board) - 1);
+    if (merges > R.tileCount(built.board) - 1) backtracked++;
+    assert.equal(Reasoning.trialMerges(R, built.board), merges, 'reproducible');
+    assert.equal(Reasoning.trialMerges(R, built.board, 3), Math.min(3, merges), 'capped');
 }
-// The casual player, recomputed without the solver: random among merges whose result shows
-// no dead end or level <= 2 contradiction, falling back to any merge.
-function casualReference(board, memo = new Map()) {
-    const n = R.tileCount(board);
-    if (n <= 1) return n;
-    const key = R.key(board);
-    if (memo.has(key)) return memo.get(key);
-    const kids = R.legalMoves(board).map((m) => R.applyMerge(board, m));
-    const fine = kids.filter((c) => { const d = Reasoning.explainDead(R, c); return !d || d.level > 2; });
-    const pool = fine.length ? fine : kids;
-    const v = pool.length ? pool.reduce((s, c) => s + casualReference(c, memo), 0) / pool.length : 0;
-    memo.set(key, v);
-    return v;
-}
-const lost = Reasoning.evaluate(R, R.parse('2 2 1'));
-assert.equal(lost.solvable, false);
-assert.equal(lost.path.length, 0);
-assert.equal(Reasoning.casualWin(R, R.parse('2 2 1'), Solver.createSolver(R)), 0);
-assert.equal(Reasoning.casualWin(R, R.parse('2 2'), Solver.createSolver(R)), 1);
+assert.ok(backtracked > 0, 'some boards need undoing');
+assert.equal(Reasoning.humanPath(R, R.parse('2 2 1')).complete, false);
+assert.equal(Reasoning.humanPath(R, R.parse('2 2 1')).steps.length, 0);
+assert.equal(Reasoning.trialMerges(R, R.parse('2 2')), 1);
+assert.equal(Reasoning.trialMerges(R, R.parse('4 2 2')), 2, 'the 2s merge toward the 4, then the 4s');
+assert.equal(Reasoning.trialMerges(R, R.parse('2 2 1')), 0, 'every merge is visibly lost');
+assert.equal(Reasoning.visiblyLost(R, R.parse('2 2 1')), true);
+assert.equal(Reasoning.visiblyLost(R, R.parse('2 . 2')), true, 'nothing can merge');
+assert.equal(Reasoning.visiblyLost(R, R.parse('2 2 . 4 4')), false, 'a split needs a closer look (level 3)');
+assert.equal(Reasoning.visiblyLost(R, R.parse('8')), false);
 
 // Other tile types: number-specific techniques stay silent, every hint still wins, and
 // anything not explained by generic techniques is labelled search.
@@ -184,5 +210,5 @@ for (const text of ['2 * 2/4 4 8', '* 1 1/2 * 4', '4 4 */8 * 16', '1 1 */2 4 *',
 }
 assert.ok(starSteps > 5, `special-tile steps exercised (${starSteps})`);
 
-console.log(`fuse reasoning: ok (${states} states, ${unsolvableStates} lost, ${unexplained} lost without a deduction; ` +
+console.log(`fuse reasoning: ok (${states} states, ${bonusStates} with a live bonus cell, ${unsolvableStates} lost, ${unexplained} lost without a deduction; ` +
     `next steps ${JSON.stringify(techniques)}; refutations ${JSON.stringify(reasons)})`);

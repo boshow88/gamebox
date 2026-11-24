@@ -176,45 +176,55 @@
         return Object.assign(base, { move: null, undecided: dirs });
     }
 
-    // Every step a person could take from `board`, before validation against exact search.
-    // `outcome(move)` reports exact results ('win' | 'lose' | 'unknown').
-    function candidates(R, board, outcome, options) {
-        const ctx = Object.assign({ R }, DEFAULTS, options);
+    // Steps a person could take from `board` other than trials, before validation against
+    // exact search, and the merges no technique refutes. A step marked `verifiedBySearch`
+    // claims every one of its alternatives wins, which only search can confirm.
+    function deductions(ctx, board) {
         const out = [];
-        for (const pair of forcedPairs(R, board)) {
+        for (const pair of forcedPairs(ctx.R, board)) {
             const step = resolvePair(ctx, board, pair);
             if (!step) continue;
             if (step.move) out.push(step);
-            else if (step.undecided.every((m) => outcome(m) === 'win')) {
-                out.push(Object.assign(step, { move: step.undecided[0], alternatives: step.undecided, freeDirection: true, verifiedBySearch: true, span: 0 }));
-            }
+            else out.push(Object.assign(step, { move: step.undecided[0], alternatives: step.undecided, freeDirection: true, verifiedBySearch: true, span: 0 }));
         }
-        const legal = R.legalMoves(board);
+        const legal = ctx.R.legalMoves(board);
         const refs = legal.map((m) => refute(ctx, board, m, ctx.maxLevel));
         const alive = legal.filter((m, i) => !refs[i]);
         const eliminated = refs.filter(Boolean);
-        if (alive.length && alive.every((m) => outcome(m) === 'win')) {
+        if (alive.length) {
             const level = eliminated.reduce((lv, r) => Math.max(lv, r.level), 1);
             const cost = eliminated.reduce((sum, r) => sum + r.cost, 1);
             const span = eliminated.reduce((n, r) => Math.max(n, r.span), 0);
             if (alive.length === 1) out.push({ technique: 'eliminate', level, cost, span, move: alive[0], eliminated, refuted: eliminated });
             else out.push({ technique: 'free', level, cost, span, move: alive[0], alternatives: alive, eliminated, refuted: eliminated, verifiedBySearch: true });
         }
-        if (ctx.maxLevel >= 5 && !out.some((s) => s.level < 5)) {
-            for (const move of alive) {
-                const chain = confirm(ctx, board, move);
-                if (chain) out.push({ technique: 'trial', level: LEVELS.trial, cost: COSTS.trial + chain.length, span: chain.length, move, chain, refuted: [] });
-            }
+        return { steps: out, alive };
+    }
+    function trials(ctx, board, alive) {
+        const out = [];
+        if (ctx.maxLevel < 5) return out;
+        for (const move of alive) {
+            const chain = confirm(ctx, board, move);
+            if (chain) out.push({ technique: 'trial', level: LEVELS.trial, cost: COSTS.trial + chain.length, span: chain.length, move, chain, refuted: [] });
         }
         return out;
+    }
+    // Every step a person could take from `board`, unvalidated (see deductions).
+    function candidates(R, board, options) {
+        const ctx = Object.assign({ R }, DEFAULTS, options);
+        const found = deductions(ctx, board);
+        return found.steps.concat(trials(ctx, board, found.alive));
     }
 
     function rank(step) { return step.level * 1000 + (step.verifiedBySearch ? 100 : 0) + step.cost; }
 
     // The easiest valid step from `board`. Recommendations are always winning merges according
-    // to exact search; when no technique applies the step is labelled `search`.
+    // to exact search; when no technique applies the step is labelled `search` (listing every
+    // winning merge unless `searchMoves` is false). Search only classifies the merges a
+    // candidate depends on, easiest candidate first, and trials (level 5) are only looked for
+    // when no easier step holds.
     function nextStep(R, board, options) {
-        const o = Object.assign({}, DEFAULTS, options);
+        const o = Object.assign({ searchMoves: true }, DEFAULTS, options);
         const solver = o.solver || Solver.createSolver(R);
         const status = R.status(board);
         if (status === 'won') return { technique: 'won', level: 0, cost: 0, cells: [] };
@@ -223,17 +233,27 @@
             const moves = R.legalMoves(board);
             return { technique: 'final', level: 1, cost: 1, span: 0, move: moves[0], alternatives: moves, pair: [moves[0].from, moves[0].to], validated: true };
         }
-        const exact = solver.analyze(board);
-        if (exact.status === 'unsolvable') {
+        const solvable = solver.isSolvable(board);
+        if (solvable === false) {
             const reason = explainDead(R, board);
             return { technique: 'unsolvable', level: reason ? reason.level : SEARCH, cost: 0, reason, verifiedBySearch: !reason };
         }
-        const outcome = (m) => { const hit = exact.moves.find((x) => Rules.sameMove(x, m)); return hit ? hit.outcome : 'lose'; };
-        const validated = exact.status === 'solvable';
-        const steps = candidates(R, board, outcome, o)
-            .filter((s) => outcome(s.move) === 'win' || (!validated && outcome(s.move) === 'unknown'))
-            .sort((a, b) => rank(a) - rank(b));
-        if (steps.length) return Object.assign(steps[0], { validated });
+        const validated = solvable === true, known = new Map();
+        const outcome = (m) => {
+            const k = Rules.moveKey(m);
+            if (!known.has(k)) known.set(k, solver.classify(board, m));
+            return known.get(k);
+        };
+        const holds = (s) => (s.verifiedBySearch
+            ? s.alternatives.every((m) => outcome(m) === 'win')
+            : outcome(s.move) === 'win' || (!validated && outcome(s.move) === 'unknown'));
+        const best = (steps) => steps.sort((a, b) => rank(a) - rank(b)).find(holds);
+        const ctx = Object.assign({ R }, o), found = deductions(ctx, board);
+        const step = best(found.steps.filter((s) => s.level < 5))
+            || best(found.steps.filter((s) => s.level >= 5).concat(trials(ctx, board, found.alive)));
+        if (step) return Object.assign(step, { validated });
+        if (!o.searchMoves) return { technique: 'search', level: SEARCH, cost: 0, move: null, verifiedBySearch: false, validated };
+        const exact = solver.analyze(board);
         const wins = exact.moves.filter((m) => m.outcome === 'win').map((m) => ({ from: m.from, to: m.to }));
         if (!wins.length) return { technique: 'unknown', level: SEARCH, cost: 0, verifiedBySearch: false, validated: false };
         // Keep any pair a technique proved, so a hint can still explain that much.
@@ -244,71 +264,68 @@
         };
     }
 
-    // Chance that a casual player wins: merges are picked at random, but never one whose result
-    // is visibly lost (a contradiction of level <= `sees`, or a dead end).
-    function casualWin(R, board, solver, sees) {
-        const limit = sees || 2, memo = new Map();
-        function p(b) {
-            const n = R.tileCount(b);
-            if (n <= 1) return n;
-            const k = R.key(b);
-            if (memo.has(k)) return memo.get(k);
-            let v = 0;
-            if (solver.isSolvable(b)) {
-                const kids = R.legalMoves(b).map((m) => R.applyMerge(b, m));
-                const fine = kids.filter((c) => { const d = explainDead(R, c); return !d || d.level > limit; });
-                const pool = fine.length ? fine : kids;
-                for (const c of pool) v += p(c);
-                v /= pool.length;
-            }
-            memo.set(k, v);
-            return v;
-        }
-        return p(board);
-    }
-
-    // Difficulty metrics: follow the easiest human step from the start and record what it
-    // needed, plus exact-search measures of how many merges are traps.
-    function evaluate(R, board, options) {
-        const o = Object.assign({ planCap: 50 }, DEFAULTS, options);
-        const solver = o.solver || Solver.createSolver(R, { maxStates: o.maxStates || 300000 });
-        const start = solver.analyze(board);
-        const levelCounts = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 };
-        const metrics = {
-            status: start.status, solvable: start.status === 'solvable' || start.status === 'won',
-            tiles: R.tileCount(board), firstMoves: start.moves.length,
-            winningFirstMoves: start.moves.filter((m) => m.outcome === 'win').length,
-            maxLevel: 0, levelCounts, cost: 0, span: 0, searchSteps: 0, decisionPoints: 0, trapRate: 0,
-            uses: {}, path: [], randomWin: null, casualWin: null, plans: null,
-        };
-        if (start.status !== 'solvable') return metrics;
-        let b = board, trapSum = 0;
+    // The easiest step from each position in turn. `complete` once a single tile is reached;
+    // with `stopAtSearch` the walk ends at the first position no technique explains.
+    function humanPath(R, board, options) {
+        const o = Object.assign({}, DEFAULTS, options);
+        o.solver = o.solver || Solver.createSolver(R);
+        if (o.stopAtSearch) o.searchMoves = false;
+        const out = { steps: [], maxLevel: 0, searchSteps: 0, complete: false };
+        let b = board;
         while (R.status(b) === 'playing') {
-            const a = solver.analyze(b);
-            const losing = a.moves.filter((m) => m.outcome === 'lose').length;
-            trapSum += losing / a.moves.length;
-            if (losing) metrics.decisionPoints++;
-            const step = nextStep(R, b, Object.assign({}, o, { solver }));
+            const step = nextStep(R, b, o);
+            if (step.technique === 'search') {
+                out.searchSteps++;
+                out.maxLevel = SEARCH;
+                if (o.stopAtSearch) break;
+            }
             if (!step.move) break;
-            const lv = step.level;
-            levelCounts[lv]++;
-            metrics.maxLevel = Math.max(metrics.maxLevel, lv);
-            metrics.cost += step.cost;
-            metrics.span = Math.max(metrics.span, step.span || 0);
-            if (lv >= SEARCH) metrics.searchSteps++;
-            for (const id of [step.technique].concat((step.refuted || []).map((r) => r.reason.id))) metrics.uses[id] = (metrics.uses[id] || 0) + 1;
-            metrics.path.push({
-                technique: step.technique, level: lv, cost: step.cost, span: step.span || 0, tiles: R.tileCount(b),
-                move: step.move, traps: losing, options: a.moves.length,
-            });
+            out.steps.push(step);
+            out.maxLevel = Math.max(out.maxLevel, step.level);
             b = R.applyMerge(b, step.move);
         }
-        metrics.trapRate = metrics.path.length ? trapSum / metrics.path.length : 0;
-        metrics.randomWin = solver.randomPlayWin(board);
-        metrics.casualWin = casualWin(R, board, solver, 2);
-        metrics.plans = solver.countPlans(board, o.planCap);
-        return metrics;
+        out.complete = R.status(b) === 'won';
+        return out;
     }
 
-    return { SEARCH, LEVELS, COSTS, explainDead, forcedPairs, refute, candidates, nextStep, casualWin, evaluate };
+    // A position a player sees is lost at a glance: nothing can merge, or a contradiction of
+    // level <= 2 (a stuck tile, rivals, an odd group).
+    function visiblyLost(R, board) {
+        if (R.tileCount(board) < 2) return false;
+        if (!R.legalMoves(board).length) return true;
+        const c = R.findContradiction(board);
+        return !!c && (c.level || LEVELS[c.id] || 4) <= 2;
+    }
+
+    // Trial-and-error cost, the difficulty measure: the merges a player makes before solving
+    // when trying the smallest tiles first, never making a merge whose result is visibly lost,
+    // undoing when stuck and remembering positions already seen to fail. Merges of equal value
+    // are tried in board order, so the count is reproducible. Counting stops at `cap`. The
+    // excess over the minimum (tiles − 1) is the number of merges made and undone.
+    function trialMerges(R, board, cap) {
+        const failed = new Set(), limit = cap || Infinity;
+        let merges = 0;
+        function dfs(b) {
+            if (R.tileCount(b) <= 1) return true;
+            const k = R.key(b);
+            if (failed.has(k)) return false;
+            const kids = [];
+            for (const m of R.legalMoves(b)) {
+                const next = R.applyMerge(b, m);
+                if (!visiblyLost(R, next)) kids.push({ next, value: b.cells[m.from].value || 0 });
+            }
+            kids.sort((x, y) => x.value - y.value);
+            for (const kid of kids) {
+                if (merges >= limit) return false;
+                merges++;
+                if (dfs(kid.next)) return true;
+            }
+            failed.add(k);
+            return false;
+        }
+        dfs(board);
+        return Math.min(merges, limit);
+    }
+
+    return { SEARCH, LEVELS, COSTS, explainDead, visiblyLost, forcedPairs, refute, candidates, nextStep, humanPath, trialMerges };
 });

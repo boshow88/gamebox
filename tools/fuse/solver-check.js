@@ -126,6 +126,28 @@ assert.equal(roomy.stats().explored, explored, 'a solved position is answered fr
 assert.equal(roomy.analyze(big).status, 'solvable');
 roomy.reset();
 assert.equal(roomy.stats().memo, 0);
+assert.equal(tiny.stats().exhausted > 0, true, 'exhausted budgets are counted');
+assert.equal(roomy.stats().exhausted, 0);
+
+// A learned winning line answers without search; a line that does not win is ignored, and
+// learning never changes an exact classification.
+{
+    const built = Gen.reverseBuild(Gen.makeRng(99), 3, 3, 6, 'deep');
+    const taught = Solver.createSolver(R, { maxStates: 1 });
+    assert.equal(taught.learn(built.board, built.solution), true);
+    assert.equal(taught.isSolvable(built.board), true);
+    assert.equal(taught.stats().explored, 0, 'answered from the learned line');
+    assert.equal(R.status(replay(built.board, taught.solve(built.board))), 'won');
+    const fresh = Solver.createSolver(R), learned = Solver.createSolver(R);
+    learned.learn(built.board, built.solution);
+    assert.deepEqual(learned.analyze(built.board).moves, fresh.analyze(built.board).moves);
+    const ignored = Solver.createSolver(R);
+    assert.equal(ignored.learn(built.board, built.solution.slice(0, -1)), false, 'a line stopping short of one tile');
+    assert.equal(ignored.learn(R.parse('2 2 1'), [{ from: 0, to: 1 }]), false);
+    assert.equal(ignored.learn(R.parse('2 4'), [{ from: 0, to: 1 }]), false, 'an illegal merge');
+    assert.equal(ignored.stats().memo, 0);
+    assert.equal(ignored.isSolvable(R.parse('2 2 1')), false);
+}
 
 // The solver only calls the rules, so it works unchanged for other adjacency and tile types.
 const K = Rules.createRules({ adjacency: 'king' });

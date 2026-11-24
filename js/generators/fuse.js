@@ -1,20 +1,23 @@
 /**
  * Fuse — puzzle generator.
  *
+ * Each difficulty draws a board shape from SHAPES (easy leans small, hard large; 4×4 boards
+ * may carry ×2 bonus cells), then:
  * 1. Reverse construction: start from one tile holding the target total and repeatedly undo
  *    a forward merge (REVERSE_OPS) until every cell is filled. Each step is checked to be the
  *    exact inverse of a legal forward merge, so the construction is a known solution.
- * 2. Exact verification with the shared solver.
- * 3. Human-solver metrics (FuseReasoning.evaluate) decide the difficulty tier (DIFFICULTY).
- * Attempts are counted, never timed, so (size, difficulty, seed) always yields the same
- * puzzle. When no attempt fits the tier, a verified curated puzzle is returned instead.
- * Evaluating a 4×4 board takes too long to search for one on demand, so 4×4 puzzles come
- * from a bank built offline by the same pipeline (tools/fuse/bank.js), shown in one of the
- * eight rotations / reflections of the square, which keep every metric.
+ * 2. Difficulty: Reasoning.trialMerges counts what trial and error costs a player who tries
+ *    the smallest tiles first, skips visibly lost merges and undoes when stuck. The merges
+ *    made and undone (`waste`) must fall in the tier's range (DIFFICULTY).
+ * 3. Fairness: the easiest human path reaches one tile without exhaustive search, so every
+ *    hint can explain itself, and no position on it needs more than SEARCH_BUDGET solver
+ *    states to classify its merges (what one hint costs in the game).
+ * Attempts are counted, never timed, so (difficulty, seed) always yields the same puzzle. When
+ * no attempt fits the tier, a verified curated puzzle is returned instead.
  *
  * Exposed:
- *   window.PuzzleGenerators.fuse(size, difficulty, seed, onProgress) → Promise<puzzle>
- *   window.PuzzleGenerators.fuseInternals — generate (sync), classify, DIFFICULTY, CURATED, …
+ *   window.PuzzleGenerators.fuse(difficulty, seed, onProgress) → Promise<puzzle>
+ *   window.PuzzleGenerators.fuseInternals — generate (sync), judge, DIFFICULTY, SHAPES, …
  */
 (function (root, factory) {
     'use strict';
@@ -30,7 +33,6 @@
     'use strict';
 
     const R = Rules.DEFAULT;
-    const SIZES = [3, 4];
 
     // mulberry32. The generator owns its PRNG so seeds reproduce identically in the browser
     // and in Node checks (PuzzleCommon needs a DOM).
@@ -56,19 +58,21 @@
     // `prior` yields `board`. New tile types extend generation by adding entries here.
     const REVERSE_OPS = [
         {
-            // Undo number + number: a tile 2v at d came from v at d and v at an empty neighbour s.
+            // Undo number + number: a tile 2v·m at d (m = the cell's bonus) came from v at d and
+            // v at an empty neighbour s.
             id: 'split-number',
             options(board) {
                 const out = [];
                 for (const d of R.tiles(board)) {
                     const t = board.cells[d];
-                    if (t.type !== 'num' || t.value < 2) continue;
+                    const half = t.type === 'num' ? t.value / (2 * R.bonusAt(board, d)) : 0;
+                    if (half < 1) continue;
                     for (const s of R.neighbors(board, d)) {
                         if (board.cells[s] !== R.EMPTY) continue;
                         const cells = board.cells.slice();
-                        cells[d] = R.num(t.value / 2);
-                        cells[s] = R.num(t.value / 2);
-                        out.push({ prior: { rows: board.rows, cols: board.cols, cells }, move: { from: s, to: d }, value: t.value });
+                        cells[d] = R.num(half);
+                        cells[s] = R.num(half);
+                        out.push({ prior: R.withCells(board, cells), move: { from: s, to: d }, value: t.value });
                     }
                 }
                 return out;
@@ -83,8 +87,8 @@
         deep: (o) => 1 / Math.sqrt(o.value),  // split small tiles: long doubling chains
     };
 
-    function reverseBuild(rng, rows, cols, exponent, style) {
-        let board = { rows, cols, cells: new Array(rows * cols).fill(R.EMPTY) };
+    function reverseBuild(rng, rows, cols, exponent, style, layout) {
+        let board = R.createBoard(rows, cols, new Array(rows * cols).fill(R.EMPTY), layout);
         board.cells[Math.floor(rng() * board.cells.length)] = R.num(Math.pow(2, exponent));
         const solution = [];
         while (board.cells.includes(R.EMPTY)) {
@@ -98,79 +102,57 @@
         return { board, solution };
     }
 
-    // Difficulty tiers, from FuseReasoning.evaluate metrics. No tier accepts a puzzle whose
-    // easiest human path ever needs exhaustive search.
-    //   maxLevel   hardest technique on the easiest human path (1 direct … 5 hypothetical)
-    //   casualWin  chance that a player who merges at random, avoiding only merges that are
-    //              visibly lost (dead end or a level-2 contradiction), still wins
-    // Easy: direct reasoning suffices and most sensible merges work. Hard: a hypothetical is
-    // needed and most sensible-looking merges are traps. The gaps between tiers keep them
-    // clearly apart. A 4×4 board has twice the merges, so every casual win rate is lower and
-    // its tiers are set relative to that size.
-    const DIFFICULTY = {
-        3: {
-            easy: (m) => m.maxLevel <= 2 && m.casualWin >= 0.6,
-            medium: (m) => m.casualWin >= 0.3 && m.casualWin <= 0.5,
-            hard: (m) => m.maxLevel === 5 && m.casualWin <= 0.22,
-        },
-        4: {
-            easy: (m) => m.casualWin >= 0.2,
-            medium: (m) => m.casualWin >= 0.06 && m.casualWin <= 0.12,
-            hard: (m) => m.maxLevel === 5 && m.casualWin <= 0.03,
-        },
-    };
+    // `count` distinct ×2 bonus cells, or no layout.
+    function bonusLayout(rng, rows, cols, count) {
+        if (!count) return null;
+        const bonus = {};
+        while (Object.keys(bonus).length < count) bonus[Math.floor(rng() * rows * cols)] = 2;
+        return { bonus };
+    }
+
     const TIERS = ['easy', 'medium', 'hard'];
-
-    function classify(m, size) {
-        if (!m.solvable || m.searchSteps > 0) return null;
-        const rules = DIFFICULTY[size || 3];
-        for (const tier of TIERS) if (rules[tier](m)) return tier;
-        return null;
-    }
-
-    // bank: puzzles come from CURATED (built offline) instead of a search on demand.
-    const PLAN = {
-        3: { attempts: 120, exponents: [4, 5, 6, 7] },
-        4: { attempts: 0, exponents: [7, 8, 9], bank: true },
+    // Board shapes per difficulty as [rows, cols, weight]: easy leans small, hard large.
+    const SHAPES = {
+        easy: [[3, 3, 2], [3, 4, 1], [4, 3, 1]],
+        medium: [[3, 4, 1], [4, 3, 1], [4, 4, 2]],
+        hard: [[4, 4, 1]],
     };
+    // Starting exponents (the board total is 2^e) by cell count, and how many ×2 bonus cells a
+    // board of that size gets, by weight. Merges on a bonus cell quadruple, so each bonus cell
+    // adds one to the exponent to keep tile values in the same range.
+    const EXPONENTS = { 9: [4, 5, 6, 7], 12: [6, 7, 8], 16: [7, 8, 9] };
+    const BONUS = { 16: [[0, 2], [1, 1], [2, 1]] };
+    // Waste (merges made and undone by trial and error, see Reasoning.trialMerges) per tier.
+    // The gaps keep the tiers clearly apart.
+    const DIFFICULTY = {
+        easy: { min: 0, max: 2 },
+        medium: { min: 8, max: 40 },
+        hard: { min: 80, max: Infinity },
+    };
+    const ATTEMPTS = { easy: 60, medium: 120, hard: 200 };
+    // Boards solvable by reasoning stay under ~2700 states per position (tools/fuse/calibrate.js
+    // --cost); boards that need search often run far past it.
+    const SEARCH_BUDGET = 5000;
 
-    // The eight symmetries of a square board: k & 3 quarter turns, then a mirror if k & 4.
-    function transform(board, k) {
-        const n = board.rows;
-        if (board.cols !== n || !(k & 7)) return board;
-        const cells = new Array(n * n);
-        for (let r = 0; r < n; r++) {
-            for (let c = 0; c < n; c++) {
-                let rr = r, cc = c;
-                for (let q = 0; q < (k & 3); q++) [rr, cc] = [cc, n - 1 - rr];
-                if (k & 4) cc = n - 1 - cc;
-                cells[rr * n + cc] = board.cells[r * n + c];
-            }
-        }
-        return { rows: n, cols: n, cells };
-    }
-    // One key per symmetry class, so the bank holds no two boards that are the same puzzle.
-    function canonicalKey(board) {
-        let best = null;
-        for (let k = 0; k < 8; k++) { const key = R.key(transform(board, k)); if (best === null || key < best) best = key; }
-        return best;
-    }
-
-    function summary(m) {
-        if (!m) return null;
-        return {
-            maxLevel: m.maxLevel, span: m.span, hypotheticals: m.levelCounts[5],
-            casualWin: Math.round(m.casualWin * 1e4) / 1e4,
-            randomWin: Math.round(m.randomWin * 1e4) / 1e4, decisionPoints: m.decisionPoints,
-            trapRate: Math.round(m.trapRate * 1e4) / 1e4, firstMoves: m.firstMoves, winningFirstMoves: m.winningFirstMoves,
-            plans: m.plans, cost: m.cost, uses: m.uses,
-        };
+    // Metrics when `board` belongs to `difficulty`, else null. The cheap trial count runs first
+    // and the human path only for boards in range. Counting stops just past the range, so for
+    // hard `waste` reads "at least". A known `solution` only speeds up the search.
+    function judge(board, difficulty, solution) {
+        const range = DIFFICULTY[difficulty], minimum = R.tileCount(board) - 1;
+        const cap = minimum + (range.max === Infinity ? range.min : range.max + 1);
+        const waste = Reasoning.trialMerges(R, board, cap) - minimum;
+        if (waste < range.min || waste > range.max) return null;
+        const solver = Solver.createSolver(R, { maxStates: SEARCH_BUDGET });
+        if (solution) solver.learn(board, solution);
+        const path = Reasoning.humanPath(R, board, { stopAtSearch: true, solver });
+        if (!path.complete || solver.stats().exhausted) return null;
+        return { waste, maxLevel: path.maxLevel, bonusCells: board.layout ? board.layout.bonusCells.length : 0 };
     }
 
-    function puzzleFrom(board, size, difficulty, seed, extra) {
+    function puzzleFrom(board, difficulty, seed, extra) {
         return Object.assign({
-            id: `fuse-${size}x${size}-${difficulty}-${(seed >>> 0).toString(36)}`,
-            game: 'fuse', size, rows: board.rows, cols: board.cols, difficulty, seed: seed >>> 0,
+            id: `fuse-${difficulty}-${(seed >>> 0).toString(36)}`,
+            game: 'fuse', difficulty, seed: seed >>> 0, rows: board.rows, cols: board.cols,
             board: R.serialize(board),
         }, extra);
     }
@@ -178,107 +160,46 @@
     // Generator core: yields after every attempt so the async wrapper can keep the page
     // responsive; `generate` drives it synchronously.
     function* attempts(opts) {
-        const size = SIZES.includes(opts.size) ? opts.size : 3;
         const difficulty = TIERS.includes(opts.difficulty) ? opts.difficulty : 'medium';
-        const seed = opts.seed >>> 0;
-        const plan = PLAN[size];
-        if (plan.bank) return fromBank(size, difficulty, seed);
-        const limit = opts.attempts || plan.attempts;
-        const rng = makeRng(seed ^ 0x9e3779b9);
-        const seen = new Set();
-        const styles = Object.keys(STYLES);
+        const seed = opts.seed >>> 0, limit = opts.attempts || ATTEMPTS[difficulty];
+        const rng = makeRng(seed ^ 0x9e3779b9), styles = Object.keys(STYLES), seen = new Set();
         for (let attempt = 1; attempt <= limit; attempt++) {
-            const exponent = plan.exponents[Math.floor(rng() * plan.exponents.length)];
+            const [rows, cols] = pickWeighted(rng, SHAPES[difficulty], (s) => s[2]);
+            const cells = rows * cols, bonus = BONUS[cells] ? pickWeighted(rng, BONUS[cells], (b) => b[1])[0] : 0;
+            const exponent = EXPONENTS[cells][Math.floor(rng() * EXPONENTS[cells].length)] + bonus;
             const style = styles[Math.floor(rng() * styles.length)];
-            const built = reverseBuild(rng, size, size, exponent, style);
+            const built = reverseBuild(rng, rows, cols, exponent, style, bonusLayout(rng, rows, cols, bonus));
             if (built && !seen.has(R.key(built.board))) {
                 seen.add(R.key(built.board));
-                const metrics = Reasoning.evaluate(R, built.board, { solver: Solver.createSolver(R) });
-                if (classify(metrics, size) === difficulty) {
-                    return puzzleFrom(built.board, size, difficulty, seed, {
-                        solution: built.solution, metrics: summary(metrics), source: 'generated', attempts: attempt,
-                    });
+                const metrics = judge(built.board, difficulty, built.solution);
+                if (metrics) {
+                    return puzzleFrom(built.board, difficulty, seed, { solution: built.solution, metrics, source: 'generated', attempts: attempt });
                 }
             }
             yield attempt / limit;
         }
-        return fallback(size, difficulty, seed, limit);
+        return fallback(difficulty, seed, limit);
     }
 
-    // Verified puzzles for each tier (tools/fuse/generator-check.js re-verifies them).
+    // Verified puzzles for each tier, drawn from generator output (tools/fuse/calibrate.js
+    // lists candidates; tools/fuse/generator-check.js re-verifies them).
     const CURATED = {
-        3: {
-            easy: ['4 4 4/4 8 4/4 32 64', '32 2 2/16 4 2/2 2 2', '2 1 1/4 2 1/16 4 1', '8 16 32/4 32 16/2 2 16'],
-            medium: ['4 4 8/16 16 16/16 16 32', '8 16 32/4 16 16/4 16 16', '8 4 2/8 8 2/16 8 8', '64 8 8/16 8 8/8 4 4'],
-            hard: ['16 4 4/16 2 2/16 2 2', '16 8 8/16 2 2/8 2 2', '2 2 8/1 1 8/1 1 8', '16 16 32/16 16 16/8 4 4'],
-        },
-        4: {
-            easy: [
-                '64 8 8 16/32 64 8 16/16 2 2 1/16 1 1 1', '128 32 16 4/32 16 4 4/8 4 1 1/2 2 1 1',
-                '8 1 1 2/8 8 4 8/16 8 16 32/8 8 128 256', '1 1 2 4/8 8 16 8/16 128 64 32/32 64 64 64',
-                '64 16 8 8/128 32 4 1/64 16 4 1/128 32 4 2', '1 2 16 16/1 2 8 32/1 8 4 16/1 2 2 16',
-                '8 4 4 2/16 16 4 2/16 32 16 8/32 64 16 16', '16 4 4 8/8 16 32 16/4 8 4 1/4 1 1 1',
-                '4 8 32 64/4 16 32 32/2 4 16 16/2 8 8 8', '4 4 2 2/32 8 8 4/64 128 16 8/128 64 32 8',
-                '32 4 2 2/16 2 1 1/32 4 2 1/16 8 4 1', '4 8 16 32/4 8 16 16/4 2 4 8/1 1 2 2',
-                '8 2 1 1/8 16 4 8/16 32 64 16/32 256 32 16', '2 16 16 32/2 16 32 64/2 8 16 16/1 1 16 16',
-                '8 8 8 4/8 16 8 4/64 32 16 8/64 2 2 4', '4 4 16 64/2 2 8 16/1 1 4 2/1 1 1 1',
-                '1 4 8 8/1 2 8 32/4 8 16 32/4 32 32 64', '1 4 4 16/1 2 16 8/1 1 64 4/1 1 2 2',
-                '4 1 1 4/4 8 2 8/8 8 32 8/16 16 128 8', '128 64 16 16/64 128 16 8/16 8 8 4/16 8 8 4',
-                '32 64 8 4/32 32 16 4/32 8 4 2/8 4 4 2', '128 64 32 16/64 128 1 8/16 32 1 8/8 4 1 1',
-                '256 128 4 2/64 32 8 2/2 2 4 2/1 1 2 2', '1 1 1 2/1 4 4 4/2 4 32 16/4 4 16 32',
-            ],
-            medium: [
-                '128 16 8 8/64 8 8 4/128 4 1 2/128 2 1 2', '8 8 2 2/32 8 4 2/32 32 4 2/64 32 16 8',
-                '8 8 4 4/8 16 2 2/4 64 1 1/2 2 1 1', '4 4 8 16/8 32 32 128/8 32 64 64/16 32 32 32',
-                '2 8 2 2/2 4 4 8/8 8 16 128/16 16 32 256', '128 64 32 8/128 4 4 8/64 1 2 1/64 1 2 1',
-                '256 128 32 32/1 2 8 16/1 2 16 8/1 1 4 4', '8 16 32 64/4 8 16 64/2 8 8 8/2 4 4 8',
-                '4 4 64 64/16 8 32 64/32 16 64 64/8 8 32 32', '8 8 8 16/8 16 16 16/32 32 64 32/64 64 64 64',
-                '4 4 16 16/16 8 32 32/4 8 16 64/4 8 8 16', '16 8 4 4/16 16 8 8/128 32 16 16/128 64 32 16',
-                '32 16 8 4/16 8 8 4/8 8 4 4/4 2 1 1', '16 16 32 64/4 8 32 32/4 8 8 8/4 4 8 8',
-                '16 16 32 128/8 8 32 128/4 2 2 128/2 2 2 2', '8 8 4 4/16 16 8 8/16 16 16 8/16 64 32 16',
-                '1 2 2 4/1 1 1 8/4 2 16 8/4 2 64 8', '8 16 64 128/8 16 64 64/4 8 64 32/2 2 16 16',
-                '8 2 1 1/8 4 4 4/32 16 1 1/32 8 2 4', '8 8 128 256/4 8 16 32/4 4 4 32/1 1 2 4',
-                '32 64 128 16/32 64 64 16/16 16 8 16/8 8 8 16', '1 2 2 8/1 2 4 8/8 4 8 16/8 8 16 32',
-                '2 16 2 2/2 4 2 1/8 8 64 1/4 4 4 4', '8 8 16 16/8 16 16 16/8 16 64 64/32 32 64 128',
-            ],
-            hard: [
-                '8 8 8 8/8 16 16 8/16 32 32 8/16 32 32 8', '16 32 16 8/4 4 16 4/2 4 8 2/2 4 4 2',
-                '4 4 4 2/32 32 16 2/16 64 32 32/16 64 64 128', '16 16 64 2/32 32 64 2/32 32 128 4/32 32 16 8',
-                '16 16 4 4/8 64 8 8/4 32 32 8/4 16 16 16', '16 16 64 64/8 16 1 32/2 1 1 16/2 1 8 8',
-                '128 128 32 8/64 64 8 4/16 16 8 4/16 8 4 4', '8 16 16 64/8 4 8 64/2 2 16 32/4 4 4 4',
-                '32 16 8 4/32 4 4 4/8 4 2 1/4 2 2 1', '8 8 4 8/16 8 4 8/32 32 32 32/64 128 64 64',
-                '256 32 16 8/64 32 16 4/16 16 8 4/32 4 2 2', '1 1 2 1/2 8 2 1/4 4 4 1/64 16 16 1',
-                '128 8 4 2/64 8 4 1/8 8 4 1/4 4 4 4', '1 2 4 16/1 2 4 32/1 1 16 32/2 2 4 8',
-                '128 16 4 4/32 16 4 2/32 8 2 2/2 2 1 1', '16 16 8 8/16 32 32 16/32 32 32 16/64 64 64 64',
-                '4 8 32 32/2 8 8 8/1 4 8 8/1 2 1 1', '64 1 2 2/64 1 4 4/128 2 8 4/128 64 32 4',
-                '2 1 4 4/2 1 1 4/4 8 1 16/8 8 32 32', '32 32 16 16/64 64 16 32/64 32 16 32/64 16 8 8',
-                '1 1 1 1/1 1 2 1/8 4 4 1/64 32 4 2', '16 16 4 4/32 32 8 16/64 64 64 16/64 64 32 16',
-                '2 8 4 4/1 2 8 32/1 1 1 32/4 4 8 16', '16 4 2 2/16 4 8 4/32 8 8 2/128 16 4 2',
-            ],
-        },
+        easy: ['2 4 8/2 4 4/2 2 4', '1 1 2 2/2 16 8 4/4 8 16 64', '8 4 2/8 4 1/16 4 1/8 4 4'],
+        medium: [
+            '32 32 8/8 8 8/8 8 8/2 2 4', '32 16 8 8/16 16 8 4/8 4 4 4', '16 8 4 4/16 8 8 4/16 8 8 4/16 4 2 2',
+            '32 32 16 4/64 32 8 4/128 16 2 1/128 16 8 1;x2=3,10',
+        ],
+        hard: [
+            '16 64 16 8/16 128 16 8/8 128 4 4/4 4 4 4;x2=7,8', '16 32 32 32/8 32 16 16/4 16 16 8/4 8 8 8',
+            '2 8 16 64/2 32 32 32/4 4 16 16/4 2 2 16;x2=0',
+        ],
     };
 
-    function curatedList(size, difficulty) {
-        const list = (CURATED[size] && CURATED[size][difficulty]) || [];
-        if (!list.length) throw new Error('No curated Fuse puzzle for ' + size + '/' + difficulty);
-        return list;
-    }
-    function fallback(size, difficulty, seed, tried) {
-        const list = curatedList(size, difficulty);
-        const board = R.parse(list[seed % list.length]);
-        const solver = Solver.createSolver(R);
-        const metrics = Reasoning.evaluate(R, board, { solver });
-        return puzzleFrom(board, size, difficulty, seed, {
-            solution: solver.solve(board), metrics: summary(metrics), source: 'curated', attempts: tried,
-        });
-    }
-    // Bank puzzles were evaluated when the bank was built (generator-check re-verifies them),
-    // so only the solution is recomputed here.
-    function fromBank(size, difficulty, seed) {
-        const list = curatedList(size, difficulty);
-        const board = transform(R.parse(list[seed % list.length]), Math.floor(seed / list.length) % 8);
-        return puzzleFrom(board, size, difficulty, seed, {
-            solution: Solver.createSolver(R).solve(board), metrics: null, source: 'bank', attempts: 0,
+    function fallback(difficulty, seed, tried) {
+        const list = CURATED[difficulty];
+        const board = R.parse(list[seed % list.length]), solution = Solver.createSolver(R).solve(board);
+        return puzzleFrom(board, difficulty, seed, {
+            solution, metrics: judge(board, difficulty, solution), source: 'curated', attempts: tried,
         });
     }
 
@@ -287,8 +208,8 @@
         for (;;) { const r = it.next(); if (r.done) return r.value; }
     }
 
-    async function generatePuzzle(size, difficulty, seed, onProgress) {
-        const it = attempts({ size, difficulty, seed });
+    async function generatePuzzle(difficulty, seed, onProgress) {
+        const it = attempts({ difficulty, seed });
         let last = Date.now();
         for (;;) {
             const r = it.next();
@@ -302,7 +223,7 @@
     }
 
     return {
-        SIZES, TIERS, DIFFICULTY, CURATED, PLAN, REVERSE_OPS, STYLES,
-        makeRng, reverseBuild, transform, canonicalKey, classify, summary, generate, generatePuzzle,
+        TIERS, SHAPES, EXPONENTS, BONUS, DIFFICULTY, ATTEMPTS, SEARCH_BUDGET, CURATED, REVERSE_OPS, STYLES,
+        makeRng, bonusLayout, reverseBuild, judge, generate, generatePuzzle,
     };
 });

@@ -4,7 +4,7 @@
 (function () {
     'use strict';
     const PC = window.PuzzleCommon, Rules = window.FuseRules, Solver = window.FuseSolver, Reasoning = window.FuseReasoning;
-    const generate = window.PuzzleGenerators.fuse, SIZES = window.PuzzleGenerators.fuseInternals.SIZES;
+    const generate = window.PuzzleGenerators.fuse;
     const R = Rules.DEFAULT;
     const CELL = 100, GAP = 8, DRAG_PX = 10;
     const DIFFICULTIES = ['easy', 'medium', 'hard'];
@@ -31,8 +31,10 @@
         fuseGenerateFailed: 'Could not prepare a puzzle. Press New Game to try again.',
         fuseCell: (r, c, what) => `Row ${r}, column ${c}: ${what}`,
         fuseEmpty: 'empty', fuseBlocked: 'blocked', fuseIsSelected: 'selected', fuseIsTarget: 'can merge here',
+        fuseIsBonus: (m) => `×${m} cell`, fuseMergedBonus: (v, m) => `Merged into ${v} on the ×${m} cell.`,
         fuseHelp1: 'Merge two touching tiles with the same number: the tile you move disappears and the one it joins doubles.',
         fuseHelp2: 'Emptied cells stay empty and nothing slides, so plan which tiles meet. Reduce the board to a single tile to win.',
+        fuseHelpBonus: 'A merge that lands on a ×2 cell doubles once more: 4 + 4 there makes 16.',
         fuseHelp3Html: 'Tap a tile, then a highlighted neighbour, or drag one onto the other. Keyboard: arrows move, <strong>Enter</strong> selects and merges, <strong>Esc</strong> cancels, <strong>Ctrl+Z</strong> undoes.',
         fuseHelp4: 'Hint explains one merge you can work out. Reveal shows a full solution from the current position.',
         fuseWhyFinal: 'Two tiles left: merging them finishes the puzzle, in either direction.',
@@ -86,8 +88,10 @@
         fuseGenerateFailed: '暫時無法產生題目，請按「新局」再試一次。',
         fuseCell: (r, c, what) => `第${r}列第${c}欄：${what}`,
         fuseEmpty: '空格', fuseBlocked: '障礙', fuseIsSelected: '已選取', fuseIsTarget: '可併入',
+        fuseIsBonus: (m) => `×${m}格`, fuseMergedBonus: (v, m) => `在×${m}格上合併成${v}。`,
         fuseHelp1: '把兩個相鄰且數字相同的方塊合併：移動的那塊消失，被併入的那塊數字加倍。',
         fuseHelp2: '清空的格子會一直空著，方塊也不會滑動，要先想好哪些方塊該碰在一起。最後只剩一塊即過關。',
+        fuseHelpBonus: '合併落在 ×2 格上時，結果會再乘 2：在那裡 4 + 4 會變成 16。',
         fuseHelp3Html: '點一個方塊，再點標示的鄰居；也可以直接拖過去。鍵盤：方向鍵移動，<strong>Enter</strong>選取並合併，<strong>Esc</strong>取消，<strong>Ctrl+Z</strong>復原。',
         fuseHelp4: '「提示」會說明一步推得出來的合併；「解答」會顯示從目前局面到完成的一組解法。',
         fuseWhyFinal: '只剩兩塊：把它們合併就完成了，方向不拘。',
@@ -133,11 +137,11 @@
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 
     const shared = PC.share.readParams();
-    const urlInitial = SIZES.includes(shared.size) && DIFFICULTIES.includes(shared.difficulty) && Number.isInteger(shared.seed) ? shared : null;
+    const urlInitial = DIFFICULTIES.includes(shared.difficulty) && Number.isInteger(shared.seed) ? shared : null;
     let pendingSeed = urlInitial ? urlInitial.seed : null;
 
     const state = {
-        puzzle: null, difficulty: urlInitial ? urlInitial.difficulty : 'medium', size: urlInitial ? urlInitial.size : SIZES[0],
+        puzzle: null, difficulty: urlInitial ? urlInitial.difficulty : 'medium',
         trail: [], solver: null, selected: null, cursor: 4, keyboard: false, won: false, generating: false,
         drag: null, anim: null, nope: null, hint: null,
     };
@@ -211,6 +215,15 @@
         add(parent, 'circle', { class: 'fuse-reveal-badge', cx: mx, cy: my, r: 14 });
         add(parent, 'text', { class: 'fuse-reveal-num', x: mx, y: my + 1 }).textContent = String(n);
     }
+    // A bonus cell's badge in the tile's top-left corner, clear of centred numbers. Only
+    // shown while the cell holds a tile: an emptied cell never fills again.
+    function bonusBadge(parent, b, i, used) {
+        const o = origin(b, i);
+        const outer = add(parent, 'g', { transform: `translate(${o.x + 28} ${o.y + 19})` });
+        const inner = add(outer, 'g', { class: 'fuse-bonus' + (used ? ' used' : '') });
+        add(inner, 'rect', { x: -22, y: -13, width: 44, height: 26, rx: 13 });
+        add(inner, 'text', { x: 0, y: 1 }).textContent = '×' + R.bonusAt(b, i);
+    }
 
     function render() {
         const b = current();
@@ -218,12 +231,16 @@
         if (!b) return;
         const W = b.cols * CELL + (b.cols + 1) * GAP, H = b.rows * CELL + (b.rows + 1) * GAP;
         svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+        svg.style.setProperty('--fuse-aspect', (W / H).toFixed(4));
         svg.classList.toggle('won', state.won);
         const drag = state.drag && state.drag.moved && !state.drag.inert ? state.drag : null;
         const selected = state.selected, targets = selected != null ? targetsOf(b, selected) : [];
         const marks = hintMarks(), anim = state.anim;
         const slots = add(svg, 'g', { class: 'fuse-slots' }), tiles = add(svg, 'g', { class: 'fuse-tiles' });
-        const over = add(svg, 'g', { class: 'fuse-over' });
+        const bonus = add(svg, 'g', { class: 'fuse-bonuses' }), over = add(svg, 'g', { class: 'fuse-over' });
+        for (const i of b.layout ? b.layout.bonusCells : []) {
+            if (R.isTile(b.cells[i])) bonusBadge(bonus, b, i, !!anim && anim.to === i);
+        }
         for (let i = 0; i < b.cells.length; i++) {
             const o = origin(b, i), cell = b.cells[i];
             const kind = cell === R.EMPTY ? ' empty' : R.isTile(cell) ? '' : ' block';
@@ -396,6 +413,7 @@
     function announce(i) {
         const b = current(), cell = b.cells[i];
         const parts = [cell === R.EMPTY ? t('fuseEmpty') : R.isTile(cell) ? label(cell) : t('fuseBlocked')];
+        if (R.isTile(cell) && R.bonusAt(b, i) > 1) parts.push(t('fuseIsBonus', R.bonusAt(b, i)));
         if (i === state.selected) parts.push(t('fuseIsSelected'));
         else if (state.selected != null && R.canMerge(b, state.selected, i)) parts.push(t('fuseIsTarget'));
         $('fuse-live').textContent = t('fuseCell', Math.floor(i / b.cols) + 1, (i % b.cols) + 1, parts.join(', '));
@@ -445,6 +463,7 @@
         PC.audio.tone(262 * Math.pow(2, step / 6), 0.09, { volume: 0.05 });
         if (status === 'won') { state.won = true; recordWin(); say('fuseWinSay'); }
         else if (status === 'dead-end') say('fuseDeadEnd');
+        else if (R.bonusAt(next, to) > 1) say('fuseMergedBonus', label(tile), R.bonusAt(next, to));
         else say('fuseMerged', label(tile));
         sync();
     }
@@ -469,12 +488,10 @@
     // The shell records the solve against its staged selector values, so attribute it to the
     // puzzle that was actually played.
     function recordWin() {
-        const staged = { difficulty: shell.difficulty, size: shell.size };
-        if (staged.difficulty !== state.difficulty) pick('difficulty-seg', state.difficulty);
-        if (staged.size !== state.size) pick('size-seg', state.size);
+        const staged = shell.difficulty;
+        if (staged !== state.difficulty) pick('difficulty-seg', state.difficulty);
         shell.markSolved();
-        if (staged.difficulty !== state.difficulty) pick('difficulty-seg', staged.difficulty);
-        if (staged.size !== state.size) pick('size-seg', staged.size);
+        if (staged !== state.difficulty) pick('difficulty-seg', staged);
     }
 
     function restart() {
@@ -493,11 +510,11 @@
             ? window.crypto.getRandomValues(new Uint32Array(1))[0] : Math.floor(Math.random() * 4294967296);
     }
     async function loadPuzzle() {
-        const difficulty = shell.difficulty, size = shell.size;
+        const difficulty = shell.difficulty;
         const seed = pendingSeed != null ? pendingSeed : randomSeed();
         pendingSeed = null;
         let lastPaint = -Infinity;
-        const puzzle = await generate(size, difficulty, seed, async (fraction) => {
+        const puzzle = await generate(difficulty, seed, async (fraction) => {
             const now = performance.now();
             if (now - lastPaint < 35) return;
             lastPaint = now;
@@ -506,12 +523,23 @@
         });
         const start = R.parse(puzzle.board);
         cancelDrag(); endAnimation();
-        state.puzzle = puzzle; state.difficulty = difficulty; state.size = size; state.trail = [start];
+        state.puzzle = puzzle; state.difficulty = difficulty; state.trail = [start];
         state.solver = Solver.createSolver(R); revealCache = null;
+        if (puzzle.solution) state.solver.learn(start, puzzle.solution);
         state.selected = null; state.cursor = Math.floor(start.cells.length / 2); state.won = false; state.hint = null;
         history.clear();
-        PC.share.replaceUrl({ size, difficulty, seed: puzzle.seed });
+        PC.share.replaceUrl({ difficulty, seed: puzzle.seed });
+        dropSizeParam();
         say('fuseReady');
+    }
+    // Links from before the board size followed the difficulty still carry `size`.
+    function dropSizeParam() {
+        try {
+            const url = new URL(location.href);
+            if (!url.searchParams.has('size')) return;
+            url.searchParams.delete('size');
+            window.history.replaceState(null, '', url.toString());
+        } catch (_) { /* file:// */ }
     }
     async function startPuzzle() {
         if (state.generating) return;
@@ -617,7 +645,8 @@
     shell = PC.shell.create({
         gameId: 'fuse',
         difficulty: { default: state.difficulty },
-        size: { kind: 'segmented', default: state.size },
+        // The difficulty picks the board shape; the shell requires a size, inert without #size-seg.
+        size: { kind: 'segmented', default: 0 },
         onNewGame: loadPuzzle,
         onReset: restart,
         onReveal: () => { state.hint = null; sync(); },

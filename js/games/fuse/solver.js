@@ -22,12 +22,12 @@
         const opts = Object.assign({ maxStates: 300000, prune: true, maxMemo: 2000000 }, options);
         // key -> LOST | WON | the winning move found from that state.
         const memo = new Map();
-        let explored = 0, budget = Infinity, pruned = 0;
+        let explored = 0, budget = Infinity, pruned = 0, exhausted = 0;
 
         function guard(fn) {
             if (memo.size > opts.maxMemo) memo.clear();
             budget = explored + opts.maxStates;
-            try { return fn(); } catch (err) { if (err instanceof BudgetExceeded) return undefined; throw err; } finally { budget = Infinity; }
+            try { return fn(); } catch (err) { if (err instanceof BudgetExceeded) { exhausted++; return undefined; } throw err; } finally { budget = Infinity; }
         }
         function spend() { if (++explored > budget) throw new BudgetExceeded(); }
 
@@ -48,6 +48,22 @@
 
         // true / false, or undefined when the state budget ran out.
         function isSolvable(board) { return guard(() => winnable(board)); }
+
+        // Records a known winning sequence from `board` (replayed first; false if it does not
+        // win), so later searches start from what it proves.
+        function learn(board, moves) {
+            const line = [];
+            let b = board;
+            for (const m of moves) {
+                if (!R.canMerge(b, m.from, m.to)) return false;
+                line.push([R.key(b), { from: m.from, to: m.to }]);
+                b = R.applyMerge(b, m);
+            }
+            if (R.tileCount(b) !== 1) return false;
+            for (const [k, m] of line) memo.set(k, m);
+            memo.set(R.key(b), WON);
+            return true;
+        }
 
         // Outcome of every legal merge. status: 'won' | 'dead-end' | 'solvable' |
         // 'unsolvable' (legal merges exist but all lose) | 'unknown' (budget exhausted).
@@ -161,9 +177,9 @@
         }
 
         return {
-            rules: R, isSolvable, analyze, solve, classify, countSequences, countPlans, randomPlayWin,
+            rules: R, isSolvable, learn, analyze, solve, classify, countSequences, countPlans, randomPlayWin,
             reset() { memo.clear(); },
-            stats: () => ({ explored, pruned, memo: memo.size }),
+            stats: () => ({ explored, pruned, exhausted, memo: memo.size }),
         };
     }
 
