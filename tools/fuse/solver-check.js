@@ -58,6 +58,22 @@ for (let n = 0; n < 300; n++) {
     const built = Gen.reverseBuild(rng, 2, 3, 3 + Math.floor(rng() * 3), ['even', 'mixed', 'deep'][n % 3]);
     if (built) pool.push(built.board);
 }
+// Boards with ×2 tiles, random and reverse-built.
+let mulBoards = 0;
+while (mulBoards < 250) {
+    const rows = 2 + Math.floor(rng() * 2), cols = 2 + Math.floor(rng() * 2), grid = [];
+    for (let r = 0; r < rows; r++) {
+        const row = [];
+        for (let c = 0; c < cols; c++) { const x = rng(); row.push(x < 0.15 ? '.' : x < 0.3 ? 'x2' : String(values[Math.floor(rng() * values.length)])); }
+        grid.push(row.join(' '));
+    }
+    const b = R.parse(grid.join('/'));
+    if (R.tileCount(b) >= 2 && R.tileCount(b) <= 7 && !R.numbersOnly(b)) { pool.push(b); mulBoards++; }
+}
+for (let n = 0; n < 200; n++) {
+    const muls = 1 + (n % 2), built = Gen.reverseBuild(rng, 2, 3, 3 + muls + Math.floor(rng() * 3), ['even', 'mixed', 'deep'][n % 3], muls);
+    if (built) { pool.push(built.board); mulBoards++; }
+}
 
 let solvable = 0, unsolvable = 0, deadEnds = 0;
 for (const board of pool) {
@@ -100,6 +116,11 @@ assert.equal(ls.countSequences(twin, 3), 3);
 assert.equal(ls.countPlans(twin, 1), 1);
 assert.equal(Solver.independent({ from: 0, to: 1 }, { from: 2, to: 3 }), true);
 assert.equal(Solver.independent({ from: 0, to: 1 }, { from: 1, to: 3 }), false);
+// Two ×2 tiles doubling the same 4 share a cell but give 16 in either order: one plan.
+const doubled = R.parse('x2 4 x2/. 16 .');
+assert.equal(ls.countSequences(doubled), 4, 'two orders, two final directions');
+assert.equal(ls.countPlans(doubled), 1);
+assert.equal(bruteCounts(doubled).plans, 1);
 
 // Status vocabulary: won, dead-end, unsolvable with legal moves, invalid.
 const s = Solver.createSolver(R);
@@ -162,4 +183,5 @@ const xs = Solver.createSolver(X);
 assert.equal(xs.isSolvable(X.parse('2 * 2')), true);
 assert.equal(xs.isSolvable(X.parse('2 * 4')), false);
 
-console.log(`fuse solver: ok (${pool.length} boards: ${solvable} solvable, ${unsolvable} unsolvable with moves, ${deadEnds} dead ends)`);
+assert.ok(mulBoards > 400, `boards with ×2 tiles checked (${mulBoards})`);
+console.log(`fuse solver: ok (${pool.length} boards, ${mulBoards} with ×2 tiles: ${solvable} solvable, ${unsolvable} unsolvable with moves, ${deadEnds} dead ends)`);

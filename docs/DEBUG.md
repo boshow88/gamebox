@@ -719,24 +719,30 @@ node tools/fuse/browser-check.js [/path/to/chrome] [--shots]
 ```
 
 The rules check covers merges, direction, permanent empties, blocked versus empty
-cells, diagonal adjacency, status and a test-only tile type. It covers ×2 layouts
-too: text form, merges onto ×2 and ×4 cells, keys, and errors for bad multipliers. It
-also compares every contradiction claim with brute force on random small boards,
-including several thousand with bonus cells. The solver check
+cells, diagonal adjacency, status and a test-only tile type. It covers ×2 tiles too:
+text form (`x2` and `×2`), both merge directions with equal and unequal numbers, ×2
+onto ×2 refused, a leftover ×2 blocking the win, `partners`, which contradictions a
+touching ×2 switches off, random play (each merge doubles the number involved), and
+errors for bad multipliers. It also compares every contradiction claim with brute
+force on random small boards, including a few thousand with ×2 tiles. The solver check
 compares solvability, per-merge outcomes, sequence and plan counts and random-play
-odds with an independent brute force on several hundred boards. It also covers the
+odds with an independent brute force on over a thousand boards, about 400 with ×2
+tiles, including two ×2 tiles doubling one number in either order (one plan). It also covers the
 state budget and its exhausted count, memo reuse, `learn` (a learned line answers
 without search, a non-winning line is ignored) and unsolvable versus dead-end. The
 reasoning check walks every reachable state of generated boards (a third with ×2
-cells, one 3×4). Each candidate step must win, each refuted merge must lose,
+tiles, one 3×4), after crafted cases such as a ×2 never being a forced partner. Each
+candidate step must win, each refuted merge must lose,
 `explainDead` must never fire on a solvable board, and search steps must be labelled
 and list every winning merge. `nextStep` must pick exactly the easiest valid
 candidate, which checks the lazy validation against the definition. It also compares
 `trialMerges` with an independent reimplementation. The generator check covers
-reverse construction on every shape and with bonus cells, determinism, ids, solution
-replay, and the shapes and ×2 cells each tier may use. It recomputes each generated
-and curated puzzle's waste and fairness without the generator's shortcuts and checks
-that the tiers' waste never overlaps and each tier mixes its shapes. It also covers
+reverse construction on every shape with zero to two ×2 tiles (exactly the count
+asked for, and only the ×2 op adds one), determinism, ids, solution replay, and the
+shapes and ×2 counts each tier may use. It recomputes each generated and curated
+puzzle's waste and fairness without the generator's shortcuts and checks that the
+tiers' waste never overlaps, each tier mixes its shapes and each tier serves ×2
+tiles. It also covers
 the one-attempt fallback, unknown options and the async wrapper.
 
 The browser check serves the repo locally, stubs `js/net/net.js` (Firebase is never
@@ -745,10 +751,12 @@ the toolbar, action row, status row and the blocks under the board with Tango's.
 then covers mouse tap-tap and drag, keyboard, Ctrl+Z, reset, the toggling hint, the
 lost-position hint, the dead-end warning, the solution overlay (including the "No
 solution from here" warning), win, undo out of a win, New Game, and Hard serving 4×4.
-The main flow uses a 3×4 or 4×3 board and checks its proportions. On a Hard board
-with ×2 cells it checks the badges, the keyboard read-out, a merge onto a ×2 cell
-(value ×4, badge flash, live message), the badge leaving an emptied cell, and load,
-hint and reveal timings. It also checks that an old link's `size` is ignored and
+The main flow uses a 3×4 or 4×3 board of numbers only and checks its proportions. On
+a Hard board with a ×2 tile it checks the violet ×2 tile, the keyboard read-out, a
+number dragged onto the ×2 (doubled in the ×2's cell), the ×2 selected (every touching
+number highlighted) and merged onto a number (doubled in place), load, hint and reveal
+timings, and that replaying the solution, which uses every ×2, wins. It also checks
+that an old link's `size` is ignored and
 dropped, both languages, reduced motion and the default medium start. Touch is
 tested at 375 and 320 px on a 4×4 and a rectangular board, with no horizontal
 overflow. Finally it checks the launcher card and smoke-loads the other puzzle pages. Every UI merge is mirrored by the Node engine and the rendered board
@@ -763,8 +771,8 @@ is a tuning report, not a pass/fail check. It has four sections:
 - **generate**: the real generator per tier, with time, attempts, curated fallbacks,
   shapes served, waste, the smart habit's first-try win rate, and boards to use as
   `CURATED`.
-- **`--cost`**: solver states for the largest analysis on hard candidates, used to set
-  `SEARCH_BUDGET`.
+- **`--cost`**: the most solver states one step of the reasoning path needs on hard
+  candidates (one hint's cost), used to set `SEARCH_BUDGET`.
 - **`--combos`**: Hard yield and time per hit for each exponent, style and ×2 count.
 
 It replaces the earlier `bank.js` (the 4×4 bank is gone) and `profile.js`.

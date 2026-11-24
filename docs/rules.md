@@ -1457,15 +1457,16 @@ stay fixed; only the camera rotates. Clear every piece to finish a puzzle.
 
 ## Fuse
 
-**Goal.** Merge touching equal numbers until a single tile remains.
+**Goal.** Merge touching tiles until a single tile remains.
 
 ### Board
 
 - The difficulty picks the grid: **Easy** is 3×3, sometimes 3×4 or 4×3; **Medium**
   is 3×4, 4×3 or 4×4; **Hard** is 4×4. Every cell starts with a tile holding a power
-  of two (1, 2, 4, …).
-- Some 4×4 boards (often on Hard) have one or two **×2 cells**, marked with a violet
-  ×2 badge.
+  of two (1, 2, 4, …) or a **×2 tile**.
+- About a third of Easy puzzles and half of Medium and Hard ones have ×2 tiles:
+  violet tiles marked ×2, at most one on 3×3 and 4×4 boards and up to two on 3×4
+  and 4×3.
 - Cells emptied by a merge stay empty for the rest of the puzzle. Nothing slides
   or falls into them.
 
@@ -1475,14 +1476,17 @@ stay fixed; only the camera rotates. Clear every piece to finish a puzzle.
    number** (the **destination**). Diagonal tiles do not touch.
 2. The source leaves its cell, which becomes permanently empty, and the destination
    **doubles**. Direction matters: the doubled tile stays where the destination was.
-3. A merge whose destination is a ×2 cell doubles once more: 4 + 4 there makes 16.
-   Moving a tile off a ×2 cell gives no bonus, and once the cell is empty its bonus
-   is gone (the badge disappears).
-4. Every merge removes exactly one tile. Without ×2 merges the board total never
-   changes.
-5. If two or more tiles remain and no two equal tiles touch, the puzzle is at a
-   **dead end**. A position can also be lost while merges are still possible; the
-   hint says so and explains why when a rule shows it.
+3. A **×2 tile** merges with any touching number, equal or not, and doubles it, in
+   either direction: drag 8 onto ×2 and the 16 is left in the ×2's cell; drag ×2
+   onto 8 and that 8 becomes 16 where it is. Two ×2 tiles never merge with each
+   other.
+4. Every merge removes exactly one tile, and a ×2 counts as a tile: the puzzle is
+   only solved once every ×2 has been used. Merging two numbers never changes the
+   board total; a ×2 merge adds the number it doubles.
+5. If two or more tiles remain and nothing can merge (no equal numbers touch and no
+   ×2 touches a number), the puzzle is at a **dead end**. A position can also be
+   lost while merges are still possible; the hint says so and explains why when a
+   rule shows it.
 
 Every puzzle is built backwards from a single tile and verified by exact search,
 so it always has a solution, and often several.
@@ -1491,7 +1495,8 @@ so it always has a solution, and often several.
 
 - **Tap** a tile to select it: its valid destinations get a dashed outline and the
   other tiles dim. Tap a highlighted neighbour to merge, or the tile again to
-  cancel. A tile with no equal neighbour cannot be selected and gives a short shake.
+  cancel. A tile with nothing to merge with cannot be selected and gives a short
+  shake.
 - **Drag** a tile onto a neighbour to merge. Dropping anywhere else cancels.
 - **Keyboard**: arrows move the cursor, `Enter`/`Space` selects and merges, `Esc`
   cancels, `Ctrl`/`⌘`+`Z` undoes.
@@ -1512,7 +1517,8 @@ so it always has a solution, and often several.
 ### Difficulty
 
 Difficulty is measured, not labelled: it is the trial and error a sensible player
-needs. This player tries the smallest tiles first, never makes a merge whose result
+needs. This player tries the smallest tiles first (a ×2 merge counts as the number it
+doubles), never makes a merge whose result
 is visibly lost (no merge left, or a tile that can no longer find a partner), and
 undoes when stuck. The tier counts the merges made and then undone along the way:
 

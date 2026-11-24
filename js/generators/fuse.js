@@ -2,7 +2,7 @@
  * Fuse — puzzle generator.
  *
  * Each difficulty draws a board shape from SHAPES (easy leans small, hard large; 4×4 boards
- * may carry ×2 bonus cells), then:
+ * may carry ×2 tiles), then:
  * 1. Reverse construction: start from one tile holding the target total and repeatedly undo
  *    a forward merge (REVERSE_OPS) until every cell is filled. Each step is checked to be the
  *    exact inverse of a legal forward merge, so the construction is a known solution.
@@ -54,30 +54,33 @@
         return items[items.length - 1];
     }
 
-    // Reverse operations. Each lists { prior, move } where applying the forward `move` to
-    // `prior` yields `board`. New tile types extend generation by adding entries here.
-    const REVERSE_OPS = [
-        {
-            // Undo number + number: a tile 2v·m at d (m = the cell's bonus) came from v at d and
-            // v at an empty neighbour s.
-            id: 'split-number',
-            options(board) {
-                const out = [];
-                for (const d of R.tiles(board)) {
-                    const t = board.cells[d];
-                    const half = t.type === 'num' ? t.value / (2 * R.bonusAt(board, d)) : 0;
-                    if (half < 1) continue;
-                    for (const s of R.neighbors(board, d)) {
-                        if (board.cells[s] !== R.EMPTY) continue;
-                        const cells = board.cells.slice();
-                        cells[d] = R.num(half);
-                        cells[s] = R.num(half);
-                        out.push({ prior: R.withCells(board, cells), move: { from: s, to: d }, value: t.value });
-                    }
+    // Each way a number tile 2v at d could have been made from two tiles at d and an empty
+    // neighbour s by the merge s → d: { prior, move, value: 2v }.
+    function splits(board, make) {
+        const out = [];
+        for (const d of R.tiles(board)) {
+            const t = board.cells[d];
+            if (t.type !== 'num' || t.value < 2) continue;
+            for (const s of R.neighbors(board, d)) {
+                if (board.cells[s] !== R.EMPTY) continue;
+                for (const [atD, atS] of make(t.value / 2)) {
+                    const cells = board.cells.slice();
+                    cells[d] = atD;
+                    cells[s] = atS;
+                    out.push({ prior: R.withCells(board, cells), move: { from: s, to: d }, value: t.value });
                 }
-                return out;
-            },
-        },
+            }
+        }
+        return out;
+    }
+    // Reverse operations. Each lists { prior, move } where applying the forward `move` to
+    // `prior` yields `board`. New tile types extend generation by adding entries here; `mul`
+    // marks the ones that add a ×2 tile.
+    const REVERSE_OPS = [
+        // Undo number + number: v at s merged into v at d.
+        { id: 'split-number', mul: false, options: (board) => splits(board, (v) => [[R.num(v), R.num(v)]]) },
+        // Undo a ×2 merge, in either direction: v at s into ×2 at d, or ×2 at s into v at d.
+        { id: 'split-mul', mul: true, options: (board) => splits(board, (v) => [[R.mul(2), R.num(v)], [R.num(v), R.mul(2)]]) },
     ];
 
     // Construction styles vary which tile is split next, giving different value profiles.
@@ -87,27 +90,25 @@
         deep: (o) => 1 / Math.sqrt(o.value),  // split small tiles: long doubling chains
     };
 
-    function reverseBuild(rng, rows, cols, exponent, style, layout) {
-        let board = R.createBoard(rows, cols, new Array(rows * cols).fill(R.EMPTY), layout);
+    // A full board with exactly `muls` ×2 tiles and the solution that built it. Each step
+    // adds a ×2 tile with probability (×2 tiles left) / (steps left), so they spread evenly
+    // over the solution.
+    function reverseBuild(rng, rows, cols, exponent, style, muls) {
+        let board = R.createBoard(rows, cols, new Array(rows * cols).fill(R.EMPTY));
         board.cells[Math.floor(rng() * board.cells.length)] = R.num(Math.pow(2, exponent));
         const solution = [];
+        let left = muls || 0;
         while (board.cells.includes(R.EMPTY)) {
-            const options = [].concat(...REVERSE_OPS.map((op) => op.options(board)));
+            const steps = board.cells.filter((c) => c === R.EMPTY).length, mul = rng() * steps < left;
+            const options = [].concat(...REVERSE_OPS.filter((op) => op.mul === mul).map((op) => op.options(board)));
             if (!options.length) return null;
             const pick = pickWeighted(rng, options, STYLES[style]);
             if (R.key(R.applyMerge(pick.prior, pick.move)) !== R.key(board)) throw new Error('Reverse operation does not invert a legal merge');
             board = pick.prior;
             solution.unshift(pick.move);
+            if (mul) left--;
         }
         return { board, solution };
-    }
-
-    // `count` distinct ×2 bonus cells, or no layout.
-    function bonusLayout(rng, rows, cols, count) {
-        if (!count) return null;
-        const bonus = {};
-        while (Object.keys(bonus).length < count) bonus[Math.floor(rng() * rows * cols)] = 2;
-        return { bonus };
     }
 
     const TIERS = ['easy', 'medium', 'hard'];
@@ -117,11 +118,12 @@
         medium: [[3, 4, 1], [4, 3, 1], [4, 4, 2]],
         hard: [[4, 4, 1]],
     };
-    // Starting exponents (the board total is 2^e) by cell count, and how many ×2 bonus cells a
-    // board of that size gets, by weight. Merges on a bonus cell quadruple, so each bonus cell
-    // adds one to the exponent to keep tile values in the same range.
+    // Final tile exponents (the last tile is 2^e) by cell count, and how many ×2 tiles a board
+    // of that size gets, by weight. Each ×2 tile adds one to the exponent, which keeps the
+    // other tiles in range and the construction from running out of tiles to split. Two ×2
+    // tiles on 4×4 almost never leave a board solvable by reasoning (tools/fuse/calibrate.js).
     const EXPONENTS = { 9: [4, 5, 6, 7], 12: [6, 7, 8], 16: [7, 8, 9] };
-    const BONUS = { 16: [[0, 2], [1, 1], [2, 1]] };
+    const MULS = { 9: [[0, 1], [1, 1]], 12: [[0, 2], [1, 1], [2, 1]], 16: [[0, 1], [1, 1]] };
     // Waste (merges made and undone by trial and error, see Reasoning.trialMerges) per tier.
     // The gaps keep the tiers clearly apart.
     const DIFFICULTY = {
@@ -146,7 +148,7 @@
         if (solution) solver.learn(board, solution);
         const path = Reasoning.humanPath(R, board, { stopAtSearch: true, solver });
         if (!path.complete || solver.stats().exhausted) return null;
-        return { waste, maxLevel: path.maxLevel, bonusCells: board.layout ? board.layout.bonusCells.length : 0 };
+        return { waste, maxLevel: path.maxLevel, muls: R.tiles(board).filter((i) => board.cells[i].type === 'mul').length };
     }
 
     function puzzleFrom(board, difficulty, seed, extra) {
@@ -165,10 +167,10 @@
         const rng = makeRng(seed ^ 0x9e3779b9), styles = Object.keys(STYLES), seen = new Set();
         for (let attempt = 1; attempt <= limit; attempt++) {
             const [rows, cols] = pickWeighted(rng, SHAPES[difficulty], (s) => s[2]);
-            const cells = rows * cols, bonus = BONUS[cells] ? pickWeighted(rng, BONUS[cells], (b) => b[1])[0] : 0;
-            const exponent = EXPONENTS[cells][Math.floor(rng() * EXPONENTS[cells].length)] + bonus;
+            const cells = rows * cols, muls = MULS[cells] ? pickWeighted(rng, MULS[cells], (b) => b[1])[0] : 0;
+            const exponent = EXPONENTS[cells][Math.floor(rng() * EXPONENTS[cells].length)] + muls;
             const style = styles[Math.floor(rng() * styles.length)];
-            const built = reverseBuild(rng, rows, cols, exponent, style, bonusLayout(rng, rows, cols, bonus));
+            const built = reverseBuild(rng, rows, cols, exponent, style, muls);
             if (built && !seen.has(R.key(built.board))) {
                 seen.add(R.key(built.board));
                 const metrics = judge(built.board, difficulty, built.solution);
@@ -184,14 +186,17 @@
     // Verified puzzles for each tier, drawn from generator output (tools/fuse/calibrate.js
     // lists candidates; tools/fuse/generator-check.js re-verifies them).
     const CURATED = {
-        easy: ['2 4 8/2 4 4/2 2 4', '1 1 2 2/2 16 8 4/4 8 16 64', '8 4 2/8 4 1/16 4 1/8 4 4'],
+        easy: [
+            '2 4 8/2 4 4/2 2 4', '1 1 2 2/2 16 8 4/4 8 16 64', '8 4 2/8 4 1/16 4 1/8 4 4',
+            '8 8 8/x2 16 8/128 64 8', '4 x2 16/4 8 16/16 16 32',
+        ],
         medium: [
             '32 32 8/8 8 8/8 8 8/2 2 4', '32 16 8 8/16 16 8 4/8 4 4 4', '16 8 4 4/16 8 8 4/16 8 8 4/16 4 2 2',
-            '32 32 16 4/64 32 8 4/128 16 2 1/128 16 8 1;x2=3,10',
+            '16 16 32 128/4 8 16 x2/4 16 8 8', '4 8 32 64/4 x2 64 32/4 2 8 8/1 1 4 4',
         ],
         hard: [
-            '16 64 16 8/16 128 16 8/8 128 4 4/4 4 4 4;x2=7,8', '16 32 32 32/8 32 16 16/4 16 16 8/4 8 8 8',
-            '2 8 16 64/2 32 32 32/4 4 16 16/4 2 2 16;x2=0',
+            '16 32 32 32/8 32 16 16/4 16 16 8/4 8 8 8', '64 64 32 32/64 64 32 16/64 16 16 16/16 8 4 4',
+            '16 16 16 32/16 64 64 x2/32 64 64 128/32 32 64 128', '1 1 1 2/2 2 1 2/8 16 8 4/16 64 128 x2',
         ],
     };
 
@@ -223,7 +228,7 @@
     }
 
     return {
-        TIERS, SHAPES, EXPONENTS, BONUS, DIFFICULTY, ATTEMPTS, SEARCH_BUDGET, CURATED, REVERSE_OPS, STYLES,
-        makeRng, bonusLayout, reverseBuild, judge, generate, generatePuzzle,
+        TIERS, SHAPES, EXPONENTS, MULS, DIFFICULTY, ATTEMPTS, SEARCH_BUDGET, CURATED, REVERSE_OPS, STYLES,
+        makeRng, reverseBuild, judge, generate, generatePuzzle,
     };
 });

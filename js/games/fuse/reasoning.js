@@ -6,8 +6,9 @@
  *   1 final       Two tiles left: merging them either way finishes.
  *   1 lone        A tile with a single neighbour holding the same value merges into it.
  *   1 only-pair   Only one pair on the board can merge, so it must merge now.
- *   2 forced-pair A tile whose other neighbours are all larger (they never shrink) can only
- *                 ever pair with its one equal neighbour, and must do so before either changes.
+ *   2 forced-pair A tile whose other neighbours are all larger (they never shrink) and none a
+ *                 ×2 can only ever pair with its one equal neighbour, and must do so before
+ *                 either changes.
  *   2 stuck / rivals / odd-group   Pairing contradictions (see rules.js CONDITIONS).
  *   3 split       Emptying a cell that links two groups of tiles loses.
  *   4 subtotal    A connected group of tiles below v must add up to a multiple of v.
@@ -55,26 +56,42 @@
     }
 
     // Pairs that provably must merge now (in some direction) whenever the board is solvable.
+    // A multiplier as the only partner is not forced: another number may use it first and
+    // leave an equal number in its cell.
     function forcedPairs(R, board) {
         const out = [];
         const pairs = pairsOf(R.legalMoves(board));
         if (pairs.length === 1) out.push({ technique: 'only-pair', anchor: pairs[0].a, a: pairs[0].a, b: pairs[0].b });
-        if (!R.numbersOnly(board)) return out;
+        if (!R.numeric(board)) return out;
         for (const x of R.tiles(board)) {
-            const v = board.cells[x].value;
+            const cell = board.cells[x];
+            if (cell.type !== 'num') continue;
+            const partners = R.partners(board, x), y = board.cells[partners[0]];
+            if (partners.length !== 1 || y.type !== 'num' || y.value !== cell.value) continue;
             const occupied = R.neighbors(board, x).filter((j) => R.isTile(board.cells[j]));
-            const partners = occupied.filter((j) => board.cells[j].value <= v);
-            if (partners.length !== 1 || board.cells[partners[0]].value !== v) continue;
             out.push({ technique: occupied.length === 1 ? 'lone' : 'forced-pair', anchor: x, a: x, b: partners[0] });
         }
         return out;
     }
 
+    // Reasoning state: the rules, options and per-position caches. Results cached here
+    // depend only on the position, so one context can serve a whole path.
+    function context(R, options) {
+        const ctx = Object.assign({ R }, DEFAULTS, options);
+        ctx.memo = ctx.memo || { dead: new Map(), follow: new Map() };
+        return ctx;
+    }
+    function remember(map, k, make) {
+        if (!map.has(k)) map.set(k, make());
+        return map.get(k);
+    }
+    function deadOf(ctx, b) { return remember(ctx.memo.dead, ctx.R.key(b), () => explainDead(ctx.R, b)); }
+
     // Evidence that `move` loses, using contradictions up to `limit` (lookahead at 5). `span`
     // counts the merges a player has to picture to see it.
     function refute(ctx, board, move, limit) {
         const next = ctx.R.applyMerge(board, move);
-        const dead = explainDead(ctx.R, next);
+        const dead = deadOf(ctx, next);
         if (dead && dead.level <= limit) return { move, reason: dead, level: dead.level, cost: COSTS[dead.id] || 3, span: 1 };
         if (limit >= 5 && !dead) {
             const chain = lookahead(ctx, next);
@@ -99,21 +116,24 @@
             if (f.dead) return { moves, final: f.dead };
             moves.push(f.move);
             b = ctx.R.applyMerge(b, f.move);
-            const dead = explainDead(ctx.R, b);
+            const dead = deadOf(ctx, b);
             if (dead) return { moves, final: dead };
         }
         return null;
     }
     // The next merge forced at level ≤ 4: a forced pair with one surviving direction, or the
     // only merge that survives refutation. `dead` when the assumption already fails.
-    function forcedFollowUp(ctx, b) {
+    function forcedFollowUp(ctx, b) { return remember(ctx.memo.follow, ctx.R.key(b), () => followUp(ctx, b)); }
+    function followUp(ctx, b) {
         if (ctx.R.tileCount(b) <= 2) return null;
         for (const pair of forcedPairs(ctx.R, b)) {
             if (pair.technique === 'lone') return { move: { from: pair.a, to: pair.b } };
             const dirs = directions(ctx.R, b, pair);
             const alive = dirs.filter((m) => !refute(ctx, b, m, 4));
             if (!alive.length) {
-                return { dead: { id: 'pair-blocked', level: LEVELS['pair-blocked'], cells: [pair.a, pair.b], value: valueAt(b, pair.a) } };
+                const v = valueAt(b, pair.a);
+                if (v === null || v !== valueAt(b, pair.b)) return { dead: { id: 'no-survivor', level: LEVELS['no-survivor'], cells: ctx.R.tiles(b) } };
+                return { dead: { id: 'pair-blocked', level: LEVELS['pair-blocked'], cells: [pair.a, pair.b], value: v } };
             }
             if (alive.length === 1) return { move: alive[0] };
         }
@@ -211,7 +231,7 @@
     }
     // Every step a person could take from `board`, unvalidated (see deductions).
     function candidates(R, board, options) {
-        const ctx = Object.assign({ R }, DEFAULTS, options);
+        const ctx = context(R, options);
         const found = deductions(ctx, board);
         return found.steps.concat(trials(ctx, board, found.alive));
     }
@@ -248,7 +268,7 @@
             ? s.alternatives.every((m) => outcome(m) === 'win')
             : outcome(s.move) === 'win' || (!validated && outcome(s.move) === 'unknown'));
         const best = (steps) => steps.sort((a, b) => rank(a) - rank(b)).find(holds);
-        const ctx = Object.assign({ R }, o), found = deductions(ctx, board);
+        const ctx = context(R, o), found = deductions(ctx, board);
         const step = best(found.steps.filter((s) => s.level < 5))
             || best(found.steps.filter((s) => s.level >= 5).concat(trials(ctx, board, found.alive)));
         if (step) return Object.assign(step, { validated });
@@ -269,6 +289,7 @@
     function humanPath(R, board, options) {
         const o = Object.assign({}, DEFAULTS, options);
         o.solver = o.solver || Solver.createSolver(R);
+        o.memo = o.memo || context(R, o).memo;
         if (o.stopAtSearch) o.searchMoves = false;
         const out = { steps: [], maxLevel: 0, searchSteps: 0, complete: false };
         let b = board;
@@ -299,9 +320,14 @@
 
     // Trial-and-error cost, the difficulty measure: the merges a player makes before solving
     // when trying the smallest tiles first, never making a merge whose result is visibly lost,
-    // undoing when stuck and remembering positions already seen to fail. Merges of equal value
+    // undoing when stuck and remembering positions already seen to fail. A merge's size is the
+    // number it involves (a multiplier counts as the number it doubles); merges of equal size
     // are tried in board order, so the count is reproducible. Counting stops at `cap`. The
     // excess over the minimum (tiles − 1) is the number of merges made and undone.
+    function mergeSize(b, m) {
+        const src = b.cells[m.from];
+        return (src.type === 'num' ? src.value : b.cells[m.to].value) || 0;
+    }
     function trialMerges(R, board, cap) {
         const failed = new Set(), limit = cap || Infinity;
         let merges = 0;
@@ -312,7 +338,7 @@
             const kids = [];
             for (const m of R.legalMoves(b)) {
                 const next = R.applyMerge(b, m);
-                if (!visiblyLost(R, next)) kids.push({ next, value: b.cells[m.from].value || 0 });
+                if (!visiblyLost(R, next)) kids.push({ next, value: mergeSize(b, m) });
             }
             kids.sort((x, y) => x.value - y.value);
             for (const kid of kids) {
@@ -327,5 +353,5 @@
         return Math.min(merges, limit);
     }
 
-    return { SEARCH, LEVELS, COSTS, explainDead, visiblyLost, forcedPairs, refute, candidates, nextStep, humanPath, trialMerges };
+    return { SEARCH, LEVELS, COSTS, context, explainDead, visiblyLost, forcedPairs, refute, candidates, nextStep, humanPath, mergeSize, trialMerges };
 });

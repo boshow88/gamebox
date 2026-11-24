@@ -14,6 +14,7 @@
         ['#4dbaa9', '#ffffff'], ['#22a090', '#ffffff'], ['#0f8577', '#ffffff'], ['#0d6b61', '#ffffff'],
         ['#0b564f', '#ffffff'], ['#08433d', '#ffffff'],
     ];
+    const MUL_COLOURS = ['#7c3aed', '#ffffff'];
 
     Object.assign(PC.i18n.STRINGS.en, {
         fuseName: 'Fuse',
@@ -24,22 +25,23 @@
         fuseReady: 'Merge equal neighbours until one tile remains.',
         fuseSelected: (v) => `Selected ${v}. Tap a highlighted neighbour to merge into it.`,
         fuseNoPartner: (v) => `This ${v} has no equal neighbour right now.`,
+        fuseNoPartnerMul: 'This ×2 touches no number right now.',
         fuseCancelled: 'Selection cleared.', fuseMerged: (v) => `Merged into ${v}.`,
         fuseUndone: 'Last merge undone.', fuseRestarted: 'Back to the start.',
         fuseDeadEnd: 'No two equal tiles touch, so nothing can merge.',
+        fuseDeadEndMul: 'Nothing can merge: no equal numbers touch, and no ×2 touches a number.',
         fuseWinSay: 'Solved! One tile left.',
         fuseGenerateFailed: 'Could not prepare a puzzle. Press New Game to try again.',
         fuseCell: (r, c, what) => `Row ${r}, column ${c}: ${what}`,
         fuseEmpty: 'empty', fuseBlocked: 'blocked', fuseIsSelected: 'selected', fuseIsTarget: 'can merge here',
-        fuseIsBonus: (m) => `×${m} cell`, fuseMergedBonus: (v, m) => `Merged into ${v} on the ×${m} cell.`,
         fuseHelp1: 'Merge two touching tiles with the same number: the tile you move disappears and the one it joins doubles.',
         fuseHelp2: 'Emptied cells stay empty and nothing slides, so plan which tiles meet. Reduce the board to a single tile to win.',
-        fuseHelpBonus: 'A merge that lands on a ×2 cell doubles once more: 4 + 4 there makes 16.',
+        fuseHelpMul: 'A ×2 tile merges with any touching number and doubles it, in either direction: drag 8 onto ×2, or ×2 onto 8, to make 16. It counts as a tile, so every ×2 must be used.',
         fuseHelp3Html: 'Tap a tile, then a highlighted neighbour, or drag one onto the other. Keyboard: arrows move, <strong>Enter</strong> selects and merges, <strong>Esc</strong> cancels, <strong>Ctrl+Z</strong> undoes.',
         fuseHelp4: 'Hint explains one merge you can work out. Reveal shows a full solution from the current position.',
         fuseWhyFinal: 'Two tiles left: merging them finishes the puzzle, in either direction.',
         fuseWhyLone: (v) => `This ${v} touches only one tile, an equal ${v}, so that is its only partner.`,
-        fuseWhyOnlyPair: 'This is the only pair of equal neighbours, so it has to merge now.',
+        fuseWhyOnlyPair: 'This is the only pair of tiles that can merge, so it has to merge now.',
         fuseWhyForcedPair: (v) => `Its other neighbours are empty or larger, and tiles never shrink, so the ${v} beside it is its only possible partner. They must merge before either one changes.`,
         fuseWhyEliminate: (n) => (n === 1 ? 'Only one merge works here: the other one fails.' : `Only one merge works here: the other ${n} all fail.`),
         fuseWhyFree: (n) => (n ? `${n === 1 ? 'One merge here fails' : `${n} merges here fail`}; the rest all work (checked by search).` : 'Every merge here works (checked by search).'),
@@ -51,8 +53,8 @@
         fuseDirRefuted: (why) => `Not the other way: then ${why}.`,
         fuseDirFree: 'Either direction works (checked by search).',
         fuseExample: (why) => `For example, the red merge fails: then ${why}.`,
-        fuseWhyDead: 'no two equal tiles touch',
-        fuseWhyStuck: (v) => `the ${v} touches only empty cells or larger tiles`,
+        fuseWhyDead: 'nothing can merge any more',
+        fuseWhyStuck: (v) => `the ${v} touches only empty cells or larger numbers`,
         fuseWhyRivals: (v) => `two ${v}s depend on the same partner`,
         fuseWhyOdd: (v, n) => `the ${v}s, the smallest tiles, form a group of ${n}; they pair only with each other, so one is always left over`,
         fuseWhySplit: 'the tiles are split into groups that can never meet',
@@ -81,22 +83,23 @@
         fuseReady: '合併相鄰的相同數字，直到只剩一塊。',
         fuseSelected: (v) => `已選取${v}。點一個標示的鄰居，把它併進去。`,
         fuseNoPartner: (v) => `這個${v}目前沒有相同的鄰居。`,
+        fuseNoPartnerMul: '這個 ×2 目前沒有碰到任何數字。',
         fuseCancelled: '已取消選取。', fuseMerged: (v) => `合併成${v}。`,
         fuseUndone: '已復原上一次合併。', fuseRestarted: '回到起點。',
         fuseDeadEnd: '沒有相同的方塊相鄰，無法再合併。',
+        fuseDeadEndMul: '無法再合併：沒有相同的數字相鄰，也沒有 ×2 碰到數字。',
         fuseWinSay: '完成！只剩一塊。',
         fuseGenerateFailed: '暫時無法產生題目，請按「新局」再試一次。',
         fuseCell: (r, c, what) => `第${r}列第${c}欄：${what}`,
         fuseEmpty: '空格', fuseBlocked: '障礙', fuseIsSelected: '已選取', fuseIsTarget: '可併入',
-        fuseIsBonus: (m) => `×${m}格`, fuseMergedBonus: (v, m) => `在×${m}格上合併成${v}。`,
         fuseHelp1: '把兩個相鄰且數字相同的方塊合併：移動的那塊消失，被併入的那塊數字加倍。',
         fuseHelp2: '清空的格子會一直空著，方塊也不會滑動，要先想好哪些方塊該碰在一起。最後只剩一塊即過關。',
-        fuseHelpBonus: '合併落在 ×2 格上時，結果會再乘 2：在那裡 4 + 4 會變成 16。',
+        fuseHelpMul: '×2 方塊可以和任何相鄰的數字合併，讓那個數字變兩倍，方向不拘：把 8 拖到 ×2 上，或把 ×2 拖到 8 上，都會變成 16。×2 也算一塊，每個 ×2 都要用掉才能過關。',
         fuseHelp3Html: '點一個方塊，再點標示的鄰居；也可以直接拖過去。鍵盤：方向鍵移動，<strong>Enter</strong>選取並合併，<strong>Esc</strong>取消，<strong>Ctrl+Z</strong>復原。',
         fuseHelp4: '「提示」會說明一步推得出來的合併；「解答」會顯示從目前局面到完成的一組解法。',
         fuseWhyFinal: '只剩兩塊：把它們合併就完成了，方向不拘。',
         fuseWhyLone: (v) => `這個${v}只碰到一個方塊，也就是相同的${v}，所以只能和它合併。`,
-        fuseWhyOnlyPair: '這是盤面上唯一一組相鄰的相同數字，現在就得合併。',
+        fuseWhyOnlyPair: '這是盤面上唯一能合併的一組方塊，現在就得合併。',
         fuseWhyForcedPair: (v) => `它的其他鄰居都是空格或更大的數字，而數字只會變大，所以旁邊的${v}是它唯一可能的夥伴。兩者必須在任一方改變前合併。`,
         fuseWhyEliminate: (n) => (n === 1 ? '這裡只有一種合併可行，另一種會失敗。' : `這裡只有一種合併可行，其他${n}種都會失敗。`),
         fuseWhyFree: (n) => (n ? `這裡有${n}種合併會失敗，其餘都可行（經搜尋確認）。` : '這裡每種合併都可行（經搜尋確認）。'),
@@ -108,7 +111,7 @@
         fuseDirRefuted: (why) => `不能反過來：那樣${why}。`,
         fuseDirFree: '兩個方向都可以（經搜尋確認）。',
         fuseExample: (why) => `例如紅色的合併會失敗：那樣${why}。`,
-        fuseWhyDead: '沒有相同的方塊相鄰',
+        fuseWhyDead: '再也沒有能合併的方塊',
         fuseWhyStuck: (v) => `${v}只碰到空格或更大的數字`,
         fuseWhyRivals: (v) => `兩個${v}得搶同一個夥伴`,
         fuseWhyOdd: (v, n) => `最小的${v}形成${n}塊一群，只能彼此配對，總會剩下一塊`,
@@ -161,7 +164,8 @@
     });
 
     function say(key, ...args) { $('fuse-live').textContent = t(key, ...args); }
-    function label(cell) { return R.token(cell); }
+    function label(cell) { return cell.type === 'mul' ? '×' + cell.factor : R.token(cell); }
+    function hasMul(b) { return b.cells.some((c) => R.isTile(c) && c.type === 'mul'); }
     function targetsOf(b, i) { return R.neighbors(b, i).filter((j) => R.canMerge(b, i, j)); }
 
     // ---------- drawing ----------
@@ -169,6 +173,7 @@
     function origin(b, i) { return { x: GAP + (i % b.cols) * (CELL + GAP), y: GAP + Math.floor(i / b.cols) * (CELL + GAP) }; }
     function centre(b, i) { const o = origin(b, i); return { x: o.x + CELL / 2, y: o.y + CELL / 2 }; }
     function colours(cell) {
+        if (cell.type === 'mul') return MUL_COLOURS;
         const e = cell.type === 'num' ? Math.round(Math.log2(cell.value)) : PALETTE.length - 1;
         return PALETTE[Math.max(0, Math.min(PALETTE.length - 1, e))];
     }
@@ -215,16 +220,6 @@
         add(parent, 'circle', { class: 'fuse-reveal-badge', cx: mx, cy: my, r: 14 });
         add(parent, 'text', { class: 'fuse-reveal-num', x: mx, y: my + 1 }).textContent = String(n);
     }
-    // A bonus cell's badge in the tile's top-left corner, clear of centred numbers. Only
-    // shown while the cell holds a tile: an emptied cell never fills again.
-    function bonusBadge(parent, b, i, used) {
-        const o = origin(b, i);
-        const outer = add(parent, 'g', { transform: `translate(${o.x + 28} ${o.y + 19})` });
-        const inner = add(outer, 'g', { class: 'fuse-bonus' + (used ? ' used' : '') });
-        add(inner, 'rect', { x: -22, y: -13, width: 44, height: 26, rx: 13 });
-        add(inner, 'text', { x: 0, y: 1 }).textContent = '×' + R.bonusAt(b, i);
-    }
-
     function render() {
         const b = current();
         svg.replaceChildren();
@@ -237,10 +232,7 @@
         const selected = state.selected, targets = selected != null ? targetsOf(b, selected) : [];
         const marks = hintMarks(), anim = state.anim;
         const slots = add(svg, 'g', { class: 'fuse-slots' }), tiles = add(svg, 'g', { class: 'fuse-tiles' });
-        const bonus = add(svg, 'g', { class: 'fuse-bonuses' }), over = add(svg, 'g', { class: 'fuse-over' });
-        for (const i of b.layout ? b.layout.bonusCells : []) {
-            if (R.isTile(b.cells[i])) bonusBadge(bonus, b, i, !!anim && anim.to === i);
-        }
+        const over = add(svg, 'g', { class: 'fuse-over' });
         for (let i = 0; i < b.cells.length; i++) {
             const o = origin(b, i), cell = b.cells[i];
             const kind = cell === R.EMPTY ? ' empty' : R.isTile(cell) ? '' : ' block';
@@ -413,7 +405,6 @@
     function announce(i) {
         const b = current(), cell = b.cells[i];
         const parts = [cell === R.EMPTY ? t('fuseEmpty') : R.isTile(cell) ? label(cell) : t('fuseBlocked')];
-        if (R.isTile(cell) && R.bonusAt(b, i) > 1) parts.push(t('fuseIsBonus', R.bonusAt(b, i)));
         if (i === state.selected) parts.push(t('fuseIsSelected'));
         else if (state.selected != null && R.canMerge(b, state.selected, i)) parts.push(t('fuseIsTarget'));
         $('fuse-live').textContent = t('fuseCell', Math.floor(i / b.cols) + 1, (i % b.cols) + 1, parts.join(', '));
@@ -427,7 +418,8 @@
             if (state.selected != null) say('fuseCancelled');
             state.selected = null;
         } else if (!targetsOf(b, i).length) {
-            state.selected = null; say('fuseNoPartner', label(b.cells[i])); nudge(i);
+            state.selected = null; nudge(i);
+            if (b.cells[i].type === 'mul') say('fuseNoPartnerMul'); else say('fuseNoPartner', label(b.cells[i]));
         } else {
             state.selected = i; state.cursor = i; say('fuseSelected', label(b.cells[i]));
         }
@@ -462,8 +454,7 @@
         const step = tile.type === 'num' ? Math.min(12, Math.log2(tile.value)) : 6;
         PC.audio.tone(262 * Math.pow(2, step / 6), 0.09, { volume: 0.05 });
         if (status === 'won') { state.won = true; recordWin(); say('fuseWinSay'); }
-        else if (status === 'dead-end') say('fuseDeadEnd');
-        else if (R.bonusAt(next, to) > 1) say('fuseMergedBonus', label(tile), R.bonusAt(next, to));
+        else if (status === 'dead-end') say(hasMul(next) ? 'fuseDeadEndMul' : 'fuseDeadEnd');
         else say('fuseMerged', label(tile));
         sync();
     }

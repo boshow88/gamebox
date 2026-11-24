@@ -25,20 +25,32 @@
         if (!tile) { tile = Object.freeze({ type: 'num', value }); NUMBERS.set(value, tile); }
         return tile;
     }
+    // Multiplier tiles (×2) merge with any touching number and multiply it.
+    const MULTIPLIERS = new Map();
+    function mul(factor) {
+        if (!isPowerOfTwo(factor) || factor < 2) throw new RangeError('A multiplier tile multiplies by a power of two above 1: ' + factor);
+        let tile = MULTIPLIERS.get(factor);
+        if (!tile) { tile = Object.freeze({ type: 'mul', factor }); MULTIPLIERS.set(factor, tile); }
+        return tile;
+    }
 
     // Each tile type owns its token (used for canonical keys and serialization) and parser.
     // `tile: false` marks occupants that are neither empty nor mergeable and never count
     // toward the win (blocked cells).
     const TILE_TYPES = {
         num: { tile: true, token: (t) => String(t.value), parse: (s) => (/^\d+$/.test(s) ? num(Number(s)) : undefined) },
+        mul: { tile: true, token: (t) => 'x' + t.factor, parse: (s) => { const m = /^[x×](\d+)$/i.exec(s); return m ? mul(Number(m[1])) : undefined; } },
         block: { tile: false, token: () => '#', parse: (s) => (s === '#' ? BLOCK : undefined) },
     };
 
     // Merge handlers keyed `<source type>><destination type>`; each returns the tile left at
     // the destination, or null when the pair cannot merge. Every caller goes through
-    // `mergeResult`, so play, search, hints and generation share one definition.
+    // `mergeResult`, so play, search, hints and generation share one definition. A multiplier
+    // and a number merge in either direction; two multipliers never merge.
     const MERGES = {
         'num>num': (src, dst) => (src.value === dst.value ? num(dst.value * 2) : null),
+        'num>mul': (src, dst) => num(src.value * dst.factor),
+        'mul>num': (src, dst) => num(dst.value * src.factor),
     };
 
     const ADJACENCY = {
@@ -90,102 +102,43 @@
             return table;
         }
 
-        // A layout holds the fixed features of a puzzle's grid, shared by all of its positions:
-        // bonus cells, whose multiplier applies to every merge landing on them (×2 turns
-        // 4 + 4 into 16). Spec: { bonus: { cell: multiplier } }. null when there is none.
-        function createLayout(rows, cols, spec) {
-            if (!spec) return null;
-            if (typeof spec.sig === 'string') return spec;
-            const n = rows * cols, bonus = new Array(n).fill(1);
-            for (const i of Object.keys(spec.bonus || {})) {
-                const m = spec.bonus[i];
-                if (!(i >= 0 && i < n) || !isPowerOfTwo(m)) throw new RangeError('A bonus multiplies by a power of two: ' + i + '×' + m);
-                bonus[i] = m;
-            }
-            const bonusCells = [];
-            for (let i = 0; i < n; i++) if (bonus[i] > 1) bonusCells.push(i);
-            if (!bonusCells.length) return null;
-            return Object.freeze({
-                bonus: Object.freeze(bonus), bonusCells: Object.freeze(bonusCells),
-                sig: bonusCells.map((i) => i + '*' + bonus[i]).join(','),
-            });
-        }
-        function layoutSpec(board) {
-            const lay = board.layout;
-            if (!lay) return null;
-            const bonus = {};
-            for (const i of lay.bonusCells) bonus[i] = lay.bonus[i];
-            return { bonus };
-        }
-        // A board sharing `board`'s grid and layout with new cells.
-        function withCells(board, cells) {
-            const out = { rows: board.rows, cols: board.cols, cells };
-            if (board.layout) out.layout = board.layout;
-            return out;
-        }
+        // A board with `board`'s grid and new cells.
+        function withCells(board, cells) { return { rows: board.rows, cols: board.cols, cells }; }
 
-        function createBoard(rows, cols, cells, layout) {
+        function createBoard(rows, cols, cells) {
             if (!(rows >= 1 && cols >= 1) || cells.length !== rows * cols) throw new RangeError('Board dimensions do not match its cells');
             for (const cell of cells) if (cell !== EMPTY) typeOf(cell);
-            return withCells({ rows, cols, layout: createLayout(rows, cols, layout) }, cells.slice());
+            return { rows, cols, cells: cells.slice() };
         }
-        // Rows of numbers (0/null/'.' = empty, '#' = blocked) or tile objects.
-        function fromRows(grid, layout) {
+        // Rows of numbers (0/null/'.' = empty, '#' = blocked, 'x2' = multiplier) or tile objects.
+        function fromRows(grid) {
             const rows = grid.length, cols = grid[0].length, cells = [];
             for (const row of grid) {
                 if (row.length !== cols) throw new RangeError('Ragged board');
                 for (const v of row) cells.push(v && typeof v === 'object' ? v : parseToken(v == null ? '.' : v));
             }
-            return createBoard(rows, cols, cells, layout);
+            return createBoard(rows, cols, cells);
         }
-        // `1 1 2/2 4 ./# 8 8` — rows separated by '/', cells by spaces or commas. Bonus cells
-        // follow after ';' by multiplier: `4 4/8 16;x2=1,2`.
-        function parse(text) {
-            const [grid, ...extras] = String(text).trim().split(';');
-            let layout = null;
-            for (const part of extras) {
-                const m = /^\s*x(\d+)\s*=\s*([\d,\s]*)$/.exec(part);
-                if (!m) throw new SyntaxError('Unknown layout part: ' + part);
-                layout = layout || { bonus: {} };
-                for (const item of m[2].split(',').map((s) => s.trim()).filter(Boolean)) layout.bonus[Number(item)] = Number(m[1]);
-            }
-            return fromRows(grid.trim().split('/').map((row) => row.trim().split(/[\s,]+/)), layout);
-        }
+        // `1 1 2/2 x2 ./# 8 8` — rows separated by '/', cells by spaces or commas.
+        function parse(text) { return fromRows(String(text).trim().split('/').map((row) => row.trim().split(/[\s,]+/))); }
         function serialize(board) {
             const out = [];
             for (let r = 0; r < board.rows; r++) out.push(board.cells.slice(r * board.cols, (r + 1) * board.cols).map(token).join(' '));
-            let text = out.join('/');
-            const lay = board.layout;
-            if (lay) {
-                const groups = new Map();
-                for (const i of lay.bonusCells) groups.set(lay.bonus[i], (groups.get(lay.bonus[i]) || []).concat(i));
-                for (const [m, cells] of [...groups].sort((x, y) => x[0] - y[0])) text += ';x' + m + '=' + cells.join(',');
-            }
-            return text;
+            return out.join('/');
         }
         function key(board) {
             let k = '';
             for (const cell of board.cells) k += token(cell) + ',';
-            return board.layout ? k + '|' + board.layout.sig : k;
+            return k;
         }
 
         function neighbors(board, i) { return gridNeighbors(board.rows, board.cols)[i]; }
         function adjacent(board, a, b) { return neighbors(board, a).includes(b); }
-        function bonusAt(board, i) { return board.layout ? board.layout.bonus[i] : 1; }
-        // A tile still sits on a bonus cell, so the number total can still change.
-        function bonusLive(board) {
-            return !!board.layout && board.layout.bonusCells.some((i) => isTile(board.cells[i]));
-        }
 
         function mergeResult(src, dst) {
             if (!isTile(src) || !isTile(dst)) return null;
             const handler = merges[src.type + '>' + dst.type];
             return handler ? handler(src, dst) || null : null;
-        }
-        // The tile a merge leaves at `to`, including that cell's bonus.
-        function mergeAt(board, from, to) {
-            const out = mergeResult(board.cells[from], board.cells[to]), m = bonusAt(board, to);
-            return out && m > 1 && out.type === 'num' ? num(out.value * m) : out;
         }
         function canMerge(board, from, to) {
             return Number.isInteger(from) && Number.isInteger(to) && from !== to
@@ -195,7 +148,7 @@
         function applyMerge(board, move) {
             if (!move || !canMerge(board, move.from, move.to)) throw new RangeError('Illegal merge ' + JSON.stringify(move));
             const cells = board.cells.slice();
-            cells[move.to] = mergeAt(board, move.from, move.to);
+            cells[move.to] = mergeResult(board.cells[move.from], board.cells[move.to]);
             cells[move.from] = EMPTY;
             return withCells(board, cells);
         }
@@ -229,12 +182,28 @@
             for (const cell of board.cells) if (isTile(cell) && cell.type !== 'num') return false;
             return true;
         }
+        // Only numbers and multipliers: the tiles the number invariants understand.
+        function numeric(board) {
+            for (const cell of board.cells) if (isTile(cell) && cell.type !== 'num' && cell.type !== 'mul') return false;
+            return true;
+        }
         // Sum of number tiles; null when other tile types are present (no sum invariant).
         function numberTotal(board) {
             if (!numbersOnly(board)) return null;
             let total = 0;
             for (const cell of board.cells) if (isTile(cell)) total += cell.value;
             return total;
+        }
+        // Neighbours of the number tile at `i` that it could ever merge with: numbers no larger
+        // (larger ones never shrink) and multipliers. Empty cells stay empty, a number cell only
+        // grows or empties, and only a multiplier's cell can take a new value, so no other
+        // neighbour can ever become a partner.
+        function partners(board, i) {
+            const v = board.cells[i].value;
+            return neighbors(board, i).filter((j) => {
+                const c = board.cells[j];
+                return isTile(c) && (c.type === 'mul' || (c.type === 'num' && c.value <= v));
+            });
         }
         // Connected groups of tile cells, optionally treating `without` as removed.
         function tileGroups(board, without) {
@@ -253,62 +222,70 @@
             return groups;
         }
 
+        // A connected group of number tiles matching `inGroup`, grown from `start`, and whether
+        // a multiplier touches it.
+        function numberGroup(board, start, inGroup, seen) {
+            const group = [start];
+            let touched = false;
+            seen.add(start);
+            for (let k = 0; k < group.length; k++) {
+                for (const j of neighbors(board, group[k])) {
+                    const c = board.cells[j];
+                    if (!isTile(c)) continue;
+                    if (c.type === 'mul') touched = true;
+                    else if (!seen.has(j) && c.type === 'num' && inGroup(c.value)) { seen.add(j); group.push(j); }
+                }
+            }
+            return { group, touched };
+        }
+
         // Necessary conditions for solvability. Each returns evidence when a board with at
         // least two tiles can provably never reach a single tile, else null. They are used to
         // prune exact search and to explain hints, so each must be sound under these rules.
-        // Number-specific conditions rely on number tiles only growing and only merging with
-        // an equal tile; they are skipped when other tile types are present.
+        // `numeric` conditions rely on number tiles only growing and only merging with an
+        // equal tile or a multiplier; they are skipped when other tile types are present.
         const CONDITIONS = [
             {
-                // A tile whose neighbours are all empty or larger can never merge: neighbours
-                // never shrink, empty cells stay empty, and the tile itself only grows by merging.
-                id: 'stuck', numbersOnly: true,
+                // A number with no possible partner (see `partners`) can never merge.
+                id: 'stuck', numeric: true,
                 check(board, ts) {
                     for (const i of ts) {
-                        const v = board.cells[i].value;
-                        if (!neighbors(board, i).some((j) => isTile(board.cells[j]) && board.cells[j].value <= v)) {
-                            return { cells: [i], value: v };
-                        }
+                        if (board.cells[i].type === 'num' && !partners(board, i).length) return { cells: [i], value: board.cells[i].value };
                     }
                     return null;
                 },
             },
             {
-                // Two equal tiles whose only possible partner is the same tile: whichever merges
-                // with it first changes or empties it, leaving the other with nothing.
-                id: 'rivals', numbersOnly: true,
+                // Two equal numbers whose only possible partner is the same tile: whichever merges
+                // with it first leaves that cell empty or larger, leaving the other with nothing.
+                id: 'rivals', numeric: true,
                 check(board, ts) {
                     const claims = new Map();
                     for (const i of ts) {
-                        const v = board.cells[i].value;
-                        const partners = neighbors(board, i).filter((j) => isTile(board.cells[j]) && board.cells[j].value <= v);
-                        if (partners.length !== 1) continue;
-                        const claim = partners[0] + ':' + v, prior = claims.get(claim);
-                        if (prior !== undefined) return { cells: [prior, i], partner: partners[0], value: v };
+                        if (board.cells[i].type !== 'num') continue;
+                        const v = board.cells[i].value, p = partners(board, i);
+                        if (p.length !== 1) continue;
+                        const claim = p[0] + ':' + v, prior = claims.get(claim);
+                        if (prior !== undefined) return { cells: [prior, i], partner: p[0], value: v };
                         claims.set(claim, i);
                     }
                     return null;
                 },
             },
             {
-                // The smallest tiles can only merge with each other and no new ones appear, so
-                // they must pair off along fixed adjacencies: every connected group needs an
-                // even count.
-                id: 'odd-group', numbersOnly: true,
+                // The smallest numbers can only merge with each other or a multiplier, and no new
+                // ones appear, so a connected group of them that no multiplier touches must pair
+                // off within itself: it needs an even count.
+                id: 'odd-group', numeric: true,
                 check(board, ts) {
                     let min = Infinity;
-                    for (const i of ts) min = Math.min(min, board.cells[i].value);
+                    for (const i of ts) if (board.cells[i].type === 'num') min = Math.min(min, board.cells[i].value);
                     const seen = new Set();
                     for (const start of ts) {
-                        if (board.cells[start].value !== min || seen.has(start)) continue;
-                        const group = [start];
-                        seen.add(start);
-                        for (let k = 0; k < group.length; k++) {
-                            for (const j of neighbors(board, group[k])) {
-                                if (!seen.has(j) && isTile(board.cells[j]) && board.cells[j].value === min) { seen.add(j); group.push(j); }
-                            }
-                        }
-                        if (group.length % 2) return { cells: group, value: min };
+                        const c = board.cells[start];
+                        if (c.type !== 'num' || c.value !== min || seen.has(start)) continue;
+                        const { group, touched } = numberGroup(board, start, (v) => v === min, seen);
+                        if (group.length % 2 && !touched) return { cells: group, value: min };
                     }
                     return null;
                 },
@@ -316,39 +293,33 @@
             {
                 // Empty cells are permanent and tiles never move except into a neighbour, so
                 // separated groups of tiles can never meet. Holds for every tile type.
-                id: 'split', numbersOnly: false,
+                id: 'split', numeric: false,
                 check(board) {
                     const groups = tileGroups(board);
                     return groups.length > 1 ? { cells: [].concat(...groups), groups } : null;
                 },
             },
             {
-                // Tiles below v only merge with equal (hence also below-v) neighbours until they
-                // reach exactly v, so each connected group of below-v tiles must add up to a
-                // multiple of v. (v = 2 × smallest is the odd-group rule.) A group holding a
-                // bonus cell can jump past v, so it is not checked; totals never shrink, so
-                // bonuses elsewhere keep the argument.
-                id: 'subtotal', numbersOnly: true,
+                // Numbers below v only merge with equal (hence also below-v) neighbours until they
+                // reach exactly v, so each connected group of below-v numbers must add up to a
+                // multiple of v. (v = 2 × smallest is the odd-group rule.) A multiplier touching
+                // the group could double one of them, so such groups are not checked; no new
+                // multiplier can come to touch it.
+                id: 'subtotal', numeric: true,
                 check(board, ts) {
-                    const total = numberTotal(board);
-                    let min = Infinity;
-                    for (const i of ts) min = Math.min(min, board.cells[i].value);
-                    for (let v = min * 4; v <= total; v *= 2) {
+                    let min = Infinity, total = 0, boost = 1;
+                    for (const i of ts) {
+                        const c = board.cells[i];
+                        if (c.type === 'num') { min = Math.min(min, c.value); total += c.value; } else boost *= c.factor;
+                    }
+                    for (let v = min * 4; v <= total * boost; v *= 2) {
                         const seen = new Set();
                         for (const start of ts) {
-                            if (board.cells[start].value >= v || seen.has(start)) continue;
-                            const group = [start];
-                            let sum = board.cells[start].value, bonus = bonusAt(board, start) > 1;
-                            seen.add(start);
-                            for (let k = 0; k < group.length; k++) {
-                                for (const j of neighbors(board, group[k])) {
-                                    if (!seen.has(j) && isTile(board.cells[j]) && board.cells[j].value < v) {
-                                        seen.add(j); group.push(j); sum += board.cells[j].value;
-                                        if (bonusAt(board, j) > 1) bonus = true;
-                                    }
-                                }
-                            }
-                            if (sum % v && !bonus) return { cells: group, sum, below: v };
+                            const c = board.cells[start];
+                            if (c.type !== 'num' || c.value >= v || seen.has(start)) continue;
+                            const { group, touched } = numberGroup(board, start, (x) => x < v, seen);
+                            const sum = group.reduce((s, j) => s + board.cells[j].value, 0);
+                            if (sum % v && !touched) return { cells: group, sum, below: v };
                         }
                     }
                     return null;
@@ -357,11 +328,11 @@
             {
                 // A tile worth half the total can only take part in the final merge, so every
                 // other tile must combine without passing through its cell. Needs a fixed
-                // total: skipped while a tile still sits on a bonus cell.
-                id: 'half', numbersOnly: true,
+                // total: skipped while a multiplier is on the board.
+                id: 'half', numeric: true,
                 check(board, ts) {
-                    if (ts.length < 3 || bonusLive(board)) return null;
                     const total = numberTotal(board);
+                    if (ts.length < 3 || total === null) return null;
                     for (const i of ts) {
                         if (board.cells[i].value * 2 !== total) continue;
                         const groups = tileGroups(board, i);
@@ -376,9 +347,9 @@
         function contradictions(board, all) {
             const ts = tiles(board), found = [];
             if (ts.length < 2) return found;
-            const numeric = numbersOnly(board);
+            const plain = numeric(board);
             for (const cond of CONDITIONS) {
-                if (cond.numbersOnly && !numeric) continue;
+                if (cond.numeric && !plain) continue;
                 const evidence = cond.check(board, ts);
                 if (evidence) {
                     found.push(Object.assign({ id: cond.id }, evidence));
@@ -390,10 +361,10 @@
         function findContradiction(board) { return contradictions(board, false)[0] || null; }
 
         return {
-            adjacency: cfg.adjacency, EMPTY, BLOCK, num,
-            isTile, token, parseToken, createBoard, createLayout, layoutSpec, withCells, fromRows, parse, serialize, key,
-            neighbors, adjacent, bonusAt, bonusLive, mergeResult, mergeAt, canMerge, applyMerge, legalMoves,
-            tiles, tileCount, status, numbersOnly, numberTotal, tileGroups,
+            adjacency: cfg.adjacency, EMPTY, BLOCK, num, mul,
+            isTile, token, parseToken, createBoard, withCells, fromRows, parse, serialize, key,
+            neighbors, adjacent, mergeResult, canMerge, applyMerge, legalMoves,
+            tiles, tileCount, status, numbersOnly, numeric, numberTotal, partners, tileGroups,
             contradictions: (board) => contradictions(board, true), findContradiction,
             conditionIds: CONDITIONS.map((c) => c.id),
         };
@@ -402,5 +373,5 @@
     function sameMove(a, b) { return !!a && !!b && a.from === b.from && a.to === b.to; }
     function moveKey(m) { return m.from + '>' + m.to; }
 
-    return { EMPTY, BLOCK, num, isPowerOfTwo, TILE_TYPES, MERGES, ADJACENCY, createRules, DEFAULT: createRules(), sameMove, moveKey };
+    return { EMPTY, BLOCK, num, mul, isPowerOfTwo, TILE_TYPES, MERGES, ADJACENCY, createRules, DEFAULT: createRules(), sameMove, moveKey };
 });

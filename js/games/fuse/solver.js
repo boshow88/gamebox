@@ -127,9 +127,20 @@
             return guard(() => count(board));
         }
 
+        // Two merges legal at `b` commute there when either order is legal and ends in the same
+        // position: always when they touch disjoint cells, and sometimes when they share one
+        // (two ×2 tiles doubling the same number).
+        function commute(b, x, m) {
+            if (independent(x, m)) return true;
+            if (x.from === m.from || !R.canMerge(b, x.from, x.to) || !R.canMerge(b, m.from, m.to)) return false;
+            const xm = R.applyMerge(b, x), mx = R.applyMerge(b, m);
+            return R.canMerge(xm, m.from, m.to) && R.canMerge(mx, x.from, x.to)
+                && R.key(R.applyMerge(xm, m)) === R.key(R.applyMerge(mx, x));
+        }
+
         // Number of distinct solutions, where two solutions are the same when they use the same
-        // set of merges (source → destination), differing only in the order of independent
-        // merges, and ignoring the direction of the final merge (always free). Counted with
+        // set of merges (source → destination), differing only in the order of merges that
+        // commute, and ignoring the direction of the final merge (always free). Counted with
         // sleep sets so each equivalence class is explored once; capped.
         function countPlans(board, cap) {
             const limit = cap || Infinity, plans = new Map();
@@ -145,7 +156,7 @@
                 const done = [];
                 for (const m of R.legalMoves(b)) {
                     if (sleep.some((x) => Rules.sameMove(x, m))) continue;
-                    const childSleep = sleep.concat(done).filter((x) => independent(x, m));
+                    const childSleep = sleep.concat(done).filter((x) => commute(b, x, m));
                     total += count(R.applyMerge(b, m), childSleep);
                     done.push(m);
                     if (total >= limit) { total = limit; break; }

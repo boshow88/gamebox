@@ -1,7 +1,7 @@
 /** node tools/fuse/browser-check.js [chrome-path] [--shots] — Fuse in real headless Chrome
  * over CDP: the shared puzzle layout (compared with Tango), mouse, touch and keyboard merging,
  * undo / reset, hints, dead ends, the solution overlay, win and new game, rectangular boards,
- * ×2 cells, difficulty-chosen shapes and old links, language, responsive layout, the launcher
+ * ×2 tiles, difficulty-chosen shapes and old links, language, responsive layout, the launcher
  * card, and smoke loads of other puzzle pages.
  * Every UI move is mirrored by the Node engine and the rendered board compared.
  * Serves the repo locally and stubs js/net/net.js, so Firebase is never loaded. */
@@ -26,13 +26,14 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png', '.json': 'application/json', '.webmanifest': 'application/manifest+json' };
 const SMOKE = ['guards', 'tango', 'sudoku', 'zip', 'hashi', 'queens', 'nonogram', 'patches', 'unshackle'];
 
-// A rectangular start position that exercises every feedback path: a tile with no partner,
-// a losing merge that still leaves moves, and a dead end within a few merges.
+// A rectangular start position of numbers only that exercises every feedback path: a tile
+// with no partner, a losing merge that still leaves moves, and a dead end within a few merges.
 function pickPuzzle() {
     for (let n = 0; n < 400; n++) {
         const seed = (n >> 1) + 1, p = Gen.generate({ difficulty: n % 2 ? 'medium' : 'easy', seed });
         if (p.rows === p.cols) continue;
         const start = R.parse(p.board), solver = Solver.createSolver(R);
+        if (!R.numbersOnly(start)) continue;
         const lonely = R.tiles(start).find((i) => !R.legalMoves(start).some((m) => m.from === i));
         const a = solver.analyze(start);
         const losing = a.moves.find((m) => m.outcome === 'lose' && R.status(R.applyMerge(start, m)) === 'playing');
@@ -54,18 +55,16 @@ function pickPuzzle() {
     }
     throw new Error('No suitable seed');
 }
-// A hard 4×4 with ×2 cells, a merge into one of them and a merge out of one.
-function pickBonus() {
+// A hard 4×4 with a ×2 tile, a number merging onto it and the ×2 merging onto a number.
+function pickMul() {
     for (let seed = 1; seed < 100; seed++) {
         const t0 = Date.now(), p = Gen.generate({ difficulty: 'hard', seed }), ms = Date.now() - t0;
-        const start = R.parse(p.board);
-        if (!start.layout) continue;
-        const cells = start.layout.bonusCells, moves = R.legalMoves(start);
-        const into = moves.find((m) => cells.includes(m.to) && !cells.includes(m.from) && R.status(R.applyMerge(start, m)) === 'playing');
-        const away = moves.find((m) => cells.includes(m.from) && !cells.includes(m.to));
-        if (into && away) return { p, start, into, away, ms };
+        const start = R.parse(p.board), moves = R.legalMoves(start), isMul = (i) => start.cells[i].type === 'mul';
+        const into = moves.find((m) => isMul(m.to) && R.status(R.applyMerge(start, m)) === 'playing');
+        const onto = moves.find((m) => isMul(m.from) && R.status(R.applyMerge(start, m)) === 'playing');
+        if (into && onto) return { p, start, into, onto, ms };
     }
-    throw new Error('No hard puzzle with a usable ×2 cell');
+    throw new Error('No hard puzzle with a ×2 tile');
 }
 
 function serve(missing) {
@@ -119,7 +118,7 @@ function connect(wsUrl) {
 }
 
 (async () => {
-    const pick = pickPuzzle(), bonusPick = pickBonus();
+    const pick = pickPuzzle(), mulPick = pickMul();
     const missing = [], errors = [];
     const server = serve(missing);
     await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
@@ -177,31 +176,26 @@ function connect(wsUrl) {
         };
         const noErrors = (where) => { assert.deepEqual(errors, [], 'page errors on ' + where); assert.deepEqual(missing, [], 'missing files on ' + where); };
 
-        // Board as rendered: each tile group sits at its cell centre (GAP + CELL/2 + k·(CELL+GAP)),
-        // each ×2 badge 28, 19 from its cell's corner.
+        // Board as rendered: each tile group sits at its cell centre (GAP + CELL/2 + k·(CELL+GAP));
+        // a ×2 tile reads "×2" and is filled violet.
         let shape = { rows: 3, cols: 3 };
         const readBoard = () => evaluate(`(() => {
-            const rows = ${shape.rows}, cols = ${shape.cols}, out = Array(rows * cols).fill('.');
+            const rows = ${shape.rows}, cols = ${shape.cols}, out = Array(rows * cols).fill('.'), violet = [];
             const at = (g) => /translate\\(([-\\d.]+) ([-\\d.]+)\\)/.exec(g.getAttribute('transform')).slice(1).map(Number);
             for (const g of document.querySelectorAll('#board .fuse-tiles > g')) {
                 const inner = g.firstElementChild;
                 if (inner.classList.contains('fuse-ghost')) continue;
-                const [x, y] = at(g);
-                out[Math.round((y - 58) / 108) * cols + Math.round((x - 58) / 108)] = inner.querySelector('text').textContent;
+                const [x, y] = at(g), i = Math.round((y - 58) / 108) * cols + Math.round((x - 58) / 108);
+                out[i] = inner.querySelector('text').textContent;
+                if (inner.querySelector('rect').getAttribute('fill') === '#7c3aed') violet.push(i);
             }
-            const badges = [...document.querySelectorAll('#board .fuse-bonuses > g')].map((g) => {
-                const [x, y] = at(g);
-                return Math.round((y - 27) / 108) * cols + Math.round((x - 36) / 108) + ':' + g.textContent;
-            }).sort((a, b) => parseInt(a) - parseInt(b));
-            return { cells: Array.from({ length: rows }, (_, r) => out.slice(r * cols, r * cols + cols).join(' ')).join('/'), badges };
+            return { cells: Array.from({ length: rows }, (_, r) => out.slice(r * cols, r * cols + cols).join(' ')).join('/'), violet };
         })()`);
-        // Cells and ×2 badges (shown on bonus cells that still hold a tile) match the engine.
         const expectBoard = async (board, what) => {
             shape = board;
             const seen = await readBoard();
-            assert.equal(seen.cells, R.serialize(board).split(';')[0], what);
-            const badges = (board.layout ? board.layout.bonusCells : []).filter((i) => R.isTile(board.cells[i])).map((i) => i + ':×' + R.bonusAt(board, i));
-            assert.deepEqual(seen.badges, badges, what + ': ×2 badges');
+            assert.equal(seen.cells, R.serialize(board).replace(/x(\d+)/g, '×$1'), what);
+            assert.deepEqual(seen.violet, R.tiles(board).filter((i) => board.cells[i].type === 'mul'), what + ': ×2 tiles are violet');
         };
         const point = (i) => evaluate(`(() => {
             const svg = document.getElementById('board');
@@ -279,7 +273,7 @@ function connect(wsUrl) {
         assert.deepEqual(fuse.status, tango.status, 'status row: timer, warning, win');
         assert.deepEqual(fuse.below, tango.below, 'below the board: hint banner, then how to play');
         assert.equal(await evaluate(`!!document.getElementById('size-seg')`), false, 'no board size selector');
-        assert.equal(await evaluate(`!!document.querySelector('.game-footer [data-i18n="fuseHelpBonus"]')`), true, 'how to play explains ×2 cells');
+        assert.equal(await evaluate(`!!document.querySelector('.game-footer [data-i18n="fuseHelpMul"]')`), true, 'how to play explains ×2 tiles');
         assert.equal(await evaluate(`document.querySelector('#difficulty-seg .active').dataset.value`), p.difficulty);
         assert.equal(await urlParam('size'), null);
         for (const gone of ['fuse-analysis', 'fuse-feedback', 'fuse-win', 'fuse-dead', 'fuse-next', 'fuse-level', 'fuse-code', 'fuse-tiles']) {
@@ -466,46 +460,55 @@ function connect(wsUrl) {
         assert.equal(await viewBox(), '0 0 440 440');
         assert.equal(await urlParam('size'), null, 'links carry difficulty and seed only');
 
-        // ---------- ×2 cells ----------
-        const { start: bonusStart, into, away } = bonusPick, bonusCells = bonusStart.layout.bonusCells;
+        // ---------- ×2 tiles: merge with any touching number, either way, and must be used ----------
+        const { start: mulStart, into, onto } = mulPick, mulCell = into.to;
         let t0 = Date.now();
-        await open(fusePage('hard', bonusPick.p.seed));
+        await open(fusePage('hard', mulPick.p.seed));
         await ready();
         const loadMs = Date.now() - t0;
-        await expectBoard(bonusStart, 'a hard puzzle with ×2 cells matches its seed');
+        await expectBoard(mulStart, 'a hard puzzle with a ×2 tile matches its seed');
         assert.ok(loadMs < 6000, `a hard puzzle loads in time (${loadMs} ms)`);
-        await shot('bonus');
+        await shot('mul');
         await evaluate('document.getElementById("board").focus()');
-        await key('ArrowUp'); await cursorTo(bonusCells[0]);
-        assert.match(await live(), /: \d+, ×2 cell$/, 'the keyboard cursor reads out a ×2 cell');
-        const source = bonusStart.cells[into.from].value;
-        await click(into.from); await click(into.to);
-        const flashed = await count('#board .fuse-bonus.used');
-        const intoBoard = R.applyMerge(bonusStart, into);
-        await expectBoard(intoBoard, 'a merge onto a ×2 cell');
-        assert.equal(intoBoard.cells[into.to].value, 4 * source, `${source} + ${source} on a ×2 cell makes ${4 * source}`);
-        assert.equal(flashed, 1, 'the ×2 badge flashes when a merge lands on it');
-        assert.equal(await live(), `Merged into ${4 * source} on the ×2 cell.`);
+        await key('ArrowUp'); await cursorTo(mulCell);
+        assert.match(await live(), /: ×2$/, 'the keyboard cursor reads out a ×2 tile');
+        await click(into.from);
+        assert.equal(await count('#board .fuse-target'), R.legalMoves(mulStart).filter((m) => m.from === into.from).length);
+        await click(into.to);
+        const source = mulStart.cells[into.from].value, intoBoard = R.applyMerge(mulStart, into);
+        await expectBoard(intoBoard, 'a number dragged onto a ×2');
+        assert.equal(intoBoard.cells[into.to].value, 2 * source, `${source} onto ×2 makes ${2 * source} in the ×2 cell`);
+        assert.equal(await live(), `Merged into ${2 * source}.`);
         await clickEl('#undo-btn');
-        await expectBoard(bonusStart, 'undo a ×2 merge');
-        await click(away.from); await click(away.to);
-        await expectBoard(R.applyMerge(bonusStart, away), 'an emptied ×2 cell drops its badge');
+        await expectBoard(mulStart, 'undo a ×2 merge');
+        await click(onto.from);
+        assert.equal(await live(), 'Selected ×2. Tap a highlighted neighbour to merge into it.');
+        const numberNeighbours = R.neighbors(mulStart, onto.from).filter((j) => mulStart.cells[j].type === 'num');
+        assert.equal(await count('#board .fuse-target'), numberNeighbours.length, 'a ×2 can merge onto every touching number');
+        await shot('mul-selected');
+        await click(onto.to);
+        const dest = mulStart.cells[onto.to].value, ontoBoard = R.applyMerge(mulStart, onto);
+        await expectBoard(ontoBoard, 'a ×2 merged onto a number');
+        assert.equal(ontoBoard.cells[onto.to].value, 2 * dest, `×2 onto ${dest} doubles it in place`);
         await clickEl('#reset-btn');
         t0 = Date.now();
         await clickEl('#hint-btn');
         const hintMs = Date.now() - t0;
         assert.equal(await hidden('#hint-banner'), false);
         assert.ok(hintMs < 3000, `a hard hint answers quickly (${hintMs} ms)`);
-        await shot('hint-bonus');
+        await shot('hint-mul');
         await clickEl('#hint-btn');
         t0 = Date.now();
         await clickEl('#reveal-btn');
         const revealMs = Date.now() - t0;
-        assert.deepEqual(await revealNumbers(), Array.from({ length: 15 }, (_, k) => k + 1), 'a hard reveal numbers all 15 merges');
+        assert.deepEqual(await revealNumbers(), Array.from({ length: 15 }, (_, k) => k + 1), 'a hard reveal numbers all 15 merges, ×2 tiles included');
         assert.ok(revealMs < 3000, `a hard reveal answers quickly (${revealMs} ms)`);
-        await shot('reveal-bonus');
+        await shot('reveal-mul');
         await clickEl('#reveal-btn');
-        noErrors('fuse ×2 cells');
+        const mulWin = await play(mulPick.p.solution, mulStart);
+        await expectBoard(mulWin, 'a solution using every ×2');
+        assert.equal(await hidden('#win-message'), false, 'solved once the ×2 tiles are used up');
+        noErrors('fuse ×2 tiles');
 
         // An old link with a board size opens the puzzle for its difficulty and seed, and the
         // size drops out of the address.
@@ -572,9 +575,9 @@ function connect(wsUrl) {
                 assert.ok(layout.left >= 0 && layout.right <= width, `board fits at ${width}px, ${what}`);
                 assert.ok((layout.width / (board.cols * 108 + 8)) * 100 >= 44, `cells stay at least 44px wide at ${width}px, ${what}`);
             };
-            await open(fusePage('hard', bonusPick.p.seed));
+            await open(fusePage('hard', mulPick.p.seed));
             await ready();
-            await fits(bonusStart, '4×4');
+            await fits(mulStart, '4×4');
             await shot('mobile-4x4-' + width);
             await open(fusePage(p.difficulty, p.seed));
             await ready();
@@ -613,7 +616,7 @@ function connect(wsUrl) {
             noErrors(id);
         }
         console.log(`fuse browser: ok (${p.difficulty} ${start.rows}×${start.cols} seed ${p.seed.toString(36)}, ${solution.length}-merge solution, ghost frames ${ghost}; ` +
-            `hard ×2 seed ${bonusPick.p.seed} load ${loadMs} ms (Node ${bonusPick.ms} ms), hint ${hintMs} ms, reveal ${revealMs} ms; smoke ${SMOKE.length} pages)`);
+            `hard ×2 seed ${mulPick.p.seed} load ${loadMs} ms (Node ${mulPick.ms} ms), hint ${hintMs} ms, reveal ${revealMs} ms; smoke ${SMOKE.length} pages)`);
         if (shots) console.log(shots.join('\n'));
     } finally {
         if (cdp) cdp.close();

@@ -13,18 +13,20 @@ function replay(board, moves) {
     return b;
 }
 const shapeOf = (board) => `${board.rows}×${board.cols}`;
-const bonusCount = (board) => (board.layout ? board.layout.bonusCells.length : 0);
+const mulCount = (board) => board.cells.filter((c) => c && c.type === 'mul').length;
+const mostMuls = (cells) => Math.max(0, ...(Gen.MULS[cells] || []).filter((m) => m[1] > 0).map((m) => m[0]));
 
 // A puzzle text belongs to `tier`, recomputed without the generator's shortcuts: the board
-// starts full in one of the tier's shapes, ×2 cells only on 16-cell boards, the waste (merges
-// a smallest-first player makes and undoes) is in range, and reasoning alone solves it.
+// starts full in one of the tier's shapes, with no more ×2 tiles than its size allows, the
+// waste (merges a smallest-first player makes and undoes) is in range, and reasoning alone
+// solves it.
 function checkBoard(text, tier, label) {
     const board = R.parse(text);
     assert.ok(Gen.SHAPES[tier].some(([rows, cols]) => rows === board.rows && cols === board.cols), `${label}: ${shapeOf(board)} is a ${tier} shape`);
     assert.equal(R.tileCount(board), board.rows * board.cols, `${label}: starts full`);
-    const bonus = bonusCount(board);
-    assert.ok(bonus <= 2 && (!bonus || board.rows * board.cols === 16), `${label}: ${bonus} ×2 cells on ${shapeOf(board)}`);
-    if (board.layout) assert.ok(board.layout.bonusCells.every((i) => R.bonusAt(board, i) === 2), `${label}: bonus cells double`);
+    const muls = mulCount(board);
+    assert.ok(muls <= mostMuls(board.rows * board.cols), `${label}: ${muls} ×2 tiles on ${shapeOf(board)}`);
+    assert.ok(board.cells.every((c) => c.type === 'num' || c === R.mul(2)), `${label}: only numbers and ×2 tiles`);
     const range = Gen.DIFFICULTY[tier], minimum = R.tileCount(board) - 1;
     const waste = Reasoning.trialMerges(R, board, minimum + (range.max === Infinity ? range.min : range.max + 1)) - minimum;
     assert.ok(waste >= range.min && waste <= range.max, `${label}: waste ${waste} within ${tier}`);
@@ -35,29 +37,30 @@ function checkBoard(text, tier, label) {
 }
 
 // Reverse operations are exact inverses of legal forward merges, on every shape and with
-// bonus cells.
+// ×2 tiles, and a build places exactly the ×2 tiles asked for.
 {
     const rng = Gen.makeRng(31), styles = Object.keys(Gen.STYLES);
     let checked = 0;
     for (let n = 0; n < 150; n++) {
-        const [rows, cols] = [[3, 3], [3, 4], [4, 3], [4, 4]][n % 4], bonus = rows * cols === 16 ? n % 3 : 0;
+        const [rows, cols] = [[3, 3], [3, 4], [4, 3], [4, 4]][n % 4], muls = n % 3;
         const exps = Gen.EXPONENTS[rows * cols];
-        const built = Gen.reverseBuild(rng, rows, cols, exps[n % exps.length] + bonus, styles[n % 3], Gen.bonusLayout(rng, rows, cols, bonus));
+        const built = Gen.reverseBuild(rng, rows, cols, exps[n % exps.length] + muls, styles[n % 3], muls);
         if (!built) continue;
         checked++;
         assert.equal(R.tileCount(built.board), rows * cols);
-        assert.equal(bonusCount(built.board), bonus);
+        assert.equal(mulCount(built.board), muls);
         assert.equal(R.status(replay(built.board, built.solution)), 'won');
         const next = R.applyMerge(built.board, built.solution[0]);
         for (const op of Gen.REVERSE_OPS) {
-            for (const o of op.options(next)) assert.equal(R.key(R.applyMerge(o.prior, o.move)), R.key(next));
+            for (const o of op.options(next)) {
+                assert.equal(R.key(R.applyMerge(o.prior, o.move)), R.key(next));
+                assert.equal(mulCount(o.prior) - mulCount(next), op.mul ? 1 : 0, `${op.id} adds a ×2 tile only when marked`);
+            }
         }
     }
     assert.ok(checked > 100, `reverse builds checked (${checked})`);
-    assert.equal(Gen.bonusLayout(Gen.makeRng(1), 4, 4, 0), null);
-    const layout = Gen.bonusLayout(Gen.makeRng(1), 4, 4, 2);
-    assert.equal(Object.keys(layout.bonus).length, 2, 'distinct bonus cells');
-    assert.ok(Object.values(layout.bonus).every((m) => m === 2));
+    const both = Gen.REVERSE_OPS.find((op) => op.mul).options(R.parse('. 8'));
+    assert.deepEqual(both.map((o) => R.serialize(o.prior)).sort(), ['4 x2', 'x2 4'], 'a ×2 merge is undone in both directions');
 }
 
 // Generated puzzles: deterministic per seed, verified, and in the requested tier.
@@ -81,13 +84,13 @@ for (const tier of Gen.TIERS) {
         assert.equal(p.rows, board.rows);
         assert.equal(p.cols, board.cols);
         assert.equal(R.status(replay(board, p.solution)), 'won', 'the stored solution replays');
-        assert.equal(p.metrics.bonusCells, bonusCount(board));
+        assert.equal(p.metrics.muls, mulCount(board));
         if (tier !== 'hard') assert.equal(p.metrics.waste, waste);
         else assert.ok(waste >= p.metrics.waste, 'hard waste is counted up to the threshold');
         if (p.source === 'generated') generated++;
         boards.add(p.board);
         wastes[tier].push(Reasoning.trialMerges(R, board, 5000) - (R.tileCount(board) - 1));
-        shapes[tier].add(shapeOf(board) + (bonusCount(board) ? ' x2' : ''));
+        shapes[tier].add(shapeOf(board) + (mulCount(board) ? ' x2' : ''));
     }
     assert.equal(boards.size, 8, `${tier}: seeds give different puzzles`);
 }
@@ -102,6 +105,7 @@ assert.ok(Math.max(...wastes.medium) < Math.min(...wastes.hard), `medium below h
 assert.ok(shapes.easy.has('3×3') && [...shapes.easy].some((s) => s !== '3×3'), `easy shapes ${[...shapes.easy]}`);
 assert.ok([...shapes.medium].some((s) => s.startsWith('4×4')) && [...shapes.medium].some((s) => !s.startsWith('4×4')), `medium shapes ${[...shapes.medium]}`);
 assert.ok(shapes.hard.has('4×4') && shapes.hard.has('4×4 x2'), `hard shapes ${[...shapes.hard]}`);
+for (const tier of Gen.TIERS) assert.ok([...shapes[tier]].some((s) => s.endsWith(' x2')), `${tier} serves ×2 tiles (${[...shapes[tier]]})`);
 
 // Curated fallbacks are valid members of their tier, and the fallback path is bounded.
 for (const tier of Gen.TIERS) {

@@ -49,18 +49,34 @@ function replay(board, moves) {
 }
 assert.equal(Reasoning.nextStep(R, R.parse('. 8')).technique, 'won');
 assert.equal(Reasoning.explainDead(R, R.parse('4 4/8 16')), null);
-assert.equal(Reasoning.refute({ R, maxLevel: 5, depth: 3, trialDepth: 8 }, R.parse('2 2 4'), { from: 1, to: 0 }, 1).reason.id, 'dead-end');
+assert.equal(Reasoning.refute(Reasoning.context(R), R.parse('2 2 4'), { from: 1, to: 0 }, 1).reason.id, 'dead-end');
+// ×2 tiles. The 8's only partner is the ×2, yet merging them loses: the 4 has to use the ×2
+// first, leaving an 8 beside the 8. So a ×2 partner never makes a forced pair.
+assert.deepEqual(Reasoning.forcedPairs(R, R.parse('8 x2 4')), []);
+{
+    const s = Reasoning.nextStep(R, R.parse('8 x2 4'));
+    assert.equal(s.technique, 'eliminate');
+    assert.deepEqual([s.move.from, s.move.to], [2, 1]);
+}
+{
+    const s = Reasoning.nextStep(R, R.parse('16 x2'));
+    assert.equal(s.technique, 'final');
+    assert.equal(s.alternatives.length, 2, 'a ×2 finishes in either direction');
+}
+assert.equal(Reasoning.nextStep(R, R.parse('x2 x2')).technique, 'dead-end', 'two ×2 tiles alone are stuck');
+assert.equal(Reasoning.mergeSize(R.parse('8 x2'), { from: 1, to: 0 }), 8, 'a ×2 merge is as big as its number');
+assert.equal(Reasoning.mergeSize(R.parse('8 x2'), { from: 0, to: 1 }), 8);
 
 // Every reachable state of generated boards: every candidate step on a solvable board wins,
 // every refuted merge loses, explainDead never fires on a solvable board, and nextStep only
 // recommends winning merges with all equivalent alternatives listed.
-// A third of the 3×3 boards carry ×2 bonus cells; the last is a 3×4 board.
+// A third of the 3×3 boards carry ×2 tiles; the last is a 3×4 board.
 const rng = Gen.makeRng(4242), styles = Object.keys(Gen.STYLES), exps = Gen.EXPONENTS[9];
 const techniques = {}, reasons = {};
-let states = 0, unsolvableStates = 0, unexplained = 0, bonusStates = 0;
+let states = 0, unsolvableStates = 0, unexplained = 0, mulStates = 0;
 for (let n = 0; n < 19; n++) {
-    const cols = n === 18 ? 4 : 3, bonus = n % 3 === 2 ? 1 + (n % 2) : 0;
-    const built = Gen.reverseBuild(rng, 3, cols, (cols === 4 ? 6 : exps[n % exps.length]) + bonus, styles[n % styles.length], Gen.bonusLayout(rng, 3, cols, bonus));
+    const cols = n === 18 ? 4 : 3, muls = n % 3 === 2 ? 1 + (n % 2) : 0;
+    const built = Gen.reverseBuild(rng, 3, cols, (cols === 4 ? 6 : exps[n % exps.length]) + muls, styles[n % styles.length], muls);
     if (!built) continue;
     const solver = Solver.createSolver(R);
     const seen = new Set();
@@ -71,7 +87,7 @@ for (let n = 0; n < 19; n++) {
         seen.add(k);
         if (R.tileCount(b) < 2) continue;
         states++;
-        if (R.bonusLive(b)) bonusStates++;
+        if (!R.numbersOnly(b)) mulStates++;
         const exact = solver.analyze(b);
         const outcome = (m) => { const hit = exact.moves.find((x) => same(x, m)); return hit ? hit.outcome : 'lose'; };
         const dead = Reasoning.explainDead(R, b);
@@ -120,7 +136,7 @@ for (let n = 0; n < 19; n++) {
     }
 }
 assert.ok(states > 2000, `states checked (${states})`);
-assert.ok(bonusStates > 300, `states with a live bonus cell checked (${bonusStates})`);
+assert.ok(mulStates > 300, `states with a ×2 tile checked (${mulStates})`);
 for (const id of ['final', 'lone', 'only-pair', 'forced-pair', 'trial', 'search']) assert.ok(techniques[id] > 0, `technique ${id} exercised`);
 for (const id of ['dead-end', 'stuck']) assert.ok(reasons[id] > 0, `reason ${id} exercised`);
 
@@ -132,16 +148,17 @@ for (const id of ['dead-end', 'stuck']) assert.ok(reasons[id] > 0, `reason ${id}
     assert.ok(capped.steps.every((s) => s.level <= 2 || s.level === Reasoning.SEARCH));
 }
 
-// Trial merges recomputed from the definition: smallest first (board order among equals),
-// skipping results with a dead end or a level <= 2 contradiction, undoing when stuck,
-// remembering failed positions.
+// Trial merges recomputed from the definition: smallest first (the number a ×2 doubles
+// counts for a ×2 merge; board order among equals), skipping results with a dead end or a
+// level <= 2 contradiction, undoing when stuck, remembering failed positions.
 function trialReference(board) {
     const failed = new Set();
     let merges = 0;
+    const size = (b, m) => (b.cells[m.from].type === 'mul' ? b.cells[m.to].value : b.cells[m.from].value);
     const solve = (b) => {
         if (R.tileCount(b) === 1) return true;
         if (failed.has(R.key(b))) return false;
-        const options = R.legalMoves(b).map((m, i) => ({ i, value: b.cells[m.from].value, next: R.applyMerge(b, m) }))
+        const options = R.legalMoves(b).map((m, i) => ({ i, value: size(b, m), next: R.applyMerge(b, m) }))
             .filter((o) => { const d = Reasoning.explainDead(R, o.next); return !d || d.level > 2; })
             .sort((x, y) => x.value - y.value || x.i - y.i);
         for (const o of options) { merges++; if (solve(o.next)) return true; }
@@ -156,8 +173,8 @@ function trialReference(board) {
 // minimum on a solvable board, reproducible, capped, and finite on lost boards.
 let backtracked = 0;
 for (let n = 0; n < 40; n++) {
-    const bonus = n % 3 === 0 ? 1 : 0;
-    const built = Gen.reverseBuild(rng, 3, 3, exps[n % exps.length] + bonus, styles[(n + 1) % styles.length], Gen.bonusLayout(rng, 3, 3, bonus));
+    const muls = n % 3 === 0 ? 1 : 0;
+    const built = Gen.reverseBuild(rng, 3, 3, exps[n % exps.length] + muls, styles[(n + 1) % styles.length], muls);
     if (!built) continue;
     const path = Reasoning.humanPath(R, built.board);
     assert.equal(path.complete, true);
@@ -210,5 +227,5 @@ for (const text of ['2 * 2/4 4 8', '* 1 1/2 * 4', '4 4 */8 * 16', '1 1 */2 4 *',
 }
 assert.ok(starSteps > 5, `special-tile steps exercised (${starSteps})`);
 
-console.log(`fuse reasoning: ok (${states} states, ${bonusStates} with a live bonus cell, ${unsolvableStates} lost, ${unexplained} lost without a deduction; ` +
+console.log(`fuse reasoning: ok (${states} states, ${mulStates} with a ×2 tile, ${unsolvableStates} lost, ${unexplained} lost without a deduction; ` +
     `next steps ${JSON.stringify(techniques)}; refutations ${JSON.stringify(reasons)})`);

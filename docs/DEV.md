@@ -1528,7 +1528,7 @@ Rules for players live in [rules.md](rules.md#fuse); checks in
 
 | File | Global | Role |
 | --- | --- | --- |
-| `js/games/fuse/rules.js` | `FuseRules` | Tile types, board model and ×2 layouts, the one merge definition, status, solvability conditions |
+| `js/games/fuse/rules.js` | `FuseRules` | Tile types (numbers, ×2), board model, the one merge definition, status, solvability conditions |
 | `js/games/fuse/solver.js` | `FuseSolver` | Exact search: outcomes per merge, solutions, counts, state budget |
 | `js/games/fuse/reasoning.js` | `FuseReasoning` | Human techniques, hint steps, the trial-and-error difficulty measure |
 | `js/generators/fuse.js` | `PuzzleGenerators.fuse`, `fuseInternals` | Shapes per tier, reverse construction, tier and fairness checks, curated fallbacks |
@@ -1547,24 +1547,31 @@ pairs to the tile left at the destination, or `null`. `canMerge` / `applyMerge` 
 go through them. `createRules({ tileTypes, merges, adjacency, conditions })` builds a
 variant: `adjacency: 'king'` enables diagonal merges.
 
-Invariants that only hold for number tiles (the sum, "tiles only grow", "only equal
-tiles merge") are marked `numbersOnly` and switch off when another tile type is on the
-board. Connectivity (`split`) holds for every type. The solver never assumes a sum or
-power-of-two invariant: it only calls the rules. The generator's `REVERSE_OPS` list
-`{ prior, move }` pairs where `applyMerge(prior, move)` reproduces the board, and
-`reverseBuild` re-checks every step, so new tile types extend generation by adding an
-op. Blocked cells are supported by the model, renderer and checks but no puzzle uses
-them yet. Wildcard tiles (`+N`) are not defined: their rules are unconfirmed.
+Multiplier tiles (`mul(2)`, `{ type: 'mul', factor: 2 }`, text `x2` or `×2`) are a
+tile type like numbers: `num>mul` leaves the doubled number in the ×2's cell, `mul>num`
+doubles the number in place, and `mul>mul` is not a merge. A ×2 counts toward the tile
+count, so it must be used before the puzzle is won.
 
-Bonus cells belong to the board, not to a tile: `createLayout(rows, cols, { bonus: {
-cell: multiplier } })` (multipliers are powers of two) builds a frozen layout that every
-position of a puzzle shares (`withCells` keeps it). `mergeAt` multiplies a number merge
-landing on such a cell, `bonusAt` / `bonusLive` read it, `R.key` includes it and text
-boards carry it as `cells;x2=1,3`. Two number invariants change while a bonus cell holds
-a tile: `subtotal` ignores any group containing one, and `half` is off. The rules check
-confirms every remaining contradiction against brute force on boards with bonus cells.
-Walls (blocked cells inside the board) were tried as a variant and dropped: they made
-puzzles easier, not harder.
+Invariants that only hold for numbers and multipliers (numbers only grow, a number
+merges only with an equal number or a ×2) are marked `numeric` and switch off when
+another tile type is on the board; the test-only `star` type in the checks exercises
+that. `partners(board, i)` is the shared notion of who a number could ever merge with:
+neighbours holding a number no larger, or a ×2. Only a ×2's cell can take a new value
+(a number cell only grows or empties), so `stuck` and `rivals` stay sound by counting
+×2 neighbours as partners. `odd-group` and `subtotal` skip groups a ×2 touches (it can
+double one of them), and `half` is off while any ×2 is on the board, since the total is
+no longer fixed. Connectivity (`split`) holds for every type. The rules check confirms
+every contradiction against brute force, thousands of claims on boards with ×2 tiles
+included. The solver never assumes a sum or power-of-two invariant: it only calls the
+rules. The generator's `REVERSE_OPS` list `{ prior, move }` pairs where
+`applyMerge(prior, move)` reproduces the board, and `reverseBuild` re-checks every
+step, so new tile types extend generation by adding an op. Blocked cells are supported
+by the model, renderer and checks but no puzzle uses them yet. Wildcard tiles (`+N`)
+are not defined: their rules are unconfirmed.
+
+×2 cells (a bonus under the tile, so 4 + 4 there made 16) were the first version of ×2
+and were replaced by ×2 tiles. Walls (blocked cells inside the board) were tried as a
+variant and dropped: they made puzzles easier, not harder.
 
 ### Exact solver
 
@@ -1578,8 +1585,10 @@ not win), so the generator and the page start from the construction's solution
 instead of searching for one; it never changes an exact answer.
 
 `countSequences` counts every winning order. `countPlans` counts distinct solutions:
-two merges commute exactly when they touch disjoint cells, and the final merge's
-direction is always free, so a plan is a set of merges counted once with sleep sets.
+two merges commute when either order is legal and ends in the same position (always
+when they touch disjoint cells, and for two ×2 tiles doubling the same number), and
+the final merge's direction is always free, so a plan is a set of merges counted once
+with sleep sets.
 The game never claims a unique solution.
 
 ### Contradictions
@@ -1588,12 +1597,12 @@ The game never claims a unique solution.
 
 | Id | Proof idea |
 | --- | --- |
-| `stuck` | A tile whose neighbours are empty or larger never merges: neighbours never shrink |
-| `rivals` | Two equal tiles whose only possible partner is the same tile |
-| `odd-group` | The smallest tiles only pair with each other, so each connected group needs an even count |
+| `stuck` | A number whose neighbours are empty or larger numbers (no ×2) never merges: numbers never shrink |
+| `rivals` | Two equal numbers whose only possible partner is the same tile |
+| `odd-group` | The smallest numbers only pair with each other or a ×2, so each connected group no ×2 touches needs an even count |
 | `split` | Empty cells are permanent, so separated groups never meet |
-| `subtotal` | Tiles below v only merge with equal tiles until they reach v, so each connected below-v group sums to a multiple of v |
-| `half` | A tile worth half the total merges last, so the rest must stay connected without it |
+| `subtotal` | Numbers below v only merge with equal numbers until they reach v, so each connected below-v group no ×2 touches sums to a multiple of v |
+| `half` | A tile worth half the total merges last, so the rest must stay connected without it (no ×2 on the board) |
 
 ### Human reasoning and hints
 
@@ -1604,7 +1613,11 @@ through to one tile); 6 exhaustive search. A step is a forced merge (pair plus
 direction argument), an elimination (all other merges refuted, so exactly one
 wins), a free choice (refuted merges are traps, the rest verified by search and
 labelled so) or a trial (one merge shown to work; others may too). `span` counts the
-merges a player must picture in one step.
+merges a player must picture in one step. A ×2 is never a forced partner: in `8 x2 4`
+the 8's only partner is the ×2, yet the 4 must use it first and leave an 8 beside the
+8. Contradiction checks and forced follow-ups are cached per position in the reasoning
+context, which `humanPath` shares across its steps; with ×2 tiles adding up to eight
+legal merges each, this halved the cost of judging a 4×4 board.
 
 `nextStep` checks candidates against exact outcomes, so a hint never recommends a
 losing merge. It validates them easiest first and only classifies the merges a
@@ -1622,8 +1635,9 @@ contradiction and the number of merges to undo back to the latest solvable posit
 ### Difficulty
 
 The tier is the trial and error a sensible player needs, `Reasoning.trialMerges`: a
-depth-first player who tries merges smallest source value first (board order among
-equals), never makes a merge whose result is `visiblyLost` (no legal merge, or a level
+depth-first player who tries merges smallest first (`mergeSize`: the source number, or
+for a ×2 merge the number it doubles; board order among equals), never makes a merge
+whose result is `visiblyLost` (no legal merge, or a level
 ≤ 2 contradiction), undoes when stuck and remembers positions that failed. `waste` is
 the merges made beyond the minimum (tiles − 1), i.e. the merges made and undone. It is
 deterministic and can be capped. `DIFFICULTY` in the generator:
@@ -1643,40 +1657,48 @@ Calibration (`tools/fuse/calibrate.js`) found:
 - Small boards cannot be hard. Among reason-solvable random boards (60 per kind), the
   waste p90 is 9 on 3×3 and 14 on 3×4, against 80 for Hard. 3×3 and 3×4 / 4×3 suit
   Easy and Medium, and 4×4 suits Hard.
-- ×2 cells add variety more than difficulty. 7% of plain 4×4 boards qualify for Hard,
-  against 8–10% with one or two ×2 cells. With two, more boards are solvable by
-  reasoning (52% against 37%). Walls made boards easier.
+- ×2 tiles make boards harder to reason through. Reasoning alone solves 45% of
+  random 4×4 boards, 25–33% with one ×2 and 5–6% with two; on 3×4 it is 55%, 44–46%
+  and 18–24%. One ×2 still suits every tier: 60% of 3×3 boards with one qualify for
+  Easy, and 4–5% of 4×4 boards with one for Hard (7% without). Two on 4×4 were dropped:
+  they cost about five times as much to judge and almost never qualify. Two on 3×4
+  occasionally reach Medium or even Hard. Walls made boards easier.
 - 4×5 and larger are out of reach for now: a hint on 4×5 took up to 12 s, and 5×5
   could not be measured in 10 minutes, because classifying merges means proving the
   losing ones lose.
 
-With 30 seeds per tier, generated waste (p10–p90) runs 0 (Easy), 9–39 (Medium) and
-102–1553 (Hard), and the smart habit (skip visibly lost merges, merge the smallest
-first, at random among equals) wins on the first try a median 75%, 42% and 19% of the
-time.
+With 30 seeds per tier, generated waste (p10–p90) runs 0 (Easy), 8–36 (Medium) and
+102–1837 (Hard), and the smart habit (skip visibly lost merges, merge the smallest
+first, at random among equals) wins on the first try a median 75%, 38% and 27% of the
+time. ×2 tiles appear in 10, 16 and 18 of those 30 puzzles.
 
 ### Generation
 
 Each attempt draws a shape from `SHAPES[tier]` (`[rows, cols, weight]`: Easy 3×3 ×2,
-3×4, 4×3; Medium 3×4, 4×3, 4×4 ×2; Hard 4×4), a number of ×2 cells from `BONUS[cells]`
-(16-cell boards: none ×2, one, two), a starting exponent from `EXPONENTS[cells]` (plus
-one per ×2 cell, which quadruples a merge) and a construction style. `reverseBuild`
-then splits tiles backwards from one tile; the split of a tile on a ×2 cell divides by
-the bonus too. `judge` runs the capped `trialMerges` first and the human path only for
-boards in range, on a solver seeded with the construction's solution (`learn`) and
-limited to `SEARCH_BUDGET` (5000) states per call. A board that runs out is rejected:
-`calibrate.js --cost` showed reason-solvable 4×4 boards peak below about 2700 states,
-while boards that need search often run far past it. This also bounds a hint's cost
-in the game.
+3×4, 4×3; Medium 3×4, 4×3, 4×4 ×2; Hard 4×4), a number of ×2 tiles from `MULS[cells]`
+(`[count, weight]`: 3×3 none or one; 3×4 none ×2, one, two; 4×4 none or one), a final
+exponent from `EXPONENTS[cells]` (plus one per ×2 tile, which keeps the other values in
+range and the construction from running out of tiles to split) and a construction
+style. `reverseBuild` then splits tiles backwards from one tile: `split-number` turns
+2v into v + v, and `split-mul` turns it into v and a ×2, either way round (undoing
+`num>mul` or `mul>num`). Each step adds a ×2 with probability (×2 tiles left) / (steps
+left), so the board gets exactly the count drawn. `judge` runs the capped
+`trialMerges` first and the human path only for boards in range, on a solver seeded
+with the construction's solution (`learn`) and limited to `SEARCH_BUDGET` (5000)
+states per call. A board that runs out is rejected: `calibrate.js --cost` showed
+reason-solvable 4×4 boards peak below about 2700 states (1712 at most for 24 boards
+with and without ×2), while boards that need search often run far past it. This also
+bounds a hint's cost in the game.
 
 Attempts are counted, never timed (`ATTEMPTS`: 60 / 120 / 200), so `(difficulty,
 seed)` always gives the same puzzle in Node and the browser. The PRNG is the
 generator's own mulberry32, seeded with `seed ^ 0x9e3779b9`; repeated boards within a
 seed are skipped by key. The async wrapper yields about every 40 ms for the progress
 bar. When no attempt fits the tier, `CURATED[tier][seed % n]` is used;
-`generator-check.js` re-verifies every curated board. In Node a puzzle takes a median
-of 7 ms (Easy), 48 ms (Medium) and 0.6 s (Hard), with the Hard p90 at 1.8 s and the
-worst of 30 seeds at 3.0 s. That worst case is a seed needing 58 attempts. Puzzle ids
+`generator-check.js` re-verifies every curated board; each tier's list includes boards
+with ×2 tiles. In Node a puzzle takes a median of 5 ms (Easy), 67 ms (Medium) and 0.9 s
+(Hard), with the Hard p90 at 2.2 s and the worst of 30 seeds at 3.7 s; a Hard attempt
+with a ×2 costs about twice one without. Puzzle ids
 are `fuse-<tier>-<seed base 36>`.
 
 ### View
@@ -1694,9 +1716,10 @@ unasked. The pill uses its own id (`fuse-dead-pill`), so the shell's conflict co
 leaves it alone.
 
 Rectangular boards set `--fuse-aspect` (viewBox width / height) on the SVG, which keeps
-their proportions inside the same 420 px square as a square board. A ×2 cell that holds
-a tile shows a violet badge in its top-left corner, in its own layer above the tiles,
-and flashes when a merge lands on it; the live region names it ("×2 cell"). Links
+their proportions inside the same 420 px square as a square board. A ×2 tile is drawn
+like any tile, violet with a white "×2" (text boards say `x2`), and the live region
+reads it as "×2". Selecting a ×2 highlights every touching number; one with no
+number beside it shakes and says so. Links
 carry only difficulty and seed; an old link's `size` is ignored and removed from the
 address. The page's solver learns the puzzle's construction solution, so the first
 Reveal and hints start from a known line.
