@@ -1,7 +1,8 @@
-/** node tools/fuse/browser-check.js [chrome-path] — Fuse in real headless Chrome over CDP:
- * mouse, touch and keyboard merging, undo / restart, hints, dead ends, analysis, win and next
- * puzzle, language, responsive layout, the launcher card, and smoke loads of other puzzle
- * pages. Every UI move is mirrored by the Node engine and the rendered board compared.
+/** node tools/fuse/browser-check.js [chrome-path] [--shots] — Fuse in real headless Chrome
+ * over CDP: the shared puzzle layout (compared with Tango), mouse, touch and keyboard merging,
+ * undo / reset, hints, dead ends, the solution overlay, win and new game, both board sizes,
+ * language, responsive layout, the launcher card, and smoke loads of other puzzle pages.
+ * Every UI move is mirrored by the Node engine and the rendered board compared.
  * Serves the repo locally and stubs js/net/net.js, so Firebase is never loaded. */
 'use strict';
 const assert = require('node:assert/strict');
@@ -27,8 +28,8 @@ const SMOKE = ['guards', 'tango', 'sudoku', 'zip', 'hashi', 'queens', 'nonogram'
 // A start position that exercises every feedback path: a tile with no partner, a losing
 // merge that still leaves moves, and a dead end within a few merges.
 function pickPuzzle() {
-    for (let seed = 1; seed < 400; seed++) {
-        const p = Gen.generate({ size: 3, difficulty: 'easy', seed });
+    for (let n = 0; n < 800; n++) {
+        const seed = (n >> 1) + 1, p = Gen.generate({ size: 3, difficulty: n % 2 ? 'medium' : 'easy', seed });
         const start = R.parse(p.board), solver = Solver.createSolver(R);
         const lonely = R.tiles(start).find((i) => !R.legalMoves(start).some((m) => m.from === i));
         const a = solver.analyze(start);
@@ -159,21 +160,39 @@ function connect(wsUrl) {
         const noErrors = (where) => { assert.deepEqual(errors, [], 'page errors on ' + where); assert.deepEqual(missing, [], 'missing files on ' + where); };
 
         // Board as rendered: each tile group sits at its cell centre (GAP + CELL/2 + k·(CELL+GAP)).
+        let N = 3;
         const readBoard = () => evaluate(`(() => {
-            const out = Array(9).fill('.');
+            const n = ${N}, out = Array(n * n).fill('.');
             for (const g of document.querySelectorAll('#board .fuse-tiles > g')) {
                 const inner = g.firstElementChild;
                 if (inner.classList.contains('fuse-ghost')) continue;
                 const m = /translate\\(([-\\d.]+) ([-\\d.]+)\\)/.exec(g.getAttribute('transform'));
-                out[Math.round((m[2] - 58) / 108) * 3 + Math.round((m[1] - 58) / 108)] = inner.querySelector('text').textContent;
+                out[Math.round((m[2] - 58) / 108) * n + Math.round((m[1] - 58) / 108)] = inner.querySelector('text').textContent;
             }
-            return [0, 1, 2].map((r) => out.slice(r * 3, r * 3 + 3).join(' ')).join('/');
+            return Array.from({ length: n }, (_, r) => out.slice(r * n, r * n + n).join(' ')).join('/');
         })()`);
-        const expectBoard = async (board, what) => assert.equal(await readBoard(), R.serialize(board), what);
+        const expectBoard = async (board, what) => { N = board.rows; assert.equal(await readBoard(), R.serialize(board), what); };
         const point = (i) => evaluate(`(() => {
             const svg = document.getElementById('board');
-            const p = new DOMPoint(${58 + (i % 3) * 108}, ${58 + Math.floor(i / 3) * 108}).matrixTransform(svg.getScreenCTM());
+            const p = new DOMPoint(${58 + (i % N) * 108}, ${58 + Math.floor(i / N) * 108}).matrixTransform(svg.getScreenCTM());
             return { x: p.x, y: p.y };
+        })()`);
+        const live = () => text('#fuse-live');
+        const disabled = (sel) => evaluate(`document.querySelector(${JSON.stringify(sel)}).disabled`);
+        const pressed = (sel) => evaluate(`document.querySelector(${JSON.stringify(sel)}).getAttribute('aria-pressed')`);
+        const hasClass = (sel, cls) => evaluate(`document.querySelector(${JSON.stringify(sel)}).classList.contains(${JSON.stringify(cls)})`);
+        const urlParam = (name) => evaluate(`new URLSearchParams(location.search).get(${JSON.stringify(name)})`);
+        const revealNumbers = () => evaluate(`[...document.querySelectorAll('#board .fuse-reveal-num')].map((t) => Number(t.textContent))`);
+        // The page chrome a player sees, to compare with the other LinkedIn-style puzzles.
+        const layoutOf = () => evaluate(`(() => {
+            const label = (el) => { const l = el.querySelector('[data-i18n]'); return l ? l.dataset.i18n : el.textContent.trim(); };
+            return {
+                toolbar: [...document.querySelectorAll('.game-toolbar .toolbar-group')].map((g) => g.querySelector('.toolbar-label').dataset.i18n),
+                actions: [...document.querySelectorAll('.game-toolbar .toolbar-action .btn')].map((b) => b.id + ':' + label(b)),
+                row: [...document.querySelectorAll('.action-row .btn')].map((b) => b.id + ':' + label(b) + ':' + b.dataset.i18nTitle),
+                status: [...document.querySelectorAll('.status-row > .status-item')].map((s) => (s.querySelector('.timer') ? 'timer' : [...s.classList].filter((c) => c !== 'status-item' && c !== 'active').join('.'))),
+                below: [...document.querySelectorAll('.board-wrap ~ *')].filter((el) => !el.classList.contains('fuse-sr')).map((el) => el.className.split(' ')[0]),
+            };
         })()`);
         const mouse = (type, p, held) => cdp.send('Input.dispatchMouseEvent', {
             type, x: p.x, y: p.y, button: held || type !== 'mouseMoved' ? 'left' : 'none', buttons: held ? 1 : 0, clickCount: type === 'mouseMoved' ? 0 : 1,
@@ -201,56 +220,70 @@ function connect(wsUrl) {
             await cdp.send('Input.dispatchKeyEvent', Object.assign({ type: 'keyUp' }, params));
         };
         const cursorTo = async (i) => {
-            for (const k of ['ArrowUp', 'ArrowUp', 'ArrowLeft', 'ArrowLeft']) await key(k);
-            for (let r = 0; r < Math.floor(i / 3); r++) await key('ArrowDown');
-            for (let c = 0; c < i % 3; c++) await key('ArrowRight');
+            for (let k = 0; k < N; k++) { await key('ArrowUp'); await key('ArrowLeft'); }
+            for (let r = 0; r < Math.floor(i / N); r++) await key('ArrowDown');
+            for (let c = 0; c < i % N; c++) await key('ArrowRight');
         };
-        const fusePage = (difficulty, seed) => `/games/fuse.html?size=3&diff=${difficulty}&seed=${seed.toString(36)}`;
+        const fusePage = (difficulty, seed, size = 3) => `/games/fuse.html?size=${size}&diff=${difficulty}&seed=${seed.toString(36)}`;
         const ready = () => waitFor(`document.querySelectorAll('#board .fuse-tile').length > 0 && !document.getElementById('new-game-btn').disabled && !document.getElementById('reset-btn').disabled`, 'puzzle ready');
+        const play = async (moves, board) => { let b = board; for (const m of moves) { await click(m.from); await click(m.to); b = R.applyMerge(b, m); } return b; };
 
-        // ---------- desktop: mouse ----------
+        // ---------- layout: the same page chrome as the other LinkedIn-style puzzles ----------
+        await open('/games/tango.html');
+        await waitFor(`document.querySelector('#board').childElementCount > 0`, 'tango board', 20000);
+        const tango = await layoutOf();
         const { p, start, solver, lonely, losing, dead, solution } = pick;
-        await open(fusePage('easy', p.seed));
+        await open(fusePage(p.difficulty, p.seed));
         await ready();
+        const fuse = await layoutOf();
+        const firstTwo = (rows) => rows.map((s) => s.split(':').slice(0, 2).join(':'));
+        assert.deepEqual(fuse.toolbar, tango.toolbar, 'toolbar: difficulty and board size');
+        assert.deepEqual(fuse.actions, tango.actions, 'toolbar actions: new game and share');
+        assert.deepEqual(firstTwo(fuse.row), firstTwo(tango.row), 'action row: undo, reset, hint, reveal');
+        assert.equal(fuse.row[3], tango.row[3], 'reveal uses the shared solution-overlay wording');
+        assert.deepEqual(fuse.status, tango.status, 'status row: timer, warning, win');
+        assert.deepEqual(fuse.below, tango.below, 'below the board: hint banner, then how to play');
+        assert.deepEqual(await evaluate(`[...document.querySelectorAll('#size-seg button')].map((b) => b.dataset.value + (b.classList.contains('active') ? '*' : ''))`), ['3*', '4']);
+        assert.equal(await evaluate(`document.querySelector('#difficulty-seg .active').dataset.value`), p.difficulty);
+        for (const gone of ['fuse-analysis', 'fuse-feedback', 'fuse-win', 'fuse-dead', 'fuse-next', 'fuse-level', 'fuse-code', 'fuse-tiles']) {
+            assert.equal(await evaluate(`!!document.getElementById('${gone}')`), false, `#${gone} is gone`);
+        }
         await expectBoard(start, 'browser and Node generate the same puzzle for a seed');
-        assert.equal(await text('#fuse-level'), 'Easy · 3×3');
-        assert.equal(await text('#fuse-code'), '#' + p.seed.toString(36));
-        assert.equal(await text('#fuse-tiles'), '9 tiles left');
-        assert.equal(await evaluate('document.getElementById("undo-btn").disabled'), true);
-        assert.equal(await hidden('#fuse-analysis'), true, 'analysis is off by default');
-        assert.equal(await evaluate('document.getElementById("reveal-btn").getAttribute("aria-pressed")'), 'false');
+        assert.equal(await disabled('#undo-btn'), true);
+        assert.equal(await pressed('#reveal-btn'), 'false');
+        assert.equal(await hidden('#fuse-dead-pill'), true);
         assert.ok(await evaluate('document.documentElement.scrollWidth <= innerWidth'), 'no horizontal overflow at 1100px');
         await shot('start');
 
+        // ---------- desktop: mouse ----------
         await click(lonely);
-        assert.match(await text('#fuse-feedback'), /has no equal neighbour/);
-        assert.equal(await evaluate('document.getElementById("fuse-feedback").classList.contains("bad")'), true);
+        assert.match(await live(), /has no equal neighbour/);
         assert.equal(await count('#board .fuse-tile.selected'), 0);
+        assert.equal(await count('#board .fuse-tile.nope'), 1, 'a tile with no partner shakes');
 
         const m0 = solution[0];
         await click(m0.from);
         assert.equal(await count('#board .fuse-tile.selected'), 1);
         assert.equal(await count('#board .fuse-target'), R.legalMoves(start).filter((m) => m.from === m0.from).length, 'every valid destination is highlighted');
         assert.ok((await count('#board .fuse-tile.dim')) > 0, 'other tiles are dimmed');
-        assert.match(await text('#fuse-feedback'), /^Selected \d+\./);
+        assert.match(await live(), /^Selected \d+\./);
         await shot('selected');
         await click(m0.from);
         assert.equal(await count('#board .fuse-tile.selected'), 0);
-        assert.equal(await text('#fuse-feedback'), 'Selection cleared.');
+        assert.equal(await live(), 'Selection cleared.');
 
         await click(m0.from); await click(m0.to);
         const ghost = await count('#board .fuse-ghost');
         const after0 = R.applyMerge(start, m0);
         await expectBoard(after0, 'tap-tap merge');
-        assert.equal(await text('#fuse-tiles'), '8 tiles left');
         assert.equal(await count('#board .fuse-slot.empty'), 1);
         assert.equal(await count('#board .fuse-hole'), 1);
-        assert.match(await text('#fuse-feedback'), /^Merged into \d+\.$/);
-        assert.equal(await evaluate('document.getElementById("undo-btn").disabled'), false);
+        assert.match(await live(), /^Merged into \d+\.$/);
+        assert.equal(await disabled('#undo-btn'), false);
 
         await clickEl('#undo-btn');
         await expectBoard(start, 'undo button');
-        assert.equal(await text('#fuse-feedback'), 'Last merge undone.');
+        assert.equal(await live(), 'Last merge undone.');
 
         let lifted = 0;
         await drag(m0.from, m0.to, async () => { lifted = await count('#board .fuse-tile.lifted'); });
@@ -262,7 +295,7 @@ function connect(wsUrl) {
         await drag(m0.from, m0.from === 0 ? 8 : 0);
         await expectBoard(start, 'a drag onto a non-neighbour does nothing');
         assert.equal(await count('#board .fuse-tile.selected'), 0, 'a failed drop restores the earlier selection');
-        assert.equal(await text('#fuse-feedback'), 'Selection cleared.');
+        assert.equal(await live(), 'Selection cleared.');
         {
             const a = await point(m0.from), b = await point(m0.to);
             await mouse('mouseMoved', a); await mouse('mousePressed', a, true);
@@ -287,151 +320,201 @@ function connect(wsUrl) {
         await key('Enter');
         await expectBoard(after0, 'keyboard merge');
 
-        // ---------- restart ----------
+        // ---------- reset ----------
         const m1 = solution[1], after1 = R.applyMerge(after0, m1);
         await click(m1.from); await click(m1.to);
         await expectBoard(after1, 'second merge');
         await clickEl('#reset-btn');
-        await expectBoard(start, 'restart');
-        assert.equal(await text('#fuse-feedback'), 'Back to the start.');
+        await expectBoard(start, 'reset');
+        assert.equal(await live(), 'Back to the start.');
         await clickEl('#undo-btn');
-        await expectBoard(after1, 'restart can be undone');
+        await expectBoard(after1, 'reset can be undone');
         await clickEl('#reset-btn');
 
-        // ---------- hints ----------
+        // ---------- hints: press to show one explained merge, press again to hide ----------
         const step = Reasoning.nextStep(R, start, { solver });
         await clickEl('#hint-btn');
         assert.equal(await hidden('#hint-banner'), false);
-        assert.equal(await text('#hint-banner .hint-tier'), 'Hint 1/3');
-        assert.match(await text('#hint-banner .hint-tier.fuse-level'), new RegExp(`^Level ${step.level} · `));
-        if (['lone', 'forced-pair', 'final', 'trial'].includes(step.technique)) assert.ok((await count('#board .fuse-hint-ring')) > 0, 'tier 1 highlights where to look');
-        assert.equal(await count('#board .fuse-arrow.move'), 0, 'tier 1 does not give the move away');
+        assert.equal(await count('#hint-banner .hint-tier'), 0, 'no badges, as in the other puzzles');
+        assert.equal(await hasClass('#hint-banner', 'error'), false);
+        assert.ok((await text('#hint-banner')).length > 20, 'the hint explains itself');
+        assert.ok((await count('#board .fuse-hint-ring')) > 0, 'the hint highlights the pair');
+        assert.ok((await count('#board line.fuse-arrow.move')) > 0, 'the hint shows the merge');
+        assert.equal(await count('#board line.fuse-arrow.refuted'), (step.eliminated || []).length ? 1 : 0, 'at most one failing merge is drawn');
+        await shot('hint');
         await clickEl('#hint-btn');
-        assert.equal(await text('#hint-banner .hint-tier'), 'Hint 2/3');
-        assert.equal(await count('#board line.fuse-arrow.refuted'), (step.refuted || []).length);
-        await shot('hint2');
+        assert.equal(await hidden('#hint-banner'), true, 'pressing Hint again hides it');
+        assert.equal(await count('#board .fuse-hint-ring'), 0);
         await clickEl('#hint-btn');
-        assert.equal(await text('#hint-banner .hint-tier'), 'Hint 3/3');
-        assert.ok((await count('#board line.fuse-arrow.move')) > 0, 'tier 3 shows the merge');
-        await shot('hint3');
-        await clickEl('#hint-btn');
-        assert.equal(await text('#hint-banner .hint-tier'), 'Hint 3/3', 'tiers stop at 3');
         await click(step.move.from); await click(step.move.to);
         await expectBoard(R.applyMerge(start, step.move), 'following the hint');
         assert.equal(await hidden('#hint-banner'), true, 'a merge clears the hint');
         await clickEl('#reset-btn');
 
-        // A losing merge: the hint says so, explains why, and offers the way back.
+        // A losing merge: nothing tells on it until the player asks; the hint explains why
+        // and how far to go back.
         await click(losing.from); await click(losing.to);
+        assert.equal(await hidden('#fuse-dead-pill'), true, 'a lost position with moves left is not announced');
         await clickEl('#hint-btn');
-        assert.equal(await evaluate('document.getElementById("hint-banner").classList.contains("error")'), true);
-        assert.equal(await text('#hint-banner .hint-tier.err'), 'Stuck');
+        assert.equal(await hasClass('#hint-banner', 'error'), true);
         assert.match(await text('#hint-banner'), /can no longer be solved/);
-        assert.equal(await text('#hint-banner .fuse-hint-action'), 'Undo 1 merge');
-        await shot('stuck-hint');
-        await clickEl('#hint-banner .fuse-hint-action');
-        await expectBoard(start, 'the go-back button undoes to the last solvable position');
+        assert.match(await text('#hint-banner'), /Undo the last merge to get back on track\./);
+        await shot('lost-hint');
+        await clickEl('#undo-btn');
+        await expectBoard(start, 'undo back to the solvable start');
+        assert.equal(await hidden('#hint-banner'), true);
 
         // ---------- dead end ----------
-        let b = start;
-        for (const m of dead) { await click(m.from); await click(m.to); b = R.applyMerge(b, m); }
+        let b = await play(dead, start);
         await expectBoard(b, 'dead-end line');
-        assert.equal(await hidden('#fuse-dead'), false);
         assert.equal(await hidden('#fuse-dead-pill'), false);
-        assert.match(await text('#fuse-feedback'), /nothing can merge/);
+        assert.equal(await text('#fuse-dead-pill'), 'No merges left');
+        assert.match(await live(), /nothing can merge/);
         await shot('dead-end');
-        await clickEl('#fuse-dead-undo');
-        assert.equal(await hidden('#fuse-dead'), true);
-        const last = dead[dead.length - 1];
-        await click(last.from); await click(last.to);
-        await clickEl('#fuse-dead-restart');
-        await expectBoard(start, 'restart from the dead-end panel');
-        assert.equal(await hidden('#fuse-dead'), true);
+        await clickEl('#undo-btn');
+        assert.equal(await hidden('#fuse-dead-pill'), true);
+        await clickEl('#reset-btn');
+        await expectBoard(start, 'reset after a dead end');
 
-        // ---------- analysis ----------
-        const exact = solver.analyze(start);
+        // ---------- reveal: the remaining solution as numbered merges ----------
         await clickEl('#reveal-btn');
-        await waitFor('!document.getElementById("fuse-analysis").hidden', 'analysis panel');
-        assert.match(await text('#fuse-analysis'), /Search results, not human deductions\./);
-        assert.equal(await count('#board .fuse-chev'), exact.moves.length, 'one marker per directed merge');
-        assert.equal(await count('#board .fuse-chev.win'), exact.moves.filter((m) => m.outcome === 'win').length);
-        await shot('analysis');
+        assert.equal(await pressed('#reveal-btn'), 'true');
+        assert.deepEqual(await revealNumbers(), solution.map((_, k) => k + 1), 'every remaining merge is numbered');
+        await shot('reveal');
+        await click(m0.from); await click(m0.to);
+        assert.deepEqual(await revealNumbers(), solution.slice(1).map((_, k) => k + 1), 'the overlay follows the position');
+        await clickEl('#undo-btn');
+        await click(losing.from); await click(losing.to);
+        assert.deepEqual(await revealNumbers(), [], 'nothing to draw once the position is lost');
+        assert.equal(await text('#fuse-dead-pill'), 'No solution from here');
+        await clickEl('#hint-btn');
         await clickEl('#reveal-btn');
-        assert.equal(await hidden('#fuse-analysis'), true);
-        assert.equal(await count('#board .fuse-chev'), 0);
+        assert.equal(await pressed('#reveal-btn'), 'false');
+        assert.equal(await hidden('#fuse-dead-pill'), true, 'the lost warning belongs to Reveal');
+        assert.equal(await hidden('#hint-banner'), true, 'toggling Reveal hides the hint');
+        assert.equal(await count('#board .fuse-reveal-badge'), 0);
+        await clickEl('#reset-btn');
 
-        // ---------- win, undo out of the win, next puzzle ----------
-        b = start;
-        for (const m of solution) { await click(m.from); await click(m.to); b = R.applyMerge(b, m); }
+        // ---------- win, undo out of the win, new game ----------
+        b = await play(solution, start);
         await expectBoard(b, 'solution replay');
-        assert.equal(await hidden('#fuse-win'), false);
-        assert.equal(await text('#fuse-feedback'), 'Fused! One tile left.');
-        assert.match(await text('#fuse-win-detail'), /^Easy · \d\d:\d\d/);
-        assert.equal(await evaluate('document.getElementById("board").classList.contains("won")'), true);
-        assert.equal(await evaluate('document.getElementById("hint-btn").disabled'), true);
+        assert.equal(await hidden('#win-message'), false, 'You Win! in the status row');
+        assert.equal(await live(), 'Solved! One tile left.');
+        assert.equal(await hasClass('#board', 'won'), true);
+        assert.equal(await disabled('#hint-btn'), true);
+        assert.equal(await disabled('#reveal-btn'), true);
         await shot('win');
         await key('z', 2);
-        assert.equal(await hidden('#fuse-win'), true, 'undo leaves the win state');
-        assert.equal(await text('#fuse-tiles'), '2 tiles left');
+        assert.equal(await hidden('#win-message'), true, 'undo leaves the win state');
+        assert.equal(await disabled('#hint-btn'), false);
         const fin = solution[solution.length - 1];
         await click(fin.to); await click(fin.from);
-        assert.equal(await hidden('#fuse-win'), false, 'the final merge works in either direction');
-        await clickEl('#fuse-next');
-        await waitFor(`document.getElementById('fuse-win').hidden && document.querySelectorAll('#board .fuse-tile').length === 9 && new URLSearchParams(location.search).get('seed') !== '${p.seed.toString(36)}'`, 'next puzzle');
-        const nextSeed = parseInt(await evaluate('new URLSearchParams(location.search).get("seed")'), 36);
+        assert.equal(await hidden('#win-message'), false, 'the final merge works in either direction');
+        await clickEl('#new-game-btn');
+        await waitFor(`document.getElementById('win-message').hidden && new URLSearchParams(location.search).get('seed') !== '${p.seed.toString(36)}'`, 'new game');
         await ready();
-        await expectBoard(R.parse(Gen.generate({ size: 3, difficulty: 'easy', seed: nextSeed }).board), 'next puzzle matches its shared seed');
+        const nextSeed = parseInt(await urlParam('seed'), 36);
+        await expectBoard(R.parse(Gen.generate({ size: 3, difficulty: p.difficulty, seed: nextSeed }).board), 'the new puzzle matches its shared seed');
 
-        // ---------- difficulty and language ----------
+        // ---------- difficulty and board size ----------
         await clickEl('#difficulty-seg [data-value="hard"]');
         await clickEl('#new-game-btn');
-        await waitFor(`document.getElementById('fuse-level').textContent === 'Hard · 3×3'`, 'hard puzzle');
+        await waitFor(`new URLSearchParams(location.search).get('diff') === 'hard'`, 'hard puzzle');
         await ready();
-        const hardSeed = parseInt(await evaluate('new URLSearchParams(location.search).get("seed")'), 36);
-        assert.equal(await evaluate('new URLSearchParams(location.search).get("diff")'), 'hard');
+        const hardSeed = parseInt(await urlParam('seed'), 36);
         await expectBoard(R.parse(Gen.generate({ size: 3, difficulty: 'hard', seed: hardSeed }).board), 'hard puzzle matches its seed');
-        await clickEl('#lang-toggle [data-lang="zh"]');
-        assert.equal(await text('#fuse-tiles'), '剩9塊');
-        assert.equal(await text('#fuse-level'), (await evaluate('PuzzleCommon.i18n.t("hard")')) + '・3×3');
-        assert.equal(await text('#hint-btn'), '提示');
-        await clickEl('#hint-btn');
-        assert.match(await text('#hint-banner .hint-tier'), /^提示1\/3$/);
-        await clickEl('#hint-btn'); await clickEl('#hint-btn');
-        await shot('zh-hint3');
-        await open(fusePage('hard', hardSeed));
+
+        await clickEl('#size-seg [data-value="4"]');
+        let t0 = Date.now();
+        await clickEl('#new-game-btn');
+        await waitFor(`new URLSearchParams(location.search).get('size') === '4' && document.querySelectorAll('#board .fuse-tile').length === 16`, '4×4 puzzle');
         await ready();
-        assert.equal(await text('#reset-btn'), '重新開始', 'game strings apply on a fresh load in Chinese');
-        assert.equal(await text('#fuse-dead span'), '復原上一步，或重新開始這一題。');
-        assert.equal(await text('#fuse-tiles'), '剩9塊');
+        const loadMs = Date.now() - t0;
+        const bigSeed = parseInt(await urlParam('seed'), 36);
+        const big = Gen.generate({ size: 4, difficulty: 'hard', seed: bigSeed }), bigStart = R.parse(big.board);
+        await expectBoard(bigStart, '4×4 puzzle matches its seed');
+        assert.equal(await evaluate(`document.getElementById('board').getAttribute('viewBox')`), '0 0 440 440');
+        assert.ok(loadMs < 4000, `a 4×4 puzzle loads quickly (${loadMs} ms)`);
+        const bigMove = big.solution[0];
+        await click(bigMove.from); await click(bigMove.to);
+        await expectBoard(R.applyMerge(bigStart, bigMove), '4×4 merge');
+        t0 = Date.now();
         await clickEl('#hint-btn');
+        const hintMs = Date.now() - t0;
+        assert.equal(await hidden('#hint-banner'), false);
+        assert.ok(hintMs < 4000, `a 4×4 hint answers quickly (${hintMs} ms)`);
+        await shot('hint-4x4');
+        t0 = Date.now();
+        await clickEl('#reveal-btn');
+        const revealMs = Date.now() - t0;
+        assert.deepEqual(await revealNumbers(), Array.from({ length: 14 }, (_, k) => k + 1), '4×4 reveal numbers the remaining 14 merges');
+        assert.ok(revealMs < 4000, `4×4 reveal answers quickly (${revealMs} ms)`);
+        await shot('reveal-4x4');
+        await clickEl('#reveal-btn');
+
+        // ---------- language ----------
+        await clickEl('#lang-toggle [data-lang="zh"]');
+        assert.equal(await text('#reset-btn'), '重設');
+        assert.equal(await text('#hint-btn'), '提示');
+        assert.equal(await text('#reveal-btn'), '解答');
+        await clickEl('#hint-btn');
+        assert.match(await text('#hint-banner'), /[\u4e00-\u9fff]/);
+        await shot('zh-hint');
         await clickEl('#lang-toggle [data-lang="en"]');
-        assert.equal(await text('#hint-banner .hint-tier'), 'Hint 1/3', 'the open hint follows the language');
+        assert.match(await text('#hint-banner'), /^[\x20-\x7e]+$/, 'the open hint follows the language');
+        await clickEl('#lang-toggle [data-lang="zh"]');
+        await open(fusePage(p.difficulty, p.seed));
+        await ready();
+        await expectBoard(start, 'reload in Chinese');
+        assert.equal(await text('#reset-btn'), '重設', 'game strings apply on a fresh load in Chinese');
+        await play(dead, start);
+        assert.equal(await text('#fuse-dead-pill'), '無法再合併');
+        await clickEl('#lang-toggle [data-lang="en"]');
+        assert.equal(await text('#fuse-dead-pill'), 'No merges left', 'the warning follows the language');
         noErrors('fuse desktop');
 
-        // Reduced motion: merges apply without the sliding ghost.
+        // Reduced motion: merges apply without the sliding ghost, and nothing shakes.
         await cdp.send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] });
-        await open(fusePage('easy', p.seed));
+        await open(fusePage(p.difficulty, p.seed));
         await ready();
+        await expectBoard(start, 'reduced-motion start');
+        await click(lonely);
+        assert.equal(await count('#board .fuse-tile.nope'), 0);
         await click(m0.from); await click(m0.to);
         assert.equal(await count('#board .fuse-ghost'), 0);
         await expectBoard(after0, 'reduced-motion merge');
         await cdp.send('Emulation.setEmulatedMedia', { features: [] });
         noErrors('fuse reduced motion');
 
+        // A plain visit starts at the shared defaults: medium, 3×3.
+        await open('/games/fuse.html');
+        await ready();
+        assert.equal(await urlParam('diff'), 'medium');
+        assert.equal(await urlParam('size'), '3');
+        noErrors('fuse defaults');
+
         // ---------- mobile: touch, layout ----------
         for (const width of [375, 320]) {
             await cdp.send('Emulation.setDeviceMetricsOverride', { width, height: 740, deviceScaleFactor: 2, mobile: true });
             await cdp.send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 });
-            await open(fusePage('easy', p.seed));
+            const fits = async (viewBox, what) => {
+                await evaluate('document.getElementById("board").scrollIntoView({ block: "center" })');
+                const layout = await evaluate(`(() => {
+                    const r = document.getElementById('board').getBoundingClientRect();
+                    return { overflow: document.documentElement.scrollWidth - innerWidth, width: r.width, left: r.left, right: r.right };
+                })()`);
+                assert.ok(layout.overflow <= 0, `no horizontal overflow at ${width}px, ${what} (${layout.overflow})`);
+                assert.ok(layout.left >= 0 && layout.right <= width, `board fits at ${width}px, ${what}`);
+                assert.ok((layout.width / viewBox) * 100 >= 44, `cells stay at least 44px wide at ${width}px, ${what}`);
+            };
+            await open(fusePage('hard', 5, 4));
             await ready();
-            await evaluate('document.getElementById("board").scrollIntoView({ block: "center" })');
-            const layout = await evaluate(`(() => {
-                const r = document.getElementById('board').getBoundingClientRect();
-                return { overflow: document.documentElement.scrollWidth - innerWidth, width: r.width, left: r.left, right: r.right };
-            })()`);
-            assert.ok(layout.overflow <= 0, `no horizontal overflow at ${width}px (${layout.overflow})`);
-            assert.ok(layout.left >= 0 && layout.right <= width, `board fits at ${width}px`);
-            assert.ok((layout.width / 332) * 100 >= 44, `cells stay at least 44px wide at ${width}px`);
+            await fits(440, '4×4');
+            await shot('mobile-4x4-' + width);
+            await open(fusePage(p.difficulty, p.seed));
+            await ready();
+            await expectBoard(start, `mobile start at ${width}px`);
+            await fits(332, '3×3');
             await tapTouch(m0.from);
             assert.equal(await count('#board .fuse-tile.selected'), 1, 'touch selects');
             await shot('mobile-' + width);
@@ -464,7 +547,8 @@ function connect(wsUrl) {
             await pause(800);
             noErrors(id);
         }
-        console.log(`fuse browser: ok (seed ${p.seed.toString(36)}, ${solution.length}-merge solution, ghost frames ${ghost}, smoke ${SMOKE.length} pages)`);
+        console.log(`fuse browser: ok (${p.difficulty} seed ${p.seed.toString(36)}, ${solution.length}-merge solution, ghost frames ${ghost}; ` +
+            `4×4 load ${loadMs} ms, hint ${hintMs} ms, reveal ${revealMs} ms; smoke ${SMOKE.length} pages)`);
         if (shots) console.log(shots.join('\n'));
     } finally {
         if (cdp) cdp.close();
