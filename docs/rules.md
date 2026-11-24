@@ -1461,7 +1461,8 @@ stay fixed; only the camera rotates. Clear every piece to finish a puzzle.
 
 ### Board
 
-- 3×3 grid. Every cell starts with a tile holding a power of two (1, 2, 4, …).
+- 3×3 or 4×4 grid (**Board size**). Every cell starts with a tile holding a power
+  of two (1, 2, 4, …).
 - Cells emptied by a merge stay empty for the rest of the puzzle. Nothing slides
   or falls into them.
 
@@ -1483,35 +1484,43 @@ so it always has a solution, and often several.
 
 - **Tap** a tile to select it: its valid destinations get a dashed outline and the
   other tiles dim. Tap a highlighted neighbour to merge, or the tile again to
-  cancel. A tile with no equal neighbour cannot be selected; a short message says why.
+  cancel. A tile with no equal neighbour cannot be selected and gives a short shake.
 - **Drag** a tile onto a neighbour to merge. Dropping anywhere else cancels.
 - **Keyboard**: arrows move the cursor, `Enter`/`Space` selects and merges, `Esc`
   cancels, `Ctrl`/`⌘`+`Z` undoes.
-- **Undo** steps back one merge (up to 64), including out of a win. **Restart**
+- **Undo** steps back one merge (up to 64), including out of a win. **Reset**
   returns to the opening position and can itself be undone.
-- **Hint (💡)**: press up to three times. 1 shows where to look, 2 gives the
-  reasoning (failing alternatives drawn in red), 3 shows the merge. Each hint names
-  its level: 1 Direct, 2 Pairing, 3 Connectivity, 4 Totals, 5 Look-ahead. When
-  several merges work, the hint says so rather than presenting one as the only
-  move. When no deduction covers the position, the hint is labelled **Search**. On
-  a lost position the hint offers to undo back to the last solvable one.
-- **Analysis** (off by default): marks every possible merge green (still solvable)
-  or red (loses) and counts the distinct solutions left. These are exact-search
-  results, not deductions.
-- **Share** copies a link with the puzzle's difficulty and seed.
+- **Hint (💡)**: highlights one merge you can work out, draws it as an arrow and
+  explains why it is right, sometimes pointing at a failing merge in red. Press
+  again to hide it. When several merges work, the hint says so rather than
+  presenting one as the only move. When no deduction covers the position, the hint
+  says the merge was found by exact search. On a lost position the hint says so,
+  explains why, and tells you how many merges to undo.
+- **Reveal**: toggles a full solution from the current position, as numbered green
+  arrows. If the position can no longer be solved, the status row says so instead.
+- **Share** copies a link with the puzzle's board size, difficulty and seed.
+- The status row shows the timer, a warning when no merge is left, and **You Win!**
+  when solved.
 
 ### Difficulty
 
-Difficulty measures the hardest reasoning needed along the easiest human solving
-path, not the board size or move count:
+Difficulty is measured, not labelled. Two measures decide it:
 
-- **Easy**: direct and pairing steps only (levels 1–2).
-- **Medium**: at least one step above level 2, with at most one short look-ahead
-  (picturing up to 6 merges).
-- **Hard**: a long look-ahead (7 or more merges pictured) or two or more look-ahead
-  steps.
+- **Reasoning**: the hardest step on the easiest human solving path. Direct and
+  pairing steps are levels 1–2; a look-ahead (picture a merge and follow what it
+  forces) is level 5.
+- **Traps**: the chance that a casual player wins. This player merges at random but
+  never makes a merge whose result is visibly lost: no merge left, or a simple
+  pairing problem such as a tile that can no longer find a partner.
 
-No tier uses a puzzle whose solving path needs exhaustive search.
+| Size | Easy | Medium | Hard |
+| --- | --- | --- | --- |
+| 3×3 | levels 1–2 only, casual win ≥ 60% | casual win 30–50% | needs a look-ahead, casual win ≤ 22% |
+| 4×4 | casual win ≥ 20% | casual win 6–12% | needs a look-ahead, casual win ≤ 3% |
+
+The gaps between the ranges keep the tiers clearly apart. A 4×4 board has twice the
+merges, so it is harder at every tier. No tier uses a puzzle whose solving path needs
+exhaustive search.
 
 ### Win
 

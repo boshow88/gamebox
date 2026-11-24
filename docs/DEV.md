@@ -1531,8 +1531,8 @@ Rules for players live in [rules.md](rules.md#fuse); checks in
 | `js/games/fuse/rules.js` | `FuseRules` | Tile types, board model, the one merge definition, status, solvability conditions |
 | `js/games/fuse/solver.js` | `FuseSolver` | Exact search: outcomes per merge, solutions, counts, state budget |
 | `js/games/fuse/reasoning.js` | `FuseReasoning` | Human techniques, hint steps, difficulty metrics |
-| `js/generators/fuse.js` | `PuzzleGenerators.fuse`, `fuseInternals` | Reverse construction, tiers, curated fallbacks |
-| `js/games/fuse/game.js` | — | SVG view, input, hints, analysis; owns the en/zh copy |
+| `js/generators/fuse.js` | `PuzzleGenerators.fuse`, `fuseInternals` | Reverse construction, tiers, curated fallbacks, 4×4 bank |
+| `js/games/fuse/game.js` | — | SVG view, input, hints, solution overlay; owns the en/zh copy |
 
 All modules except `game.js` are DOM-free UMD files, so the Node checks load the same
 code as the page.
@@ -1567,7 +1567,7 @@ contradictions below.
 `countSequences` counts every winning order. `countPlans` counts distinct solutions:
 two merges commute exactly when they touch disjoint cells, and the final merge's
 direction is always free, so a plan is a set of merges counted once with sleep sets.
-The game never claims a unique solution; the analysis view shows the plan count.
+The game never claims a unique solution.
 
 ### Contradictions
 
@@ -1595,25 +1595,37 @@ merges a player must picture in one step.
 
 `nextStep` checks every candidate against exact outcomes, so a hint never recommends
 a losing merge. With no technique left it returns a `search` step listing every
-winning merge, and keeps any proved pair. The view shows three tiers per position
-(where to look, why, the merge). Where other merges also work it says so, and it
-offers an undo back to the latest solvable position when the board is lost.
+winning merge, and keeps any proved pair. Hint works like the other puzzles: one press
+shows the step (pair ring, merge arrow, at most one refuted merge in red, and the
+explanation in `#hint-banner`), the next press or any move hides it. Where other
+merges also work it says so. On a lost position the banner turns red, gives the
+contradiction and the number of merges to undo back to the latest solvable position.
 
 ### Difficulty
 
-`Reasoning.evaluate` follows the easiest step from the start; `DIFFICULTY` in the
-generator reads its metrics:
+`Reasoning.evaluate` follows the easiest step from the start and adds exact-search
+measures. Two of them set the tier (`DIFFICULTY[size]` in the generator):
 
-- Easy: `maxLevel ≤ 2`.
-- Medium: `maxLevel` 3–5, `span ≤ 6`, at most one level-5 step.
-- Hard: `maxLevel = 5` and (`span ≥ 7` or two or more level-5 steps).
+- `maxLevel`: the hardest technique on that path.
+- `casualWin` (`Reasoning.casualWin`): the chance of winning for a player who picks
+  uniformly among merges whose result shows no dead end and no level ≤ 2
+  contradiction (falling back to any merge when all look lost). Contradictions are
+  sound, so this is never below the uniform random-play rate.
 
-Boards whose path needs search are rejected. Calibration with
-`node tools/fuse/calibrate.js 600 --sound` accepted 185 Easy, 103 Medium and 130 Hard
-boards, rejected 120, and found no soundness problem over 26,284 reachable states.
-Random-play win rate and decision counts did not separate the tiers and are reported
-only. On 3×3 the level 3–4 contradictions are never the hardest step on a path, so
-Medium in practice means one short look-ahead.
+| Size | Easy | Medium | Hard |
+| --- | --- | --- | --- |
+| 3×3 | `maxLevel ≤ 2`, `casualWin ≥ 0.6` | `0.3 ≤ casualWin ≤ 0.5` | `maxLevel = 5`, `casualWin ≤ 0.22` |
+| 4×4 | `casualWin ≥ 0.2` | `0.06 ≤ casualWin ≤ 0.12` | `maxLevel = 5`, `casualWin ≤ 0.03` |
+
+Boards whose path needs search are rejected. The earlier tiers used only `maxLevel`
+and `span`; calibration showed that random-play wins (about 0.5%), trap rates (about
+45% per step) and solution counts were the same in every tier, which is why Easy and
+Hard felt alike. `casualWin` does separate them: in
+`node tools/fuse/calibrate.js 600` (538 3×3 boards) it ranges 75–100% only on
+level-2 boards, and accepted Easy boards have a median of 86% against 17% for Hard.
+The gaps between the ranges keep neighbouring tiers apart. On 4×4, about a third of
+reverse-built boards avoid search; their casual win rates run from about 1% to 37%,
+so 4×4 is harder than 3×3 at every tier.
 
 ### Generation
 
@@ -1624,15 +1636,34 @@ mulberry32, seeded with `seed ^ 0x9e3779b9`. The async wrapper yields about ever
 n]` is used; `generator-check.js` re-verifies every curated board. A puzzle takes
 about 20 ms (worst case under 100 ms) in Node.
 
+Evaluating one 4×4 board takes about a second (several seconds at worst), too slow to
+search on demand. `PLAN[4].bank` therefore serves `CURATED[4]`, a bank built offline by
+`tools/fuse/bank.js` with the same pipeline and tiers. A seed picks entry `seed % n`
+and one of the eight rotations or reflections of the square, `floor(seed / n) % 8`;
+these keep adjacency and so every metric. Bank entries are distinct up to symmetry.
+Only the solution is recomputed when a bank puzzle loads.
+
 ### View
 
-History snapshots hold the trail of boards. Restart is pushed as an undoable step
+The page uses the shared puzzle layout: Difficulty and Board size (`size-seg`, 3×3 /
+4×4) in the toolbar; Undo, Reset, Hint and Reveal in the action row; the timer, a
+warning pill and **You Win!** in the status row; the hint banner and How to play
+below the board. There is no feedback line or win panel; selection and merge
+messages go to the screen-reader live region `#fuse-live`. Reveal draws the remaining
+solution from the current position (`solver.solve`, cached per position) as numbered
+green arrows. When that position can no longer be solved, the warning pill reads "No
+solution from here", only while Reveal is on, so a lost position is not given away
+unasked. The pill uses its own id (`fuse-dead-pill`), so the shell's conflict counter
+leaves it alone.
+
+History snapshots hold the trail of boards. Reset is pushed as an undoable step
 unless the puzzle is won. Undo out of a win calls `shell.clearWin()`. Wins are logged
-through `shell.markSolved()` under the difficulty actually played: the applied
-difficulty is briefly re-selected, as in Unshackle. A capture listener on New Game
-catches generation failures without changing the shared shell. Tiles use an outer
-`translate` group and an inner animated group, because `transform-box` is unreliable
-on nested SVG. A drag that does not merge restores the selection from before the drag.
+through `shell.markSolved()` under the difficulty and size actually played: the
+applied values are briefly re-selected, as in Unshackle. A capture listener on New
+Game catches generation failures without changing the shared shell. Tiles use an
+outer `translate` group and an inner animated group, because `transform-box` is
+unreliable on nested SVG. A drag that does not merge restores the selection from
+before the drag.
 
 ## Logging
 

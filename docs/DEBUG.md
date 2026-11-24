@@ -726,24 +726,38 @@ odds with an independent brute force on several hundred boards. It also covers t
 state budget, memo reuse and unsolvable versus dead-end. The reasoning check walks
 every reachable state of generated boards: each candidate step must win, each
 refuted merge must lose, `explainDead` must never fire on a solvable board, and
-search steps must be labelled and list every winning merge. The generator check
-covers determinism, solution replay, the measured tier of generated and curated
-puzzles, the one-attempt fallback and the async wrapper.
+search steps must be labelled and list every winning merge. It also recomputes the
+casual win rate without the solver and checks it is never below random play. The
+generator check covers determinism, solution replay, the measured tier of generated
+and curated puzzles, that Easy and Hard casual win rates stay far apart, the
+one-attempt fallback and the async wrapper. It re-verifies every 4×4 bank puzzle
+(about 30 seconds), checks the bank has no two puzzles equal up to symmetry, and checks
+that seeds pick bank entries and rotations reproducibly.
 
 The browser check serves the repo locally, stubs `js/net/net.js` (Firebase is never
-loaded) and drives headless Chrome over its debugging protocol. It covers mouse
-tap-tap and drag, keyboard, Ctrl+Z, restart, hint tiers, the lost-position go-back
-button, the dead-end panel, analysis markers, win, undo out of a win, Next puzzle,
-difficulty, both languages, reduced motion, and touch at 375 and 320 px with no
+loaded) and drives headless Chrome over its debugging protocol. It first compares
+the toolbar, action row, status row and the blocks under the board with Tango's. It
+then covers mouse tap-tap and drag, keyboard, Ctrl+Z, reset, the toggling hint, the
+lost-position hint, the dead-end warning, the solution overlay (including the "No
+solution from here" warning), win, undo out of a win, New Game, difficulty, the 4×4
+board (load, merge, hint and reveal timings), both languages, reduced motion, the
+default medium 3×3 start, and touch at 375 and 320 px on both sizes with no
 horizontal overflow. It also checks the launcher card and smoke-loads the other
 puzzle pages. Every UI merge is mirrored by the Node engine and the rendered board
 compared, which also proves the browser and Node generate the same puzzle for a
 seed. `--shots` saves screenshots of key states to the temp folder.
 
-`node tools/fuse/calibrate.js [samples=300] [depth=3] [--sound]` reports how the
-difficulty metrics spread over random reverse-built boards. It is a tuning report,
-not a pass/fail check. `--sound` re-checks the reasoning on every state reachable
-from the first 80 boards.
+`node tools/fuse/calibrate.js [samples=300] [depth=3] [--size=3] [--exp=4,5,6,7] [--sound]`
+reports how the difficulty metrics spread over random reverse-built boards, per
+technique level, per tier, per construction exponent and style, and by casual win
+rate. It is a tuning report, not a pass/fail check. `--sound` re-checks the reasoning
+on every state reachable from the first 80 boards.
+
+`node tools/fuse/bank.js [size=4] [perTier=30] [attempts=1500] [seed=2026] [--out=file] [--from=file]`
+rebuilds the 4×4 bank: it prints `CURATED` entries to paste into the generator.
+`--out` saves every evaluated board as NDJSON, and `--from` re-picks tiers from such a
+file after a threshold change without re-evaluating. `node tools/fuse/profile.js`
+times each part of the evaluation on larger boards.
 
 ## Ungated console logging
 
