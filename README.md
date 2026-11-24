@@ -40,7 +40,7 @@ js/
   birthday-cake.js    Reusable directional candle interaction
   birthday-settings.js Optional manual birthday account settings
   games/*.js          Single-file game entries
-  games/<game>/       Larger games' modules, entry game.js (Darts, Impressions, Trash Toss, Unshackle)
+  games/<game>/       Larger games' modules, entry game.js (Darts, Fuse, Impressions, Trash Toss, Unshackle)
   generators/*.js     Puzzle generators & solvers
 games/*.html          One page per game (each sets <body data-theme="…">)
 tools/*.html          Puzzle dev tools (generators/solvers test harnesses)

@@ -59,6 +59,8 @@ js/games/birthday.js         Bilingual birthday-only ceremony and replayable can
 css/birthday.css             Birthday ceremony and homepage entry visuals
 js/games/colour-ladder.js    Small game entry with logic + Canvas 2D rendering
 js/games/unshackle/         Larger subsystem split into engine, view and game
+js/games/fuse/              Fuse rules, exact solver, human reasoning and view
+                             (generator: js/generators/fuse.js)
 docs/rules.md                Player-facing rules
 docs/DEV.md                  This file
 ```
@@ -1516,6 +1518,121 @@ out of these dialogs.
 Modes and scoring live in [rules.md](rules.md#darts); network guards and departure
 policy live in [ROOMS.md](ROOMS.md#darts-room-and-match-protocol). Run the checks listed in
 [DEBUG.md](DEBUG.md#darts-checks).
+
+## Fuse implementation
+
+Single-player puzzle on the shared `PuzzleCommon` shell; no Firebase or network use
+(solves are logged locally like the other puzzles). Listed as `wip` in the launcher.
+Rules for players live in [rules.md](rules.md#fuse); checks in
+[DEBUG.md](DEBUG.md#fuse-checks).
+
+| File | Global | Role |
+| --- | --- | --- |
+| `js/games/fuse/rules.js` | `FuseRules` | Tile types, board model, the one merge definition, status, solvability conditions |
+| `js/games/fuse/solver.js` | `FuseSolver` | Exact search: outcomes per merge, solutions, counts, state budget |
+| `js/games/fuse/reasoning.js` | `FuseReasoning` | Human techniques, hint steps, difficulty metrics |
+| `js/generators/fuse.js` | `PuzzleGenerators.fuse`, `fuseInternals` | Reverse construction, tiers, curated fallbacks |
+| `js/games/fuse/game.js` | — | SVG view, input, hints, analysis; owns the en/zh copy |
+
+All modules except `game.js` are DOM-free UMD files, so the Node checks load the same
+code as the page.
+
+### Tile model and extension points
+
+A cell is `EMPTY` (`null`, permanently vacated), a non-tile occupant such as `BLOCK`, or
+a tile object `{ type, … }`. `TILE_TYPES` gives each type a token (canonical keys,
+serialization), a parser and a `tile` flag. `MERGES` maps `source>destination` type
+pairs to the tile left at the destination, or `null`. `canMerge` / `applyMerge` /
+`legalMoves` are the only merge entry points; play, search, hints and generation all
+go through them. `createRules({ tileTypes, merges, adjacency, conditions })` builds a
+variant: `adjacency: 'king'` enables diagonal merges.
+
+Invariants that only hold for number tiles (the sum, "tiles only grow", "only equal
+tiles merge") are marked `numbersOnly` and switch off when another tile type is on the
+board. Connectivity (`split`) holds for every type. The solver never assumes a sum or
+power-of-two invariant: it only calls the rules. The generator's `REVERSE_OPS` list
+`{ prior, move }` pairs where `applyMerge(prior, move)` reproduces the board, and
+`reverseBuild` re-checks every step, so new tile types extend generation by adding an
+op. Blocked cells are supported by the model, renderer and checks but no puzzle uses
+them yet. Wildcards (`+N`, `×N`) are not defined: their rules are unconfirmed.
+
+### Exact solver
+
+`analyze(board)` returns `won`, `dead-end`, `solvable`, `unsolvable` (legal merges
+exist, all lose), `unknown` (state budget exhausted, default 300,000 states per call)
+or `invalid`, with a `win`/`lose`/`unknown` outcome for every directed merge and one
+solution. Results are memoized by canonical board key and pruned with the
+contradictions below.
+
+`countSequences` counts every winning order. `countPlans` counts distinct solutions:
+two merges commute exactly when they touch disjoint cells, and the final merge's
+direction is always free, so a plan is a set of merges counted once with sleep sets.
+The game never claims a unique solution; the analysis view shows the plan count.
+
+### Contradictions
+
+`rules.js` `CONDITIONS`, each sound under the rules. They prune search and word hints.
+
+| Id | Proof idea |
+| --- | --- |
+| `stuck` | A tile whose neighbours are empty or larger never merges: neighbours never shrink |
+| `rivals` | Two equal tiles whose only possible partner is the same tile |
+| `odd-group` | The smallest tiles only pair with each other, so each connected group needs an even count |
+| `split` | Empty cells are permanent, so separated groups never meet |
+| `subtotal` | Tiles below v only merge with equal tiles until they reach v, so each connected below-v group sums to a multiple of v |
+| `half` | A tile worth half the total merges last, so the rest must stay connected without it |
+
+### Human reasoning and hints
+
+Levels: 1 `final`, `lone`, `only-pair`; 2 `forced-pair` and the pairing contradictions;
+3 `split`; 4 `subtotal`, `half`; 5 `lookahead` (assume a merge, follow up to 3 forced
+merges, hit a contradiction) and `trial` (a merge after which every merge is forced
+through to one tile); 6 exhaustive search. A step is a forced merge (pair plus
+direction argument), an elimination (all other merges refuted, so exactly one
+wins), a free choice (refuted merges are traps, the rest verified by search and
+labelled so) or a trial (one merge shown to work; others may too). `span` counts the
+merges a player must picture in one step.
+
+`nextStep` checks every candidate against exact outcomes, so a hint never recommends
+a losing merge. With no technique left it returns a `search` step listing every
+winning merge, and keeps any proved pair. The view shows three tiers per position
+(where to look, why, the merge). Where other merges also work it says so, and it
+offers an undo back to the latest solvable position when the board is lost.
+
+### Difficulty
+
+`Reasoning.evaluate` follows the easiest step from the start; `DIFFICULTY` in the
+generator reads its metrics:
+
+- Easy: `maxLevel ≤ 2`.
+- Medium: `maxLevel` 3–5, `span ≤ 6`, at most one level-5 step.
+- Hard: `maxLevel = 5` and (`span ≥ 7` or two or more level-5 steps).
+
+Boards whose path needs search are rejected. Calibration with
+`node tools/fuse/calibrate.js 600 --sound` accepted 185 Easy, 103 Medium and 130 Hard
+boards, rejected 120, and found no soundness problem over 26,284 reachable states.
+Random-play win rate and decision counts did not separate the tiers and are reported
+only. On 3×3 the level 3–4 contradictions are never the hardest step on a path, so
+Medium in practice means one short look-ahead.
+
+### Generation
+
+Attempts are counted, never timed (120 on 3×3), so `(size, difficulty, seed)`
+always gives the same puzzle in Node and the browser. The PRNG is the generator's own
+mulberry32, seeded with `seed ^ 0x9e3779b9`. The async wrapper yields about every
+40 ms for the progress bar. When no attempt fits the tier, `CURATED[size][tier][seed %
+n]` is used; `generator-check.js` re-verifies every curated board. A puzzle takes
+about 20 ms (worst case under 100 ms) in Node.
+
+### View
+
+History snapshots hold the trail of boards. Restart is pushed as an undoable step
+unless the puzzle is won. Undo out of a win calls `shell.clearWin()`. Wins are logged
+through `shell.markSolved()` under the difficulty actually played: the applied
+difficulty is briefly re-selected, as in Unshackle. A capture listener on New Game
+catches generation failures without changing the shared shell. Tiles use an outer
+`translate` group and an inner animated group, because `transform-box` is unreliable
+on nested SVG. A drag that does not merge restores the selection from before the drag.
 
 ## Logging
 

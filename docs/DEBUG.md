@@ -708,6 +708,43 @@ first `ArcadeAuth.onAuth` callback, `arcade-net-ready`, and `config/admins` read
 that account's browser. A signed-out timing sample cannot establish its token
 restoration or server-read latency. Do not share account tokens in diagnostics.
 
+## Fuse checks
+
+```text
+node tools/fuse/rules-check.js
+node tools/fuse/solver-check.js
+node tools/fuse/reasoning-check.js
+node tools/fuse/generator-check.js
+node tools/fuse/browser-check.js [/path/to/chrome] [--shots]
+```
+
+The rules check covers merges, direction, permanent empties, blocked versus empty
+cells, diagonal adjacency, status and a test-only tile type. It also compares every
+contradiction claim on random small boards with brute force. The solver check
+compares solvability, per-merge outcomes, sequence and plan counts and random-play
+odds with an independent brute force on several hundred boards. It also covers the
+state budget, memo reuse and unsolvable versus dead-end. The reasoning check walks
+every reachable state of generated boards: each candidate step must win, each
+refuted merge must lose, `explainDead` must never fire on a solvable board, and
+search steps must be labelled and list every winning merge. The generator check
+covers determinism, solution replay, the measured tier of generated and curated
+puzzles, the one-attempt fallback and the async wrapper.
+
+The browser check serves the repo locally, stubs `js/net/net.js` (Firebase is never
+loaded) and drives headless Chrome over its debugging protocol. It covers mouse
+tap-tap and drag, keyboard, Ctrl+Z, restart, hint tiers, the lost-position go-back
+button, the dead-end panel, analysis markers, win, undo out of a win, Next puzzle,
+difficulty, both languages, reduced motion, and touch at 375 and 320 px with no
+horizontal overflow. It also checks the launcher card and smoke-loads the other
+puzzle pages. Every UI merge is mirrored by the Node engine and the rendered board
+compared, which also proves the browser and Node generate the same puzzle for a
+seed. `--shots` saves screenshots of key states to the temp folder.
+
+`node tools/fuse/calibrate.js [samples=300] [depth=3] [--sound]` reports how the
+difficulty metrics spread over random reverse-built boards. It is a tuning report,
+not a pass/fail check. `--sound` re-checks the reasoning on every state reachable
+from the first 80 boards.
+
 ## Ungated console logging
 
 Not behind any flag — plain defensive/dev `console.warn` / `console.log` that
