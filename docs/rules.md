@@ -1461,8 +1461,11 @@ stay fixed; only the camera rotates. Clear every piece to finish a puzzle.
 
 ### Board
 
-- 3×3 or 4×4 grid (**Board size**). Every cell starts with a tile holding a power
+- The difficulty picks the grid: **Easy** is 3×3, sometimes 3×4 or 4×3; **Medium**
+  is 3×4, 4×3 or 4×4; **Hard** is 4×4. Every cell starts with a tile holding a power
   of two (1, 2, 4, …).
+- Some 4×4 boards (often on Hard) have one or two **×2 cells**, marked with a violet
+  ×2 badge.
 - Cells emptied by a merge stay empty for the rest of the puzzle. Nothing slides
   or falls into them.
 
@@ -1472,8 +1475,12 @@ stay fixed; only the camera rotates. Clear every piece to finish a puzzle.
    number** (the **destination**). Diagonal tiles do not touch.
 2. The source leaves its cell, which becomes permanently empty, and the destination
    **doubles**. Direction matters: the doubled tile stays where the destination was.
-3. The board total never changes and every merge removes exactly one tile.
-4. If two or more tiles remain and no two equal tiles touch, the puzzle is at a
+3. A merge whose destination is a ×2 cell doubles once more: 4 + 4 there makes 16.
+   Moving a tile off a ×2 cell gives no bonus, and once the cell is empty its bonus
+   is gone (the badge disappears).
+4. Every merge removes exactly one tile. Without ×2 merges the board total never
+   changes.
+5. If two or more tiles remain and no two equal tiles touch, the puzzle is at a
    **dead end**. A position can also be lost while merges are still possible; the
    hint says so and explains why when a rule shows it.
 
@@ -1498,29 +1505,25 @@ so it always has a solution, and often several.
   explains why, and tells you how many merges to undo.
 - **Reveal**: toggles a full solution from the current position, as numbered green
   arrows. If the position can no longer be solved, the status row says so instead.
-- **Share** copies a link with the puzzle's board size, difficulty and seed.
+- **Share** copies a link with the puzzle's difficulty and seed.
 - The status row shows the timer, a warning when no merge is left, and **You Win!**
   when solved.
 
 ### Difficulty
 
-Difficulty is measured, not labelled. Two measures decide it:
+Difficulty is measured, not labelled: it is the trial and error a sensible player
+needs. This player tries the smallest tiles first, never makes a merge whose result
+is visibly lost (no merge left, or a tile that can no longer find a partner), and
+undoes when stuck. The tier counts the merges made and then undone along the way:
 
-- **Reasoning**: the hardest step on the easiest human solving path. Direct and
-  pairing steps are levels 1–2; a look-ahead (picture a merge and follow what it
-  forces) is level 5.
-- **Traps**: the chance that a casual player wins. This player merges at random but
-  never makes a merge whose result is visibly lost: no merge left, or a simple
-  pairing problem such as a tile that can no longer find a partner.
+| Easy | Medium | Hard |
+| --- | --- | --- |
+| 0–2 | 8–40 | 80 or more |
 
-| Size | Easy | Medium | Hard |
-| --- | --- | --- | --- |
-| 3×3 | levels 1–2 only, casual win ≥ 60% | casual win 30–50% | needs a look-ahead, casual win ≤ 22% |
-| 4×4 | casual win ≥ 20% | casual win 6–12% | needs a look-ahead, casual win ≤ 3% |
-
-The gaps between the ranges keep the tiers clearly apart. A 4×4 board has twice the
-merges, so it is harder at every tier. No tier uses a puzzle whose solving path needs
-exhaustive search.
+The gaps between the ranges keep the tiers clearly apart. Every puzzle can also be
+solved by reasoning alone: each step has a deduction the hint can explain, so no
+puzzle relies on exhaustive search. Puzzles are generated on demand, so every seed
+gives a new puzzle.
 
 ### Win
 

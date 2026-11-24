@@ -1528,10 +1528,10 @@ Rules for players live in [rules.md](rules.md#fuse); checks in
 
 | File | Global | Role |
 | --- | --- | --- |
-| `js/games/fuse/rules.js` | `FuseRules` | Tile types, board model, the one merge definition, status, solvability conditions |
+| `js/games/fuse/rules.js` | `FuseRules` | Tile types, board model and ×2 layouts, the one merge definition, status, solvability conditions |
 | `js/games/fuse/solver.js` | `FuseSolver` | Exact search: outcomes per merge, solutions, counts, state budget |
-| `js/games/fuse/reasoning.js` | `FuseReasoning` | Human techniques, hint steps, difficulty metrics |
-| `js/generators/fuse.js` | `PuzzleGenerators.fuse`, `fuseInternals` | Reverse construction, tiers, curated fallbacks, 4×4 bank |
+| `js/games/fuse/reasoning.js` | `FuseReasoning` | Human techniques, hint steps, the trial-and-error difficulty measure |
+| `js/generators/fuse.js` | `PuzzleGenerators.fuse`, `fuseInternals` | Shapes per tier, reverse construction, tier and fairness checks, curated fallbacks |
 | `js/games/fuse/game.js` | — | SVG view, input, hints, solution overlay; owns the en/zh copy |
 
 All modules except `game.js` are DOM-free UMD files, so the Node checks load the same
@@ -1554,7 +1554,17 @@ power-of-two invariant: it only calls the rules. The generator's `REVERSE_OPS` l
 `{ prior, move }` pairs where `applyMerge(prior, move)` reproduces the board, and
 `reverseBuild` re-checks every step, so new tile types extend generation by adding an
 op. Blocked cells are supported by the model, renderer and checks but no puzzle uses
-them yet. Wildcards (`+N`, `×N`) are not defined: their rules are unconfirmed.
+them yet. Wildcard tiles (`+N`) are not defined: their rules are unconfirmed.
+
+Bonus cells belong to the board, not to a tile: `createLayout(rows, cols, { bonus: {
+cell: multiplier } })` (multipliers are powers of two) builds a frozen layout that every
+position of a puzzle shares (`withCells` keeps it). `mergeAt` multiplies a number merge
+landing on such a cell, `bonusAt` / `bonusLive` read it, `R.key` includes it and text
+boards carry it as `cells;x2=1,3`. Two number invariants change while a bonus cell holds
+a tile: `subtotal` ignores any group containing one, and `half` is off. The rules check
+confirms every remaining contradiction against brute force on boards with bonus cells.
+Walls (blocked cells inside the board) were tried as a variant and dropped: they made
+puzzles easier, not harder.
 
 ### Exact solver
 
@@ -1562,7 +1572,10 @@ them yet. Wildcards (`+N`, `×N`) are not defined: their rules are unconfirmed.
 exist, all lose), `unknown` (state budget exhausted, default 300,000 states per call)
 or `invalid`, with a `win`/`lose`/`unknown` outcome for every directed merge and one
 solution. Results are memoized by canonical board key and pruned with the
-contradictions below.
+contradictions below. `stats().exhausted` counts calls that ran out of budget.
+`learn(board, moves)` records a known winning line (replayed first, ignored if it does
+not win), so the generator and the page start from the construction's solution
+instead of searching for one; it never changes an exact answer.
 
 `countSequences` counts every winning order. `countPlans` counts distinct solutions:
 two merges commute exactly when they touch disjoint cells, and the final merge's
@@ -1593,9 +1606,14 @@ wins), a free choice (refuted merges are traps, the rest verified by search and
 labelled so) or a trial (one merge shown to work; others may too). `span` counts the
 merges a player must picture in one step.
 
-`nextStep` checks every candidate against exact outcomes, so a hint never recommends
-a losing merge. With no technique left it returns a `search` step listing every
-winning merge, and keeps any proved pair. Hint works like the other puzzles: one press
+`nextStep` checks candidates against exact outcomes, so a hint never recommends a
+losing merge. It validates them easiest first and only classifies the merges a
+candidate depends on (its move, or every alternative of a step labelled as verified
+by search), and looks for trials only when no easier step holds. This picks the same
+step as classifying every merge up front (the reasoning check compares the two on
+every reachable state) without proving each losing merge loses, which on 4×4 was
+most of the cost. With no technique left it returns a `search` step listing every
+winning merge (unless `searchMoves` is false), and keeps any proved pair. Hint works like the other puzzles: one press
 shows the step (pair ring, merge arrow, at most one refuted merge in red, and the
 explanation in `#hint-banner`), the next press or any move hides it. Where other
 merges also work it says so. On a lost position the banner turns red, gives the
@@ -1603,50 +1621,69 @@ contradiction and the number of merges to undo back to the latest solvable posit
 
 ### Difficulty
 
-`Reasoning.evaluate` follows the easiest step from the start and adds exact-search
-measures. Two of them set the tier (`DIFFICULTY[size]` in the generator):
+The tier is the trial and error a sensible player needs, `Reasoning.trialMerges`: a
+depth-first player who tries merges smallest source value first (board order among
+equals), never makes a merge whose result is `visiblyLost` (no legal merge, or a level
+≤ 2 contradiction), undoes when stuck and remembers positions that failed. `waste` is
+the merges made beyond the minimum (tiles − 1), i.e. the merges made and undone. It is
+deterministic and can be capped. `DIFFICULTY` in the generator:
 
-- `maxLevel`: the hardest technique on that path.
-- `casualWin` (`Reasoning.casualWin`): the chance of winning for a player who picks
-  uniformly among merges whose result shows no dead end and no level ≤ 2
-  contradiction (falling back to any merge when all look lost). Contradictions are
-  sound, so this is never below the uniform random-play rate.
+| Easy | Medium | Hard |
+| --- | --- | --- |
+| `waste` 0–2 | 8–40 | ≥ 80 |
 
-| Size | Easy | Medium | Hard |
-| --- | --- | --- | --- |
-| 3×3 | `maxLevel ≤ 2`, `casualWin ≥ 0.6` | `0.3 ≤ casualWin ≤ 0.5` | `maxLevel = 5`, `casualWin ≤ 0.22` |
-| 4×4 | `casualWin ≥ 0.2` | `0.06 ≤ casualWin ≤ 0.12` | `maxLevel = 5`, `casualWin ≤ 0.03` |
+A puzzle must also be fair: `humanPath(..., { stopAtSearch: true })` must reach one
+tile with no step needing search, so every hint explains itself.
 
-Boards whose path needs search are rejected. The earlier tiers used only `maxLevel`
-and `span`; calibration showed that random-play wins (about 0.5%), trap rates (about
-45% per step) and solution counts were the same in every tier, which is why Easy and
-Hard felt alike. `casualWin` does separate them: in
-`node tools/fuse/calibrate.js 600` (538 3×3 boards) it ranges 75–100% only on
-level-2 boards, and accepted Easy boards have a median of 86% against 17% for Hard.
-The gaps between the ranges keep neighbouring tiers apart. On 4×4, about a third of
-reverse-built boards avoid search; their casual win rates run from about 1% to 37%,
-so 4×4 is harder than 3×3 at every tier.
+The earlier tiers (`maxLevel` plus a casual player who merges at random among moves
+that do not look lost) modelled a random player; a real one merges small tiles first
+and undoes, so Hard felt easy, and the largest tier lived in an offline 4×4 bank.
+Calibration (`tools/fuse/calibrate.js`) found:
+
+- Small boards cannot be hard. Among reason-solvable random boards (60 per kind), the
+  waste p90 is 9 on 3×3 and 14 on 3×4, against 80 for Hard. 3×3 and 3×4 / 4×3 suit
+  Easy and Medium, and 4×4 suits Hard.
+- ×2 cells add variety more than difficulty. 7% of plain 4×4 boards qualify for Hard,
+  against 8–10% with one or two ×2 cells. With two, more boards are solvable by
+  reasoning (52% against 37%). Walls made boards easier.
+- 4×5 and larger are out of reach for now: a hint on 4×5 took up to 12 s, and 5×5
+  could not be measured in 10 minutes, because classifying merges means proving the
+  losing ones lose.
+
+With 30 seeds per tier, generated waste (p10–p90) runs 0 (Easy), 9–39 (Medium) and
+102–1553 (Hard), and the smart habit (skip visibly lost merges, merge the smallest
+first, at random among equals) wins on the first try a median 75%, 42% and 19% of the
+time.
 
 ### Generation
 
-Attempts are counted, never timed (120 on 3×3), so `(size, difficulty, seed)`
-always gives the same puzzle in Node and the browser. The PRNG is the generator's own
-mulberry32, seeded with `seed ^ 0x9e3779b9`. The async wrapper yields about every
-40 ms for the progress bar. When no attempt fits the tier, `CURATED[size][tier][seed %
-n]` is used; `generator-check.js` re-verifies every curated board. A puzzle takes
-about 20 ms (worst case under 100 ms) in Node.
+Each attempt draws a shape from `SHAPES[tier]` (`[rows, cols, weight]`: Easy 3×3 ×2,
+3×4, 4×3; Medium 3×4, 4×3, 4×4 ×2; Hard 4×4), a number of ×2 cells from `BONUS[cells]`
+(16-cell boards: none ×2, one, two), a starting exponent from `EXPONENTS[cells]` (plus
+one per ×2 cell, which quadruples a merge) and a construction style. `reverseBuild`
+then splits tiles backwards from one tile; the split of a tile on a ×2 cell divides by
+the bonus too. `judge` runs the capped `trialMerges` first and the human path only for
+boards in range, on a solver seeded with the construction's solution (`learn`) and
+limited to `SEARCH_BUDGET` (5000) states per call. A board that runs out is rejected:
+`calibrate.js --cost` showed reason-solvable 4×4 boards peak below about 2700 states,
+while boards that need search often run far past it. This also bounds a hint's cost
+in the game.
 
-Evaluating one 4×4 board takes about a second (several seconds at worst), too slow to
-search on demand. `PLAN[4].bank` therefore serves `CURATED[4]`, a bank built offline by
-`tools/fuse/bank.js` with the same pipeline and tiers. A seed picks entry `seed % n`
-and one of the eight rotations or reflections of the square, `floor(seed / n) % 8`;
-these keep adjacency and so every metric. Bank entries are distinct up to symmetry.
-Only the solution is recomputed when a bank puzzle loads.
+Attempts are counted, never timed (`ATTEMPTS`: 60 / 120 / 200), so `(difficulty,
+seed)` always gives the same puzzle in Node and the browser. The PRNG is the
+generator's own mulberry32, seeded with `seed ^ 0x9e3779b9`; repeated boards within a
+seed are skipped by key. The async wrapper yields about every 40 ms for the progress
+bar. When no attempt fits the tier, `CURATED[tier][seed % n]` is used;
+`generator-check.js` re-verifies every curated board. In Node a puzzle takes a median
+of 7 ms (Easy), 48 ms (Medium) and 0.6 s (Hard), with the Hard p90 at 1.8 s and the
+worst of 30 seeds at 3.0 s. That worst case is a seed needing 58 attempts. Puzzle ids
+are `fuse-<tier>-<seed base 36>`.
 
 ### View
 
-The page uses the shared puzzle layout: Difficulty and Board size (`size-seg`, 3×3 /
-4×4) in the toolbar; Undo, Reset, Hint and Reveal in the action row; the timer, a
+The page uses the shared puzzle layout: Difficulty in the toolbar (it picks the board
+shape, so there is no `size-seg`; the shell still gets an inert `size` config); Undo,
+Reset, Hint and Reveal in the action row; the timer, a
 warning pill and **You Win!** in the status row; the hint banner and How to play
 below the board. There is no feedback line or win panel; selection and merge
 messages go to the screen-reader live region `#fuse-live`. Reveal draws the remaining
@@ -1656,10 +1693,18 @@ solution from here", only while Reveal is on, so a lost position is not given aw
 unasked. The pill uses its own id (`fuse-dead-pill`), so the shell's conflict counter
 leaves it alone.
 
+Rectangular boards set `--fuse-aspect` (viewBox width / height) on the SVG, which keeps
+their proportions inside the same 420 px square as a square board. A ×2 cell that holds
+a tile shows a violet badge in its top-left corner, in its own layer above the tiles,
+and flashes when a merge lands on it; the live region names it ("×2 cell"). Links
+carry only difficulty and seed; an old link's `size` is ignored and removed from the
+address. The page's solver learns the puzzle's construction solution, so the first
+Reveal and hints start from a known line.
+
 History snapshots hold the trail of boards. Reset is pushed as an undoable step
 unless the puzzle is won. Undo out of a win calls `shell.clearWin()`. Wins are logged
-through `shell.markSolved()` under the difficulty and size actually played: the
-applied values are briefly re-selected, as in Unshackle. A capture listener on New
+through `shell.markSolved()` under the difficulty actually played: the applied value
+is briefly re-selected, as in Unshackle. A capture listener on New
 Game catches generation failures without changing the shared shell. Tiles use an
 outer `translate` group and an inner animated group, because `transform-box` is
 unreliable on nested SVG. A drag that does not merge restores the selection from

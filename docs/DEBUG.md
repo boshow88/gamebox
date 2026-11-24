@@ -719,45 +719,55 @@ node tools/fuse/browser-check.js [/path/to/chrome] [--shots]
 ```
 
 The rules check covers merges, direction, permanent empties, blocked versus empty
-cells, diagonal adjacency, status and a test-only tile type. It also compares every
-contradiction claim on random small boards with brute force. The solver check
+cells, diagonal adjacency, status and a test-only tile type. It covers ×2 layouts
+too: text form, merges onto ×2 and ×4 cells, keys, and errors for bad multipliers. It
+also compares every contradiction claim with brute force on random small boards,
+including several thousand with bonus cells. The solver check
 compares solvability, per-merge outcomes, sequence and plan counts and random-play
 odds with an independent brute force on several hundred boards. It also covers the
-state budget, memo reuse and unsolvable versus dead-end. The reasoning check walks
-every reachable state of generated boards: each candidate step must win, each
-refuted merge must lose, `explainDead` must never fire on a solvable board, and
-search steps must be labelled and list every winning merge. It also recomputes the
-casual win rate without the solver and checks it is never below random play. The
-generator check covers determinism, solution replay, the measured tier of generated
-and curated puzzles, that Easy and Hard casual win rates stay far apart, the
-one-attempt fallback and the async wrapper. It re-verifies every 4×4 bank puzzle
-(about 30 seconds), checks the bank has no two puzzles equal up to symmetry, and checks
-that seeds pick bank entries and rotations reproducibly.
+state budget and its exhausted count, memo reuse, `learn` (a learned line answers
+without search, a non-winning line is ignored) and unsolvable versus dead-end. The
+reasoning check walks every reachable state of generated boards (a third with ×2
+cells, one 3×4). Each candidate step must win, each refuted merge must lose,
+`explainDead` must never fire on a solvable board, and search steps must be labelled
+and list every winning merge. `nextStep` must pick exactly the easiest valid
+candidate, which checks the lazy validation against the definition. It also compares
+`trialMerges` with an independent reimplementation. The generator check covers
+reverse construction on every shape and with bonus cells, determinism, ids, solution
+replay, and the shapes and ×2 cells each tier may use. It recomputes each generated
+and curated puzzle's waste and fairness without the generator's shortcuts and checks
+that the tiers' waste never overlaps and each tier mixes its shapes. It also covers
+the one-attempt fallback, unknown options and the async wrapper.
 
 The browser check serves the repo locally, stubs `js/net/net.js` (Firebase is never
 loaded) and drives headless Chrome over its debugging protocol. It first compares
 the toolbar, action row, status row and the blocks under the board with Tango's. It
 then covers mouse tap-tap and drag, keyboard, Ctrl+Z, reset, the toggling hint, the
 lost-position hint, the dead-end warning, the solution overlay (including the "No
-solution from here" warning), win, undo out of a win, New Game, difficulty, the 4×4
-board (load, merge, hint and reveal timings), both languages, reduced motion, the
-default medium 3×3 start, and touch at 375 and 320 px on both sizes with no
-horizontal overflow. It also checks the launcher card and smoke-loads the other
-puzzle pages. Every UI merge is mirrored by the Node engine and the rendered board
+solution from here" warning), win, undo out of a win, New Game, and Hard serving 4×4.
+The main flow uses a 3×4 or 4×3 board and checks its proportions. On a Hard board
+with ×2 cells it checks the badges, the keyboard read-out, a merge onto a ×2 cell
+(value ×4, badge flash, live message), the badge leaving an emptied cell, and load,
+hint and reveal timings. It also checks that an old link's `size` is ignored and
+dropped, both languages, reduced motion and the default medium start. Touch is
+tested at 375 and 320 px on a 4×4 and a rectangular board, with no horizontal
+overflow. Finally it checks the launcher card and smoke-loads the other puzzle pages. Every UI merge is mirrored by the Node engine and the rendered board
 compared, which also proves the browser and Node generate the same puzzle for a
 seed. `--shots` saves screenshots of key states to the temp folder.
 
-`node tools/fuse/calibrate.js [samples=300] [depth=3] [--size=3] [--exp=4,5,6,7] [--sound]`
-reports how the difficulty metrics spread over random reverse-built boards, per
-technique level, per tier, per construction exponent and style, and by casual win
-rate. It is a tuning report, not a pass/fail check. `--sound` re-checks the reasoning
-on every state reachable from the first 80 boards.
+`node tools/fuse/calibrate.js [samples=60] [seeds per tier=20] [--skip-shapes] [--skip-generate] [--cost] [--combos]`
+is a tuning report, not a pass/fail check. It has four sections:
 
-`node tools/fuse/bank.js [size=4] [perTier=30] [attempts=1500] [seed=2026] [--out=file] [--from=file]`
-rebuilds the 4×4 bank: it prints `CURATED` entries to paste into the generator.
-`--out` saves every evaluated board as NDJSON, and `--from` re-picks tiers from such a
-file after a threshold change without re-evaluating. `node tools/fuse/profile.js`
-times each part of the evaluation on larger boards.
+- **shapes**: per shape and ×2 count, how many random boards reasoning alone solves,
+  their waste spread and each tier's hit rate.
+- **generate**: the real generator per tier, with time, attempts, curated fallbacks,
+  shapes served, waste, the smart habit's first-try win rate, and boards to use as
+  `CURATED`.
+- **`--cost`**: solver states for the largest analysis on hard candidates, used to set
+  `SEARCH_BUDGET`.
+- **`--combos`**: Hard yield and time per hit for each exponent, style and ×2 count.
+
+It replaces the earlier `bank.js` (the 4×4 bank is gone) and `profile.js`.
 
 ## Ungated console logging
 
