@@ -1,6 +1,6 @@
 /** Fuse UI: SVG board, tap / drag / keyboard merging, undo, hints and a solution overlay.
  * Rules, search, reasoning and generation live in rules.js, solver.js, reasoning.js and
- * generators/fuse.js. */
+ * generators/fuse.js; worker.js runs the generator off the main thread. */
 (function () {
     'use strict';
     const PC = window.PuzzleCommon, Rules = window.FuseRules, Solver = window.FuseSolver, Reasoning = window.FuseReasoning;
@@ -490,18 +490,53 @@
         return window.crypto && window.crypto.getRandomValues
             ? window.crypto.getRandomValues(new Uint32Array(1))[0] : Math.floor(Math.random() * 4294967296);
     }
-    async function loadPuzzle() {
-        const difficulty = shell.difficulty;
-        const seed = pendingSeed != null ? pendingSeed : randomSeed();
-        pendingSeed = null;
+    // Puzzles are made in a worker (one per puzzle) when the page allows it, and each
+    // difficulty's next puzzle is started in advance: after a puzzle loads, and when a
+    // difficulty is picked. Without a worker they are made on the main thread on demand.
+    let workers = typeof Worker === 'function';
+    const prepared = new Map();
+    function inWorker(difficulty, seed) {
+        const job = { seed, onProgress: null };
+        job.promise = new Promise((resolve, reject) => {
+            const worker = new Worker('../js/games/fuse/worker.js');
+            worker.onmessage = ({ data }) => {
+                if (data.puzzle) { worker.terminate(); resolve(data.puzzle); }
+                else if (data.error) { worker.terminate(); reject(new Error(data.error)); }
+                else if (job.onProgress) job.onProgress(data.fraction);
+            };
+            worker.onerror = (e) => { e.preventDefault(); worker.terminate(); reject(new Error(e.message || 'Fuse worker failed')); };
+            worker.postMessage({ difficulty, seed });
+        });
+        job.promise.catch(() => { workers = false; prepared.delete(difficulty); });
+        return job;
+    }
+    function prepareNext(difficulty) {
+        if (!workers || prepared.has(difficulty)) return;
+        try { prepared.set(difficulty, inWorker(difficulty, randomSeed())); } catch (_) { workers = false; }
+    }
+    async function makePuzzle(difficulty, seed) {
+        let job = seed == null ? prepared.get(difficulty) : null;
+        if (job) prepared.delete(difficulty);
+        if (seed == null) seed = job ? job.seed : randomSeed();
+        if (!job && workers) { try { job = inWorker(difficulty, seed); } catch (_) { workers = false; } }
+        if (job) {
+            job.onProgress = (fraction) => PC.progress.setFraction(fraction);
+            try { return await job.promise; } catch (_) { /* fall back to the main thread */ }
+        }
         let lastPaint = -Infinity;
-        const puzzle = await generate(difficulty, seed, async (fraction) => {
+        return generate(difficulty, seed, async (fraction) => {
             const now = performance.now();
             if (now - lastPaint < 35) return;
             lastPaint = now;
             PC.progress.setFraction(fraction);
             await PC.progress.waitNextPaint();
         });
+    }
+    async function loadPuzzle() {
+        const difficulty = shell.difficulty;
+        const seed = pendingSeed;
+        pendingSeed = null;
+        const puzzle = await makePuzzle(difficulty, seed);
         const start = R.parse(puzzle.board);
         cancelDrag(); endAnimation();
         state.puzzle = puzzle; state.difficulty = difficulty; state.trail = [start];
@@ -512,6 +547,7 @@
         PC.share.replaceUrl({ difficulty, seed: puzzle.seed });
         dropSizeParam();
         say('fuseReady');
+        prepareNext(difficulty);
     }
     // Links from before the board size followed the difficulty still carry `size`.
     function dropSizeParam() {
@@ -638,6 +674,10 @@
     svg.classList.add('drag-board');
     // Catch generation failures locally without changing the shared shell.
     $('new-game-btn').addEventListener('click', (e) => { e.stopImmediatePropagation(); startPuzzle(); }, true);
+    $('difficulty-seg').addEventListener('click', (e) => {
+        const button = e.target.closest('[data-value]');
+        if (button && DIFFICULTIES.includes(button.dataset.value)) prepareNext(button.dataset.value);
+    });
     $('undo-btn').addEventListener('click', () => history.undo());
     $('hint-btn').addEventListener('click', toggleHint);
     $('share-btn').addEventListener('click', async () => {

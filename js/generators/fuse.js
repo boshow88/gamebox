@@ -1,7 +1,7 @@
 /**
  * Fuse — puzzle generator.
  *
- * Each difficulty draws a board shape from SHAPES (easy leans small, hard large; 4×4 boards
+ * Each difficulty draws a board shape from SHAPES (Easy 3×3 to 4×3, Medium and Hard 4×4; any
  * may carry ×2 tiles), then:
  * 1. Reverse construction: start from one tile holding the target total and repeatedly undo
  *    a forward merge (REVERSE_OPS) until every cell is filled. Each step is checked to be the
@@ -9,7 +9,9 @@
  *    numbers are then divided by the smallest, so every board starts from 1.
  * 2. Difficulty: Reasoning.trialMerges counts what trial and error costs a player who tries
  *    the smallest tiles first, skips visibly lost merges and undoes when stuck. The merges
- *    made and undone (`waste`) must fall in the tier's range (DIFFICULTY).
+ *    made and undone (`waste`) must fall in the tier's range (DIFFICULTY). For Medium and
+ *    Hard, Reasoning.firstTryWin (a player who makes the obvious merges and otherwise guesses
+ *    among merges that do not look lost) must also fall in range.
  * 3. Fairness: the easiest human path reaches one tile without exhaustive search, so every
  *    hint can explain itself, and no position on it needs more than SEARCH_BUDGET solver
  *    states to classify its merges (what one hint costs in the game).
@@ -121,10 +123,11 @@
     }
 
     const TIERS = ['easy', 'medium', 'hard'];
-    // Board shapes per difficulty as [rows, cols, weight]: easy leans small, hard large.
+    // Board shapes per difficulty as [rows, cols, weight]. Only 4×4 boards reach the waste
+    // Medium and Hard need (tools/fuse/calibrate.js).
     const SHAPES = {
         easy: [[3, 3, 2], [3, 4, 1], [4, 3, 1]],
-        medium: [[3, 4, 1], [4, 3, 1], [4, 4, 2]],
+        medium: [[4, 4, 1]],
         hard: [[4, 4, 1]],
     };
     // Final tile exponents (the last tile is 2^e before normalizing) by cell count, and how
@@ -134,21 +137,25 @@
     // (tools/fuse/calibrate.js).
     const EXPONENTS = { 9: [4, 5, 6, 7], 12: [6, 7, 8], 16: [7, 8, 9] };
     const MULS = { 9: [[0, 1], [1, 1]], 12: [[0, 2], [1, 1], [2, 1]], 16: [[0, 1], [1, 1]] };
-    // Waste (merges made and undone by trial and error, see Reasoning.trialMerges) per tier.
-    // The gaps keep the tiers clearly apart.
+    // Per tier: the waste (merges made and undone by trial and error, Reasoning.trialMerges)
+    // and, for 4×4, the first-try win chance in % (Reasoning.firstTryWin). Waste tells Easy
+    // from the rest; the first-try chance tells Medium from Hard, since a player who makes the
+    // obvious merges skips most of the trial and error. The gaps keep the tiers clearly apart.
     const DIFFICULTY = {
         easy: { min: 0, max: 2 },
-        medium: { min: 8, max: 40 },
-        hard: { min: 80, max: Infinity },
+        medium: { min: 80, max: Infinity, firstTry: { min: 25, max: 70 } },
+        hard: { min: 80, max: Infinity, firstTry: { min: 0, max: 20 } },
     };
-    const ATTEMPTS = { easy: 60, medium: 120, hard: 200 };
+    // About 3% of 4×4 attempts qualify for Medium and 1.6% for Hard.
+    const ATTEMPTS = { easy: 60, medium: 200, hard: 400 };
     // Boards solvable by reasoning stay under ~2700 states per position (tools/fuse/calibrate.js
     // --cost); boards that need search often run far past it.
     const SEARCH_BUDGET = 5000;
 
-    // Metrics when `board` belongs to `difficulty`, else null. The cheap trial count runs first
-    // and the human path only for boards in range. Counting stops just past the range, so for
-    // hard `waste` reads "at least". A known `solution` only speeds up the search.
+    // Metrics when `board` belongs to `difficulty`, else null. The cheap trial count runs first,
+    // then the human path, then the first-try chance for boards still in range. Counting stops
+    // just past the range, so for Medium and Hard `waste` reads "at least". A known `solution`
+    // only speeds up the search.
     function judge(board, difficulty, solution) {
         const range = DIFFICULTY[difficulty], minimum = R.tileCount(board) - 1;
         const cap = minimum + (range.max === Infinity ? range.min : range.max + 1);
@@ -158,7 +165,13 @@
         if (solution) solver.learn(board, solution);
         const path = Reasoning.humanPath(R, board, { stopAtSearch: true, solver });
         if (!path.complete || solver.stats().exhausted) return null;
-        return { waste, maxLevel: path.maxLevel, muls: R.tiles(board).filter((i) => board.cells[i].type === 'mul').length };
+        const metrics = { waste, maxLevel: path.maxLevel, muls: R.tiles(board).filter((i) => board.cells[i].type === 'mul').length };
+        if (range.firstTry) {
+            const chance = 100 * Reasoning.firstTryWin(R, board, solver);
+            if (chance < range.firstTry.min || chance > range.firstTry.max) return null;
+            metrics.firstTry = Math.round(chance * 10) / 10;
+        }
+        return metrics;
     }
 
     function puzzleFrom(board, difficulty, seed, extra) {
@@ -201,12 +214,14 @@
             '1 1 1/x2 2 1/16 8 1', '1 x2 4/1 2 4/4 4 8',
         ],
         medium: [
-            '16 16 4/4 4 4/4 4 4/1 1 2', '8 4 2 2/4 4 2 1/2 1 1 1', '8 4 2 2/8 4 4 2/8 4 4 2/8 2 1 1',
-            '4 4 8 32/1 2 4 x2/1 4 2 2', '4 8 32 64/4 x2 64 32/4 2 8 8/1 1 4 4',
+            '16 16 16 16/16 8 8 8/1 8 8 1/1 2 2 1', '2 2 4 4/1 2 16 x2/1 16 32 256/8 8 128 512',
+            '1 1 4 4/2 2 16 8/1 4 4 4/1 4 4 4', '4 64 64 32/2 4 16 32/1 2 8 x2/1 2 8 8',
+            '4 8 32 32/4 8 16 8/2 2 2 x2/1 1 2 2',
         ],
         hard: [
-            '4 8 8 8/2 8 4 4/1 4 4 2/1 2 2 2', '16 16 8 8/16 16 8 4/16 4 4 4/4 2 1 1',
-            '1 1 1 2/1 4 4 x2/2 4 4 8/2 2 4 8', '1 1 1 2/2 2 1 2/8 16 8 4/16 64 128 x2',
+            '16 16 8 8/16 16 8 4/16 4 4 4/4 2 1 1', '1 1 1 2/1 4 4 x2/2 4 4 8/2 2 4 8',
+            '4 4 2 1/4 4 2 1/4 16 2 2/4 8 4 2', 'x2 8 8 2/2 4 4 2/2 8 2 2/1 1 1 1',
+            '4 x2 4 4/4 8 16 2/2 2 4 1/4 2 2 1',
         ],
     };
 

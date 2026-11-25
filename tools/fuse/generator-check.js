@@ -18,8 +18,8 @@ const mostMuls = (cells) => Math.max(0, ...(Gen.MULS[cells] || []).filter((m) =>
 
 // A puzzle text belongs to `tier`, recomputed without the generator's shortcuts: the board
 // starts full in one of the tier's shapes, with no more ×2 tiles than its size allows, the
-// waste (merges a smallest-first player makes and undoes) is in range, and reasoning alone
-// solves it.
+// waste (merges a smallest-first player makes and undoes) and the first-try chance are in
+// range, and reasoning alone solves it.
 function checkBoard(text, tier, label) {
     const board = R.parse(text);
     assert.ok(Gen.SHAPES[tier].some(([rows, cols]) => rows === board.rows && cols === board.cols), `${label}: ${shapeOf(board)} is a ${tier} shape`);
@@ -34,7 +34,12 @@ function checkBoard(text, tier, label) {
     const path = Reasoning.humanPath(R, board, { stopAtSearch: true });
     assert.equal(path.complete, true, `${label}: solved by reasoning alone`);
     assert.equal(path.searchSteps, 0);
-    return { board, waste };
+    let firstTry = null;
+    if (range.firstTry) {
+        firstTry = 100 * Reasoning.firstTryWin(R, board, Solver.createSolver(R));
+        assert.ok(firstTry >= range.firstTry.min && firstTry <= range.firstTry.max, `${label}: first-try ${firstTry.toFixed(1)}% within ${tier}`);
+    }
+    return { board, waste, firstTry };
 }
 
 // Reverse operations are exact inverses of legal forward merges, on every shape and with
@@ -94,15 +99,15 @@ function checkBoard(text, tier, label) {
 }
 
 // Generated puzzles: deterministic per seed, verified, and in the requested tier.
-const timings = [], wastes = {}, shapes = {};
+const timings = {}, wastes = {}, chances = {}, shapes = {};
 let generated = 0, total = 0;
 for (const tier of Gen.TIERS) {
     const boards = new Set();
-    wastes[tier] = []; shapes[tier] = new Set();
+    timings[tier] = []; wastes[tier] = []; chances[tier] = []; shapes[tier] = new Set();
     for (let seed = 1; seed <= 8; seed++) {
         const t0 = Date.now();
         const p = Gen.generate({ difficulty: tier, seed });
-        timings.push(Date.now() - t0);
+        timings[tier].push(Date.now() - t0);
         total++;
         assert.deepEqual(Gen.generate({ difficulty: tier, seed }), p, 'same seed, same puzzle');
         assert.equal(p.game, 'fuse');
@@ -110,13 +115,17 @@ for (const tier of Gen.TIERS) {
         assert.equal(p.seed, seed);
         assert.equal(p.id, `fuse-${tier}-${seed.toString(36)}`);
         assert.ok(p.attempts >= 1 && p.attempts <= Gen.ATTEMPTS[tier]);
-        const { board, waste } = checkBoard(p.board, tier, `${tier}#${seed}`);
+        const { board, waste, firstTry } = checkBoard(p.board, tier, `${tier}#${seed}`);
         assert.equal(p.rows, board.rows);
         assert.equal(p.cols, board.cols);
         assert.equal(R.status(replay(board, p.solution)), 'won', 'the stored solution replays');
         assert.equal(p.metrics.muls, mulCount(board));
-        if (tier !== 'hard') assert.equal(p.metrics.waste, waste);
-        else assert.ok(waste >= p.metrics.waste, 'hard waste is counted up to the threshold');
+        if (Gen.DIFFICULTY[tier].max !== Infinity) assert.equal(p.metrics.waste, waste);
+        else assert.ok(waste >= p.metrics.waste, `${tier} waste is counted up to the threshold`);
+        if (firstTry !== null) {
+            assert.equal(p.metrics.firstTry, Math.round(firstTry * 10) / 10, 'the first-try chance does not depend on the solver budget');
+            chances[tier].push(firstTry);
+        } else assert.equal(p.metrics.firstTry, undefined);
         if (p.source === 'generated') generated++;
         boards.add(p.board);
         wastes[tier].push(Reasoning.trialMerges(R, board, 5000) - (R.tileCount(board) - 1));
@@ -129,12 +138,12 @@ const big = Gen.generate({ difficulty: 'easy', seed: 4294967295 });
 assert.equal(big.id, `fuse-easy-${(4294967295).toString(36)}`);
 assert.equal(big.seed, 4294967295);
 
-// Tiers really differ: the waste ranges never overlap, and each tier mixes its shapes.
+// Tiers really differ: Easy's waste stays below Medium's, Medium's first-try chance above
+// Hard's, and the shapes are each tier's.
 assert.ok(Math.max(...wastes.easy) < Math.min(...wastes.medium), `easy below medium (${wastes.easy} / ${wastes.medium})`);
-assert.ok(Math.max(...wastes.medium) < Math.min(...wastes.hard), `medium below hard (${wastes.medium} / ${wastes.hard})`);
+assert.ok(Math.min(...chances.medium) > Math.max(...chances.hard), `medium first-try above hard (${chances.medium.map(Math.round)} / ${chances.hard.map(Math.round)})`);
 assert.ok(shapes.easy.has('3×3') && [...shapes.easy].some((s) => s !== '3×3'), `easy shapes ${[...shapes.easy]}`);
-assert.ok([...shapes.medium].some((s) => s.startsWith('4×4')) && [...shapes.medium].some((s) => !s.startsWith('4×4')), `medium shapes ${[...shapes.medium]}`);
-assert.ok(shapes.hard.has('4×4') && shapes.hard.has('4×4 x2'), `hard shapes ${[...shapes.hard]}`);
+for (const tier of ['medium', 'hard']) assert.ok(shapes[tier].has('4×4') && shapes[tier].has('4×4 x2') && shapes[tier].size === 2, `${tier} shapes ${[...shapes[tier]]}`);
 for (const tier of Gen.TIERS) assert.ok([...shapes[tier]].some((s) => s.endsWith(' x2')), `${tier} serves ×2 tiles (${[...shapes[tier]]})`);
 
 // Curated fallbacks are valid members of their tier, and the fallback path is bounded.
@@ -175,10 +184,11 @@ assert.deepEqual(Gen.generate({ size: 7, difficulty: 'easy', seed: 3 }), Gen.gen
     const p = await Gen.generatePuzzle('hard', 77, (f) => { progress.push(f); });
     assert.deepEqual(p, Gen.generate({ difficulty: 'hard', seed: 77 }));
     assert.ok(progress.every((f) => f > 0 && f <= 1));
-    timings.sort((a, b) => a - b);
-    const worst = timings[timings.length - 1];
-    assert.ok(worst < 5000, `generation stays fast (worst ${worst} ms)`);
-    const range = (xs) => `${Math.min(...xs)}–${Math.max(...xs)}`;
+    // Hard is made ahead of time in the page (a worker), so it may take longer.
+    const worst = (tier) => Math.max(...timings[tier]);
+    assert.ok(worst('easy') < 1000 && worst('medium') < 5000 && worst('hard') < 25000, `generation stays fast (worst ${Gen.TIERS.map(worst)} ms)`);
+    const range = (xs) => `${Math.round(Math.min(...xs))}–${Math.round(Math.max(...xs))}`;
+    const median = (xs) => xs.slice().sort((a, b) => a - b)[xs.length >> 1];
     console.log(`fuse generator: ok (${total} puzzles; waste easy ${range(wastes.easy)}, medium ${range(wastes.medium)}, hard ${range(wastes.hard)}; ` +
-        `puzzle median ${timings[timings.length >> 1]} ms, worst ${worst} ms)`);
+        `first-try medium ${range(chances.medium)}%, hard ${range(chances.hard)}%; median ms ${Gen.TIERS.map((t) => median(timings[t]))}, worst ${Gen.TIERS.map(worst)})`);
 })().catch((err) => { console.error(err); process.exit(1); });

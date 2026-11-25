@@ -1532,10 +1532,11 @@ Rules for players live in [rules.md](rules.md#fuse); checks in
 | `js/games/fuse/solver.js` | `FuseSolver` | Exact search: outcomes per merge, solutions, counts, state budget |
 | `js/games/fuse/reasoning.js` | `FuseReasoning` | Human techniques, hint steps, the trial-and-error difficulty measure |
 | `js/generators/fuse.js` | `PuzzleGenerators.fuse`, `fuseInternals` | Shapes per tier, reverse construction, tier and fairness checks, curated fallbacks |
-| `js/games/fuse/game.js` | — | SVG view, input, hints, solution overlay; owns the en/zh copy |
+| `js/games/fuse/worker.js` | — | Web Worker that runs the generator off the main thread |
+| `js/games/fuse/game.js` | — | SVG view, input, hints, solution overlay, puzzle prefetch; owns the en/zh copy |
 
-All modules except `game.js` are DOM-free UMD files, so the Node checks load the same
-code as the page.
+All modules except `game.js` and `worker.js` are DOM-free UMD files, so the Node checks
+and the worker load the same code as the page.
 
 ### Tile model and extension points
 
@@ -1636,48 +1637,62 @@ the latest solvable position.
 
 ### Difficulty
 
-The tier is the trial and error a sensible player needs, `Reasoning.trialMerges`: a
-depth-first player who tries merges smallest first (`mergeSize`: the source number, or
-for a ×2 merge the number it doubles; board order among equals), never makes a merge
-whose result is `visiblyLost` (no legal merge, or a level
-≤ 2 contradiction), undoes when stuck and remembers positions that failed. `waste` is
-the merges made beyond the minimum (tiles − 1), i.e. the merges made and undone. It is
-deterministic and can be capped. `DIFFICULTY` in the generator:
+Two measures, both of a player who never makes a merge whose result is `visiblyLost`
+(no legal merge, or a level ≤ 2 contradiction):
 
-| Easy | Medium | Hard |
-| --- | --- | --- |
-| `waste` 0–2 | 8–40 | ≥ 80 |
+- `Reasoning.trialMerges`: a depth-first player who tries merges smallest first
+  (`mergeSize`: the source number, or for a ×2 merge the number it doubles; board
+  order among equals), undoes when stuck and remembers positions that failed. `waste`
+  is the merges made beyond the minimum (tiles − 1), i.e. the merges made and undone.
+  It is deterministic and can be capped.
+- `Reasoning.firstTryWin`: the chance that a player who never undoes wins. It makes
+  the first forced pair (`forcedPairs`: a `lone` pair in its only direction, else a
+  `forced-pair` in either direction not visibly lost) and otherwise picks uniformly
+  among the merges not visibly lost. Exact and memoized per position; the solver
+  only prunes lost positions, so the value does not depend on its budget.
 
+`DIFFICULTY` in the generator:
+
+| | Easy | Medium | Hard |
+| --- | --- | --- | --- |
+| `waste` | 0–2 | ≥ 80 | ≥ 80 |
+| `firstTry` (%) | — | 25–70 | ≤ 20 |
+
+Waste tells Easy from the rest, but a player who makes the obvious merges skips most
+of a smallest-first player's trial and error, so waste alone stops telling hard 4×4
+boards apart. The old Hard (waste ≥ 80 only, now Medium) had a median first-try
+chance of about 28%. Medium's cap of 70% keeps out boards where every merge is forced.
 A puzzle must also be fair: `humanPath(..., { stopAtSearch: true })` must reach one
 tile with no step needing search, so every hint explains itself.
 
 The earlier tiers (`maxLevel` plus a casual player who merges at random among moves
 that do not look lost) modelled a random player; a real one merges small tiles first
 and undoes, so Hard felt easy, and the largest tier lived in an offline 4×4 bank.
-Calibration (`tools/fuse/calibrate.js`) found:
+Calibration (`tools/fuse/calibrate.js`, 40 random boards per kind) found:
 
-- Small boards cannot be hard. Among reason-solvable random boards (60 per kind), the
-  waste p90 is 9 on 3×3 and 14 on 3×4, against 80 for Hard. 3×3 and 3×4 / 4×3 suit
-  Easy and Medium, and 4×4 suits Hard.
-- ×2 tiles make boards harder to reason through. Reasoning alone solves 45% of
-  random 4×4 boards, 25–33% with one ×2 and 5–6% with two; on 3×4 it is 55%, 44–46%
-  and 18–24%. One ×2 still suits every tier: 60% of 3×3 boards with one qualify for
-  Easy, and 4–5% of 4×4 boards with one for Hard (7% without). Two on 4×4 were dropped:
-  they cost about five times as much to judge and almost never qualify. Two on 3×4
-  occasionally reach Medium or even Hard. Walls made boards easier.
-- 4×5 and larger are out of reach for now: a hint on 4×5 took up to 12 s, and 5×5
-  could not be measured in 10 minutes, because classifying merges means proving the
-  losing ones lose.
+- Small boards cannot be hard. Among reason-solvable boards, the waste p90 is 0 on
+  3×3 and 44 on 3×4, against 80 for Medium and Hard. 2 of 40 3×4 boards reach Medium
+  and none Hard. 3×3 and 3×4 / 4×3 suit Easy, and 4×4 suits Medium and Hard.
+- ×2 tiles make boards harder to reason through. Reasoning alone solves 88% of 3×3
+  boards, 55% of 3×4, 48% of 4×4, 38% of 4×4 with one ×2 and 5% with two. Two on 4×4
+  were dropped: they cost about five times as much to judge and almost never qualify.
+  Walls made boards easier.
+- Harder Hard: among boards that pass the old Hard test, the median first-try chance
+  is about 26% on 4×5 (four times the cost of 4×4) and about 17% on 5×5 (about 20 s
+  a puzzle). Two ×2 tiles on 4×4 give about 19% at about 5 s, and a ×4 tile behaves
+  like a ×2. Selecting 4×4 boards at ≤ 20% keeps about 1.6% of attempts and costs
+  about 2 s a puzzle, so Hard selects instead of growing the board. Allowing one
+  step that needs search would keep about 9%, but its hint could not explain itself.
 
-With 30 seeds per tier, generated waste (p10–p90) runs 0 (Easy), 8–36 (Medium) and
-102–1837 (Hard), and the smart habit (skip visibly lost merges, merge the smallest
-first, at random among equals) wins on the first try a median 75%, 38% and 27% of the
-time. ×2 tiles appear in 10, 16 and 18 of those 30 puzzles.
+With 30 seeds per tier, generated waste (p10–p90) runs 0 (Easy), 90–1459 (Medium) and
+100–4232 (Hard). The first-try chance
+(p10/p50/p90) is 43/71/100% on Easy, 25/38/52% on Medium and 5/13/19% on Hard. ×2
+tiles appear in 10, 18 and 17 of those 30 puzzles.
 
 ### Generation
 
 Each attempt draws a shape from `SHAPES[tier]` (`[rows, cols, weight]`: Easy 3×3 ×2,
-3×4, 4×3; Medium 3×4, 4×3, 4×4 ×2; Hard 4×4), a number of ×2 tiles from `MULS[cells]`
+3×4, 4×3; Medium and Hard 4×4), a number of ×2 tiles from `MULS[cells]`
 (`[count, weight]`: 3×3 none or one; 3×4 none ×2, one, two; 4×4 none or one), a final
 exponent from `EXPONENTS[cells]` (plus one per ×2 tile, which keeps the other values in
 range and the construction from running out of tiles to split) and a construction
@@ -1688,23 +1703,25 @@ left), so the board gets exactly the count drawn. `normalize` then divides every
 by the smallest: merges only compare numbers with each other or double them, so this
 keeps every merge, contradiction, waste count and hint (`generator-check.js` compares
 scaled copies), and every board starts from 1. `judge` runs the capped
-`trialMerges` first and the human path only for boards in range, on a solver seeded
-with the construction's solution (`learn`) and limited to `SEARCH_BUDGET` (5000)
-states per call. A board that runs out is rejected: `calibrate.js --cost` showed
+`trialMerges` first, then the human path for boards in range, then `firstTryWin` for
+tiers with a `firstTry` range, both on a solver seeded with the construction's solution
+(`learn`) and limited to `SEARCH_BUDGET` (5000) states per call. Running `firstTryWin`
+before the path cost more than the path itself. A board that runs out is rejected:
+`calibrate.js --cost` showed
 reason-solvable 4×4 boards peak below about 2700 states (1712 at most for 24 boards
 with and without ×2), while boards that need search often run far past it. This also
 bounds a hint's cost in the game.
 
-Attempts are counted, never timed (`ATTEMPTS`: 60 / 120 / 200), so `(difficulty,
+Attempts are counted, never timed (`ATTEMPTS`: 60 / 200 / 400), so `(difficulty,
 seed)` always gives the same puzzle in Node and the browser. The PRNG is the
 generator's own mulberry32, seeded with `seed ^ 0x9e3779b9`; repeated boards within a
 seed are skipped by key. The async wrapper yields about every 40 ms for the progress
 bar. When no attempt fits the tier, `CURATED[tier][seed % n]` is used;
 `generator-check.js` re-verifies every curated board; each tier's list includes boards
-with ×2 tiles. In Node a puzzle takes a median of 5 ms (Easy), 67 ms (Medium) and 0.9 s
-(Hard), with the Hard p90 at 2.2 s and the worst of 30 seeds at 3.7 s; a Hard attempt
-with a ×2 costs about twice one without. Puzzle ids
-are `fuse-<tier>-<seed base 36>`.
+with ×2 tiles. About 3% of 4×4 attempts qualify for Medium and 1.6% for Hard. In Node
+a puzzle takes a median of 4 ms (Easy), 0.4 s (Medium) and 1.8 s (Hard); the p90 is
+1.6 s and 3.5 s and the worst of 30 seeds 1.8 s and 8 s. A Hard attempt with a ×2
+costs about twice one without. Puzzle ids are `fuse-<tier>-<seed base 36>`.
 
 ### View
 
@@ -1728,6 +1745,16 @@ number beside it shakes and says so. Links
 carry only difficulty and seed; an old link's `size` is ignored and removed from the
 address. The page's solver learns the puzzle's construction solution, so the first
 Reveal and hints start from a known line.
+
+Puzzles are generated in a Web Worker, one per puzzle, as in Unshackle's and Trash
+Toss's workers. `worker.js` loads the same rules, solver, reasoning and generator
+scripts with `importScripts`, so a `(difficulty, seed)` pair gives the same puzzle as
+on the main thread and in Node. When a puzzle loads, the page starts the next one for
+the same difficulty with a random seed. Picking a difficulty button starts one for
+that difficulty, before New Game applies it. New Game takes the prepared job and
+shows its progress on the bar if it is still running. A seed from a link is always
+made fresh. Without `Worker`, or after any worker fails, the page generates on the
+main thread and yields for the progress bar.
 
 History snapshots hold the trail of boards. Reset is pushed as an undoable step
 unless the puzzle is won. Undo out of a win calls `shell.clearWin()`. Wins are logged

@@ -1,8 +1,9 @@
 /** node tools/fuse/browser-check.js [chrome-path] [--shots] — Fuse in real headless Chrome
  * over CDP: the shared puzzle layout (compared with Tango), mouse, touch and keyboard merging,
  * undo / reset, hints, dead ends, the solution overlay, win and new game, rectangular boards,
- * ×2 tiles, difficulty-chosen shapes and old links, language, responsive layout, the launcher
- * card, and smoke loads of other puzzle pages.
+ * ×2 tiles, difficulty-chosen shapes and old links, puzzles made ahead in a worker (and
+ * without one), language, responsive layout, the launcher card, and smoke loads of other
+ * puzzle pages.
  * Every UI move is mirrored by the Node engine and the rendered board compared.
  * Serves the repo locally and stubs js/net/net.js, so Firebase is never loaded. */
 'use strict';
@@ -29,8 +30,8 @@ const SMOKE = ['guards', 'tango', 'sudoku', 'zip', 'hashi', 'queens', 'nonogram'
 // A rectangular start position of numbers only that exercises every feedback path: a tile
 // with no partner, a losing merge that still leaves moves, and a dead end within a few merges.
 function pickPuzzle() {
-    for (let n = 0; n < 400; n++) {
-        const seed = (n >> 1) + 1, p = Gen.generate({ difficulty: n % 2 ? 'medium' : 'easy', seed });
+    for (let seed = 1; seed <= 400; seed++) {
+        const p = Gen.generate({ difficulty: 'easy', seed });
         if (p.rows === p.cols) continue;
         const start = R.parse(p.board), solver = Solver.createSolver(R);
         if (!R.numbersOnly(start)) continue;
@@ -67,9 +68,12 @@ function pickMul() {
     throw new Error('No hard puzzle with a ×2 tile');
 }
 
-function serve(missing) {
+// `hits` counts requests per path; paths in `blocked` answer 404 without counting as missing.
+function serve(missing, hits, blocked) {
     return http.createServer((request, response) => {
         const url = new URL(request.url, 'http://localhost');
+        hits[url.pathname] = (hits[url.pathname] || 0) + 1;
+        if (blocked.has(url.pathname)) { response.writeHead(404); response.end(); return; }
         let body;
         if (url.pathname === '/js/net/net.js') body = accountStub;
         else {
@@ -119,8 +123,14 @@ function connect(wsUrl) {
 
 (async () => {
     const pick = pickPuzzle(), mulPick = pickMul();
-    const missing = [], errors = [];
-    const server = serve(missing);
+    const missing = [], errors = [], hits = {}, blocked = new Set();
+    const server = serve(missing, hits, blocked);
+    const WORKER = '/js/games/fuse/worker.js', workers = () => hits[WORKER] || 0;
+    const until = async (fn, what, ms = 10000) => {
+        const end = Date.now() + ms;
+        while (Date.now() < end) { if (fn()) return; await pause(40); }
+        throw new Error('Timed out waiting for ' + what);
+    };
     await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
     const base = 'http://127.0.0.1:' + server.address().port;
     const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'gamebox-fuse-browser-'));
@@ -264,6 +274,7 @@ function connect(wsUrl) {
         const { p, start, solver, lonely, losing, dead, solution, far } = pick;
         await open(fusePage(p.difficulty, p.seed));
         await ready();
+        await until(() => workers() === 2, 'the puzzle and the next one are made in workers');
         const fuse = await layoutOf();
         const firstTwo = (rows) => rows.map((s) => s.split(':').slice(0, 2).join(':'));
         assert.deepEqual(fuse.toolbar, tango.toolbar.filter((g) => g !== 'boardSize'), 'toolbar: difficulty only, which picks the board shape');
@@ -443,22 +454,31 @@ function connect(wsUrl) {
         const fin = solution[solution.length - 1];
         await click(fin.to); await click(fin.from);
         assert.equal(await hidden('#win-message'), false, 'the final merge works in either direction');
+        const beforeNew = workers();
         await clickEl('#new-game-btn');
         await waitFor(`document.getElementById('win-message').hidden && new URLSearchParams(location.search).get('seed') !== '${p.seed.toString(36)}'`, 'new game');
         await ready();
         const nextSeed = parseInt(await urlParam('seed'), 36);
         await expectBoard(R.parse(Gen.generate({ difficulty: p.difficulty, seed: nextSeed }).board), 'the new puzzle matches its shared seed');
+        await until(() => workers() === beforeNew + 1, 'the following puzzle is prepared');
+        await pause(300);
+        assert.equal(workers(), beforeNew + 1, 'New Game takes the prepared puzzle instead of making one');
 
-        // ---------- difficulty picks the board: hard is 4×4 ----------
+        // ---------- difficulty picks the board: hard is 4×4, started as soon as it is picked ----------
+        const beforeHard = workers();
         await clickEl('#difficulty-seg [data-value="hard"]');
+        await until(() => workers() === beforeHard + 1, 'picking Hard starts making a hard puzzle');
         await clickEl('#new-game-btn');
-        await waitFor(`new URLSearchParams(location.search).get('diff') === 'hard'`, 'hard puzzle', 30000);
+        await waitFor(`new URLSearchParams(location.search).get('diff') === 'hard'`, 'hard puzzle', 60000);
         await ready();
         const hardSeed = parseInt(await urlParam('seed'), 36);
         const hard = R.parse(Gen.generate({ difficulty: 'hard', seed: hardSeed }).board);
         await expectBoard(hard, 'hard puzzle matches its seed');
         assert.equal(await viewBox(), '0 0 440 440');
         assert.equal(await urlParam('size'), null, 'links carry difficulty and seed only');
+        await until(() => workers() === beforeHard + 2, 'the next hard puzzle is prepared');
+        await pause(300);
+        assert.equal(workers(), beforeHard + 2, 'New Game waits for the hard puzzle already being made');
 
         // ---------- ×2 tiles: merge with any touching number, either way, and must be used ----------
         const { start: mulStart, into, onto } = mulPick, mulCell = into.to;
@@ -467,7 +487,7 @@ function connect(wsUrl) {
         await ready();
         const loadMs = Date.now() - t0;
         await expectBoard(mulStart, 'a hard puzzle with a ×2 tile matches its seed');
-        assert.ok(loadMs < 6000, `a hard puzzle loads in time (${loadMs} ms)`);
+        assert.ok(loadMs < 3 * mulPick.ms + 3000, `a hard puzzle loads in time (${loadMs} ms, Node ${mulPick.ms} ms)`);
         await shot('mul');
         await evaluate('document.getElementById("board").focus()');
         await key('ArrowUp'); await cursorTo(mulCell);
@@ -517,6 +537,14 @@ function connect(wsUrl) {
         await expectBoard(R.parse(Gen.generate({ difficulty: 'easy', seed: 12345 }).board), 'an old link ignores its size');
         assert.equal(await urlParam('size'), null, 'the stale size is dropped from the address');
         assert.equal(await urlParam('seed'), (12345).toString(36));
+
+        // Without a worker (blocked here) puzzles are made on the main thread.
+        blocked.add(WORKER);
+        await open(fusePage('easy', 777));
+        await ready();
+        await expectBoard(R.parse(Gen.generate({ difficulty: 'easy', seed: 777 }).board), 'a puzzle made without a worker');
+        blocked.delete(WORKER);
+        noErrors('fuse without a worker');
         await open(fusePage(p.difficulty, p.seed));
         await ready();
 

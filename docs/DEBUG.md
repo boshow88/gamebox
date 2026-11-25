@@ -736,16 +736,20 @@ candidate step must win, each refuted merge must lose,
 `explainDead` must never fire on a solvable board, and search steps must be labelled
 and list every winning merge. `nextStep` must pick exactly the easiest valid
 candidate, which checks the lazy validation against the definition. It also compares
-`trialMerges` with an independent reimplementation. The generator check covers
+`trialMerges` and `firstTryWin` with independent reimplementations, `firstTryWin` on 40
+small boards and crafted cases, and checks that a 20-state solver gives the same
+first-try chance. The generator check covers
 reverse construction on every shape with zero to two ×2 tiles (exactly the count
 asked for, and only the ×2 op adds one), normalization (scaled copies of a board have
 the same merges, contradictions, solvability, waste and reasoning path, and every
 served board's smallest number is 1), determinism, ids, solution replay, and the
-shapes and ×2 counts each tier may use. It recomputes each generated and curated
-puzzle's waste and fairness without the generator's shortcuts and checks that the
-tiers' waste never overlaps, each tier mixes its shapes and each tier serves ×2
-tiles. It also covers
-the one-attempt fallback, unknown options and the async wrapper.
+shapes and ×2 counts each tier may use (Medium and Hard: 4×4 with and without a ×2).
+It recomputes each generated and curated puzzle's waste, first-try chance and
+fairness without the generator's shortcuts, and checks the recorded first-try value.
+Easy's waste range must stay below the others and Medium's first-try range above
+Hard's. Each tier must mix its shapes and serve ×2 tiles. The worst puzzle must
+generate in under 1 s (Easy), 5 s (Medium) and 25 s (Hard). It also covers the
+one-attempt fallback, unknown options and the async wrapper.
 
 The browser check serves the repo locally, stubs `js/net/net.js` (Firebase is never
 loaded) and drives headless Chrome over its debugging protocol. It first compares
@@ -757,8 +761,12 @@ The main flow uses a 3×4 or 4×3 board of numbers only and checks its proportio
 a Hard board with a ×2 tile it checks the violet ×2 tile, the keyboard read-out, a
 number dragged onto the ×2 (doubled in the ×2's cell), the ×2 selected (every touching
 number highlighted) and merged onto a number (doubled in place), load, hint and reveal
-timings, and that replaying the solution, which uses every ×2, wins. It also checks
-that an old link's `size` is ignored and
+timings, and that replaying the solution, which uses every ×2, wins. It counts
+worker requests to check prefetching. Loading a puzzle starts one more worker for
+the next puzzle. New Game takes that puzzle and starts only the one after it.
+Picking Hard starts a Hard puzzle before New Game is pressed. With the worker script
+blocked, the page falls back to the main thread and serves the same board as Node.
+It also checks that an old link's `size` is ignored and
 dropped, both languages, reduced motion and the default medium start. Touch is
 tested at 375 and 320 px on a 4×4 and a rectangular board, with no horizontal
 overflow. Finally it checks the launcher card and smoke-loads the other puzzle pages. Every UI merge is mirrored by the Node engine and the rendered board
@@ -769,10 +777,10 @@ seed. `--shots` saves screenshots of key states to the temp folder.
 is a tuning report, not a pass/fail check. It has four sections:
 
 - **shapes**: per shape and ×2 count, how many random boards reasoning alone solves,
-  their waste spread and each tier's hit rate.
+  their waste spread, the first-try chance of those wasteful enough for Medium or
+  Hard, and each tier's hit rate.
 - **generate**: the real generator per tier, with time, attempts, curated fallbacks,
-  shapes served, waste, the smart habit's first-try win rate, and boards to use as
-  `CURATED`.
+  shapes served, waste, first-try chance, and boards to use as `CURATED`.
 - **`--cost`**: the most solver states one step of the reasoning path needs on hard
   candidates (one hint's cost), used to set `SEARCH_BUDGET`.
 - **`--combos`**: Hard yield and time per hit for each exponent, style and ×2 count.

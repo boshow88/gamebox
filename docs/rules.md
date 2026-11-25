@@ -1462,7 +1462,7 @@ stay fixed; only the camera rotates. Clear every piece to finish a puzzle.
 ### Board
 
 - The difficulty picks the grid: **Easy** is 3×3, sometimes 3×4 or 4×3; **Medium**
-  is 3×4, 4×3 or 4×4; **Hard** is 4×4. Every cell starts with a tile holding a power
+  and **Hard** are 4×4. Every cell starts with a tile holding a power
   of two (1, 2, 4, …) or a **×2 tile**. The smallest number is always 1: halving
   every number would give the same puzzle, so boards never start higher.
 - About a third of Easy puzzles and half of Medium and Hard ones have ×2 tiles:
@@ -1516,20 +1516,32 @@ so it always has a solution, and often several.
 
 ### Difficulty
 
-Difficulty is measured, not labelled: it is the trial and error a sensible player
-needs. This player tries the smallest tiles first (a ×2 merge counts as the number it
-doubles), never makes a merge whose result
-is visibly lost (no merge left, or a tile that can no longer find a partner), and
-undoes when stuck. The tier counts the merges made and then undone along the way:
+Difficulty is measured, not labelled, with two model players. Neither makes a merge
+whose result is visibly lost (no merge left, or a tile that can no longer find a
+partner).
 
-| Easy | Medium | Hard |
-| --- | --- | --- |
-| 0–2 | 8–40 | 80 or more |
+- **Trial and error:** this player tries the smallest tiles first (a ×2 merge counts
+  as the number it doubles) and undoes when stuck. We count the merges made and then
+  undone.
+- **First try:** this player makes the plainly forced merges (a tile with only one
+  possible partner), guesses among the other merges and never undoes. We take the
+  chance that it still wins.
 
-The gaps between the ranges keep the tiers clearly apart. Every puzzle can also be
-solved by reasoning alone: each step has a deduction the hint can explain, so no
-puzzle relies on exhaustive search. Puzzles are generated on demand, so every seed
-gives a new puzzle.
+| | Easy | Medium | Hard |
+| --- | --- | --- | --- |
+| Merges undone by trial and error | 0–2 | 80 or more | 80 or more |
+| Chance to win on the first try | any | 25–70% | 20% or less |
+
+Medium and Hard both defeat a smallest-first habit. On Hard, the forced merges and
+a careful guess are not enough either: about one first try in eight wins. The gaps
+between the ranges keep the tiers clearly apart. Every puzzle can also be solved by
+reasoning alone: each step has a deduction the hint can explain, so no puzzle relies
+on exhaustive search.
+
+Puzzles are generated on demand, so every seed gives a new puzzle. A Hard puzzle
+takes a few seconds to find, so the next puzzle of the same difficulty is prepared
+in the background while you play, and from the moment you pick a difficulty. New
+Game then usually starts at once.
 
 ### Win
 

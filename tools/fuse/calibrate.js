@@ -2,14 +2,15 @@
  * Usage: node tools/fuse/calibrate.js [samples=60] [seeds per tier=20] [--skip-shapes] [--skip-generate] [--cost] [--combos]
  *   shapes    random reverse-built boards per shape and ×2 tile count (as the generator draws
  *             them): how many are solvable by reasoning alone, their waste (merges made and
- *             undone by trial and error, Reasoning.trialMerges) and each tier's hit rate
+ *             undone by trial and error, Reasoning.trialMerges), the first-try win chance
+ *             (Reasoning.firstTryWin) of those wasteful enough for Medium or Hard, and each
+ *             tier's hit rate
  *   cost      `samples` hard 4×4 candidates: the most solver states one step along the
  *             reasoning path needs (one hint's cost), to set the generator's SEARCH_BUDGET
  *   combos    `samples` 4×4 boards per exponent, style and ×2 count: how often each yields a
  *             hard puzzle and the generator time per hit
  *   generate  the real generator per tier: time per puzzle, attempts, curated fallbacks, the
- *             shapes served, waste, and how often the "smart habit" (skip visibly lost merges,
- *             merge the smallest pair first) wins on the first try */
+ *             shapes served, waste and first-try win chance */
 'use strict';
 const Rules = require('../../js/games/fuse/rules.js');
 const Solver = require('../../js/games/fuse/solver.js');
@@ -21,39 +22,22 @@ const [samples = 60, seeds = 20] = process.argv.slice(2).filter((a) => !a.starts
 const q = (xs, f) => { const s = xs.slice().sort((a, b) => a - b); return s.length ? s[Math.min(s.length - 1, Math.floor(f * s.length))] : NaN; };
 const spread = (xs) => [0.1, 0.5, 0.75, 0.9].map((f) => Math.round(q(xs, f))).join('/');
 const pct = (x) => Math.round(100 * x);
-const inRange = (waste, tier) => waste >= Gen.DIFFICULTY[tier].min && waste <= Gen.DIFFICULTY[tier].max;
-const mulTag = (n) => (n ? ' x2×' + n : '     ');
-
-// Win chance on the first try with the smart habit (random among equally small merges).
-function smartWin(board) {
-    const solver = Solver.createSolver(R), memo = new Map();
-    function p(b) {
-        const n = R.tileCount(b);
-        if (n <= 1) return n;
-        const k = R.key(b);
-        if (memo.has(k)) return memo.get(k);
-        let v = 0;
-        if (solver.isSolvable(b)) {
-            let moves = R.legalMoves(b);
-            const fine = moves.filter((m) => !Reasoning.visiblyLost(R, R.applyMerge(b, m)));
-            if (fine.length) moves = fine;
-            const low = Math.min(...moves.map((m) => Reasoning.mergeSize(b, m)));
-            const pool = moves.filter((m) => Reasoning.mergeSize(b, m) === low);
-            for (const m of pool) v += p(R.applyMerge(b, m));
-            v /= pool.length;
-        }
-        memo.set(k, v);
-        return v;
-    }
-    return p(board);
+const inWaste = (waste, tier) => waste >= Gen.DIFFICULTY[tier].min && waste <= Gen.DIFFICULTY[tier].max;
+const needsFirstTry = (waste) => Gen.TIERS.some((tier) => Gen.DIFFICULTY[tier].firstTry && inWaste(waste, tier));
+// Whether a board with this waste and first-try chance (in %) qualifies for `tier`.
+function fits({ waste, firstTry }, tier) {
+    const range = Gen.DIFFICULTY[tier].firstTry;
+    return inWaste(waste, tier) && (!range || (firstTry >= range.min && firstTry <= range.max));
 }
+const firstTry = (board) => 100 * Reasoning.firstTryWin(R, board, Solver.createSolver(R));
+const mulTag = (n) => (n ? ' x2×' + n : '     ');
 
 if (!process.argv.includes('--skip-shapes')) {
     const kinds = [[3, 3, 0], [3, 4, 0], [4, 4, 0], [4, 4, 1], [4, 4, 2]];
     console.log(`waste among boards solvable by reasoning: p10/p50/p75/p90; hit = share of all boards each tier accepts`);
     for (const [rows, cols, muls] of kinds) {
         const rng = Gen.makeRng(rows * 100 + cols * 10 + muls), styles = Object.keys(Gen.STYLES), exps = Gen.EXPONENTS[rows * cols];
-        const rowsOut = [], seen = new Set(), ms = { trial: 0, path: 0 };
+        const rowsOut = [], seen = new Set(), ms = { trial: 0, path: 0, first: 0 };
         for (let tries = 0; rowsOut.length < samples && tries < samples * 20; tries++) {
             const built = Gen.reverseBuild(rng, rows, cols, exps[Math.floor(rng() * exps.length)] + muls, styles[Math.floor(rng() * styles.length)], muls);
             if (!built || seen.has(R.key(built.board))) continue;
@@ -62,12 +46,15 @@ if (!process.argv.includes('--skip-shapes')) {
             const waste = Reasoning.trialMerges(R, built.board, 20000) - (R.tileCount(built.board) - 1);
             ms.trial += Date.now() - t; t = Date.now();
             const reason = Reasoning.humanPath(R, built.board, { stopAtSearch: true }).complete;
-            ms.path += Date.now() - t;
-            rowsOut.push({ waste, reason });
+            ms.path += Date.now() - t; t = Date.now();
+            const chance = reason && needsFirstTry(waste) ? firstTry(built.board) : null;
+            ms.first += Date.now() - t;
+            rowsOut.push({ waste, reason, firstTry: chance });
         }
-        const ok = rowsOut.filter((r) => r.reason);
-        const hits = Gen.TIERS.map((tier) => `${tier} ${pct(ok.filter((r) => inRange(r.waste, tier)).length / rowsOut.length)}%`).join(', ');
-        console.log(`${rows}×${cols}${mulTag(muls)} n ${rowsOut.length} | reason ${pct(ok.length / rowsOut.length)}% | waste ${spread(ok.map((r) => r.waste))} | hit ${hits} | ms per board: trial ${Math.round(ms.trial / rowsOut.length)}, path ${Math.round(ms.path / rowsOut.length)}`);
+        const ok = rowsOut.filter((r) => r.reason), chances = ok.filter((r) => r.firstTry != null).map((r) => r.firstTry);
+        const hits = Gen.TIERS.map((tier) => `${tier} ${pct(ok.filter((r) => fits(r, tier)).length / rowsOut.length)}%`).join(', ');
+        const each = (k) => Math.round(ms[k] / rowsOut.length);
+        console.log(`${rows}×${cols}${mulTag(muls)} n ${rowsOut.length} | reason ${pct(ok.length / rowsOut.length)}% | waste ${spread(ok.map((r) => r.waste))} | first-try% ${chances.length ? spread(chances) : '-'} (${chances.length}) | hit ${hits} | ms per board: trial ${each('trial')}, path ${each('path')}, first-try ${each('first')}`);
     }
 }
 
@@ -128,7 +115,7 @@ if (process.argv.includes('--combos')) {
 
 if (!process.argv.includes('--skip-generate')) {
     for (const tier of Gen.TIERS) {
-        const times = [], tries = [], shapes = {}, wastes = [], wins = [], picks = [];
+        const times = [], tries = [], shapes = {}, wastes = [], chances = [], picks = [];
         let curated = 0;
         for (let seed = 1; seed <= seeds; seed++) {
             const t = Date.now();
@@ -139,11 +126,11 @@ if (!process.argv.includes('--skip-generate')) {
             const board = R.parse(p.board), shape = `${p.rows}×${p.cols}${p.metrics.muls ? ' x2×' + p.metrics.muls : ''}`;
             shapes[shape] = (shapes[shape] || 0) + 1;
             wastes.push(Reasoning.trialMerges(R, board, 20000) - (R.tileCount(board) - 1));
-            wins.push(smartWin(board));
+            chances.push(firstTry(board));
             if (picks.filter((x) => x.shape === shape).length < 2 && picks.length < 6) picks.push({ shape, text: p.board });
         }
         console.log(`${tier.padEnd(6)} | ms median ${Math.round(q(times, 0.5))}, p90 ${q(times, 0.9)}, worst ${Math.max(...times)} | attempts median ${q(tries, 0.5)}, worst ${Math.max(...tries)} | curated ${curated}/${seeds}`);
-        console.log(`       shapes ${JSON.stringify(shapes)} | waste ${spread(wastes)} | smart first-try win% ${spread(wins.map((w) => 100 * w))}`);
+        console.log(`       shapes ${JSON.stringify(shapes)} | waste ${spread(wastes)} | first-try win% ${spread(chances)}`);
         for (const pick of picks) console.log(`       '${pick.text}',  // ${pick.shape}`);
     }
 }

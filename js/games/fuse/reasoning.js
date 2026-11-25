@@ -353,5 +353,37 @@
         return Math.min(merges, limit);
     }
 
-    return { SEARCH, LEVELS, COSTS, context, explainDead, visiblyLost, forcedPairs, refute, candidates, nextStep, humanPath, mergeSize, trialMerges };
+    // First-try win chance, the measure that separates Medium from Hard: a player who makes an
+    // obvious merge whenever there is one (the first forced pair; a lone tile merges into its
+    // partner, otherwise either direction whose result is not visibly lost) and otherwise picks
+    // uniformly among merges whose result is not visibly lost, never undoing. Exact and
+    // memoized by position. `solver` only skips positions it proves lost, so the value does not
+    // depend on its budget.
+    function firstTryWin(R, board, solver) {
+        const memo = new Map();
+        const fine = (b, moves) => { const ok = moves.filter((m) => !visiblyLost(R, R.applyMerge(b, m))); return ok.length ? ok : moves; };
+        function choices(b) {
+            const pair = forcedPairs(R, b)[0];
+            if (!pair) return fine(b, R.legalMoves(b));
+            return pair.technique === 'lone' ? [{ from: pair.a, to: pair.b }] : fine(b, directions(R, b, pair));
+        }
+        function chance(b) {
+            const n = R.tileCount(b);
+            if (n <= 1) return 1;
+            if (n === 2) return R.legalMoves(b).length ? 1 : 0;
+            const k = R.key(b);
+            if (memo.has(k)) return memo.get(k);
+            let p = 0;
+            if (!solver || solver.isSolvable(b) !== false) {
+                const moves = choices(b);
+                for (const m of moves) p += chance(R.applyMerge(b, m));
+                p = moves.length ? p / moves.length : 0;
+            }
+            memo.set(k, p);
+            return p;
+        }
+        return chance(board);
+    }
+
+    return { SEARCH, LEVELS, COSTS, context, explainDead, visiblyLost, forcedPairs, refute, candidates, nextStep, humanPath, mergeSize, trialMerges, firstTryWin };
 });

@@ -169,9 +169,46 @@ function trialReference(board) {
     return merges;
 }
 
+// First-try chance recomputed from the definition: the first obvious pair (the only pair
+// that can merge; else, on boards of numbers and ×2 tiles, a number whose one possible
+// partner, an equal number or a smaller one or a ×2, is an equal number) merges, a lone
+// tile into its partner and otherwise in a direction not visibly lost; with no obvious pair,
+// any merge not visibly lost, all equally likely. No undo.
+function firstTryReference(board) {
+    const memo = new Map();
+    const lost = (b) => { const d = Reasoning.explainDead(R, b); return !!d && d.level <= 2; };
+    const fine = (b, moves) => { const ok = moves.filter((m) => !lost(R.applyMerge(b, m))); return ok.length ? ok : moves; };
+    const both = (b, x, y) => [{ from: x, to: y }, { from: y, to: x }].filter((m) => R.canMerge(b, m.from, m.to));
+    function obvious(b) {
+        const legal = R.legalMoves(b), pairs = new Set(legal.map((m) => Math.min(m.from, m.to) + ':' + Math.max(m.from, m.to)));
+        if (pairs.size === 1) { const [x, y] = [...pairs][0].split(':').map(Number); return fine(b, both(b, x, y)); }
+        if (!b.cells.every((c) => !R.isTile(c) || c.type === 'num' || c.type === 'mul')) return null;
+        for (let x = 0; x < b.cells.length; x++) {
+            const c = b.cells[x];
+            if (!c || c.type !== 'num') continue;
+            const near = R.neighbors(b, x).filter((j) => R.isTile(b.cells[j]));
+            const partners = near.filter((j) => b.cells[j].type === 'mul' || b.cells[j].value <= c.value);
+            if (partners.length !== 1 || b.cells[partners[0]].type !== 'num' || b.cells[partners[0]].value !== c.value) continue;
+            return near.length === 1 ? [{ from: x, to: partners[0] }] : fine(b, both(b, x, partners[0]));
+        }
+        return null;
+    }
+    function chance(b) {
+        const n = R.tileCount(b);
+        if (n === 1) return 1;
+        const k = R.key(b);
+        if (memo.has(k)) return memo.get(k);
+        const moves = obvious(b) || fine(b, R.legalMoves(b));
+        const p = moves.length ? moves.reduce((s, m) => s + chance(R.applyMerge(b, m)), 0) / moves.length : 0;
+        memo.set(k, p);
+        return p;
+    }
+    return chance(board);
+}
+
 // Human path: the replayable easiest-step walk. Trial merges: as defined, at least the
 // minimum on a solvable board, reproducible, capped, and finite on lost boards.
-let backtracked = 0;
+let backtracked = 0, guessed = 0;
 for (let n = 0; n < 40; n++) {
     const muls = n % 3 === 0 ? 1 : 0;
     const built = Gen.reverseBuild(rng, 3, 3, exps[n % exps.length] + muls, styles[(n + 1) % styles.length], muls);
@@ -190,8 +227,18 @@ for (let n = 0; n < 40; n++) {
     if (merges > R.tileCount(built.board) - 1) backtracked++;
     assert.equal(Reasoning.trialMerges(R, built.board), merges, 'reproducible');
     assert.equal(Reasoning.trialMerges(R, built.board, 3), Math.min(3, merges), 'capped');
+    const chance = Reasoning.firstTryWin(R, built.board);
+    assert.ok(Math.abs(chance - firstTryReference(built.board)) < 1e-12, 'first-try chance follows the definition on ' + R.serialize(built.board));
+    assert.equal(Reasoning.firstTryWin(R, built.board, Solver.createSolver(R, { maxStates: 20 })), chance, 'a solver only prunes');
+    if (chance < 1) guessed++;
 }
 assert.ok(backtracked > 0, 'some boards need undoing');
+assert.ok(guessed > 0, 'some boards can be lost on the first try');
+assert.equal(Reasoning.firstTryWin(R, R.parse('2 2')), 1);
+assert.equal(Reasoning.firstTryWin(R, R.parse('4 2 2')), 1, 'the only pair merges the way that is not visibly lost');
+assert.equal(Reasoning.firstTryWin(R, R.parse('2 2 1')), 0);
+assert.equal(Reasoning.firstTryWin(R, R.parse('x2 2 2')), 1, 'the lone 2 merges into its partner first');
+assert.equal(Reasoning.firstTryWin(R, R.parse('2 2/2 2')), 1, 'every first merge leaves a winnable pair');
 assert.equal(Reasoning.humanPath(R, R.parse('2 2 1')).complete, false);
 assert.equal(Reasoning.humanPath(R, R.parse('2 2 1')).steps.length, 0);
 assert.equal(Reasoning.trialMerges(R, R.parse('2 2')), 1);
@@ -228,4 +275,4 @@ for (const text of ['2 * 2/4 4 8', '* 1 1/2 * 4', '4 4 */8 * 16', '1 1 */2 4 *',
 assert.ok(starSteps > 5, `special-tile steps exercised (${starSteps})`);
 
 console.log(`fuse reasoning: ok (${states} states, ${mulStates} with a ×2 tile, ${unsolvableStates} lost, ${unexplained} lost without a deduction; ` +
-    `next steps ${JSON.stringify(techniques)}; refutations ${JSON.stringify(reasons)})`);
+    `next steps ${JSON.stringify(techniques)}; refutations ${JSON.stringify(reasons)}; first-try reference on 40 boards, ${guessed} losable)`);
