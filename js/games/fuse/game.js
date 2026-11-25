@@ -15,6 +15,7 @@
         ['#0b564f', '#ffffff'], ['#08433d', '#ffffff'],
     ];
     const MUL_COLOURS = ['#7c3aed', '#ffffff'];
+    const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 
     Object.assign(PC.i18n.STRINGS.en, {
         fuseName: 'Fuse',
@@ -40,9 +41,12 @@
         fuseHelp3Html: 'Tap a tile, then a highlighted neighbour, or drag one onto the other. Keyboard: arrows move, <strong>Enter</strong> selects and merges, <strong>Esc</strong> cancels, <strong>Ctrl+Z</strong> undoes.',
         fuseHelp4: 'Hint explains one merge you can work out. Reveal shows a full solution from the current position.',
         fuseWhyFinal: 'Two tiles left: merging them finishes the puzzle, in either direction.',
-        fuseWhyLone: (v) => `This ${v} touches only another ${v}, so they must merge.`,
+        fuseWhyLone: (a, b) => `${cap(a)} touches only ${b}, so they must merge.`,
         fuseWhyOnlyPair: 'This is the only pair of tiles that can merge, so it has to merge now.',
-        fuseWhyForcedPair: (v) => `Its other neighbours are empty or larger numbers, so the ${v} beside it is its only partner, and they must merge before either one changes.`,
+        fuseWhyForcedPair: (a, b, v) => `Apart from ${b}, ${a} touches only empty cells and larger numbers, so these two ${v}s must merge before either one changes.`,
+        fuseTop: (v) => `the top ${v}`, fuseBottom: (v) => `the bottom ${v}`, fuseLeft: (v) => `the left ${v}`, fuseRight: (v) => `the right ${v}`,
+        fuseNewTile: (v) => `the new ${v}`, fuseRingedTile: (v) => `the ${v} ringed in red`, fuseRingedTwo: (v) => `the two ${v}s ringed in red`,
+        fuseTile: (v) => `the ${v}`, fuseTwo: (v) => `two ${v}s`, fuseAnd: (a, b) => `${a} and ${b}`,
         fuseWhyEliminate: (n) => (n === 1 ? 'Only one merge works here: the other one fails.' : `Only one merge works here: the other ${n} all fail.`),
         fuseWhyFree: (n) => (n ? `${n === 1 ? 'One merge here fails' : `${n} merges here fail`}; the rest all work.` : 'Every merge here works.'),
         fuseWhyTrial: (k) => (k === 1 ? 'Merging these two the right way leaves a final pair that finishes the puzzle.' : `Merging these two the right way makes each of the next ${k} merges forced, ending in a single tile.`),
@@ -54,12 +58,12 @@
         fuseDirFree: 'Either direction works.',
         fuseExample: (why) => `For example, the red merge fails: then ${why}.`,
         fuseWhyDead: 'nothing can merge any more',
-        fuseWhyStuck: (v) => `the ${v} touches only empty cells or larger numbers`,
-        fuseWhyRivals: (v) => `two ${v}s depend on the same partner`,
+        fuseWhyStuck: (tile) => `${tile} touches only empty cells or larger numbers`,
+        fuseWhyRivals: (tiles) => `${tiles} depend on the same partner`,
         fuseWhyOdd: (v, n) => `the ${v}s, the smallest tiles, form a group of ${n}; they pair only with each other, so one is always left over`,
         fuseWhySplit: 'the tiles are split into groups that can never meet',
         fuseWhySubtotal: (below, sum) => `a group of tiles below ${below} totals ${sum}, but such tiles only leave their group as whole ${below}s`,
-        fuseWhyHalf: (v) => `the ${v} is half the total, so it can only merge last, yet without it the other tiles are cut apart`,
+        fuseWhyHalf: (tile) => `${tile} is half the total, so it can only merge last, yet without it the other tiles are cut apart`,
         fuseWhyBlocked: (v) => `the ${v}s that must pair up can merge in neither direction`,
         fuseWhyNoSurvivor: 'every possible next merge fails',
         fuseWhyAhead: (k, why) => `it forces ${k === 1 ? 'one more merge' : `${k} more merges`}, and then ${why}`,
@@ -96,9 +100,12 @@
         fuseHelp3Html: '點一個方塊，再點標示的鄰居；也可以直接拖過去。鍵盤：方向鍵移動，<strong>Enter</strong>選取並合併，<strong>Esc</strong>取消，<strong>Ctrl+Z</strong>復原。',
         fuseHelp4: '「提示」會說明一步推得出來的合併；「解答」會顯示從目前局面到完成的一組解法。',
         fuseWhyFinal: '只剩兩塊：把它們合併就完成了，方向不拘。',
-        fuseWhyLone: (v) => `這個${v}只碰到另一個${v}，只能和它合併。`,
+        fuseWhyLone: (a, b) => `${a}只碰到${b}，兩者只能合併。`,
         fuseWhyOnlyPair: '這是盤面上唯一能合併的一組方塊，現在就得合併。',
-        fuseWhyForcedPair: (v) => `它的其他鄰居都是空格或更大的數字，所以只能和旁邊的${v}合併，而且要趁兩者都還沒改變前合併。`,
+        fuseWhyForcedPair: (a, b, v) => `${a}除了${b}以外，其他鄰居都是空格或更大的數字，所以這兩個${v}必須在任一個改變前合併。`,
+        fuseTop: (v) => `上面的${v}`, fuseBottom: (v) => `下面的${v}`, fuseLeft: (v) => `左邊的${v}`, fuseRight: (v) => `右邊的${v}`,
+        fuseNewTile: (v) => `合併出的${v}`, fuseRingedTile: (v) => `紅框的${v}`, fuseRingedTwo: (v) => `紅框的兩個${v}`,
+        fuseTile: (v) => `${v}`, fuseTwo: (v) => `兩個${v}`, fuseAnd: (a, b) => `${a}和${b}`,
         fuseWhyEliminate: (n) => (n === 1 ? '這裡只有一種合併可行，另一種會失敗。' : `這裡只有一種合併可行，其他${n}種都會失敗。`),
         fuseWhyFree: (n) => (n ? `這裡有${n}種合併會失敗，其餘都可行。` : '這裡每種合併都可行。'),
         fuseWhyTrial: (k) => (k === 1 ? '這兩塊朝對的方向合併後，剩下的一對就能完成。' : `這兩塊朝對的方向合併後，接下來${k}次合併都是被迫的，最後只剩一塊。`),
@@ -110,12 +117,12 @@
         fuseDirFree: '兩個方向都可以。',
         fuseExample: (why) => `例如紅色的合併會失敗：那樣${why}。`,
         fuseWhyDead: '再也沒有能合併的方塊',
-        fuseWhyStuck: (v) => `${v}只碰到空格或更大的數字`,
-        fuseWhyRivals: (v) => `兩個${v}得搶同一個夥伴`,
+        fuseWhyStuck: (tile) => `${tile}只碰到空格或更大的數字`,
+        fuseWhyRivals: (tiles) => `${tiles}得搶同一個夥伴`,
         fuseWhyOdd: (v, n) => `最小的${v}形成${n}塊一群，只能彼此配對，總會剩下一塊`,
         fuseWhySplit: '方塊被分成永遠碰不到的幾群',
         fuseWhySubtotal: (below, sum) => `一群小於${below}的方塊總和是${sum}，但這種方塊只能湊成完整的${below}才離開這一群`,
-        fuseWhyHalf: (v) => `${v}佔總和一半，只能在最後合併，但少了它其他方塊就被隔開`,
+        fuseWhyHalf: (tile) => `${tile}佔總和一半，只能在最後合併，但少了它其他方塊就被隔開`,
         fuseWhyBlocked: (v) => `必須配對的${v}兩個方向都併不了`,
         fuseWhyNoSurvivor: '下一步的每種合併都會失敗',
         fuseWhyAhead: (k, why) => `會被迫再合併${k}次，接著${why}`,
@@ -252,6 +259,7 @@
         if (reveal) reveal.forEach((m, k) => revealStep(over, b, m, k + 1));
         for (const j of targets) ring(over, b, j, 'fuse-target' + (drag && drag.over === j ? ' over' : ''), -3);
         for (const i of marks.rings) ring(over, b, i, 'fuse-hint-ring' + (marks.error ? ' error' : ''), -5);
+        for (const i of marks.refs) ring(over, b, i, 'fuse-ref-ring', marks.rings.includes(i) ? 5 : -5);
         for (const m of marks.arrows) arrow(over, b, m.from, m.to, m.kind, m.both);
         if (drag) drawTile(over, b, drag.from, b.cells[drag.from], 'selected lifted', { x: drag.dx, y: drag.dy });
         if (state.keyboard && document.activeElement === svg) ring(over, b, state.cursor, 'fuse-cursor', -7);
@@ -301,8 +309,16 @@
         const refs = step.eliminated || [];
         return refs.reduce((best, r) => (!best || r.level < best.level ? r : best), null);
     }
+    // The refutation a hint's text spells out: the other direction of its pair, else the red merge.
+    function explained(s) { return s.direction === 'refuted' ? s.refuted[0] : exampleOf(s); }
+    // Tiles a refutation names (see `why`) that are still on the board, ringed in red. The tile
+    // its merge would make is called the new one instead.
+    const NAMED = ['stuck', 'rivals', 'half'];
+    function ringedBy(ref) {
+        return ref && NAMED.includes(ref.reason.id) ? ref.reason.cells.filter((c) => c !== ref.move.to) : [];
+    }
     function hintMarks() {
-        const out = { rings: [], arrows: [], error: false }, h = state.hint, b = current();
+        const out = { rings: [], refs: [], arrows: [], error: false }, h = state.hint, b = current();
         if (!h || !b || h.key !== R.key(b)) return out;
         const s = h.step;
         if (!s.move) {
@@ -311,6 +327,7 @@
             return out;
         }
         out.rings = (s.pair || [s.move.from, s.move.to]).slice();
+        out.refs = ringedBy(explained(s));
         const example = exampleOf(s);
         if (example) out.arrows.push({ from: example.move.from, to: example.move.to, kind: 'refuted' });
         const moves = shownMoves(s);
@@ -321,37 +338,52 @@
         }
         return out;
     }
-    function why(r) {
+    // `made` is the cell a refuted merge fills. The other tiles a reason names are ringed in red:
+    // by ringedBy in a move hint, by the error rings on a lost position. Lookahead reasons
+    // describe a later position, so their tiles stay `plain`.
+    function why(r, made, plain) {
+        const one = (c) => t(plain ? 'fuseTile' : c === made ? 'fuseNewTile' : 'fuseRingedTile', r.value);
         switch (r.id) {
             case 'dead-end': return t('fuseWhyDead');
-            case 'stuck': return t('fuseWhyStuck', r.value);
-            case 'rivals': return t('fuseWhyRivals', r.value);
+            case 'stuck': return t('fuseWhyStuck', one(r.cells[0]));
+            case 'rivals': return t('fuseWhyRivals', plain ? t('fuseTwo', r.value)
+                : r.cells.includes(made) ? t('fuseAnd', t('fuseNewTile', r.value), t('fuseRingedTile', r.value)) : t('fuseRingedTwo', r.value));
             case 'odd-group': return t('fuseWhyOdd', r.value, r.cells.length);
             case 'split': return t('fuseWhySplit');
             case 'subtotal': return t('fuseWhySubtotal', r.below, r.sum);
-            case 'half': return t('fuseWhyHalf', r.value);
+            case 'half': return t('fuseWhyHalf', one(r.cells[0]));
             case 'pair-blocked': return t('fuseWhyBlocked', r.value);
             case 'no-survivor': return t('fuseWhyNoSurvivor');
-            case 'lookahead': return r.chain.length ? t('fuseWhyAhead', r.chain.length, why(r.final)) : why(r.final);
+            case 'lookahead': return r.chain.length ? t('fuseWhyAhead', r.chain.length, why(r.final, null, true)) : why(r.final, null, true);
             default: return t('fuseWhyGeneric');
         }
     }
     function directionText(s) {
         if (s.direction === 'lone') return t('fuseDirLone');
         if (s.direction === 'only') return t('fuseDirOnly');
-        if (s.direction === 'refuted') return t('fuseDirRefuted', why(s.refuted[0].reason));
+        if (s.direction === 'refuted') return t('fuseDirRefuted', why(s.refuted[0].reason, s.refuted[0].move.to));
         return s.freeDirection ? t('fuseDirFree') : '';
+    }
+    // Both tiles of a pair look alike inside their rings, so each is named by where it sits
+    // relative to the other: the anchor first, then its partner.
+    function pairNames(b, s) {
+        const a = s.anchor, p = s.pair[0] === a ? s.pair[1] : s.pair[0];
+        const side = (i, j) => {
+            const ri = Math.floor(i / b.cols), rj = Math.floor(j / b.cols);
+            return t(ri < rj ? 'fuseTop' : ri > rj ? 'fuseBottom' : i < j ? 'fuseLeft' : 'fuseRight', label(b.cells[i]));
+        };
+        return [side(a, p), side(p, a)];
     }
     function whyText(s, b) {
         const v = s.anchor != null ? label(b.cells[s.anchor]) : '';
         const example = exampleOf(s);
         switch (s.technique) {
             case 'final': return t('fuseWhyFinal');
-            case 'lone': return join([t('fuseWhyLone', v), directionText(s)]);
+            case 'lone': return join([t('fuseWhyLone', ...pairNames(b, s)), directionText(s)]);
             case 'only-pair': return join([t('fuseWhyOnlyPair'), directionText(s)]);
-            case 'forced-pair': return join([t('fuseWhyForcedPair', v), directionText(s)]);
-            case 'eliminate': return join([t('fuseWhyEliminate', s.eliminated.length), example && t('fuseExample', why(example.reason))]);
-            case 'free': return join([t('fuseWhyFree', s.eliminated.length), example && t('fuseExample', why(example.reason))]);
+            case 'forced-pair': return join([t('fuseWhyForcedPair', ...pairNames(b, s), v), directionText(s)]);
+            case 'eliminate': return join([t('fuseWhyEliminate', s.eliminated.length), example && t('fuseExample', why(example.reason, example.move.to))]);
+            case 'free': return join([t('fuseWhyFree', s.eliminated.length), example && t('fuseExample', why(example.reason, example.move.to))]);
             case 'trial': return t('fuseWhyTrial', s.chain.length - 1);
             default: return s.pair ? t('fuseWhySearchPair') : t('fuseWhySearch');
         }

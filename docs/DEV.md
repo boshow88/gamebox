@@ -1635,6 +1635,13 @@ and a free choice or free direction just says the merges work. On a lost positio
 banner turns red, gives the contradiction and the number of merges to undo back to
 the latest solvable position.
 
+Both tiles of a ringed pair look alike, so the text names each by where it sits
+relative to the other ("the top 1", "the bottom 1"). A refutation names its tiles too.
+The tile the refuted merge would make is "the new" one. Any other tile it names is
+still on the board, gets a dashed red ring (`fuse-ref-ring`) and is called "the 2
+ringed in red". On a lost position the error rings already mark the reason's tiles.
+Lookahead reasons describe a later position, so their tiles stay unnamed.
+
 ### Difficulty
 
 Two measures, both of a player who never makes a merge whose result is `visiblyLost`

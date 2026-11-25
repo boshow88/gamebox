@@ -222,6 +222,12 @@ function connect(wsUrl) {
         const hasClass = (sel, cls) => evaluate(`document.querySelector(${JSON.stringify(sel)}).classList.contains(${JSON.stringify(cls)})`);
         const urlParam = (name) => evaluate(`new URLSearchParams(location.search).get(${JSON.stringify(name)})`);
         const revealNumbers = () => evaluate(`[...document.querySelectorAll('#board .fuse-reveal-num')].map((t) => Number(t.textContent))`);
+        // A tile the open hint calls "ringed in red" has a red ring, and only then.
+        const refRingsMatch = async () => {
+            const says = await text('#hint-banner'), rings = await count('#board .fuse-ref-ring');
+            assert.equal(rings > 0, /ringed in red/.test(says), `red rings ${rings} for: ${says}`);
+            if (/the two \d+s ringed in red/.test(says)) assert.equal(rings, 2, 'two tiles ringed in red');
+        };
         // The page chrome a player sees, to compare with the other LinkedIn-style puzzles.
         const layoutOf = () => evaluate(`(() => {
             const label = (el) => { const l = el.querySelector('[data-i18n]'); return l ? l.dataset.i18n : el.textContent.trim(); };
@@ -381,8 +387,11 @@ function connect(wsUrl) {
         assert.equal(await hidden('#hint-banner'), false);
         assert.equal(await count('#hint-banner .hint-tier'), 0, 'no badges, as in the other puzzles');
         assert.equal(await hasClass('#hint-banner', 'error'), false);
-        assert.ok((await text('#hint-banner')).length > 20, 'the hint explains itself');
+        const hintSays = await text('#hint-banner');
+        assert.ok(hintSays.length > 20, 'the hint explains itself');
         assert.ok((await count('#board .fuse-hint-ring')) > 0, 'the hint highlights the pair');
+        if (['lone', 'forced-pair'].includes(step.technique)) assert.match(hintSays, /\b(top|bottom|left|right) \d/, 'the two tiles of a pair are named by position');
+        await refRingsMatch();
         assert.ok((await count('#board line.fuse-arrow.move')) > 0, 'the hint shows the merge');
         assert.equal(await count('#board line.fuse-arrow.refuted'), (step.eliminated || []).length ? 1 : 0, 'at most one failing merge is drawn');
         await shot('hint');
@@ -516,6 +525,7 @@ function connect(wsUrl) {
         const hintMs = Date.now() - t0;
         assert.equal(await hidden('#hint-banner'), false);
         assert.ok(hintMs < 3000, `a hard hint answers quickly (${hintMs} ms)`);
+        await refRingsMatch();
         await shot('hint-mul');
         await clickEl('#hint-btn');
         t0 = Date.now();

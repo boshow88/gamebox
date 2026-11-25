@@ -754,7 +754,8 @@ one-attempt fallback, unknown options and the async wrapper.
 The browser check serves the repo locally, stubs `js/net/net.js` (Firebase is never
 loaded) and drives headless Chrome over its debugging protocol. It first compares
 the toolbar, action row, status row and the blocks under the board with Tango's. It
-then covers mouse tap-tap and drag, keyboard, Ctrl+Z, reset, the toggling hint, the
+then covers mouse tap-tap and drag, keyboard, Ctrl+Z, reset, the toggling hint (pair
+tiles named by position, red rings exactly when the text mentions them), the
 lost-position hint, the dead-end warning, the solution overlay (including the "No
 solution from here" warning), win, undo out of a win, New Game, and Hard serving 4×4.
 The main flow uses a 3×4 or 4×3 board of numbers only and checks its proportions. On

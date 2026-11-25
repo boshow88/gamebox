@@ -1504,8 +1504,9 @@ so it always has a solution, and often several.
 - **Undo** steps back one merge (up to 64), including out of a win. **Reset**
   returns to the opening position and can itself be undone.
 - **Hint (💡)**: highlights one merge you can work out, draws it as an arrow and
-  explains why it is right, sometimes pointing at a failing merge in red. Press
-  again to hide it. When it draws several arrows, any of them works. When no simple
+  explains why it is right, sometimes pointing at a failing merge in red. It names
+  the two highlighted tiles by where they sit ("the top 1"), and rings in red any
+  other tile it mentions. Press again to hide it. When it draws several arrows, any of them works. When no simple
   deduction covers the position, the hint just shows a winning merge. On a lost
   position the hint says so, explains why, and tells you how many merges to undo.
 - **Reveal**: toggles a full solution from the current position, as numbered green
