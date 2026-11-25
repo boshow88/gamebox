@@ -1752,8 +1752,10 @@ solution from here", only while Reveal is on, so a lost position is not given aw
 unasked. The pill uses its own id (`sumbreak-dead-pill`), so the shell's conflict counter
 leaves it alone.
 
-The shared puzzle top bar with "Sumbreak" is wider than a phone, so below 400 px the
-page (`.sumbreak-shell`) shrinks its title, icon and gaps, as Impressions and Darts do.
+On phones the top bar has to stay on one line: at the desktop sizes, a long name such as
+"Sumbreak" or "Nonogram" made it wider than a 320 px screen. The page then grew past the
+screen and taps landed on the wrong tile. `css/puzzle.css` therefore shrinks the title, icon
+and gaps below 400 px and again below 340 px, on every puzzle page.
 
 Rectangular boards set `--sumbreak-aspect` (viewBox width / height) on the SVG, which keeps
 their proportions inside the same 420 px square as a square board. A ×2 tile is drawn

@@ -649,6 +649,15 @@ function connect(wsUrl) {
             await expectBoard(after0, 'undo on mobile');
             noErrors('sumbreak mobile ' + width);
         }
+        // The top bar comes from the shared puzzle styles, so check it on the other pages too.
+        for (const id of SMOKE) {
+            await open(`/games/${id}.html`);
+            await waitFor(`(() => { const b = document.querySelector('#board'); return !!b && (b.tagName === 'CANVAS' || b.childElementCount > 0); })()`, id + ' board', 20000);
+            const bar = await evaluate(`({ inner: innerWidth, right: Math.max(...[...document.querySelectorAll('.game-topbar *')].map((e) => e.getBoundingClientRect().right)) })`);
+            assert.equal(bar.inner, 320, `${id} is no wider than a 320px phone`);
+            assert.ok(bar.right <= 312, `${id} top bar fits at 320px (right edge ${Math.round(bar.right)})`);
+            noErrors(id + ' at 320px');
+        }
         await cdp.send('Emulation.setTouchEmulationEnabled', { enabled: false });
         await cdp.send('Emulation.clearDeviceMetricsOverride');
 

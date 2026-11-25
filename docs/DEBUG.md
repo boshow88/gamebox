@@ -771,7 +771,9 @@ It also checks that an old link's `size` is ignored and
 dropped, that the old address `games/fuse.html` forwards with its query and fragment
 to the same puzzle, both languages, reduced motion and the default medium start. Touch is
 tested at 375 and 320 px on a 4×4 and a rectangular board, with no horizontal
-overflow: the page must not widen past the screen and the top bar must fit inside it. Finally it checks the launcher card and smoke-loads the other puzzle pages. Every UI merge is mirrored by the Node engine and the rendered board
+overflow: the page must not widen past the screen and the top bar must fit inside it.
+The other puzzle pages share that top bar, so each is also loaded at 320 px and must fit.
+Finally it checks the launcher card and smoke-loads the other puzzle pages. Every UI merge is mirrored by the Node engine and the rendered board
 compared, which also proves the browser and Node generate the same puzzle for a
 seed. `--shots` saves screenshots of key states to the temp folder.
 

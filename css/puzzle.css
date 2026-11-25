@@ -1496,17 +1496,6 @@
 /* ----------------------------------------------------------------
    Sumbreak (sumbreak-* classes)
    ---------------------------------------------------------------- */
-/* The top bar with "Sumbreak" is wider than a 375px phone at the shared sizes. */
-@media (max-width: 400px) {
-    .sumbreak-shell .game-topbar { gap: var(--space-sm); }
-    .sumbreak-shell .game-title { font-size: 1.05rem; gap: 6px; white-space: nowrap; }
-    .sumbreak-shell .game-title .game-icon { width: 28px; height: 28px; font-size: 1.25rem; }
-    .sumbreak-shell .back-link { padding-inline: 2px; }
-}
-@media (max-width: 340px) {
-    .sumbreak-shell .game-topbar { gap: 4px; }
-    .sumbreak-shell .game-title { font-size: 0.95rem; }
-}
 /* overflow: the win pop scales outlined edge tiles slightly past the viewBox. Boards may be
    rectangular: --sumbreak-aspect (width / height, set by the renderer) keeps their proportions
    inside the same 420px square. */
@@ -1606,4 +1595,18 @@
         grid-template-columns: 1fr;
     }
     .topbar-spacer { display: none; }
+}
+
+/* The top bar (Menu, icon and name, EN/中) must stay on one line within a phone's width:
+   anything wider grows the page past the screen and taps land on the wrong spot. */
+@media (max-width: 400px) {
+    .game-topbar { gap: var(--space-sm); }
+    .game-title { font-size: 1.05rem; gap: 6px; white-space: nowrap; }
+    .game-title .game-icon { width: 28px; height: 28px; font-size: 1.25rem; }
+    .back-link { padding-inline: 2px; }
+}
+@media (max-width: 340px) {
+    .game-topbar { gap: 4px; }
+    .game-title { font-size: 0.95rem; gap: 4px; }
+    .game-title .game-icon { width: 24px; height: 24px; }
 }
