@@ -18,8 +18,8 @@
     const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 
     Object.assign(PC.i18n.STRINGS.en, {
-        fuseName: 'Fuse',
-        fuseBoardAria: 'Fuse board. Arrow keys move, Enter or Space selects and merges, Escape cancels.',
+        fuseName: 'Sumbreak',
+        fuseBoardAria: 'Sumbreak board. Arrow keys move, Enter or Space selects and merges, Escape cancels.',
         fuseResetTitle: 'Start this puzzle over',
         fuseHintTitle: 'Explain one merge you can work out',
         fuseDeadPill: 'No merges left', fuseNoSolution: 'No solution from here',
@@ -38,8 +38,8 @@
         fuseHelp1: 'Merge two touching tiles with the same number: the tile you move disappears and the one it joins doubles.',
         fuseHelp2: 'Emptied cells stay empty and nothing slides, so plan which tiles meet. Reduce the board to a single tile to win.',
         fuseHelpMul: 'A ×2 tile merges with any touching number and doubles it, in either direction: drag 8 onto ×2, or ×2 onto 8, to make 16. It counts as a tile, so every ×2 must be used.',
-        fuseHelp3Html: 'Tap a tile, then a highlighted neighbour, or drag one onto the other. Keyboard: arrows move, <strong>Enter</strong> selects and merges, <strong>Esc</strong> cancels, <strong>Ctrl+Z</strong> undoes.',
-        fuseHelp4: 'Hint explains one merge you can work out. Reveal shows a full solution from the current position.',
+        fuseHelp3Html: 'Tap a tile, then a highlighted neighbour, or drag one onto the other. Keyboard: arrows move, <strong>Enter</strong> or <strong>Space</strong> selects and merges, <strong>Esc</strong> cancels, <strong>Ctrl+Z</strong> undoes.',
+        fuseHelp4: 'Hint explains one merge you can work out; once the position can no longer be solved, it says how many merges to undo. Reveal shows a full solution from the current position, or warns that there is none.',
         fuseWhyFinal: 'Two tiles left: merging them finishes the puzzle, in either direction.',
         fuseWhyLone: (a, b) => `${cap(a)} touches only ${b}, so they must merge.`,
         fuseWhyOnlyPair: 'This is the only pair of tiles that can merge, so it has to merge now.',
@@ -77,8 +77,8 @@
         fuseUnknown: 'This position is too complex to check.',
     });
     Object.assign(PC.i18n.STRINGS.zh, {
-        fuseName: '融合',
-        fuseBoardAria: '融合棋盤。方向鍵移動，Enter或空白鍵選取並合併，Esc取消。',
+        fuseName: 'Sumbreak',
+        fuseBoardAria: 'Sumbreak 棋盤。方向鍵移動，Enter或空白鍵選取並合併，Esc取消。',
         fuseResetTitle: '從頭再玩這一題',
         fuseHintTitle: '說明一步推得出來的合併',
         fuseDeadPill: '無法再合併', fuseNoSolution: '此局面已無解',
@@ -97,8 +97,8 @@
         fuseHelp1: '把兩個相鄰且數字相同的方塊合併：移動的那塊消失，被併入的那塊數字加倍。',
         fuseHelp2: '清空的格子會一直空著，方塊也不會滑動，要先想好哪些方塊該碰在一起。最後只剩一塊即過關。',
         fuseHelpMul: '×2 方塊可以和任何相鄰的數字合併，讓那個數字變兩倍，方向不拘：把 8 拖到 ×2 上，或把 ×2 拖到 8 上，都會變成 16。×2 也算一塊，每個 ×2 都要用掉才能過關。',
-        fuseHelp3Html: '點一個方塊，再點標示的鄰居；也可以直接拖過去。鍵盤：方向鍵移動，<strong>Enter</strong>選取並合併，<strong>Esc</strong>取消，<strong>Ctrl+Z</strong>復原。',
-        fuseHelp4: '「提示」會說明一步推得出來的合併；「解答」會顯示從目前局面到完成的一組解法。',
+        fuseHelp3Html: '點一個方塊，再點標示的鄰居；也可以直接拖過去。鍵盤：方向鍵移動，<strong>Enter</strong>或<strong>空白鍵</strong>選取並合併，<strong>Esc</strong>取消，<strong>Ctrl+Z</strong>復原。',
+        fuseHelp4: '「提示」會說明一步推得出來的合併；局面已經無解時，會告訴你要復原幾步。「解答」會顯示從目前局面到完成的一組解法，無解時則會提醒。',
         fuseWhyFinal: '只剩兩塊：把它們合併就完成了，方向不拘。',
         fuseWhyLone: (a, b) => `${a}只碰到${b}，兩者只能合併。`,
         fuseWhyOnlyPair: '這是盤面上唯一能合併的一組方塊，現在就得合併。',

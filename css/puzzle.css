@@ -1494,8 +1494,19 @@
 .hashi-reveal-line { stroke: var(--game-color, #8a5a2c); opacity: 0.35; stroke-linecap: round; }
 
 /* ----------------------------------------------------------------
-   Fuse
+   Sumbreak (fuse-* classes)
    ---------------------------------------------------------------- */
+/* The top bar with "Sumbreak" is wider than a 375px phone at the shared sizes. */
+@media (max-width: 400px) {
+    .fuse-shell .game-topbar { gap: var(--space-sm); }
+    .fuse-shell .game-title { font-size: 1.05rem; gap: 6px; white-space: nowrap; }
+    .fuse-shell .game-title .game-icon { width: 28px; height: 28px; font-size: 1.25rem; }
+    .fuse-shell .back-link { padding-inline: 2px; }
+}
+@media (max-width: 340px) {
+    .fuse-shell .game-topbar { gap: 4px; }
+    .fuse-shell .game-title { font-size: 0.95rem; }
+}
 /* overflow: the win pop scales outlined edge tiles slightly past the viewBox. Boards may be
    rectangular: --fuse-aspect (width / height, set by the renderer) keeps their proportions
    inside the same 420px square. */

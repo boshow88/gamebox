@@ -1455,9 +1455,12 @@ stay fixed; only the camera rotates. Clear every piece to finish a puzzle.
 
 ---
 
-## Fuse
+## Sumbreak
 
 **Goal.** Merge touching tiles until a single tile remains.
+
+The name and rules follow LinkedIn's Sumbreak, in both languages. This version has
+×2 wildcards but not LinkedIn's +3, so every number is a power of two.
 
 ### Board
 

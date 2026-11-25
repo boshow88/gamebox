@@ -276,9 +276,9 @@
             'unshackle_name': 'Unshackle',
             'unshackle_tagline': 'A different angle. A way out.',
             'unshackle_body': 'Untangle interlocking frames: pull them free, match colours in a five-slot tray, or partly pull them out to let others pass.',
-            'fuse_name': 'Fuse',
+            'fuse_name': 'Sumbreak',
             'fuse_tagline': 'Pair them up. End with one.',
-            'fuse_body': 'Merge touching equal numbers into doubles. Emptied cells stay empty, so plan the pairs until a single tile remains.',
+            'fuse_body': 'Merge touching equal numbers into doubles; a ×2 tile doubles any number it touches. Emptied cells stay empty, so plan the pairs until a single tile remains.',
         },
         zh: {
             subtitle: '一個小遊戲合輯。',
@@ -422,9 +422,9 @@
             'unshackle_name': '枷鎖',
             'unshackle_tagline': '轉個角度，找到出口。',
             'unshackle_body': '解開交錯的立體枷鎖：依序拆解、五格暫存湊三消，或半抽零件替彼此讓路。',
-            'fuse_name': '融合',
+            'fuse_name': 'Sumbreak',
             'fuse_tagline': '兩兩相併，合而為一。',
-            'fuse_body': '把相鄰的相同數字合併成兩倍。清空的格子會一直空著，要規劃好配對，直到只剩一塊。',
+            'fuse_body': '把相鄰的相同數字合併成兩倍；×2 方塊能讓任何相鄰的數字變兩倍。清空的格子會一直空著，要規劃好配對，直到只剩一塊。',
         },
     };
 
@@ -455,7 +455,7 @@
         image: '<rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>',
         crown: '<path d="M11.562 3.266a.5.5 0 0 1 .876 0L15.39 8.87a1 1 0 0 0 1.516.294L21.183 5.5a.5.5 0 0 1 .798.519l-2.834 10.246a1 1 0 0 1-.956.734H5.81a1 1 0 0 1-.957-.734L2.02 6.02a.5.5 0 0 1 .798-.519l4.276 3.664a1 1 0 0 0 1.516-.294z"/><path d="M5 21h14"/>',
         zap: '<path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/>',
-        // lucide: combine (Fuse); mirror of js/puzzle.js
+        // lucide: combine (Sumbreak); mirror of js/puzzle.js
         combine: '<path d="M14 3a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1"/><path d="M19 3a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1"/><path d="m7 15 3 3"/><path d="m7 21 3-3H5a2 2 0 0 1-2-2v-2"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="3" width="7" height="7" rx="1"/>',
         // lucide: coins (modified) — front coin "2", back coin "3" (Prime Zuma); mirror of js/arcade.js
         coins: '<circle cx="8" cy="8" r="6"/><path d="M18.09 10.37A6 6 0 1 1 10.34 18"/><path d="M6.3 7.1Q6.3 5.8 8 5.8 9.7 5.8 9.7 7.3 9.7 8.6 6.3 10.2L9.8 10.2"/><g transform="rotate(12 16.3 16)"><path d="M14.8 14.1Q16 13.3 17.2 14.3 18 15.2 16.2 16.1 18 17 17.1 18 15.9 18.8 14.7 17.9"/></g>',

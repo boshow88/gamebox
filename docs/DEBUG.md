@@ -708,7 +708,7 @@ first `ArcadeAuth.onAuth` callback, `arcade-net-ready`, and `config/admins` read
 that account's browser. A signed-out timing sample cannot establish its token
 restoration or server-read latency. Do not share account tokens in diagnostics.
 
-## Fuse checks
+## Sumbreak checks
 
 ```text
 node tools/fuse/rules-check.js
@@ -770,7 +770,7 @@ blocked, the page falls back to the main thread and serves the same board as Nod
 It also checks that an old link's `size` is ignored and
 dropped, both languages, reduced motion and the default medium start. Touch is
 tested at 375 and 320 px on a 4×4 and a rectangular board, with no horizontal
-overflow. Finally it checks the launcher card and smoke-loads the other puzzle pages. Every UI merge is mirrored by the Node engine and the rendered board
+overflow: the page must not widen past the screen and the top bar must fit inside it. Finally it checks the launcher card and smoke-loads the other puzzle pages. Every UI merge is mirrored by the Node engine and the rendered board
 compared, which also proves the browser and Node generate the same puzzle for a
 seed. `--shots` saves screenshots of key states to the temp folder.
 

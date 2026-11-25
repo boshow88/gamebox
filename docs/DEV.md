@@ -59,7 +59,7 @@ js/games/birthday.js         Bilingual birthday-only ceremony and replayable can
 css/birthday.css             Birthday ceremony and homepage entry visuals
 js/games/colour-ladder.js    Small game entry with logic + Canvas 2D rendering
 js/games/unshackle/         Larger subsystem split into engine, view and game
-js/games/fuse/              Fuse rules, exact solver, human reasoning and view
+js/games/fuse/              Sumbreak rules, exact solver, human reasoning and view
                              (generator: js/generators/fuse.js)
 docs/rules.md                Player-facing rules
 docs/DEV.md                  This file
@@ -1519,12 +1519,17 @@ Modes and scoring live in [rules.md](rules.md#darts); network guards and departu
 policy live in [ROOMS.md](ROOMS.md#darts-room-and-match-protocol). Run the checks listed in
 [DEBUG.md](DEBUG.md#darts-checks).
 
-## Fuse implementation
+## Sumbreak implementation
 
 Single-player puzzle on the shared `PuzzleCommon` shell; no Firebase or network use
 (solves are logged locally like the other puzzles). Listed as `wip` in the launcher.
-Rules for players live in [rules.md](rules.md#fuse); checks in
-[DEBUG.md](DEBUG.md#fuse-checks).
+Rules for players live in [rules.md](rules.md#sumbreak); checks in
+[DEBUG.md](DEBUG.md#sumbreak-checks).
+
+The player-facing name is **Sumbreak** in both languages, after LinkedIn's puzzle with
+the same rules. It was first called Fuse: files, browser globals (`Fuse*`), CSS
+classes, i18n keys, the game ID `fuse`, puzzle ids and the page `games/fuse.html` keep
+that name.
 
 | File | Global | Role |
 | --- | --- | --- |
@@ -1567,8 +1572,8 @@ included. The solver never assumes a sum or power-of-two invariant: it only call
 rules. The generator's `REVERSE_OPS` list `{ prior, move }` pairs where
 `applyMerge(prior, move)` reproduces the board, and `reverseBuild` re-checks every
 step, so new tile types extend generation by adding an op. Blocked cells are supported
-by the model, renderer and checks but no puzzle uses them yet. Wildcard tiles (`+N`)
-are not defined: their rules are unconfirmed.
+by the model, renderer and checks but no puzzle uses them yet. LinkedIn's other
+wildcard, `+N` (+3 adds 3 to the number it touches), is not implemented yet.
 
 ×2 cells (a bonus under the tile, so 4 + 4 there made 16) were the first version of ×2
 and were replaced by ×2 tiles. Walls (blocked cells inside the board) were tried as a
@@ -1743,6 +1748,9 @@ green arrows. When that position can no longer be solved, the warning pill reads
 solution from here", only while Reveal is on, so a lost position is not given away
 unasked. The pill uses its own id (`fuse-dead-pill`), so the shell's conflict counter
 leaves it alone.
+
+The shared puzzle top bar with "Sumbreak" is wider than a phone, so below 400 px the
+page (`.fuse-shell`) shrinks its title, icon and gaps, as Impressions and Darts do.
 
 Rectangular boards set `--fuse-aspect` (viewBox width / height) on the SVG, which keeps
 their proportions inside the same 420 px square as a square board. A ×2 tile is drawn

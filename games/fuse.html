@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Fuse · GameBox</title>
+    <title>Sumbreak · GameBox</title>
     <link rel="icon" type="image/svg+xml" href="../favicon.svg">
     <link rel="stylesheet" href="../css/common.css">
     <link rel="stylesheet" href="../css/puzzle.css">
@@ -12,7 +12,7 @@
     </style>
 </head>
 <body>
-    <div class="game-shell">
+    <div class="game-shell fuse-shell">
         <header class="game-topbar">
             <a class="back-link" href="../index.html">
                 <span data-icon="arrow-left" aria-hidden="true"></span>
@@ -20,7 +20,7 @@
             </a>
             <div class="game-title">
                 <span class="game-icon" data-icon="combine" aria-hidden="true"></span>
-                <span data-i18n="fuseName">Fuse</span>
+                <span data-i18n="fuseName">Sumbreak</span>
             </div>
             <div class="lang-toggle" id="lang-toggle" role="radiogroup" data-i18n-aria-label="language">
                 <button type="button" data-lang="en" role="radio" aria-checked="true">EN</button>
@@ -93,7 +93,7 @@
                  tabindex="0"
                  role="application"
                  data-i18n-aria-label="fuseBoardAria"
-                 aria-label="Fuse board"
+                 aria-label="Sumbreak board"
                  aria-describedby="fuse-live">
             </svg>
         </div>
@@ -107,8 +107,8 @@
                 <li data-i18n="fuseHelp1">Merge two touching tiles with the same number: the tile you move disappears and the one it joins doubles.</li>
                 <li data-i18n="fuseHelp2">Emptied cells stay empty and nothing slides, so plan which tiles meet. Reduce the board to a single tile to win.</li>
                 <li data-i18n="fuseHelpMul">A ×2 tile merges with any touching number and doubles it, in either direction: drag 8 onto ×2, or ×2 onto 8, to make 16. It counts as a tile, so every ×2 must be used.</li>
-                <li data-i18n="fuseHelp3Html">Tap a tile, then a highlighted neighbour, or drag one onto the other. Keyboard: arrows move, <strong>Enter</strong> selects and merges, <strong>Esc</strong> cancels, <strong>Ctrl+Z</strong> undoes.</li>
-                <li data-i18n="fuseHelp4">Hint explains one merge you can work out. Reveal shows a full solution from the current position.</li>
+                <li data-i18n="fuseHelp3Html">Tap a tile, then a highlighted neighbour, or drag one onto the other. Keyboard: arrows move, <strong>Enter</strong> or <strong>Space</strong> selects and merges, <strong>Esc</strong> cancels, <strong>Ctrl+Z</strong> undoes.</li>
+                <li data-i18n="fuseHelp4">Hint explains one merge you can work out; once the position can no longer be solved, it says how many merges to undo. Reveal shows a full solution from the current position, or warns that there is none.</li>
             </ul>
         </section>
     </div>

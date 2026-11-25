@@ -559,7 +559,9 @@ function connect(wsUrl) {
         await ready();
 
         // ---------- language ----------
+        assert.equal(await evaluate('document.title'), 'Sumbreak · GameBox');
         await clickEl('#lang-toggle [data-lang="zh"]');
+        assert.equal(await text('.game-title'), 'Sumbreak', 'the name has no Chinese translation');
         assert.equal(await text('#reset-btn'), '重設');
         assert.equal(await text('#hint-btn'), '提示');
         assert.equal(await text('#reveal-btn'), '解答');
@@ -607,9 +609,12 @@ function connect(wsUrl) {
                 await evaluate('document.getElementById("board").scrollIntoView({ block: "center" })');
                 const layout = await evaluate(`(() => {
                     const r = document.getElementById('board').getBoundingClientRect();
-                    return { overflow: document.documentElement.scrollWidth - innerWidth, width: r.width, left: r.left, right: r.right };
+                    const bar = Math.max(...[...document.querySelectorAll('.game-topbar *')].map((e) => e.getBoundingClientRect().right));
+                    return { overflow: document.documentElement.scrollWidth - innerWidth, inner: innerWidth, bar, width: r.width, left: r.left, right: r.right };
                 })()`);
                 assert.ok(layout.overflow <= 0, `no horizontal overflow at ${width}px, ${what} (${layout.overflow})`);
+                assert.equal(layout.inner, width, `nothing widens the page past ${width}px, ${what}`);
+                assert.ok(layout.bar <= width - 8, `the top bar fits at ${width}px (right edge ${Math.round(layout.bar)})`);
                 assert.ok(layout.left >= 0 && layout.right <= width, `board fits at ${width}px, ${what}`);
                 assert.ok((layout.width / (board.cols * 108 + 8)) * 100 >= 44, `cells stay at least 44px wide at ${width}px, ${what}`);
             };
@@ -643,7 +648,7 @@ function connect(wsUrl) {
             return { name: a.querySelector('.game-name').textContent, tagline: a.querySelector('.game-tagline').textContent,
                 wip: !!a.querySelector('.badge-wip'), icon: !!a.querySelector('.game-icon svg') };
         })()`);
-        assert.deepEqual(card, { name: 'Fuse', tagline: 'Pair them up. End with one.', wip: true, icon: true });
+        assert.deepEqual(card, { name: 'Sumbreak', tagline: 'Pair them up. End with one.', wip: true, icon: true });
         noErrors('launcher');
 
         // ---------- other puzzle pages still load cleanly ----------
