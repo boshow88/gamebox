@@ -743,7 +743,8 @@ reverse construction on every shape with zero to two ×2 tiles (exactly the coun
 asked for, and only the ×2 op adds one), normalization (scaled copies of a board have
 the same merges, contradictions, solvability, waste and reasoning path, and every
 served board's smallest number is 1), determinism, ids, solution replay, and the
-shapes and ×2 counts each tier may use (Medium and Hard: 4×4 with and without a ×2).
+shapes and ×2 counts each tier may use (Medium and Hard: 4×4 with and without ×2
+tiles, at most one on Medium and two on Hard, and Hard must serve some with two).
 It recomputes each generated and curated puzzle's waste, first-try chance and
 fairness without the generator's shortcuts, and checks the recorded first-try value.
 Easy's waste range must stay below the others and Medium's first-try range above

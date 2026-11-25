@@ -96,7 +96,7 @@ if (process.argv.includes('--combos')) {
     const rng = Gen.makeRng(777), out = [];
     for (const e of Gen.EXPONENTS[16]) {
         for (const style of Object.keys(Gen.STYLES)) {
-            for (const [muls] of Gen.MULS[16]) {
+            for (const [muls] of Gen.MULS.hard[16]) {
                 let ms = 0, hits = 0, n = 0;
                 for (let k = 0; k < samples; k++) {
                     const built = Gen.reverseBuild(rng, 4, 4, e + muls, style, muls);

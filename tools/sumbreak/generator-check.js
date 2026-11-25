@@ -14,10 +14,10 @@ function replay(board, moves) {
 }
 const shapeOf = (board) => `${board.rows}×${board.cols}`;
 const mulCount = (board) => board.cells.filter((c) => c && c.type === 'mul').length;
-const mostMuls = (cells) => Math.max(0, ...(Gen.MULS[cells] || []).filter((m) => m[1] > 0).map((m) => m[0]));
+const mostMuls = (tier, cells) => Math.max(0, ...(Gen.MULS[tier][cells] || []).filter((m) => m[1] > 0).map((m) => m[0]));
 
 // A puzzle text belongs to `tier`, recomputed without the generator's shortcuts: the board
-// starts full in one of the tier's shapes, with no more ×2 tiles than its size allows, the
+// starts full in one of the tier's shapes, with no more ×2 tiles than the tier allows there, the
 // waste (merges a smallest-first player makes and undoes) and the first-try chance are in
 // range, and reasoning alone solves it.
 function checkBoard(text, tier, label) {
@@ -25,7 +25,7 @@ function checkBoard(text, tier, label) {
     assert.ok(Gen.SHAPES[tier].some(([rows, cols]) => rows === board.rows && cols === board.cols), `${label}: ${shapeOf(board)} is a ${tier} shape`);
     assert.equal(R.tileCount(board), board.rows * board.cols, `${label}: starts full`);
     const muls = mulCount(board);
-    assert.ok(muls <= mostMuls(board.rows * board.cols), `${label}: ${muls} ×2 tiles on ${shapeOf(board)}`);
+    assert.ok(muls <= mostMuls(tier, board.rows * board.cols), `${label}: ${muls} ×2 tiles on ${shapeOf(board)}`);
     assert.ok(board.cells.every((c) => c.type === 'num' || c === R.mul(2)), `${label}: only numbers and ×2 tiles`);
     assert.equal(Math.min(...board.cells.filter((c) => c.type === 'num').map((c) => c.value)), 1, `${label}: the smallest number is 1`);
     const range = Gen.DIFFICULTY[tier], minimum = R.tileCount(board) - 1;
@@ -99,11 +99,11 @@ function checkBoard(text, tier, label) {
 }
 
 // Generated puzzles: deterministic per seed, verified, and in the requested tier.
-const timings = {}, wastes = {}, chances = {}, shapes = {};
+const timings = {}, wastes = {}, chances = {}, shapes = {}, mulCounts = {};
 let generated = 0, total = 0;
 for (const tier of Gen.TIERS) {
     const boards = new Set();
-    timings[tier] = []; wastes[tier] = []; chances[tier] = []; shapes[tier] = new Set();
+    timings[tier] = []; wastes[tier] = []; chances[tier] = []; shapes[tier] = new Set(); mulCounts[tier] = new Set();
     for (let seed = 1; seed <= 8; seed++) {
         const t0 = Date.now();
         const p = Gen.generate({ difficulty: tier, seed });
@@ -130,6 +130,7 @@ for (const tier of Gen.TIERS) {
         boards.add(p.board);
         wastes[tier].push(Reasoning.trialMerges(R, board, 5000) - (R.tileCount(board) - 1));
         shapes[tier].add(shapeOf(board) + (mulCount(board) ? ' x2' : ''));
+        mulCounts[tier].add(mulCount(board));
     }
     assert.equal(boards.size, 8, `${tier}: seeds give different puzzles`);
 }
@@ -145,6 +146,7 @@ assert.ok(Math.min(...chances.medium) > Math.max(...chances.hard), `medium first
 assert.ok(shapes.easy.has('3×3') && [...shapes.easy].some((s) => s !== '3×3'), `easy shapes ${[...shapes.easy]}`);
 for (const tier of ['medium', 'hard']) assert.ok(shapes[tier].has('4×4') && shapes[tier].has('4×4 x2') && shapes[tier].size === 2, `${tier} shapes ${[...shapes[tier]]}`);
 for (const tier of Gen.TIERS) assert.ok([...shapes[tier]].some((s) => s.endsWith(' x2')), `${tier} serves ×2 tiles (${[...shapes[tier]]})`);
+assert.ok(mulCounts.hard.has(2), `hard serves boards with two ×2 tiles (${[...mulCounts.hard]})`);
 
 // Curated fallbacks are valid members of their tier, and the fallback path is bounded.
 for (const tier of Gen.TIERS) {

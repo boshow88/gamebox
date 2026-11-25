@@ -1468,9 +1468,9 @@ The name and rules follow LinkedIn's Sumbreak, in both languages. This version h
   and **Hard** are 4×4. Every cell starts with a tile holding a power
   of two (1, 2, 4, …) or a **×2 tile**. The smallest number is always 1: halving
   every number would give the same puzzle, so boards never start higher.
-- About a third of Easy puzzles and half of Medium and Hard ones have ×2 tiles:
-  violet tiles marked ×2, at most one on 3×3 and 4×4 boards and up to two on 3×4
-  and 4×3.
+- About a third of Easy puzzles, half of Medium ones and most Hard ones have ×2
+  tiles: violet tiles marked ×2. 3×3 and Medium boards have at most one; 3×4, 4×3
+  and Hard boards can have two, and about half of Hard puzzles do.
 - Cells emptied by a merge stay empty for the rest of the puzzle. Nothing slides
   or falls into them.
 

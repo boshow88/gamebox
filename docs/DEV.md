@@ -1690,8 +1690,13 @@ Calibration (`tools/sumbreak/calibrate.js`, 40 random boards per kind) found:
   and none Hard. 3×3 and 3×4 / 4×3 suit Easy, and 4×4 suits Medium and Hard.
 - ×2 tiles make boards harder to reason through. Reasoning alone solves 88% of 3×3
   boards, 55% of 3×4, 48% of 4×4, 38% of 4×4 with one ×2 and 5% with two. Two on 4×4
-  were dropped: they cost about five times as much to judge and almost never qualify.
-  Walls made boards easier.
+  cost about five times as much to judge. Walls made boards easier.
+- Two ×2 tiles on 4×4, judged as the generator does, qualify for Hard on 0.94% of
+  attempts (one ×2 or none: about 1.6%), at a median of 6 s a puzzle, with first-try
+  chances of 4–19%. For Medium they qualify on 0.47%, at a median of 7 s and up to
+  28 s, and 200 attempts would often run out. So Hard draws two ×2 tiles at weight 3
+  against 1 each for none and one, which serves two in about half its puzzles, and
+  Medium keeps at most one.
 - Harder Hard: among boards that pass the old Hard test, the median first-try chance
   is about 26% on 4×5 (four times the cost of 4×4) and about 17% on 5×5 (about 20 s
   a puzzle). Two ×2 tiles on 4×4 give about 19% at about 5 s, and a ×4 tile behaves
@@ -1700,15 +1705,17 @@ Calibration (`tools/sumbreak/calibrate.js`, 40 random boards per kind) found:
   step that needs search would keep about 9%, but its hint could not explain itself.
 
 With 30 seeds per tier, generated waste (p10–p90) runs 0 (Easy), 90–1459 (Medium) and
-100–4232 (Hard). The first-try chance
-(p10/p50/p90) is 43/71/100% on Easy, 25/38/52% on Medium and 5/13/19% on Hard. ×2
-tiles appear in 10, 18 and 17 of those 30 puzzles.
+126–1562 (Hard). The first-try chance
+(p10/p50/p90) is 43/71/100% on Easy, 25/38/52% on Medium and 5/13/20% on Hard. ×2
+tiles appear in 10, 18 and 24 of those 30 puzzles; two of them in 1 Easy and 16 Hard
+puzzles.
 
 ### Generation
 
 Each attempt draws a shape from `SHAPES[tier]` (`[rows, cols, weight]`: Easy 3×3 ×2,
-3×4, 4×3; Medium and Hard 4×4), a number of ×2 tiles from `MULS[cells]`
-(`[count, weight]`: 3×3 none or one; 3×4 none ×2, one, two; 4×4 none or one), a final
+3×4, 4×3; Medium and Hard 4×4), a number of ×2 tiles from `MULS[tier][cells]`
+(`[count, weight]`: Easy 3×3 none or one, 3×4 none ×2, one, two; Medium none or one;
+Hard none, one, two ×3), a final
 exponent from `EXPONENTS[cells]` (plus one per ×2 tile, which keeps the other values in
 range and the construction from running out of tiles to split) and a construction
 style. `reverseBuild` then splits tiles backwards from one tile: `split-number` turns
@@ -1733,10 +1740,10 @@ generator's own mulberry32, seeded with `seed ^ 0x9e3779b9`; repeated boards wit
 seed are skipped by key. The async wrapper yields about every 40 ms for the progress
 bar. When no attempt fits the tier, `CURATED[tier][seed % n]` is used;
 `generator-check.js` re-verifies every curated board; each tier's list includes boards
-with ×2 tiles. About 3% of 4×4 attempts qualify for Medium and 1.6% for Hard. In Node
-a puzzle takes a median of 4 ms (Easy), 0.4 s (Medium) and 1.8 s (Hard); the p90 is
-1.6 s and 3.5 s and the worst of 30 seeds 1.8 s and 8 s. A Hard attempt with a ×2
-costs about twice one without. Puzzle ids are `fuse-<tier>-<seed base 36>`.
+with ×2 tiles, and Hard's includes one with two. About 3% of 4×4 attempts qualify for
+Medium and 1.5% for Hard. In Node a puzzle takes a median of 6 ms (Easy), 0.4 s (Medium)
+and 1.8 s (Hard); the p90 is 1.8 s and 4 s and the worst of 30 seeds 2.3 s and 11 s.
+A Hard attempt with a ×2 costs about twice one without. Puzzle ids are `fuse-<tier>-<seed base 36>`.
 
 ### View
 

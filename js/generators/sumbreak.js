@@ -131,12 +131,17 @@
         hard: [[4, 4, 1]],
     };
     // Final tile exponents (the last tile is 2^e before normalizing) by cell count, and how
-    // many ×2 tiles a board of that size gets, by weight. Each ×2 tile adds one to the
-    // exponent, which keeps the other tiles in range and the construction from running out of
-    // tiles to split. Two ×2 tiles on 4×4 almost never leave a board solvable by reasoning
-    // (tools/sumbreak/calibrate.js).
+    // many ×2 tiles each tier's boards get, by cell count and weight. Each ×2 tile adds one
+    // to the exponent, which keeps the other tiles in range and the construction from running
+    // out of tiles to split. Two ×2 tiles on 4×4 qualify about half as often as one and cost
+    // more to judge, so they are weighted up on Hard to serve about half its puzzles; Medium
+    // would take several times longer with them (tools/sumbreak/calibrate.js).
     const EXPONENTS = { 9: [4, 5, 6, 7], 12: [6, 7, 8], 16: [7, 8, 9] };
-    const MULS = { 9: [[0, 1], [1, 1]], 12: [[0, 2], [1, 1], [2, 1]], 16: [[0, 1], [1, 1]] };
+    const MULS = {
+        easy: { 9: [[0, 1], [1, 1]], 12: [[0, 2], [1, 1], [2, 1]] },
+        medium: { 16: [[0, 1], [1, 1]] },
+        hard: { 16: [[0, 1], [1, 1], [2, 3]] },
+    };
     // Per tier: the waste (merges made and undone by trial and error, Reasoning.trialMerges)
     // and, for 4×4, the first-try win chance in % (Reasoning.firstTryWin). Waste tells Easy
     // from the rest; the first-try chance tells Medium from Hard, since a player who makes the
@@ -146,7 +151,7 @@
         medium: { min: 80, max: Infinity, firstTry: { min: 25, max: 70 } },
         hard: { min: 80, max: Infinity, firstTry: { min: 0, max: 20 } },
     };
-    // About 3% of 4×4 attempts qualify for Medium and 1.6% for Hard.
+    // About 3% of 4×4 attempts qualify for Medium and 1.5% for Hard.
     const ATTEMPTS = { easy: 60, medium: 200, hard: 400 };
     // Boards solvable by reasoning stay under ~2700 states per position (tools/sumbreak/calibrate.js
     // --cost); boards that need search often run far past it.
@@ -190,7 +195,8 @@
         const rng = makeRng(seed ^ 0x9e3779b9), styles = Object.keys(STYLES), seen = new Set();
         for (let attempt = 1; attempt <= limit; attempt++) {
             const [rows, cols] = pickWeighted(rng, SHAPES[difficulty], (s) => s[2]);
-            const cells = rows * cols, muls = MULS[cells] ? pickWeighted(rng, MULS[cells], (b) => b[1])[0] : 0;
+            const cells = rows * cols, mulWeights = MULS[difficulty][cells];
+            const muls = mulWeights ? pickWeighted(rng, mulWeights, (b) => b[1])[0] : 0;
             const exponent = EXPONENTS[cells][Math.floor(rng() * EXPONENTS[cells].length)] + muls;
             const style = styles[Math.floor(rng() * styles.length)];
             const built = reverseBuild(rng, rows, cols, exponent, style, muls);
@@ -221,7 +227,7 @@
         hard: [
             '16 16 8 8/16 16 8 4/16 4 4 4/4 2 1 1', '1 1 1 2/1 4 4 x2/2 4 4 8/2 2 4 8',
             '4 4 2 1/4 4 2 1/4 16 2 2/4 8 4 2', 'x2 8 8 2/2 4 4 2/2 8 2 2/1 1 1 1',
-            '4 x2 4 4/4 8 16 2/2 2 4 1/4 2 2 1',
+            '4 x2 4 4/4 8 16 2/2 2 4 1/4 2 2 1', '8 2 1 1/8 x2 2 2/16 16 4 2/x2 16 8 2',
         ],
     };
 
