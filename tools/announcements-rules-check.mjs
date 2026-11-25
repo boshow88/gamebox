@@ -39,6 +39,7 @@ try {
     assert.equal(release.revision, 2);
     assert.equal((await sdk.getDoc(index(publicDb))).data().versions[draft.id], 2);
     await assertSucceeds(sdk.getDoc(ref(publicDb, draft.id)));
+    assert.deepEqual((await sdk.getDoc(ref(publicDb, draft.id))).data().games, ['darts'], 'Legacy single game normalizes to a games list');
     assert.equal((await visitor.list()).items[0].title.en, 'New game');
     const legacyProfile = (await sdk.getDoc(sdk.doc(a, 'profiles', 'a'))).data();
     assert.equal(legacyProfile.announcementReads, undefined);
@@ -91,5 +92,14 @@ try {
     await assert.rejects(visitor.markAllRead(expected), /sign-in-required/);
     await assert.rejects(other.markAllRead({ invalid: 0 }), /invalid-versions/);
     await assert.rejects(other.markAllRead([1]), /invalid-versions/);
-    console.log('PASS: public announcements, private drafts, verified-admin publishing, atomic version index, stale editors/readers, concurrent account markers, profile preservation, withdrawal and draft deletion.');
+    // Multiple game links and a custom (back-dated) publish time.
+    const dated = await owner.save(null, content({ published: true, games: ['darts', 'beam'], publishedAt: new Date('2020-01-02T03:04:05Z') }));
+    const datedDoc = (await sdk.getDoc(ref(publicDb, dated.id))).data();
+    assert.deepEqual(datedDoc.games, ['darts', 'beam'], 'Multiple game links are stored');
+    assert.equal(datedDoc.publishedAt.toDate().toISOString(), '2020-01-02T03:04:05.000Z', 'Custom publish time is honoured on create');
+    const redated = await owner.save(dated.id, content({ published: true, games: ['darts'], publishedAt: new Date('2019-06-07T08:09:10Z') }), 1);
+    assert.equal(redated.revision, 2);
+    assert.equal((await sdk.getDoc(ref(publicDb, dated.id))).data().publishedAt.toDate().toISOString(), '2019-06-07T08:09:10.000Z', 'Custom publish time can be edited while published');
+    await assertFails(sdk.setDoc(ref(admin, dated.id), { ...content({ published: true }), games: ['x'.repeat(9)].concat(Array.from({ length: 9 }, (_, i) => 'g' + i)), revision: 3, createdBy: 'admin', createdAt: sdk.serverTimestamp(), updatedBy: 'admin', updatedAt: sdk.serverTimestamp(), publishedAt: sdk.serverTimestamp() }), 'A games list beyond the cap is rejected');
+    console.log('PASS: public announcements, private drafts, verified-admin publishing, multiple game links, custom publish times, atomic version index, stale editors/readers, concurrent account markers, profile preservation, withdrawal and draft deletion.');
 } finally { await env.cleanup(); }

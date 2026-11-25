@@ -54,7 +54,7 @@ function close(doc){doc.querySelector('.modal-head button').click();}
  const admin=frame('admin','&admin=1');await until(()=>admin.contentDocument.getElementById('drawer-announcements-admin')&&!admin.contentDocument.getElementById('drawer-announcements-admin').hidden,'admin entry');
  const ad=admin.contentDocument;ad.getElementById('drawer-announcements-admin').click();await until(()=>ad.querySelector('[data-announcement-id="secret"]'),'admin drafts');
  action(ad.querySelector('.announcement-board'),'New announcement');await until(()=>ad.querySelector('.announcement-editor'),'editor');
- let form=ad.querySelector('.announcement-editor');form.elements.titleZh.value='新遊戲';form.elements.bodyZh.value='新遊戲已上線。';form.elements.titleEn.value='New release';form.elements.bodyEn.value='New game <b>release</b>.';form.elements.important.checked=true;form.elements.game.value='darts';
+ let form=ad.querySelector('.announcement-editor');form.elements.titleZh.value='新遊戲';form.elements.bodyZh.value='新遊戲已上線。';form.elements.titleEn.value='New release';form.elements.bodyEn.value='New game <b>release</b>.';form.elements.important.checked=true;form.querySelector('input[name="games"][value="darts"]').checked=true;
  for(const width of [320,390,768]){admin.style.width=width+'px';const card=ad.querySelector('.modal-card');if(card.scrollWidth>card.clientWidth+1)throw Error('Editor overflow at '+width);}
  action(form,'Save draft');await until(()=>ad.querySelector('[data-announcement-id="new-announcement"]'),'draft saved');
  await sleep(20);if(w.testNoticeHub.state('announcements').unread)throw Error('Draft notified readers');

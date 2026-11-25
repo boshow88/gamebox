@@ -4,7 +4,8 @@
     var COPY = {
         zh: { board: '公告欄', admin: '公告管理', create: '新增公告', edit: '編輯', refresh: '重新整理', more: '載入更多', empty: '目前沒有公告。',
             loading: '正在讀取…', error: '無法完成操作，請稍後再試。', changed: '公告已更新或下架，請重新整理。', unavailable: '目前無法讀取公告，請稍後再試。',
-            important: '重要公告', draft: '草稿', published: '已發布', game: '相關遊戲', none: '不指定', openGame: '前往遊戲',
+            important: '重要公告', draft: '草稿', published: '已發布', game: '相關遊戲（可複選）', none: '不指定', openGame: '前往遊戲',
+            publishTime: '發布時間', publishTimeHint: '留空則使用發布當下時間。',
             titleZh: '繁體中文標題', bodyZh: '繁體中文內文', titleEn: '英文標題', bodyEn: '英文內文',
             editorNote: '至少填妥一種語言的標題與內文。未提供的語言會顯示另一版本；已發布公告修改後會再次通知。',
             saveDraft: '儲存草稿', publish: '發布公告', update: '儲存並發布', unpublish: '下架為草稿', confirmUnpublish: '確認下架',
@@ -13,7 +14,8 @@
             limit: '已發布公告達到上限，請先下架較舊的公告。' },
         en: { board: 'Announcements', admin: 'Manage announcements', create: 'New announcement', edit: 'Edit', refresh: 'Refresh', more: 'Load more', empty: 'No announcements yet.',
             loading: 'Loading…', error: 'Could not complete the request. Please try again.', changed: 'This announcement changed or was withdrawn. Please refresh.', unavailable: 'Announcements are unavailable. Please try again later.',
-            important: 'Important', draft: 'Draft', published: 'Published', game: 'Related game', none: 'None', openGame: 'Open game',
+            important: 'Important', draft: 'Draft', published: 'Published', game: 'Related games', none: 'None', openGame: 'Open game',
+            publishTime: 'Publish time', publishTimeHint: 'Leave blank to use the time of publishing.',
             titleZh: 'Traditional Chinese title', bodyZh: 'Traditional Chinese text', titleEn: 'English title', bodyEn: 'English text',
             editorNote: 'Complete the title and text in at least one language. Missing translations use the other language. Changes to published announcements notify readers again.',
             saveDraft: 'Save draft', publish: 'Publish', update: 'Save and publish', unpublish: 'Withdraw to draft', confirmUnpublish: 'Confirm withdrawal',
@@ -31,6 +33,14 @@
     }
     function guestReads() { try { return numbers(JSON.parse(localStorage.getItem(GUEST_KEY))); } catch (_) { return numbers(null); } }
     function time(at) { try { return at && at.toDate ? at.toDate().toLocaleString() : ''; } catch (_) { return ''; } }
+    function toLocalInput(at) {
+        try {
+            var date = at && at.toDate ? at.toDate() : at instanceof Date ? at : at ? new Date(at) : null;
+            if (!date || isNaN(date.getTime())) return '';
+            var pad = function (value) { return (value < 10 ? '0' : '') + value; };
+            return date.getFullYear() + '-' + pad(date.getMonth() + 1) + '-' + pad(date.getDate()) + 'T' + pad(date.getHours()) + ':' + pad(date.getMinutes());
+        } catch (_) { return ''; }
+    }
     function create(options) {
         var user, epoch = 0, watchEpoch = 0, stop = null, source = null, modal = null, versions = null, reads = numbers(null), profileReady = false;
         var entry = document.getElementById('drawer-announcements'), manage = document.getElementById('drawer-announcements-admin');
@@ -139,8 +149,13 @@
                     var details = node('details'), summary = node('summary', '', localized(item.title));
                     indicator(summary, unread(item.id, item.revision), localized(item.title) + (unread(item.id, item.revision) ? ' · ' + c.unread : ''));
                     details.append(summary, node('div', 'announcement-text', localized(item.body)));
-                    var game = options.getGames().find(function (candidate) { return candidate.id === item.game; });
-                    if (game) { var link = node('a', 'announcement-game', c.openGame + ' · ' + game.name); link.href = game.href; details.append(link); }
+                    var ids = Array.isArray(item.games) ? item.games : (item.game ? [item.game] : []);
+                    var links = node('div', 'announcement-links');
+                    ids.forEach(function (id) {
+                        var game = options.getGames().find(function (candidate) { return candidate.id === id; });
+                        if (game) { var link = node('a', 'announcement-game', c.openGame + ' · ' + game.name); link.href = game.href; links.append(link); }
+                    });
+                    if (links.childNodes.length) details.append(links);
                     var saving = false;
                     details.addEventListener('toggle', function () {
                         if (!current() || !details.open || saving || !unread(item.id, item.revision)) return;
@@ -172,10 +187,17 @@
                     input.name = field[0]; input.maxLength = field[3]; if (input.tagName === 'TEXTAREA') input.rows = 5; else input.type = 'text';
                     input.value = item && item[field[1]] && item[field[1]][field[2]] || ''; inputs[field[0]] = input; label.append(input); fields.append(label);
                 });
-                var gameLabel = node('label', '', c.game), gameSelect = node('select'); gameSelect.name = 'game';
-                var none = node('option', '', c.none); none.value = ''; gameSelect.append(none);
-                options.getGames().forEach(function (game) { var option = node('option', '', game.name); option.value = game.id; gameSelect.append(option); });
-                gameSelect.value = item && item.game || ''; gameLabel.append(gameSelect); fields.append(gameLabel);
+                var gameLabel = node('label', '', c.game), gameGroup = node('div', 'announcement-games');
+                var selectedGames = Array.isArray(item && item.games) ? item.games : (item && item.game ? [item.game] : []);
+                options.getGames().forEach(function (game) {
+                    var wrap = node('label', 'announcement-check'), checkbox = node('input');
+                    checkbox.type = 'checkbox'; checkbox.name = 'games'; checkbox.value = game.id; checkbox.checked = selectedGames.indexOf(game.id) !== -1;
+                    wrap.append(checkbox, node('span', '', game.name)); gameGroup.append(wrap);
+                });
+                gameLabel.append(gameGroup); fields.append(gameLabel);
+                var publishLabel = node('label', '', c.publishTime), publishInput = node('input');
+                publishInput.type = 'datetime-local'; publishInput.name = 'publishedAt'; publishInput.value = toLocalInput(item && item.publishedAt);
+                publishLabel.append(publishInput, node('span', 'announcement-note', c.publishTimeHint)); fields.append(publishLabel);
                 var importantLabel = node('label', 'announcement-check'), important = node('input'); important.type = 'checkbox'; important.name = 'important'; important.checked = !!(item && item.important);
                 importantLabel.append(important, node('span', '', c.important)); fields.append(importantLabel);
                 var actions = node('div', 'announcement-toolbar'), publish = node('button', 'announcement-action primary', item && item.published ? c.update : c.publish);
@@ -186,7 +208,8 @@
                 }); actions.append(draft); fields.append(actions); list.append(form);
                 function save(published) {
                     if (!current() || fields.disabled) return;
-                    var value = { title: { zh: inputs.titleZh.value, en: inputs.titleEn.value }, body: { zh: inputs.bodyZh.value, en: inputs.bodyEn.value }, game: gameSelect.value || null, important: important.checked, published };
+                    var games = Array.prototype.slice.call(fields.querySelectorAll('input[name="games"]:checked')).map(function (el) { return el.value; });
+                    var value = { title: { zh: inputs.titleZh.value, en: inputs.titleEn.value }, body: { zh: inputs.bodyZh.value, en: inputs.bodyEn.value }, games: games, publishedAt: publishInput.value ? new Date(publishInput.value) : null, important: important.checked, published };
                     if (!['zh', 'en'].some(function (lang) { return value.title[lang].trim() && value.body[lang].trim(); })
                         || ['zh', 'en'].some(function (lang) { return !!value.title[lang].trim() !== !!value.body[lang].trim(); })) { status.textContent = c.editorNote; return; }
                     fields.disabled = true;

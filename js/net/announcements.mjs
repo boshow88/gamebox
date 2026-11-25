@@ -13,6 +13,22 @@ export function createAnnouncementService({ sdk, db, getUser }) {
         }
         return result;
     }
+    function gameList(input) {
+        const raw = Array.isArray(input.games) ? input.games
+            : (typeof input.game === 'string' && input.game ? [input.game] : []);
+        const seen = new Set(), result = [];
+        for (const id of raw) {
+            if (typeof id === 'string' && id.length > 0 && id.length <= 80 && !seen.has(id)) { seen.add(id); result.push(id); }
+            if (result.length >= 8) break;
+        }
+        return result;
+    }
+    function publishTime(value) {
+        if (value == null) return null;
+        const date = value instanceof Date ? value : new Date(value);
+        if (Number.isNaN(date.getTime()) || date.getTime() > Date.now()) return null;
+        return date;
+    }
     async function list(admin, cursor) {
         const filters = admin ? [] : [where('published', '==', true)];
         filters.push(orderBy(admin ? 'updatedAt' : 'publishedAt', 'desc'));
@@ -32,8 +48,8 @@ export function createAnnouncementService({ sdk, db, getUser }) {
             const title = localized(input.title, 120), body = localized(input.body, 6000);
             if (!['zh', 'en'].some(lang => title[lang] && body[lang])
                 || ['zh', 'en'].some(lang => !!title[lang] !== !!body[lang])) throw Error('announcements/invalid-content');
-            const content = { title, body, important: !!input.important, published: !!input.published,
-                game: typeof input.game === 'string' && input.game.length <= 80 ? input.game : null };
+            const games = gameList(input), publishAt = publishTime(input.publishedAt);
+            const content = { title, body, important: !!input.important, published: !!input.published, games };
             const revision = await runTransaction(db, async transaction => {
                 const snapshot = await transaction.get(ref), previous = snapshot.exists() ? snapshot.data() : null;
                 if ((previous ? previous.revision : 0) !== expectedRevision) throw Error('announcements/changed');
@@ -47,7 +63,9 @@ export function createAnnouncementService({ sdk, db, getUser }) {
                 transaction.set(ref, { ...content, revision: expectedRevision + 1,
                     createdBy: previous ? previous.createdBy : user.uid, createdAt: previous ? previous.createdAt : serverTimestamp(),
                     updatedBy: user.uid, updatedAt: serverTimestamp(),
-                    publishedAt: content.published && (!previous || !previous.published) ? serverTimestamp() : previous ? previous.publishedAt : null });
+                    publishedAt: content.published
+                        ? (publishAt || (previous && previous.published ? previous.publishedAt : serverTimestamp()))
+                        : (previous ? previous.publishedAt : null) });
                 if (changedPublication) transaction.set(index(), { versions, updatedAt: serverTimestamp() });
                 return expectedRevision + 1;
             });
