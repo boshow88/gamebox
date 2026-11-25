@@ -1,5 +1,5 @@
-/* Fuse developer calibration: how hard each board shape is, and what the generator delivers.
- * Usage: node tools/fuse/calibrate.js [samples=60] [seeds per tier=20] [--skip-shapes] [--skip-generate] [--cost] [--combos]
+/* Sumbreak developer calibration: how hard each board shape is, and what the generator delivers.
+ * Usage: node tools/sumbreak/calibrate.js [samples=60] [seeds per tier=20] [--skip-shapes] [--skip-generate] [--cost] [--combos]
  *   shapes    random reverse-built boards per shape and ×2 tile count (as the generator draws
  *             them): how many are solvable by reasoning alone, their waste (merges made and
  *             undone by trial and error, Reasoning.trialMerges), the first-try win chance
@@ -12,10 +12,10 @@
  *   generate  the real generator per tier: time per puzzle, attempts, curated fallbacks, the
  *             shapes served, waste and first-try win chance */
 'use strict';
-const Rules = require('../../js/games/fuse/rules.js');
-const Solver = require('../../js/games/fuse/solver.js');
-const Reasoning = require('../../js/games/fuse/reasoning.js');
-const Gen = require('../../js/generators/fuse.js');
+const Rules = require('../../js/games/sumbreak/rules.js');
+const Solver = require('../../js/games/sumbreak/solver.js');
+const Reasoning = require('../../js/games/sumbreak/reasoning.js');
+const Gen = require('../../js/generators/sumbreak.js');
 
 const R = Rules.DEFAULT;
 const [samples = 60, seeds = 20] = process.argv.slice(2).filter((a) => !a.startsWith('--')).map(Number);

@@ -1,9 +1,9 @@
-/** node tools/fuse/solver-check.js — exact solver against an independent brute force. */
+/** node tools/sumbreak/solver-check.js — exact solver against an independent brute force. */
 'use strict';
 const assert = require('node:assert/strict');
-const Rules = require('../../js/games/fuse/rules.js');
-const Solver = require('../../js/games/fuse/solver.js');
-const Gen = require('../../js/generators/fuse.js');
+const Rules = require('../../js/games/sumbreak/rules.js');
+const Solver = require('../../js/games/sumbreak/solver.js');
+const Gen = require('../../js/generators/sumbreak.js');
 const R = Rules.DEFAULT;
 
 // Plain exhaustive search: no memo, no pruning, no shared code beyond the merge rules.
@@ -184,4 +184,4 @@ assert.equal(xs.isSolvable(X.parse('2 * 2')), true);
 assert.equal(xs.isSolvable(X.parse('2 * 4')), false);
 
 assert.ok(mulBoards > 400, `boards with ×2 tiles checked (${mulBoards})`);
-console.log(`fuse solver: ok (${pool.length} boards, ${mulBoards} with ×2 tiles: ${solvable} solvable, ${unsolvable} unsolvable with moves, ${deadEnds} dead ends)`);
+console.log(`sumbreak solver: ok (${pool.length} boards, ${mulBoards} with ×2 tiles: ${solvable} solvable, ${unsolvable} unsolvable with moves, ${deadEnds} dead ends)`);

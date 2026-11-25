@@ -1,10 +1,10 @@
-/* Fuse: exact solver over the shared rules — solvability, move classification, solution
+/* Sumbreak: exact solver over the shared rules — solvability, move classification, solution
  * reconstruction and solution counts, with memoized canonical states and a state budget.
  * Independent of tile types: it only calls the rules' moves, merges and invariants. No DOM. */
 (function (root, factory) {
     'use strict';
     if (typeof module === 'object' && module.exports) module.exports = factory(require('./rules.js'));
-    else root.FuseSolver = factory(root.FuseRules);
+    else root.SumbreakSolver = factory(root.SumbreakRules);
 })(typeof window === 'object' ? window : globalThis, function (Rules) {
     'use strict';
 

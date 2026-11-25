@@ -1,11 +1,11 @@
-/** node tools/fuse/reasoning-check.js — human techniques are sound under the exact rules,
+/** node tools/sumbreak/reasoning-check.js — human techniques are sound under the exact rules,
  * hints never hide alternatives, and search is always labelled as search. */
 'use strict';
 const assert = require('node:assert/strict');
-const Rules = require('../../js/games/fuse/rules.js');
-const Solver = require('../../js/games/fuse/solver.js');
-const Reasoning = require('../../js/games/fuse/reasoning.js');
-const Gen = require('../../js/generators/fuse.js');
+const Rules = require('../../js/games/sumbreak/rules.js');
+const Solver = require('../../js/games/sumbreak/solver.js');
+const Reasoning = require('../../js/games/sumbreak/reasoning.js');
+const Gen = require('../../js/generators/sumbreak.js');
 const R = Rules.DEFAULT;
 
 const same = (a, b) => Rules.sameMove(a, b);
@@ -274,5 +274,5 @@ for (const text of ['2 * 2/4 4 8', '* 1 1/2 * 4', '4 4 */8 * 16', '1 1 */2 4 *',
 }
 assert.ok(starSteps > 5, `special-tile steps exercised (${starSteps})`);
 
-console.log(`fuse reasoning: ok (${states} states, ${mulStates} with a ×2 tile, ${unsolvableStates} lost, ${unexplained} lost without a deduction; ` +
+console.log(`sumbreak reasoning: ok (${states} states, ${mulStates} with a ×2 tile, ${unsolvableStates} lost, ${unexplained} lost without a deduction; ` +
     `next steps ${JSON.stringify(techniques)}; refutations ${JSON.stringify(reasons)}; first-try reference on 40 boards, ${guessed} losable)`);

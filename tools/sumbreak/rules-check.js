@@ -1,8 +1,8 @@
-/** node tools/fuse/rules-check.js — tile model, merge rules, status and solvability invariants. */
+/** node tools/sumbreak/rules-check.js — tile model, merge rules, status and solvability invariants. */
 'use strict';
 const assert = require('node:assert/strict');
-const Rules = require('../../js/games/fuse/rules.js');
-const Gen = require('../../js/generators/fuse.js');
+const Rules = require('../../js/games/sumbreak/rules.js');
+const Gen = require('../../js/generators/sumbreak.js');
 const R = Rules.DEFAULT;
 
 // Parsing, tokens and canonical keys.
@@ -201,4 +201,4 @@ assert.equal(X.contradictions(xb).some((c) => c.id === 'stuck'), false, 'number-
 assert.equal(X.findContradiction(X.parse('* . 2')).id, 'split');
 assert.throws(() => R.parse('*'), SyntaxError, 'the default rules do not know test-only tiles');
 
-console.log(`fuse rules: ok (${checked} contradiction claims cross-checked, ${checkedMul} with ×2 tiles; ${mulMerges} random ×2 merges)`);
+console.log(`sumbreak rules: ok (${checked} contradiction claims cross-checked, ${checkedMul} with ×2 tiles; ${mulMerges} random ×2 merges)`);

@@ -711,11 +711,11 @@ restoration or server-read latency. Do not share account tokens in diagnostics.
 ## Sumbreak checks
 
 ```text
-node tools/fuse/rules-check.js
-node tools/fuse/solver-check.js
-node tools/fuse/reasoning-check.js
-node tools/fuse/generator-check.js
-node tools/fuse/browser-check.js [/path/to/chrome] [--shots]
+node tools/sumbreak/rules-check.js
+node tools/sumbreak/solver-check.js
+node tools/sumbreak/reasoning-check.js
+node tools/sumbreak/generator-check.js
+node tools/sumbreak/browser-check.js [/path/to/chrome] [--shots]
 ```
 
 The rules check covers merges, direction, permanent empties, blocked versus empty
@@ -768,13 +768,14 @@ the next puzzle. New Game takes that puzzle and starts only the one after it.
 Picking Hard starts a Hard puzzle before New Game is pressed. With the worker script
 blocked, the page falls back to the main thread and serves the same board as Node.
 It also checks that an old link's `size` is ignored and
-dropped, both languages, reduced motion and the default medium start. Touch is
+dropped, that the old address `games/fuse.html` forwards with its query and fragment
+to the same puzzle, both languages, reduced motion and the default medium start. Touch is
 tested at 375 and 320 px on a 4×4 and a rectangular board, with no horizontal
 overflow: the page must not widen past the screen and the top bar must fit inside it. Finally it checks the launcher card and smoke-loads the other puzzle pages. Every UI merge is mirrored by the Node engine and the rendered board
 compared, which also proves the browser and Node generate the same puzzle for a
 seed. `--shots` saves screenshots of key states to the temp folder.
 
-`node tools/fuse/calibrate.js [samples=60] [seeds per tier=20] [--skip-shapes] [--skip-generate] [--cost] [--combos]`
+`node tools/sumbreak/calibrate.js [samples=60] [seeds per tier=20] [--skip-shapes] [--skip-generate] [--cost] [--combos]`
 is a tuning report, not a pass/fail check. It has four sections:
 
 - **shapes**: per shape and ×2 count, how many random boards reasoning alone solves,

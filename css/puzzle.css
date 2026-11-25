@@ -1494,78 +1494,78 @@
 .hashi-reveal-line { stroke: var(--game-color, #8a5a2c); opacity: 0.35; stroke-linecap: round; }
 
 /* ----------------------------------------------------------------
-   Sumbreak (fuse-* classes)
+   Sumbreak (sumbreak-* classes)
    ---------------------------------------------------------------- */
 /* The top bar with "Sumbreak" is wider than a 375px phone at the shared sizes. */
 @media (max-width: 400px) {
-    .fuse-shell .game-topbar { gap: var(--space-sm); }
-    .fuse-shell .game-title { font-size: 1.05rem; gap: 6px; white-space: nowrap; }
-    .fuse-shell .game-title .game-icon { width: 28px; height: 28px; font-size: 1.25rem; }
-    .fuse-shell .back-link { padding-inline: 2px; }
+    .sumbreak-shell .game-topbar { gap: var(--space-sm); }
+    .sumbreak-shell .game-title { font-size: 1.05rem; gap: 6px; white-space: nowrap; }
+    .sumbreak-shell .game-title .game-icon { width: 28px; height: 28px; font-size: 1.25rem; }
+    .sumbreak-shell .back-link { padding-inline: 2px; }
 }
 @media (max-width: 340px) {
-    .fuse-shell .game-topbar { gap: 4px; }
-    .fuse-shell .game-title { font-size: 0.95rem; }
+    .sumbreak-shell .game-topbar { gap: 4px; }
+    .sumbreak-shell .game-title { font-size: 0.95rem; }
 }
 /* overflow: the win pop scales outlined edge tiles slightly past the viewBox. Boards may be
-   rectangular: --fuse-aspect (width / height, set by the renderer) keeps their proportions
+   rectangular: --sumbreak-aspect (width / height, set by the renderer) keeps their proportions
    inside the same 420px square. */
-.board-svg.fuse-board {
-    --fuse-aspect: 1;
-    aspect-ratio: var(--fuse-aspect);
-    max-width: min(420px, calc(420px * var(--fuse-aspect)));
+.board-svg.sumbreak-board {
+    --sumbreak-aspect: 1;
+    aspect-ratio: var(--sumbreak-aspect);
+    max-width: min(420px, calc(420px * var(--sumbreak-aspect)));
     outline: none; border-radius: var(--radius-md); overflow: visible;
 }
-.board-svg.fuse-board:focus-visible { outline: 2px solid var(--game-color); outline-offset: 4px; }
+.board-svg.sumbreak-board:focus-visible { outline: 2px solid var(--game-color); outline-offset: 4px; }
 
 /* Cells: occupied slots sit under the tiles; vacated cells read as permanent holes;
    blocked cells (not used by current puzzles) are solid. */
-.fuse-slot { fill: #e6eeec; }
-.fuse-slot.empty { fill: #f7f9f9; stroke: #c9d6d3; stroke-width: 2; stroke-dasharray: 7 6; }
-.fuse-slot.block { fill: #4b5563; }
-.fuse-hole { fill: #c9d6d3; pointer-events: none; }
-.fuse-tile rect { stroke: rgba(15, 79, 73, 0.16); stroke-width: 2; }
-.fuse-num { font-family: var(--font-body); font-weight: 700; text-anchor: middle; dominant-baseline: central; pointer-events: none; user-select: none; }
-.fuse-tile.selected rect { stroke: #0f172a; stroke-width: 5; }
-.fuse-tile.lifted { filter: drop-shadow(0 6px 6px rgba(15, 23, 42, 0.25)); pointer-events: none; }
-.fuse-tile.dim { opacity: 0.5; }
-.fuse-target { fill: none; stroke: var(--game-color); stroke-width: 4; stroke-dasharray: 10 7; pointer-events: none; animation: fuse-target-pulse 1.2s ease-in-out infinite; }
-.fuse-target.over { stroke-dasharray: none; stroke-width: 7; animation: none; }
-.fuse-cursor { fill: none; stroke: #f59e0b; stroke-width: 4; pointer-events: none; }
-.fuse-hint-ring { fill: none; stroke: #f59e0b; stroke-width: 5; pointer-events: none; animation: zip-hint-pulse 1.15s ease-in-out infinite; }
-.fuse-hint-ring.error { stroke: var(--accent-danger); }
+.sumbreak-slot { fill: #e6eeec; }
+.sumbreak-slot.empty { fill: #f7f9f9; stroke: #c9d6d3; stroke-width: 2; stroke-dasharray: 7 6; }
+.sumbreak-slot.block { fill: #4b5563; }
+.sumbreak-hole { fill: #c9d6d3; pointer-events: none; }
+.sumbreak-tile rect { stroke: rgba(15, 79, 73, 0.16); stroke-width: 2; }
+.sumbreak-num { font-family: var(--font-body); font-weight: 700; text-anchor: middle; dominant-baseline: central; pointer-events: none; user-select: none; }
+.sumbreak-tile.selected rect { stroke: #0f172a; stroke-width: 5; }
+.sumbreak-tile.lifted { filter: drop-shadow(0 6px 6px rgba(15, 23, 42, 0.25)); pointer-events: none; }
+.sumbreak-tile.dim { opacity: 0.5; }
+.sumbreak-target { fill: none; stroke: var(--game-color); stroke-width: 4; stroke-dasharray: 10 7; pointer-events: none; animation: sumbreak-target-pulse 1.2s ease-in-out infinite; }
+.sumbreak-target.over { stroke-dasharray: none; stroke-width: 7; animation: none; }
+.sumbreak-cursor { fill: none; stroke: #f59e0b; stroke-width: 4; pointer-events: none; }
+.sumbreak-hint-ring { fill: none; stroke: #f59e0b; stroke-width: 5; pointer-events: none; animation: zip-hint-pulse 1.15s ease-in-out infinite; }
+.sumbreak-hint-ring.error { stroke: var(--accent-danger); }
 /* A tile the hint's refutation names ("the 2 ringed in red"). */
-.fuse-ref-ring { fill: none; stroke: var(--accent-danger); stroke-width: 4; stroke-dasharray: 10 7; pointer-events: none; }
+.sumbreak-ref-ring { fill: none; stroke: var(--accent-danger); stroke-width: 4; stroke-dasharray: 10 7; pointer-events: none; }
 
 /* Hint arrows: the suggested merge, and a failing merge the explanation refers to (red). */
-.fuse-arrow { stroke: #0f172a; stroke-width: 7; stroke-linecap: round; pointer-events: none; }
-.fuse-arrow-head { fill: #0f172a; stroke: #ffffff; stroke-width: 1.5; pointer-events: none; }
-.fuse-arrow.refuted { stroke: var(--accent-danger); stroke-dasharray: 9 7; stroke-linecap: butt; }
-.fuse-arrow-head.refuted { fill: var(--accent-danger); }
+.sumbreak-arrow { stroke: #0f172a; stroke-width: 7; stroke-linecap: round; pointer-events: none; }
+.sumbreak-arrow-head { fill: #0f172a; stroke: #ffffff; stroke-width: 1.5; pointer-events: none; }
+.sumbreak-arrow.refuted { stroke: var(--accent-danger); stroke-dasharray: 9 7; stroke-linecap: butt; }
+.sumbreak-arrow-head.refuted { fill: var(--accent-danger); }
 
 /* Reveal: the remaining solution as numbered green markers (the shared reveal green). */
-.fuse-reveal-head { fill: #198754; stroke: #ffffff; stroke-width: 1.5; pointer-events: none; }
-.fuse-reveal-badge { fill: #ffffff; stroke: #198754; stroke-width: 2.5; pointer-events: none; }
-.fuse-reveal-num { fill: #198754; font-family: var(--font-body); font-size: 16px; font-weight: 700; text-anchor: middle; dominant-baseline: central; pointer-events: none; user-select: none; }
+.sumbreak-reveal-head { fill: #198754; stroke: #ffffff; stroke-width: 1.5; pointer-events: none; }
+.sumbreak-reveal-badge { fill: #ffffff; stroke: #198754; stroke-width: 2.5; pointer-events: none; }
+.sumbreak-reveal-num { fill: #198754; font-family: var(--font-body); font-size: 16px; font-weight: 700; text-anchor: middle; dominant-baseline: central; pointer-events: none; user-select: none; }
 
 /* Merge: the source slides into the destination, which pops with its new value. The
    inner tile group is centred on 0,0, so scaling pivots on the tile centre. */
-.fuse-tile.fuse-ghost { pointer-events: none; animation: fuse-slide 190ms ease-in forwards; }
-.fuse-tile.pop { animation: fuse-pop 280ms ease-out; }
-.fuse-board.won .fuse-tile:not(.fuse-ghost) { animation: fuse-win 700ms ease-out both; }
-.fuse-board.won .fuse-tile:not(.fuse-ghost) rect { stroke: var(--accent-success); stroke-width: 6; }
-@keyframes fuse-slide { to { transform: translate(var(--dx), var(--dy)); opacity: 0.15; } }
-@keyframes fuse-pop { 0% { transform: scale(0.86); } 55% { transform: scale(1.1); } 100% { transform: scale(1); } }
-@keyframes fuse-win { 0% { transform: scale(1); } 35% { transform: scale(1.18); } 70% { transform: scale(0.97); } 100% { transform: scale(1); } }
-@keyframes fuse-target-pulse { 50% { opacity: 0.45; } }
+.sumbreak-tile.sumbreak-ghost { pointer-events: none; animation: sumbreak-slide 190ms ease-in forwards; }
+.sumbreak-tile.pop { animation: sumbreak-pop 280ms ease-out; }
+.sumbreak-board.won .sumbreak-tile:not(.sumbreak-ghost) { animation: sumbreak-win 700ms ease-out both; }
+.sumbreak-board.won .sumbreak-tile:not(.sumbreak-ghost) rect { stroke: var(--accent-success); stroke-width: 6; }
+@keyframes sumbreak-slide { to { transform: translate(var(--dx), var(--dy)); opacity: 0.15; } }
+@keyframes sumbreak-pop { 0% { transform: scale(0.86); } 55% { transform: scale(1.1); } 100% { transform: scale(1); } }
+@keyframes sumbreak-win { 0% { transform: scale(1); } 35% { transform: scale(1.18); } 70% { transform: scale(0.97); } 100% { transform: scale(1); } }
+@keyframes sumbreak-target-pulse { 50% { opacity: 0.45; } }
 /* A tile with no equal neighbour shakes instead of being selected. */
-.fuse-tile.nope { animation: fuse-nope 300ms ease-in-out; }
-@keyframes fuse-nope { 20% { transform: translateX(-6px); } 40% { transform: translateX(6px); } 60% { transform: translateX(-4px); } 80% { transform: translateX(3px); } }
+.sumbreak-tile.nope { animation: sumbreak-nope 300ms ease-in-out; }
+@keyframes sumbreak-nope { 20% { transform: translateX(-6px); } 40% { transform: translateX(6px); } 60% { transform: translateX(-4px); } 80% { transform: translateX(3px); } }
 @media (prefers-reduced-motion: reduce) {
-    .fuse-tile.fuse-ghost { display: none; }
-    .fuse-tile.pop, .fuse-tile.nope, .fuse-board.won .fuse-tile:not(.fuse-ghost), .fuse-target, .fuse-hint-ring { animation: none; }
+    .sumbreak-tile.sumbreak-ghost { display: none; }
+    .sumbreak-tile.pop, .sumbreak-tile.nope, .sumbreak-board.won .sumbreak-tile:not(.sumbreak-ghost), .sumbreak-target, .sumbreak-hint-ring { animation: none; }
 }
-.fuse-sr { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+.sumbreak-sr { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 
 /* ----------------------------------------------------------------
    Help / footer hints

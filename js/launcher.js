@@ -122,7 +122,7 @@
         },
         {
             id: 'fuse', theme: 'puzzle', icon: 'combine', color: '#0d9488', wip: true,
-            href: './games/fuse.html',
+            href: './games/sumbreak.html',
             tags: ['puzzle', 'single'],
         },
     ];

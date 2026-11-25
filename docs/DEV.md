@@ -59,8 +59,8 @@ js/games/birthday.js         Bilingual birthday-only ceremony and replayable can
 css/birthday.css             Birthday ceremony and homepage entry visuals
 js/games/colour-ladder.js    Small game entry with logic + Canvas 2D rendering
 js/games/unshackle/         Larger subsystem split into engine, view and game
-js/games/fuse/              Sumbreak rules, exact solver, human reasoning and view
-                             (generator: js/generators/fuse.js)
+js/games/sumbreak/           Sumbreak rules, exact solver, human reasoning and view
+                             (generator: js/generators/sumbreak.js)
 docs/rules.md                Player-facing rules
 docs/DEV.md                  This file
 ```
@@ -1527,18 +1527,21 @@ Rules for players live in [rules.md](rules.md#sumbreak); checks in
 [DEBUG.md](DEBUG.md#sumbreak-checks).
 
 The player-facing name is **Sumbreak** in both languages, after LinkedIn's puzzle with
-the same rules. It was first called Fuse: files, browser globals (`Fuse*`), CSS
-classes, i18n keys, the game ID `fuse`, puzzle ids and the page `games/fuse.html` keep
-that name.
+the same rules. The canonical page is `games/sumbreak.html`; scripts, tools, CSS classes
+and i18n keys use `sumbreak` names and `Sumbreak*` browser globals. It was first called
+Fuse: `games/fuse.html` is a redirect preserving the query string and fragment, and the
+persistent identifiers keep that name — the launcher and shell game ID `fuse` (so earlier
+solve logs still count and the launcher's `fuse_*` strings still apply) and puzzle ids
+`fuse-<tier>-<seed>`.
 
 | File | Global | Role |
 | --- | --- | --- |
-| `js/games/fuse/rules.js` | `FuseRules` | Tile types (numbers, ×2), board model, the one merge definition, status, solvability conditions |
-| `js/games/fuse/solver.js` | `FuseSolver` | Exact search: outcomes per merge, solutions, counts, state budget |
-| `js/games/fuse/reasoning.js` | `FuseReasoning` | Human techniques, hint steps, the trial-and-error difficulty measure |
-| `js/generators/fuse.js` | `PuzzleGenerators.fuse`, `fuseInternals` | Shapes per tier, reverse construction, tier and fairness checks, curated fallbacks |
-| `js/games/fuse/worker.js` | — | Web Worker that runs the generator off the main thread |
-| `js/games/fuse/game.js` | — | SVG view, input, hints, solution overlay, puzzle prefetch; owns the en/zh copy |
+| `js/games/sumbreak/rules.js` | `SumbreakRules` | Tile types (numbers, ×2), board model, the one merge definition, status, solvability conditions |
+| `js/games/sumbreak/solver.js` | `SumbreakSolver` | Exact search: outcomes per merge, solutions, counts, state budget |
+| `js/games/sumbreak/reasoning.js` | `SumbreakReasoning` | Human techniques, hint steps, the trial-and-error difficulty measure |
+| `js/generators/sumbreak.js` | `PuzzleGenerators.sumbreak`, `sumbreakInternals` | Shapes per tier, reverse construction, tier and fairness checks, curated fallbacks |
+| `js/games/sumbreak/worker.js` | — | Web Worker that runs the generator off the main thread |
+| `js/games/sumbreak/game.js` | — | SVG view, input, hints, solution overlay, puzzle prefetch; owns the en/zh copy |
 
 All modules except `game.js` and `worker.js` are DOM-free UMD files, so the Node checks
 and the worker load the same code as the page.
@@ -1643,7 +1646,7 @@ the latest solvable position.
 Both tiles of a ringed pair look alike, so the text names each by where it sits
 relative to the other ("the top 1", "the bottom 1"). A refutation names its tiles too.
 The tile the refuted merge would make is "the new" one. Any other tile it names is
-still on the board, gets a dashed red ring (`fuse-ref-ring`) and is called "the 2
+still on the board, gets a dashed red ring (`sumbreak-ref-ring`) and is called "the 2
 ringed in red". On a lost position the error rings already mark the reason's tiles.
 Lookahead reasons describe a later position, so their tiles stay unnamed.
 
@@ -1680,7 +1683,7 @@ tile with no step needing search, so every hint explains itself.
 The earlier tiers (`maxLevel` plus a casual player who merges at random among moves
 that do not look lost) modelled a random player; a real one merges small tiles first
 and undoes, so Hard felt easy, and the largest tier lived in an offline 4×4 bank.
-Calibration (`tools/fuse/calibrate.js`, 40 random boards per kind) found:
+Calibration (`tools/sumbreak/calibrate.js`, 40 random boards per kind) found:
 
 - Small boards cannot be hard. Among reason-solvable boards, the waste p90 is 0 on
   3×3 and 44 on 3×4, against 80 for Medium and Hard. 2 of 40 3×4 boards reach Medium
@@ -1742,17 +1745,17 @@ shape, so there is no `size-seg`; the shell still gets an inert `size` config); 
 Reset, Hint and Reveal in the action row; the timer, a
 warning pill and **You Win!** in the status row; the hint banner and How to play
 below the board. There is no feedback line or win panel; selection and merge
-messages go to the screen-reader live region `#fuse-live`. Reveal draws the remaining
+messages go to the screen-reader live region `#sumbreak-live`. Reveal draws the remaining
 solution from the current position (`solver.solve`, cached per position) as numbered
 green arrows. When that position can no longer be solved, the warning pill reads "No
 solution from here", only while Reveal is on, so a lost position is not given away
-unasked. The pill uses its own id (`fuse-dead-pill`), so the shell's conflict counter
+unasked. The pill uses its own id (`sumbreak-dead-pill`), so the shell's conflict counter
 leaves it alone.
 
 The shared puzzle top bar with "Sumbreak" is wider than a phone, so below 400 px the
-page (`.fuse-shell`) shrinks its title, icon and gaps, as Impressions and Darts do.
+page (`.sumbreak-shell`) shrinks its title, icon and gaps, as Impressions and Darts do.
 
-Rectangular boards set `--fuse-aspect` (viewBox width / height) on the SVG, which keeps
+Rectangular boards set `--sumbreak-aspect` (viewBox width / height) on the SVG, which keeps
 their proportions inside the same 420 px square as a square board. A ×2 tile is drawn
 like any tile, violet with a white "×2" (text boards say `x2`), and the live region
 reads it as "×2". Selecting a ×2 highlights every touching number; one with no

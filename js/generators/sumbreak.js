@@ -1,5 +1,5 @@
 /**
- * Fuse — puzzle generator.
+ * Sumbreak — puzzle generator.
  *
  * Each difficulty draws a board shape from SHAPES (Easy 3×3 to 4×3, Medium and Hard 4×4; any
  * may carry ×2 tiles), then:
@@ -19,18 +19,18 @@
  * no attempt fits the tier, a verified curated puzzle is returned instead.
  *
  * Exposed:
- *   window.PuzzleGenerators.fuse(difficulty, seed, onProgress) → Promise<puzzle>
- *   window.PuzzleGenerators.fuseInternals — generate (sync), judge, DIFFICULTY, SHAPES, …
+ *   window.PuzzleGenerators.sumbreak(difficulty, seed, onProgress) → Promise<puzzle>
+ *   window.PuzzleGenerators.sumbreakInternals — generate (sync), judge, DIFFICULTY, SHAPES, …
  */
 (function (root, factory) {
     'use strict';
     if (typeof module === 'object' && module.exports) {
-        module.exports = factory(require('../games/fuse/rules.js'), require('../games/fuse/solver.js'), require('../games/fuse/reasoning.js'));
+        module.exports = factory(require('../games/sumbreak/rules.js'), require('../games/sumbreak/solver.js'), require('../games/sumbreak/reasoning.js'));
     } else {
-        const api = factory(root.FuseRules, root.FuseSolver, root.FuseReasoning);
+        const api = factory(root.SumbreakRules, root.SumbreakSolver, root.SumbreakReasoning);
         root.PuzzleGenerators = root.PuzzleGenerators || {};
-        root.PuzzleGenerators.fuse = api.generatePuzzle;
-        root.PuzzleGenerators.fuseInternals = api;
+        root.PuzzleGenerators.sumbreak = api.generatePuzzle;
+        root.PuzzleGenerators.sumbreakInternals = api;
     }
 })(typeof window === 'object' ? window : globalThis, function (Rules, Solver, Reasoning) {
     'use strict';
@@ -124,7 +124,7 @@
 
     const TIERS = ['easy', 'medium', 'hard'];
     // Board shapes per difficulty as [rows, cols, weight]. Only 4×4 boards reach the waste
-    // Medium and Hard need (tools/fuse/calibrate.js).
+    // Medium and Hard need (tools/sumbreak/calibrate.js).
     const SHAPES = {
         easy: [[3, 3, 2], [3, 4, 1], [4, 3, 1]],
         medium: [[4, 4, 1]],
@@ -134,7 +134,7 @@
     // many ×2 tiles a board of that size gets, by weight. Each ×2 tile adds one to the
     // exponent, which keeps the other tiles in range and the construction from running out of
     // tiles to split. Two ×2 tiles on 4×4 almost never leave a board solvable by reasoning
-    // (tools/fuse/calibrate.js).
+    // (tools/sumbreak/calibrate.js).
     const EXPONENTS = { 9: [4, 5, 6, 7], 12: [6, 7, 8], 16: [7, 8, 9] };
     const MULS = { 9: [[0, 1], [1, 1]], 12: [[0, 2], [1, 1], [2, 1]], 16: [[0, 1], [1, 1]] };
     // Per tier: the waste (merges made and undone by trial and error, Reasoning.trialMerges)
@@ -148,7 +148,7 @@
     };
     // About 3% of 4×4 attempts qualify for Medium and 1.6% for Hard.
     const ATTEMPTS = { easy: 60, medium: 200, hard: 400 };
-    // Boards solvable by reasoning stay under ~2700 states per position (tools/fuse/calibrate.js
+    // Boards solvable by reasoning stay under ~2700 states per position (tools/sumbreak/calibrate.js
     // --cost); boards that need search often run far past it.
     const SEARCH_BUDGET = 5000;
 
@@ -206,8 +206,8 @@
         return fallback(difficulty, seed, limit);
     }
 
-    // Verified puzzles for each tier, drawn from generator output (tools/fuse/calibrate.js
-    // lists candidates; tools/fuse/generator-check.js re-verifies them).
+    // Verified puzzles for each tier, drawn from generator output (tools/sumbreak/calibrate.js
+    // lists candidates; tools/sumbreak/generator-check.js re-verifies them).
     const CURATED = {
         easy: [
             '1 2 4/1 2 2/1 1 2', '1 1 2 2/2 16 8 4/4 8 16 64', '8 4 2/8 4 1/16 4 1/8 4 4',

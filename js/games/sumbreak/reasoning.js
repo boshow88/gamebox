@@ -1,4 +1,4 @@
-/* Fuse: human-oriented reasoning on top of the shared rules — explainable deductions, hint
+/* Sumbreak: human-oriented reasoning on top of the shared rules — explainable deductions, hint
  * steps and difficulty metrics. Exact search validates every recommendation and is labelled
  * as search whenever no technique explains a move. No DOM, no copy (the view words steps).
  *
@@ -21,7 +21,7 @@
 (function (root, factory) {
     'use strict';
     if (typeof module === 'object' && module.exports) module.exports = factory(require('./rules.js'), require('./solver.js'));
-    else root.FuseReasoning = factory(root.FuseRules, root.FuseSolver);
+    else root.SumbreakReasoning = factory(root.SumbreakRules, root.SumbreakSolver);
 })(typeof window === 'object' ? window : globalThis, function (Rules, Solver) {
     'use strict';
 

@@ -1,10 +1,10 @@
-/** node tools/fuse/generator-check.js — reproducible, verified, correctly tiered puzzles. */
+/** node tools/sumbreak/generator-check.js — reproducible, verified, correctly tiered puzzles. */
 'use strict';
 const assert = require('node:assert/strict');
-const Rules = require('../../js/games/fuse/rules.js');
-const Solver = require('../../js/games/fuse/solver.js');
-const Reasoning = require('../../js/games/fuse/reasoning.js');
-const Gen = require('../../js/generators/fuse.js');
+const Rules = require('../../js/games/sumbreak/rules.js');
+const Solver = require('../../js/games/sumbreak/solver.js');
+const Reasoning = require('../../js/games/sumbreak/reasoning.js');
+const Gen = require('../../js/generators/sumbreak.js');
 const R = Rules.DEFAULT;
 
 function replay(board, moves) {
@@ -189,6 +189,6 @@ assert.deepEqual(Gen.generate({ size: 7, difficulty: 'easy', seed: 3 }), Gen.gen
     assert.ok(worst('easy') < 1000 && worst('medium') < 5000 && worst('hard') < 25000, `generation stays fast (worst ${Gen.TIERS.map(worst)} ms)`);
     const range = (xs) => `${Math.round(Math.min(...xs))}–${Math.round(Math.max(...xs))}`;
     const median = (xs) => xs.slice().sort((a, b) => a - b)[xs.length >> 1];
-    console.log(`fuse generator: ok (${total} puzzles; waste easy ${range(wastes.easy)}, medium ${range(wastes.medium)}, hard ${range(wastes.hard)}; ` +
+    console.log(`sumbreak generator: ok (${total} puzzles; waste easy ${range(wastes.easy)}, medium ${range(wastes.medium)}, hard ${range(wastes.hard)}; ` +
         `first-try medium ${range(chances.medium)}%, hard ${range(chances.hard)}%; median ms ${Gen.TIERS.map((t) => median(timings[t]))}, worst ${Gen.TIERS.map(worst)})`);
 })().catch((err) => { console.error(err); process.exit(1); });

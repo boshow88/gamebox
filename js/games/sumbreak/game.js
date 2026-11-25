@@ -1,10 +1,10 @@
-/** Fuse UI: SVG board, tap / drag / keyboard merging, undo, hints and a solution overlay.
+/** Sumbreak UI: SVG board, tap / drag / keyboard merging, undo, hints and a solution overlay.
  * Rules, search, reasoning and generation live in rules.js, solver.js, reasoning.js and
- * generators/fuse.js; worker.js runs the generator off the main thread. */
+ * generators/sumbreak.js; worker.js runs the generator off the main thread. */
 (function () {
     'use strict';
-    const PC = window.PuzzleCommon, Rules = window.FuseRules, Solver = window.FuseSolver, Reasoning = window.FuseReasoning;
-    const generate = window.PuzzleGenerators.fuse;
+    const PC = window.PuzzleCommon, Rules = window.SumbreakRules, Solver = window.SumbreakSolver, Reasoning = window.SumbreakReasoning;
+    const generate = window.PuzzleGenerators.sumbreak;
     const R = Rules.DEFAULT;
     const CELL = 100, GAP = 8, DRAG_PX = 10;
     const DIFFICULTIES = ['easy', 'medium', 'hard'];
@@ -18,122 +18,122 @@
     const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 
     Object.assign(PC.i18n.STRINGS.en, {
-        fuseName: 'Sumbreak',
-        fuseBoardAria: 'Sumbreak board. Arrow keys move, Enter or Space selects and merges, Escape cancels.',
-        fuseResetTitle: 'Start this puzzle over',
-        fuseHintTitle: 'Explain one merge you can work out',
-        fuseDeadPill: 'No merges left', fuseNoSolution: 'No solution from here',
-        fuseReady: 'Merge equal neighbours until one tile remains.',
-        fuseSelected: (v) => `Selected ${v}. Tap a highlighted neighbour to merge into it.`,
-        fuseNoPartner: (v) => `This ${v} has no equal neighbour right now.`,
-        fuseNoPartnerMul: 'This ×2 touches no number right now.',
-        fuseCancelled: 'Selection cleared.', fuseMerged: (v) => `Merged into ${v}.`,
-        fuseUndone: 'Last merge undone.', fuseRestarted: 'Back to the start.',
-        fuseDeadEnd: 'No two equal tiles touch, so nothing can merge.',
-        fuseDeadEndMul: 'Nothing can merge: no equal numbers touch, and no ×2 touches a number.',
-        fuseWinSay: 'Solved! One tile left.',
-        fuseGenerateFailed: 'Could not prepare a puzzle. Press New Game to try again.',
-        fuseCell: (r, c, what) => `Row ${r}, column ${c}: ${what}`,
-        fuseEmpty: 'empty', fuseBlocked: 'blocked', fuseIsSelected: 'selected', fuseIsTarget: 'can merge here',
-        fuseHelp1: 'Merge two touching tiles with the same number: the tile you move disappears and the one it joins doubles.',
-        fuseHelp2: 'Emptied cells stay empty and nothing slides, so plan which tiles meet. Reduce the board to a single tile to win.',
-        fuseHelpMul: 'A ×2 tile merges with any touching number and doubles it, in either direction: drag 8 onto ×2, or ×2 onto 8, to make 16. It counts as a tile, so every ×2 must be used.',
-        fuseHelp3Html: 'Tap a tile, then a highlighted neighbour, or drag one onto the other. Keyboard: arrows move, <strong>Enter</strong> or <strong>Space</strong> selects and merges, <strong>Esc</strong> cancels, <strong>Ctrl+Z</strong> undoes.',
-        fuseHelp4: 'Hint explains one merge you can work out; once the position can no longer be solved, it says how many merges to undo. Reveal shows a full solution from the current position, or warns that there is none.',
-        fuseWhyFinal: 'Two tiles left: merging them finishes the puzzle, in either direction.',
-        fuseWhyLone: (a, b) => `${cap(a)} touches only ${b}, so they must merge.`,
-        fuseWhyOnlyPair: 'This is the only pair of tiles that can merge, so it has to merge now.',
-        fuseWhyForcedPair: (a, b, v) => `Apart from ${b}, ${a} touches only empty cells and larger numbers, so these two ${v}s must merge before either one changes.`,
-        fuseTop: (v) => `the top ${v}`, fuseBottom: (v) => `the bottom ${v}`, fuseLeft: (v) => `the left ${v}`, fuseRight: (v) => `the right ${v}`,
-        fuseNewTile: (v) => `the new ${v}`, fuseRingedTile: (v) => `the ${v} ringed in red`, fuseRingedTwo: (v) => `the two ${v}s ringed in red`,
-        fuseTile: (v) => `the ${v}`, fuseTwo: (v) => `two ${v}s`, fuseAnd: (a, b) => `${a} and ${b}`,
-        fuseWhyEliminate: (n) => (n === 1 ? 'Only one merge works here: the other one fails.' : `Only one merge works here: the other ${n} all fail.`),
-        fuseWhyFree: (n) => (n ? `${n === 1 ? 'One merge here fails' : `${n} merges here fail`}; the rest all work.` : 'Every merge here works.'),
-        fuseWhyTrial: (k) => (k === 1 ? 'Merging these two the right way leaves a final pair that finishes the puzzle.' : `Merging these two the right way makes each of the next ${k} merges forced, ending in a single tile.`),
-        fuseWhySearch: 'No simple deduction applies here.',
-        fuseWhySearchPair: 'The highlighted pair must merge.',
-        fuseDirLone: 'Not the other way: the new tile would touch nothing.',
-        fuseDirOnly: 'Only one direction is possible.',
-        fuseDirRefuted: (why) => `Not the other way: then ${why}.`,
-        fuseDirFree: 'Either direction works.',
-        fuseExample: (why) => `For example, the red merge fails: then ${why}.`,
-        fuseWhyDead: 'nothing can merge any more',
-        fuseWhyStuck: (tile) => `${tile} touches only empty cells or larger numbers`,
-        fuseWhyRivals: (tiles) => `${tiles} depend on the same partner`,
-        fuseWhyOdd: (v, n) => `the ${v}s, the smallest tiles, form a group of ${n}; they pair only with each other, so one is always left over`,
-        fuseWhySplit: 'the tiles are split into groups that can never meet',
-        fuseWhySubtotal: (below, sum) => `a group of tiles below ${below} totals ${sum}, but such tiles only leave their group as whole ${below}s`,
-        fuseWhyHalf: (tile) => `${tile} is half the total, so it can only merge last, yet without it the other tiles are cut apart`,
-        fuseWhyBlocked: (v) => `the ${v}s that must pair up can merge in neither direction`,
-        fuseWhyNoSurvivor: 'every possible next merge fails',
-        fuseWhyAhead: (k, why) => `it forces ${k === 1 ? 'one more merge' : `${k} more merges`}, and then ${why}`,
-        fuseWhyGeneric: 'a rule check shows it cannot finish',
-        fuseDoOne: 'Merge along the arrow.', fuseDoAny: (n) => `Any of these ${n} merges works.`,
-        fuseDeadHint: 'No merge is possible.',
-        fuseUnsolvable: (why) => `This position can no longer be solved: ${why}.`,
-        fuseUnsolvableSearch: 'This position can no longer be solved.',
-        fuseUndoBack: (n) => (n === 1 ? 'Undo the last merge to get back on track.' : `Undo ${n} merges to get back on track.`),
-        fuseResetBack: 'Press Reset to get back on track.',
-        fuseUnknown: 'This position is too complex to check.',
+        sumbreakName: 'Sumbreak',
+        sumbreakBoardAria: 'Sumbreak board. Arrow keys move, Enter or Space selects and merges, Escape cancels.',
+        sumbreakResetTitle: 'Start this puzzle over',
+        sumbreakHintTitle: 'Explain one merge you can work out',
+        sumbreakDeadPill: 'No merges left', sumbreakNoSolution: 'No solution from here',
+        sumbreakReady: 'Merge equal neighbours until one tile remains.',
+        sumbreakSelected: (v) => `Selected ${v}. Tap a highlighted neighbour to merge into it.`,
+        sumbreakNoPartner: (v) => `This ${v} has no equal neighbour right now.`,
+        sumbreakNoPartnerMul: 'This ×2 touches no number right now.',
+        sumbreakCancelled: 'Selection cleared.', sumbreakMerged: (v) => `Merged into ${v}.`,
+        sumbreakUndone: 'Last merge undone.', sumbreakRestarted: 'Back to the start.',
+        sumbreakDeadEnd: 'No two equal tiles touch, so nothing can merge.',
+        sumbreakDeadEndMul: 'Nothing can merge: no equal numbers touch, and no ×2 touches a number.',
+        sumbreakWinSay: 'Solved! One tile left.',
+        sumbreakGenerateFailed: 'Could not prepare a puzzle. Press New Game to try again.',
+        sumbreakCell: (r, c, what) => `Row ${r}, column ${c}: ${what}`,
+        sumbreakEmpty: 'empty', sumbreakBlocked: 'blocked', sumbreakIsSelected: 'selected', sumbreakIsTarget: 'can merge here',
+        sumbreakHelp1: 'Merge two touching tiles with the same number: the tile you move disappears and the one it joins doubles.',
+        sumbreakHelp2: 'Emptied cells stay empty and nothing slides, so plan which tiles meet. Reduce the board to a single tile to win.',
+        sumbreakHelpMul: 'A ×2 tile merges with any touching number and doubles it, in either direction: drag 8 onto ×2, or ×2 onto 8, to make 16. It counts as a tile, so every ×2 must be used.',
+        sumbreakHelp3Html: 'Tap a tile, then a highlighted neighbour, or drag one onto the other. Keyboard: arrows move, <strong>Enter</strong> or <strong>Space</strong> selects and merges, <strong>Esc</strong> cancels, <strong>Ctrl+Z</strong> undoes.',
+        sumbreakHelp4: 'Hint explains one merge you can work out; once the position can no longer be solved, it says how many merges to undo. Reveal shows a full solution from the current position, or warns that there is none.',
+        sumbreakWhyFinal: 'Two tiles left: merging them finishes the puzzle, in either direction.',
+        sumbreakWhyLone: (a, b) => `${cap(a)} touches only ${b}, so they must merge.`,
+        sumbreakWhyOnlyPair: 'This is the only pair of tiles that can merge, so it has to merge now.',
+        sumbreakWhyForcedPair: (a, b, v) => `Apart from ${b}, ${a} touches only empty cells and larger numbers, so these two ${v}s must merge before either one changes.`,
+        sumbreakTop: (v) => `the top ${v}`, sumbreakBottom: (v) => `the bottom ${v}`, sumbreakLeft: (v) => `the left ${v}`, sumbreakRight: (v) => `the right ${v}`,
+        sumbreakNewTile: (v) => `the new ${v}`, sumbreakRingedTile: (v) => `the ${v} ringed in red`, sumbreakRingedTwo: (v) => `the two ${v}s ringed in red`,
+        sumbreakTile: (v) => `the ${v}`, sumbreakTwo: (v) => `two ${v}s`, sumbreakAnd: (a, b) => `${a} and ${b}`,
+        sumbreakWhyEliminate: (n) => (n === 1 ? 'Only one merge works here: the other one fails.' : `Only one merge works here: the other ${n} all fail.`),
+        sumbreakWhyFree: (n) => (n ? `${n === 1 ? 'One merge here fails' : `${n} merges here fail`}; the rest all work.` : 'Every merge here works.'),
+        sumbreakWhyTrial: (k) => (k === 1 ? 'Merging these two the right way leaves a final pair that finishes the puzzle.' : `Merging these two the right way makes each of the next ${k} merges forced, ending in a single tile.`),
+        sumbreakWhySearch: 'No simple deduction applies here.',
+        sumbreakWhySearchPair: 'The highlighted pair must merge.',
+        sumbreakDirLone: 'Not the other way: the new tile would touch nothing.',
+        sumbreakDirOnly: 'Only one direction is possible.',
+        sumbreakDirRefuted: (why) => `Not the other way: then ${why}.`,
+        sumbreakDirFree: 'Either direction works.',
+        sumbreakExample: (why) => `For example, the red merge fails: then ${why}.`,
+        sumbreakWhyDead: 'nothing can merge any more',
+        sumbreakWhyStuck: (tile) => `${tile} touches only empty cells or larger numbers`,
+        sumbreakWhyRivals: (tiles) => `${tiles} depend on the same partner`,
+        sumbreakWhyOdd: (v, n) => `the ${v}s, the smallest tiles, form a group of ${n}; they pair only with each other, so one is always left over`,
+        sumbreakWhySplit: 'the tiles are split into groups that can never meet',
+        sumbreakWhySubtotal: (below, sum) => `a group of tiles below ${below} totals ${sum}, but such tiles only leave their group as whole ${below}s`,
+        sumbreakWhyHalf: (tile) => `${tile} is half the total, so it can only merge last, yet without it the other tiles are cut apart`,
+        sumbreakWhyBlocked: (v) => `the ${v}s that must pair up can merge in neither direction`,
+        sumbreakWhyNoSurvivor: 'every possible next merge fails',
+        sumbreakWhyAhead: (k, why) => `it forces ${k === 1 ? 'one more merge' : `${k} more merges`}, and then ${why}`,
+        sumbreakWhyGeneric: 'a rule check shows it cannot finish',
+        sumbreakDoOne: 'Merge along the arrow.', sumbreakDoAny: (n) => `Any of these ${n} merges works.`,
+        sumbreakDeadHint: 'No merge is possible.',
+        sumbreakUnsolvable: (why) => `This position can no longer be solved: ${why}.`,
+        sumbreakUnsolvableSearch: 'This position can no longer be solved.',
+        sumbreakUndoBack: (n) => (n === 1 ? 'Undo the last merge to get back on track.' : `Undo ${n} merges to get back on track.`),
+        sumbreakResetBack: 'Press Reset to get back on track.',
+        sumbreakUnknown: 'This position is too complex to check.',
     });
     Object.assign(PC.i18n.STRINGS.zh, {
-        fuseName: 'Sumbreak',
-        fuseBoardAria: 'Sumbreak 棋盤。方向鍵移動，Enter或空白鍵選取並合併，Esc取消。',
-        fuseResetTitle: '從頭再玩這一題',
-        fuseHintTitle: '說明一步推得出來的合併',
-        fuseDeadPill: '無法再合併', fuseNoSolution: '此局面已無解',
-        fuseReady: '合併相鄰的相同數字，直到只剩一塊。',
-        fuseSelected: (v) => `已選取${v}。點一個標示的鄰居，把它併進去。`,
-        fuseNoPartner: (v) => `這個${v}目前沒有相同的鄰居。`,
-        fuseNoPartnerMul: '這個 ×2 目前沒有碰到任何數字。',
-        fuseCancelled: '已取消選取。', fuseMerged: (v) => `合併成${v}。`,
-        fuseUndone: '已復原上一次合併。', fuseRestarted: '回到起點。',
-        fuseDeadEnd: '沒有相同的方塊相鄰，無法再合併。',
-        fuseDeadEndMul: '無法再合併：沒有相同的數字相鄰，也沒有 ×2 碰到數字。',
-        fuseWinSay: '完成！只剩一塊。',
-        fuseGenerateFailed: '暫時無法產生題目，請按「新局」再試一次。',
-        fuseCell: (r, c, what) => `第${r}列第${c}欄：${what}`,
-        fuseEmpty: '空格', fuseBlocked: '障礙', fuseIsSelected: '已選取', fuseIsTarget: '可併入',
-        fuseHelp1: '把兩個相鄰且數字相同的方塊合併：移動的那塊消失，被併入的那塊數字加倍。',
-        fuseHelp2: '清空的格子會一直空著，方塊也不會滑動，要先想好哪些方塊該碰在一起。最後只剩一塊即過關。',
-        fuseHelpMul: '×2 方塊可以和任何相鄰的數字合併，讓那個數字變兩倍，方向不拘：把 8 拖到 ×2 上，或把 ×2 拖到 8 上，都會變成 16。×2 也算一塊，每個 ×2 都要用掉才能過關。',
-        fuseHelp3Html: '點一個方塊，再點標示的鄰居；也可以直接拖過去。鍵盤：方向鍵移動，<strong>Enter</strong>或<strong>空白鍵</strong>選取並合併，<strong>Esc</strong>取消，<strong>Ctrl+Z</strong>復原。',
-        fuseHelp4: '「提示」會說明一步推得出來的合併；局面已經無解時，會告訴你要復原幾步。「解答」會顯示從目前局面到完成的一組解法，無解時則會提醒。',
-        fuseWhyFinal: '只剩兩塊：把它們合併就完成了，方向不拘。',
-        fuseWhyLone: (a, b) => `${a}只碰到${b}，兩者只能合併。`,
-        fuseWhyOnlyPair: '這是盤面上唯一能合併的一組方塊，現在就得合併。',
-        fuseWhyForcedPair: (a, b, v) => `${a}除了${b}以外，其他鄰居都是空格或更大的數字，所以這兩個${v}必須在任一個改變前合併。`,
-        fuseTop: (v) => `上面的${v}`, fuseBottom: (v) => `下面的${v}`, fuseLeft: (v) => `左邊的${v}`, fuseRight: (v) => `右邊的${v}`,
-        fuseNewTile: (v) => `合併出的${v}`, fuseRingedTile: (v) => `紅框的${v}`, fuseRingedTwo: (v) => `紅框的兩個${v}`,
-        fuseTile: (v) => `${v}`, fuseTwo: (v) => `兩個${v}`, fuseAnd: (a, b) => `${a}和${b}`,
-        fuseWhyEliminate: (n) => (n === 1 ? '這裡只有一種合併可行，另一種會失敗。' : `這裡只有一種合併可行，其他${n}種都會失敗。`),
-        fuseWhyFree: (n) => (n ? `這裡有${n}種合併會失敗，其餘都可行。` : '這裡每種合併都可行。'),
-        fuseWhyTrial: (k) => (k === 1 ? '這兩塊朝對的方向合併後，剩下的一對就能完成。' : `這兩塊朝對的方向合併後，接下來${k}次合併都是被迫的，最後只剩一塊。`),
-        fuseWhySearch: '這一步沒有簡單的推理。',
-        fuseWhySearchPair: '標示的這組必須合併。',
-        fuseDirLone: '不能反過來：那樣新方塊會碰不到任何方塊。',
-        fuseDirOnly: '只有一個方向可以合併。',
-        fuseDirRefuted: (why) => `不能反過來：那樣${why}。`,
-        fuseDirFree: '兩個方向都可以。',
-        fuseExample: (why) => `例如紅色的合併會失敗：那樣${why}。`,
-        fuseWhyDead: '再也沒有能合併的方塊',
-        fuseWhyStuck: (tile) => `${tile}只碰到空格或更大的數字`,
-        fuseWhyRivals: (tiles) => `${tiles}得搶同一個夥伴`,
-        fuseWhyOdd: (v, n) => `最小的${v}形成${n}塊一群，只能彼此配對，總會剩下一塊`,
-        fuseWhySplit: '方塊被分成永遠碰不到的幾群',
-        fuseWhySubtotal: (below, sum) => `一群小於${below}的方塊總和是${sum}，但這種方塊只能湊成完整的${below}才離開這一群`,
-        fuseWhyHalf: (tile) => `${tile}佔總和一半，只能在最後合併，但少了它其他方塊就被隔開`,
-        fuseWhyBlocked: (v) => `必須配對的${v}兩個方向都併不了`,
-        fuseWhyNoSurvivor: '下一步的每種合併都會失敗',
-        fuseWhyAhead: (k, why) => `會被迫再合併${k}次，接著${why}`,
-        fuseWhyGeneric: '規則檢查顯示無法完成',
-        fuseDoOne: '照箭頭合併。', fuseDoAny: (n) => `這${n}種合併任選一種都可以。`,
-        fuseDeadHint: '已無法合併。',
-        fuseUnsolvable: (why) => `這個局面已經無解：${why}。`,
-        fuseUnsolvableSearch: '這個局面已經無解。',
-        fuseUndoBack: (n) => `復原${n}次合併就能回到有解的局面。`,
-        fuseResetBack: '按「重設」即可回到有解的局面。',
-        fuseUnknown: '這個局面太複雜，無法判斷。',
+        sumbreakName: 'Sumbreak',
+        sumbreakBoardAria: 'Sumbreak 棋盤。方向鍵移動，Enter或空白鍵選取並合併，Esc取消。',
+        sumbreakResetTitle: '從頭再玩這一題',
+        sumbreakHintTitle: '說明一步推得出來的合併',
+        sumbreakDeadPill: '無法再合併', sumbreakNoSolution: '此局面已無解',
+        sumbreakReady: '合併相鄰的相同數字，直到只剩一塊。',
+        sumbreakSelected: (v) => `已選取${v}。點一個標示的鄰居，把它併進去。`,
+        sumbreakNoPartner: (v) => `這個${v}目前沒有相同的鄰居。`,
+        sumbreakNoPartnerMul: '這個 ×2 目前沒有碰到任何數字。',
+        sumbreakCancelled: '已取消選取。', sumbreakMerged: (v) => `合併成${v}。`,
+        sumbreakUndone: '已復原上一次合併。', sumbreakRestarted: '回到起點。',
+        sumbreakDeadEnd: '沒有相同的方塊相鄰，無法再合併。',
+        sumbreakDeadEndMul: '無法再合併：沒有相同的數字相鄰，也沒有 ×2 碰到數字。',
+        sumbreakWinSay: '完成！只剩一塊。',
+        sumbreakGenerateFailed: '暫時無法產生題目，請按「新局」再試一次。',
+        sumbreakCell: (r, c, what) => `第${r}列第${c}欄：${what}`,
+        sumbreakEmpty: '空格', sumbreakBlocked: '障礙', sumbreakIsSelected: '已選取', sumbreakIsTarget: '可併入',
+        sumbreakHelp1: '把兩個相鄰且數字相同的方塊合併：移動的那塊消失，被併入的那塊數字加倍。',
+        sumbreakHelp2: '清空的格子會一直空著，方塊也不會滑動，要先想好哪些方塊該碰在一起。最後只剩一塊即過關。',
+        sumbreakHelpMul: '×2 方塊可以和任何相鄰的數字合併，讓那個數字變兩倍，方向不拘：把 8 拖到 ×2 上，或把 ×2 拖到 8 上，都會變成 16。×2 也算一塊，每個 ×2 都要用掉才能過關。',
+        sumbreakHelp3Html: '點一個方塊，再點標示的鄰居；也可以直接拖過去。鍵盤：方向鍵移動，<strong>Enter</strong>或<strong>空白鍵</strong>選取並合併，<strong>Esc</strong>取消，<strong>Ctrl+Z</strong>復原。',
+        sumbreakHelp4: '「提示」會說明一步推得出來的合併；局面已經無解時，會告訴你要復原幾步。「解答」會顯示從目前局面到完成的一組解法，無解時則會提醒。',
+        sumbreakWhyFinal: '只剩兩塊：把它們合併就完成了，方向不拘。',
+        sumbreakWhyLone: (a, b) => `${a}只碰到${b}，兩者只能合併。`,
+        sumbreakWhyOnlyPair: '這是盤面上唯一能合併的一組方塊，現在就得合併。',
+        sumbreakWhyForcedPair: (a, b, v) => `${a}除了${b}以外，其他鄰居都是空格或更大的數字，所以這兩個${v}必須在任一個改變前合併。`,
+        sumbreakTop: (v) => `上面的${v}`, sumbreakBottom: (v) => `下面的${v}`, sumbreakLeft: (v) => `左邊的${v}`, sumbreakRight: (v) => `右邊的${v}`,
+        sumbreakNewTile: (v) => `合併出的${v}`, sumbreakRingedTile: (v) => `紅框的${v}`, sumbreakRingedTwo: (v) => `紅框的兩個${v}`,
+        sumbreakTile: (v) => `${v}`, sumbreakTwo: (v) => `兩個${v}`, sumbreakAnd: (a, b) => `${a}和${b}`,
+        sumbreakWhyEliminate: (n) => (n === 1 ? '這裡只有一種合併可行，另一種會失敗。' : `這裡只有一種合併可行，其他${n}種都會失敗。`),
+        sumbreakWhyFree: (n) => (n ? `這裡有${n}種合併會失敗，其餘都可行。` : '這裡每種合併都可行。'),
+        sumbreakWhyTrial: (k) => (k === 1 ? '這兩塊朝對的方向合併後，剩下的一對就能完成。' : `這兩塊朝對的方向合併後，接下來${k}次合併都是被迫的，最後只剩一塊。`),
+        sumbreakWhySearch: '這一步沒有簡單的推理。',
+        sumbreakWhySearchPair: '標示的這組必須合併。',
+        sumbreakDirLone: '不能反過來：那樣新方塊會碰不到任何方塊。',
+        sumbreakDirOnly: '只有一個方向可以合併。',
+        sumbreakDirRefuted: (why) => `不能反過來：那樣${why}。`,
+        sumbreakDirFree: '兩個方向都可以。',
+        sumbreakExample: (why) => `例如紅色的合併會失敗：那樣${why}。`,
+        sumbreakWhyDead: '再也沒有能合併的方塊',
+        sumbreakWhyStuck: (tile) => `${tile}只碰到空格或更大的數字`,
+        sumbreakWhyRivals: (tiles) => `${tiles}得搶同一個夥伴`,
+        sumbreakWhyOdd: (v, n) => `最小的${v}形成${n}塊一群，只能彼此配對，總會剩下一塊`,
+        sumbreakWhySplit: '方塊被分成永遠碰不到的幾群',
+        sumbreakWhySubtotal: (below, sum) => `一群小於${below}的方塊總和是${sum}，但這種方塊只能湊成完整的${below}才離開這一群`,
+        sumbreakWhyHalf: (tile) => `${tile}佔總和一半，只能在最後合併，但少了它其他方塊就被隔開`,
+        sumbreakWhyBlocked: (v) => `必須配對的${v}兩個方向都併不了`,
+        sumbreakWhyNoSurvivor: '下一步的每種合併都會失敗',
+        sumbreakWhyAhead: (k, why) => `會被迫再合併${k}次，接著${why}`,
+        sumbreakWhyGeneric: '規則檢查顯示無法完成',
+        sumbreakDoOne: '照箭頭合併。', sumbreakDoAny: (n) => `這${n}種合併任選一種都可以。`,
+        sumbreakDeadHint: '已無法合併。',
+        sumbreakUnsolvable: (why) => `這個局面已經無解：${why}。`,
+        sumbreakUnsolvableSearch: '這個局面已經無解。',
+        sumbreakUndoBack: (n) => `復原${n}次合併就能回到有解的局面。`,
+        sumbreakResetBack: '按「重設」即可回到有解的局面。',
+        sumbreakUnknown: '這個局面太複雜，無法判斷。',
     });
 
     const $ = (id) => document.getElementById(id);
@@ -162,11 +162,11 @@
             cancelDrag(); endAnimation();
             if (state.won) { state.won = false; shell.clearWin(); }
             state.trail = snap.trail; state.selected = null; state.hint = null;
-            say('fuseUndone'); sync();
+            say('sumbreakUndone'); sync();
         },
     });
 
-    function say(key, ...args) { $('fuse-live').textContent = t(key, ...args); }
+    function say(key, ...args) { $('sumbreak-live').textContent = t(key, ...args); }
     function label(cell) { return cell.type === 'mul' ? '×' + cell.factor : R.token(cell); }
     function hasMul(b) { return b.cells.some((c) => R.isTile(c) && c.type === 'mul'); }
     function targetsOf(b, i) { return R.neighbors(b, i).filter((j) => R.canMerge(b, i, j)); }
@@ -188,10 +188,10 @@
         const c = centre(b, i), text = label(cell), [fill, ink] = colours(cell);
         const dx = offset ? offset.x : 0, dy = offset ? offset.y : 0;
         const outer = add(parent, 'g', { transform: `translate(${c.x + dx} ${c.y + dy})` });
-        const inner = add(outer, 'g', { class: 'fuse-tile' + (className ? ' ' + className : '') });
+        const inner = add(outer, 'g', { class: 'sumbreak-tile' + (className ? ' ' + className : '') });
         add(inner, 'rect', { x: -CELL / 2, y: -CELL / 2, width: CELL, height: CELL, rx: 16, fill });
         const size = text.length <= 2 ? 44 : text.length === 3 ? 38 : text.length === 4 ? 31 : 25;
-        add(inner, 'text', { class: 'fuse-num', x: 0, y: 2, fill: ink, 'font-size': size }).textContent = text;
+        add(inner, 'text', { class: 'sumbreak-num', x: 0, y: 2, fill: ink, 'font-size': size }).textContent = text;
         return inner;
     }
     function ring(parent, b, i, className, inset) {
@@ -210,18 +210,18 @@
     function arrow(parent, b, from, to, kind, both) {
         const { a, c, ux, uy } = unit(b, from, to);
         const x1 = a.x + ux * (both ? 40 : 30), y1 = a.y + uy * (both ? 40 : 30), x2 = c.x - ux * 40, y2 = c.y - uy * 40;
-        add(parent, 'line', { class: 'fuse-arrow ' + kind, x1, y1, x2, y2 });
-        add(parent, 'polygon', { class: 'fuse-arrow-head ' + kind, points: triangle(c.x - ux * 34, c.y - uy * 34, ux, uy, 13) });
-        if (both) add(parent, 'polygon', { class: 'fuse-arrow-head ' + kind, points: triangle(a.x + ux * 34, a.y + uy * 34, -ux, -uy, 13) });
+        add(parent, 'line', { class: 'sumbreak-arrow ' + kind, x1, y1, x2, y2 });
+        add(parent, 'polygon', { class: 'sumbreak-arrow-head ' + kind, points: triangle(c.x - ux * 34, c.y - uy * 34, ux, uy, 13) });
+        if (both) add(parent, 'polygon', { class: 'sumbreak-arrow-head ' + kind, points: triangle(a.x + ux * 34, a.y + uy * 34, -ux, -uy, 13) });
     }
     // Reveal: step n of the solution, a numbered badge in the gap between the two tiles with
     // a small head pointing at the destination; both stay clear of three-digit numbers.
     function revealStep(parent, b, m, n) {
         const { a, c, ux, uy } = unit(b, m.from, m.to);
         const mx = (a.x + c.x) / 2 - ux * 4, my = (a.y + c.y) / 2 - uy * 4;
-        add(parent, 'polygon', { class: 'fuse-reveal-head', points: triangle(mx + ux * 18, my + uy * 18, ux, uy, 7) });
-        add(parent, 'circle', { class: 'fuse-reveal-badge', cx: mx, cy: my, r: 14 });
-        add(parent, 'text', { class: 'fuse-reveal-num', x: mx, y: my + 1 }).textContent = String(n);
+        add(parent, 'polygon', { class: 'sumbreak-reveal-head', points: triangle(mx + ux * 18, my + uy * 18, ux, uy, 7) });
+        add(parent, 'circle', { class: 'sumbreak-reveal-badge', cx: mx, cy: my, r: 14 });
+        add(parent, 'text', { class: 'sumbreak-reveal-num', x: mx, y: my + 1 }).textContent = String(n);
     }
     function render() {
         const b = current();
@@ -229,18 +229,18 @@
         if (!b) return;
         const W = b.cols * CELL + (b.cols + 1) * GAP, H = b.rows * CELL + (b.rows + 1) * GAP;
         svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
-        svg.style.setProperty('--fuse-aspect', (W / H).toFixed(4));
+        svg.style.setProperty('--sumbreak-aspect', (W / H).toFixed(4));
         svg.classList.toggle('won', state.won);
         const drag = state.drag && state.drag.moved && !state.drag.inert ? state.drag : null;
         const selected = state.selected, targets = selected != null ? targetsOf(b, selected) : [];
         const marks = hintMarks(), anim = state.anim;
-        const slots = add(svg, 'g', { class: 'fuse-slots' }), tiles = add(svg, 'g', { class: 'fuse-tiles' });
-        const over = add(svg, 'g', { class: 'fuse-over' });
+        const slots = add(svg, 'g', { class: 'sumbreak-slots' }), tiles = add(svg, 'g', { class: 'sumbreak-tiles' });
+        const over = add(svg, 'g', { class: 'sumbreak-over' });
         for (let i = 0; i < b.cells.length; i++) {
             const o = origin(b, i), cell = b.cells[i];
             const kind = cell === R.EMPTY ? ' empty' : R.isTile(cell) ? '' : ' block';
-            add(slots, 'rect', { class: 'fuse-slot' + kind, x: o.x, y: o.y, width: CELL, height: CELL, rx: 16 });
-            if (cell === R.EMPTY) add(slots, 'circle', { class: 'fuse-hole', cx: o.x + CELL / 2, cy: o.y + CELL / 2, r: 6 });
+            add(slots, 'rect', { class: 'sumbreak-slot' + kind, x: o.x, y: o.y, width: CELL, height: CELL, rx: 16 });
+            if (cell === R.EMPTY) add(slots, 'circle', { class: 'sumbreak-hole', cx: o.x + CELL / 2, cy: o.y + CELL / 2, r: 6 });
             if (!R.isTile(cell) || (drag && drag.from === i)) continue;
             const cls = [];
             if (i === selected) cls.push('selected');
@@ -251,18 +251,18 @@
         }
         if (anim) {
             const from = centre(b, anim.from), to = centre(b, anim.to);
-            const ghost = drawTile(tiles, b, anim.from, anim.cell, 'fuse-ghost');
+            const ghost = drawTile(tiles, b, anim.from, anim.cell, 'sumbreak-ghost');
             ghost.style.setProperty('--dx', `${to.x - from.x}px`);
             ghost.style.setProperty('--dy', `${to.y - from.y}px`);
         }
         const reveal = revealMoves(b);
         if (reveal) reveal.forEach((m, k) => revealStep(over, b, m, k + 1));
-        for (const j of targets) ring(over, b, j, 'fuse-target' + (drag && drag.over === j ? ' over' : ''), -3);
-        for (const i of marks.rings) ring(over, b, i, 'fuse-hint-ring' + (marks.error ? ' error' : ''), -5);
-        for (const i of marks.refs) ring(over, b, i, 'fuse-ref-ring', marks.rings.includes(i) ? 5 : -5);
+        for (const j of targets) ring(over, b, j, 'sumbreak-target' + (drag && drag.over === j ? ' over' : ''), -3);
+        for (const i of marks.rings) ring(over, b, i, 'sumbreak-hint-ring' + (marks.error ? ' error' : ''), -5);
+        for (const i of marks.refs) ring(over, b, i, 'sumbreak-ref-ring', marks.rings.includes(i) ? 5 : -5);
         for (const m of marks.arrows) arrow(over, b, m.from, m.to, m.kind, m.both);
         if (drag) drawTile(over, b, drag.from, b.cells[drag.from], 'selected lifted', { x: drag.dx, y: drag.dy });
-        if (state.keyboard && document.activeElement === svg) ring(over, b, state.cursor, 'fuse-cursor', -7);
+        if (state.keyboard && document.activeElement === svg) ring(over, b, state.cursor, 'sumbreak-cursor', -7);
     }
 
     // ---------- reveal ----------
@@ -342,27 +342,27 @@
     // by ringedBy in a move hint, by the error rings on a lost position. Lookahead reasons
     // describe a later position, so their tiles stay `plain`.
     function why(r, made, plain) {
-        const one = (c) => t(plain ? 'fuseTile' : c === made ? 'fuseNewTile' : 'fuseRingedTile', r.value);
+        const one = (c) => t(plain ? 'sumbreakTile' : c === made ? 'sumbreakNewTile' : 'sumbreakRingedTile', r.value);
         switch (r.id) {
-            case 'dead-end': return t('fuseWhyDead');
-            case 'stuck': return t('fuseWhyStuck', one(r.cells[0]));
-            case 'rivals': return t('fuseWhyRivals', plain ? t('fuseTwo', r.value)
-                : r.cells.includes(made) ? t('fuseAnd', t('fuseNewTile', r.value), t('fuseRingedTile', r.value)) : t('fuseRingedTwo', r.value));
-            case 'odd-group': return t('fuseWhyOdd', r.value, r.cells.length);
-            case 'split': return t('fuseWhySplit');
-            case 'subtotal': return t('fuseWhySubtotal', r.below, r.sum);
-            case 'half': return t('fuseWhyHalf', one(r.cells[0]));
-            case 'pair-blocked': return t('fuseWhyBlocked', r.value);
-            case 'no-survivor': return t('fuseWhyNoSurvivor');
-            case 'lookahead': return r.chain.length ? t('fuseWhyAhead', r.chain.length, why(r.final, null, true)) : why(r.final, null, true);
-            default: return t('fuseWhyGeneric');
+            case 'dead-end': return t('sumbreakWhyDead');
+            case 'stuck': return t('sumbreakWhyStuck', one(r.cells[0]));
+            case 'rivals': return t('sumbreakWhyRivals', plain ? t('sumbreakTwo', r.value)
+                : r.cells.includes(made) ? t('sumbreakAnd', t('sumbreakNewTile', r.value), t('sumbreakRingedTile', r.value)) : t('sumbreakRingedTwo', r.value));
+            case 'odd-group': return t('sumbreakWhyOdd', r.value, r.cells.length);
+            case 'split': return t('sumbreakWhySplit');
+            case 'subtotal': return t('sumbreakWhySubtotal', r.below, r.sum);
+            case 'half': return t('sumbreakWhyHalf', one(r.cells[0]));
+            case 'pair-blocked': return t('sumbreakWhyBlocked', r.value);
+            case 'no-survivor': return t('sumbreakWhyNoSurvivor');
+            case 'lookahead': return r.chain.length ? t('sumbreakWhyAhead', r.chain.length, why(r.final, null, true)) : why(r.final, null, true);
+            default: return t('sumbreakWhyGeneric');
         }
     }
     function directionText(s) {
-        if (s.direction === 'lone') return t('fuseDirLone');
-        if (s.direction === 'only') return t('fuseDirOnly');
-        if (s.direction === 'refuted') return t('fuseDirRefuted', why(s.refuted[0].reason, s.refuted[0].move.to));
-        return s.freeDirection ? t('fuseDirFree') : '';
+        if (s.direction === 'lone') return t('sumbreakDirLone');
+        if (s.direction === 'only') return t('sumbreakDirOnly');
+        if (s.direction === 'refuted') return t('sumbreakDirRefuted', why(s.refuted[0].reason, s.refuted[0].move.to));
+        return s.freeDirection ? t('sumbreakDirFree') : '';
     }
     // Both tiles of a pair look alike inside their rings, so each is named by where it sits
     // relative to the other: the anchor first, then its partner.
@@ -370,7 +370,7 @@
         const a = s.anchor, p = s.pair[0] === a ? s.pair[1] : s.pair[0];
         const side = (i, j) => {
             const ri = Math.floor(i / b.cols), rj = Math.floor(j / b.cols);
-            return t(ri < rj ? 'fuseTop' : ri > rj ? 'fuseBottom' : i < j ? 'fuseLeft' : 'fuseRight', label(b.cells[i]));
+            return t(ri < rj ? 'sumbreakTop' : ri > rj ? 'sumbreakBottom' : i < j ? 'sumbreakLeft' : 'sumbreakRight', label(b.cells[i]));
         };
         return [side(a, p), side(p, a)];
     }
@@ -378,28 +378,28 @@
         const v = s.anchor != null ? label(b.cells[s.anchor]) : '';
         const example = exampleOf(s);
         switch (s.technique) {
-            case 'final': return t('fuseWhyFinal');
-            case 'lone': return join([t('fuseWhyLone', ...pairNames(b, s)), directionText(s)]);
-            case 'only-pair': return join([t('fuseWhyOnlyPair'), directionText(s)]);
-            case 'forced-pair': return join([t('fuseWhyForcedPair', ...pairNames(b, s), v), directionText(s)]);
-            case 'eliminate': return join([t('fuseWhyEliminate', s.eliminated.length), example && t('fuseExample', why(example.reason, example.move.to))]);
-            case 'free': return join([t('fuseWhyFree', s.eliminated.length), example && t('fuseExample', why(example.reason, example.move.to))]);
-            case 'trial': return t('fuseWhyTrial', s.chain.length - 1);
-            default: return s.pair ? t('fuseWhySearchPair') : t('fuseWhySearch');
+            case 'final': return t('sumbreakWhyFinal');
+            case 'lone': return join([t('sumbreakWhyLone', ...pairNames(b, s)), directionText(s)]);
+            case 'only-pair': return join([t('sumbreakWhyOnlyPair'), directionText(s)]);
+            case 'forced-pair': return join([t('sumbreakWhyForcedPair', ...pairNames(b, s), v), directionText(s)]);
+            case 'eliminate': return join([t('sumbreakWhyEliminate', s.eliminated.length), example && t('sumbreakExample', why(example.reason, example.move.to))]);
+            case 'free': return join([t('sumbreakWhyFree', s.eliminated.length), example && t('sumbreakExample', why(example.reason, example.move.to))]);
+            case 'trial': return t('sumbreakWhyTrial', s.chain.length - 1);
+            default: return s.pair ? t('sumbreakWhySearchPair') : t('sumbreakWhySearch');
         }
     }
     function doText(s) {
         if (s.technique === 'final') return '';
         const moves = shownMoves(s);
-        return moves.length > 1 ? t('fuseDoAny', moves.length) : t('fuseDoOne');
+        return moves.length > 1 ? t('sumbreakDoAny', moves.length) : t('sumbreakDoOne');
     }
     function hintText(h, b) {
         const s = h.step;
         if (s.move) return join([whyText(s, b), doText(s)]);
-        if (s.technique === 'unknown') return t('fuseUnknown');
-        const lost = s.technique === 'dead-end' ? t('fuseDeadHint')
-            : s.reason ? t('fuseUnsolvable', why(s.reason)) : t('fuseUnsolvableSearch');
-        return join([lost, h.back ? t('fuseUndoBack', h.back) : t('fuseResetBack')]);
+        if (s.technique === 'unknown') return t('sumbreakUnknown');
+        const lost = s.technique === 'dead-end' ? t('sumbreakDeadHint')
+            : s.reason ? t('sumbreakUnsolvable', why(s.reason)) : t('sumbreakUnsolvableSearch');
+        return join([lost, h.back ? t('sumbreakUndoBack', h.back) : t('sumbreakResetBack')]);
     }
     function renderHint() {
         const banner = $('hint-banner'), h = state.hint, b = current();
@@ -419,17 +419,17 @@
         if (locked) { $('hint-btn').disabled = true; $('reveal-btn').disabled = true; }
         else if (!state.won) { $('hint-btn').disabled = false; $('reveal-btn').disabled = false; }
         const lost = !locked && !state.won && status !== 'dead-end' && b && revealMoves(b) === null;
-        $('fuse-dead-pill').hidden = !(status === 'dead-end' || lost);
-        $('fuse-dead-text').textContent = status === 'dead-end' ? t('fuseDeadPill') : t('fuseNoSolution');
+        $('sumbreak-dead-pill').hidden = !(status === 'dead-end' || lost);
+        $('sumbreak-dead-text').textContent = status === 'dead-end' ? t('sumbreakDeadPill') : t('sumbreakNoSolution');
         renderHint();
         render();
     }
     function announce(i) {
         const b = current(), cell = b.cells[i];
-        const parts = [cell === R.EMPTY ? t('fuseEmpty') : R.isTile(cell) ? label(cell) : t('fuseBlocked')];
-        if (i === state.selected) parts.push(t('fuseIsSelected'));
-        else if (state.selected != null && R.canMerge(b, state.selected, i)) parts.push(t('fuseIsTarget'));
-        $('fuse-live').textContent = t('fuseCell', Math.floor(i / b.cols) + 1, (i % b.cols) + 1, parts.join(', '));
+        const parts = [cell === R.EMPTY ? t('sumbreakEmpty') : R.isTile(cell) ? label(cell) : t('sumbreakBlocked')];
+        if (i === state.selected) parts.push(t('sumbreakIsSelected'));
+        else if (state.selected != null && R.canMerge(b, state.selected, i)) parts.push(t('sumbreakIsTarget'));
+        $('sumbreak-live').textContent = t('sumbreakCell', Math.floor(i / b.cols) + 1, (i % b.cols) + 1, parts.join(', '));
     }
 
     // ---------- moves ----------
@@ -437,13 +437,13 @@
     function select(i) {
         const b = current();
         if (i == null) {
-            if (state.selected != null) say('fuseCancelled');
+            if (state.selected != null) say('sumbreakCancelled');
             state.selected = null;
         } else if (!targetsOf(b, i).length) {
             state.selected = null; nudge(i);
-            if (b.cells[i].type === 'mul') say('fuseNoPartnerMul'); else say('fuseNoPartner', label(b.cells[i]));
+            if (b.cells[i].type === 'mul') say('sumbreakNoPartnerMul'); else say('sumbreakNoPartner', label(b.cells[i]));
         } else {
-            state.selected = i; state.cursor = i; say('fuseSelected', label(b.cells[i]));
+            state.selected = i; state.cursor = i; say('sumbreakSelected', label(b.cells[i]));
         }
         sync();
     }
@@ -475,9 +475,9 @@
         const tile = next.cells[to], status = R.status(next);
         const step = tile.type === 'num' ? Math.min(12, Math.log2(tile.value)) : 6;
         PC.audio.tone(262 * Math.pow(2, step / 6), 0.09, { volume: 0.05 });
-        if (status === 'won') { state.won = true; recordWin(); say('fuseWinSay'); }
-        else if (status === 'dead-end') say(hasMul(next) ? 'fuseDeadEndMul' : 'fuseDeadEnd');
-        else say('fuseMerged', label(tile));
+        if (status === 'won') { state.won = true; recordWin(); say('sumbreakWinSay'); }
+        else if (status === 'dead-end') say(hasMul(next) ? 'sumbreakDeadEndMul' : 'sumbreakDeadEnd');
+        else say('sumbreakMerged', label(tile));
         sync();
     }
     function startAnimation(before, from, to) {
@@ -513,7 +513,7 @@
         if (state.won) history.clear();
         else if (state.trail.length > 1) history.push();
         state.trail = [state.trail[0]]; state.won = false; state.selected = null; state.hint = null;
-        say('fuseRestarted'); sync();
+        say('sumbreakRestarted'); sync();
     }
 
     // ---------- generation ----------
@@ -530,13 +530,13 @@
     function inWorker(difficulty, seed) {
         const job = { seed, onProgress: null };
         job.promise = new Promise((resolve, reject) => {
-            const worker = new Worker('../js/games/fuse/worker.js');
+            const worker = new Worker('../js/games/sumbreak/worker.js');
             worker.onmessage = ({ data }) => {
                 if (data.puzzle) { worker.terminate(); resolve(data.puzzle); }
                 else if (data.error) { worker.terminate(); reject(new Error(data.error)); }
                 else if (job.onProgress) job.onProgress(data.fraction);
             };
-            worker.onerror = (e) => { e.preventDefault(); worker.terminate(); reject(new Error(e.message || 'Fuse worker failed')); };
+            worker.onerror = (e) => { e.preventDefault(); worker.terminate(); reject(new Error(e.message || 'Sumbreak worker failed')); };
             worker.postMessage({ difficulty, seed });
         });
         job.promise.catch(() => { workers = false; prepared.delete(difficulty); });
@@ -578,7 +578,7 @@
         history.clear();
         PC.share.replaceUrl({ difficulty, seed: puzzle.seed });
         dropSizeParam();
-        say('fuseReady');
+        say('sumbreakReady');
         prepareNext(difficulty);
     }
     // Links from before the board size followed the difficulty still carry `size`.
@@ -594,7 +594,7 @@
         if (state.generating) return;
         state.generating = true; cancelDrag(); endAnimation(); sync();
         try { await shell.start(); }
-        catch (_) { PC.toast.show(t('fuseGenerateFailed')); }
+        catch (_) { PC.toast.show(t('sumbreakGenerateFailed')); }
         finally { state.generating = false; sync(); }
     }
 
@@ -627,7 +627,7 @@
             d.moved = true;
             const b = current();
             d.inert = !R.isTile(b.cells[d.from]) || !targetsOf(b, d.from).length;
-            if (!d.inert) { state.selected = d.from; say('fuseSelected', label(b.cells[d.from])); sync(); }
+            if (!d.inert) { state.selected = d.from; say('sumbreakSelected', label(b.cells[d.from])); sync(); }
         }
         if (d.inert) return;
         const b = current(), p = svgPoint(e), o = centre(b, d.from), reach = CELL + GAP;
@@ -651,7 +651,7 @@
         cancelDrag();
         // Released back on its own cell: the same as tapping it.
         if (!cancelled && d.over === d.from) { select(d.prior === d.from ? null : d.from); return; }
-        if (d.prior == null) say('fuseCancelled'); else say('fuseSelected', label(current().cells[d.prior]));
+        if (d.prior == null) say('sumbreakCancelled'); else say('sumbreakSelected', label(current().cells[d.prior]));
         sync();
     }
     svg.addEventListener('pointerup', (e) => endPointer(e, false));

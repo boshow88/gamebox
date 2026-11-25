@@ -1,4 +1,4 @@
-/** node tools/fuse/browser-check.js [chrome-path] [--shots] — Fuse in real headless Chrome
+/** node tools/sumbreak/browser-check.js [chrome-path] [--shots] — Sumbreak in real headless Chrome
  * over CDP: the shared puzzle layout (compared with Tango), mouse, touch and keyboard merging,
  * undo / reset, hints, dead ends, the solution overlay, win and new game, rectangular boards,
  * ×2 tiles, difficulty-chosen shapes and old links, puzzles made ahead in a worker (and
@@ -13,10 +13,10 @@ const http = require('node:http');
 const os = require('node:os');
 const path = require('node:path');
 const { spawn } = require('node:child_process');
-const Rules = require('../../js/games/fuse/rules.js');
-const Solver = require('../../js/games/fuse/solver.js');
-const Reasoning = require('../../js/games/fuse/reasoning.js');
-const Gen = require('../../js/generators/fuse.js');
+const Rules = require('../../js/games/sumbreak/rules.js');
+const Solver = require('../../js/games/sumbreak/solver.js');
+const Reasoning = require('../../js/games/sumbreak/reasoning.js');
+const Gen = require('../../js/generators/sumbreak.js');
 const { accountStub } = require('../helpers/birthday-browser-fixtures.js');
 
 const root = path.resolve(__dirname, '..', '..');
@@ -125,7 +125,7 @@ function connect(wsUrl) {
     const pick = pickPuzzle(), mulPick = pickMul();
     const missing = [], errors = [], hits = {}, blocked = new Set();
     const server = serve(missing, hits, blocked);
-    const WORKER = '/js/games/fuse/worker.js', workers = () => hits[WORKER] || 0;
+    const WORKER = '/js/games/sumbreak/worker.js', workers = () => hits[WORKER] || 0;
     const until = async (fn, what, ms = 10000) => {
         const end = Date.now() + ms;
         while (Date.now() < end) { if (fn()) return; await pause(40); }
@@ -133,7 +133,7 @@ function connect(wsUrl) {
     };
     await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
     const base = 'http://127.0.0.1:' + server.address().port;
-    const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'gamebox-fuse-browser-'));
+    const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'gamebox-sumbreak-browser-'));
     let browser, cdp;
     try {
         browser = spawn(chrome, ['--headless=new', '--disable-gpu', '--no-first-run', '--no-default-browser-check',
@@ -180,7 +180,7 @@ function connect(wsUrl) {
         const shot = async (name) => {
             if (!shots) return;
             await pause(380);
-            const file = path.join(os.tmpdir(), `gamebox-fuse-${name}.png`);
+            const file = path.join(os.tmpdir(), `gamebox-sumbreak-${name}.png`);
             fs.writeFileSync(file, Buffer.from((await cdp.send('Page.captureScreenshot', { format: 'png' })).data, 'base64'));
             shots.push(file);
         };
@@ -192,9 +192,9 @@ function connect(wsUrl) {
         const readBoard = () => evaluate(`(() => {
             const rows = ${shape.rows}, cols = ${shape.cols}, out = Array(rows * cols).fill('.'), violet = [];
             const at = (g) => /translate\\(([-\\d.]+) ([-\\d.]+)\\)/.exec(g.getAttribute('transform')).slice(1).map(Number);
-            for (const g of document.querySelectorAll('#board .fuse-tiles > g')) {
+            for (const g of document.querySelectorAll('#board .sumbreak-tiles > g')) {
                 const inner = g.firstElementChild;
-                if (inner.classList.contains('fuse-ghost')) continue;
+                if (inner.classList.contains('sumbreak-ghost')) continue;
                 const [x, y] = at(g), i = Math.round((y - 58) / 108) * cols + Math.round((x - 58) / 108);
                 out[i] = inner.querySelector('text').textContent;
                 if (inner.querySelector('rect').getAttribute('fill') === '#7c3aed') violet.push(i);
@@ -216,15 +216,15 @@ function connect(wsUrl) {
         const viewBoxOf = (b) => `0 0 ${b.cols * 108 + 8} ${b.rows * 108 + 8}`;
         // The board keeps its own proportions instead of being letterboxed in a square.
         const proportions = () => evaluate(`(() => { const r = document.getElementById('board').getBoundingClientRect(); return r.width / r.height; })()`);
-        const live = () => text('#fuse-live');
+        const live = () => text('#sumbreak-live');
         const disabled = (sel) => evaluate(`document.querySelector(${JSON.stringify(sel)}).disabled`);
         const pressed = (sel) => evaluate(`document.querySelector(${JSON.stringify(sel)}).getAttribute('aria-pressed')`);
         const hasClass = (sel, cls) => evaluate(`document.querySelector(${JSON.stringify(sel)}).classList.contains(${JSON.stringify(cls)})`);
         const urlParam = (name) => evaluate(`new URLSearchParams(location.search).get(${JSON.stringify(name)})`);
-        const revealNumbers = () => evaluate(`[...document.querySelectorAll('#board .fuse-reveal-num')].map((t) => Number(t.textContent))`);
+        const revealNumbers = () => evaluate(`[...document.querySelectorAll('#board .sumbreak-reveal-num')].map((t) => Number(t.textContent))`);
         // A tile the open hint calls "ringed in red" has a red ring, and only then.
         const refRingsMatch = async () => {
-            const says = await text('#hint-banner'), rings = await count('#board .fuse-ref-ring');
+            const says = await text('#hint-banner'), rings = await count('#board .sumbreak-ref-ring');
             assert.equal(rings > 0, /ringed in red/.test(says), `red rings ${rings} for: ${says}`);
             if (/the two \d+s ringed in red/.test(says)) assert.equal(rings, 2, 'two tiles ringed in red');
         };
@@ -236,7 +236,7 @@ function connect(wsUrl) {
                 actions: [...document.querySelectorAll('.game-toolbar .toolbar-action .btn')].map((b) => b.id + ':' + label(b)),
                 row: [...document.querySelectorAll('.action-row .btn')].map((b) => b.id + ':' + label(b) + ':' + b.dataset.i18nTitle),
                 status: [...document.querySelectorAll('.status-row > .status-item')].map((s) => (s.querySelector('.timer') ? 'timer' : [...s.classList].filter((c) => c !== 'status-item' && c !== 'active').join('.'))),
-                below: [...document.querySelectorAll('.board-wrap ~ *')].filter((el) => !el.classList.contains('fuse-sr')).map((el) => el.className.split(' ')[0]),
+                below: [...document.querySelectorAll('.board-wrap ~ *')].filter((el) => !el.classList.contains('sumbreak-sr')).map((el) => el.className.split(' ')[0]),
             };
         })()`);
         const mouse = (type, p, held) => cdp.send('Input.dispatchMouseEvent', {
@@ -269,8 +269,8 @@ function connect(wsUrl) {
             for (let r = 0; r < Math.floor(i / shape.cols); r++) await key('ArrowDown');
             for (let c = 0; c < i % shape.cols; c++) await key('ArrowRight');
         };
-        const fusePage = (difficulty, seed) => `/games/fuse.html?diff=${difficulty}&seed=${seed.toString(36)}`;
-        const ready = () => waitFor(`document.querySelectorAll('#board .fuse-tile').length > 0 && !document.getElementById('new-game-btn').disabled && !document.getElementById('reset-btn').disabled`, 'puzzle ready');
+        const sumbreakPage = (difficulty, seed) => `/games/sumbreak.html?diff=${difficulty}&seed=${seed.toString(36)}`;
+        const ready = () => waitFor(`document.querySelectorAll('#board .sumbreak-tile').length > 0 && !document.getElementById('new-game-btn').disabled && !document.getElementById('reset-btn').disabled`, 'puzzle ready');
         const play = async (moves, board) => { let b = board; for (const m of moves) { await click(m.from); await click(m.to); b = R.applyMerge(b, m); } return b; };
 
         // ---------- layout: the same page chrome as the other LinkedIn-style puzzles ----------
@@ -278,22 +278,22 @@ function connect(wsUrl) {
         await waitFor(`document.querySelector('#board').childElementCount > 0`, 'tango board', 20000);
         const tango = await layoutOf();
         const { p, start, solver, lonely, losing, dead, solution, far } = pick;
-        await open(fusePage(p.difficulty, p.seed));
+        await open(sumbreakPage(p.difficulty, p.seed));
         await ready();
         await until(() => workers() === 2, 'the puzzle and the next one are made in workers');
-        const fuse = await layoutOf();
+        const page = await layoutOf();
         const firstTwo = (rows) => rows.map((s) => s.split(':').slice(0, 2).join(':'));
-        assert.deepEqual(fuse.toolbar, tango.toolbar.filter((g) => g !== 'boardSize'), 'toolbar: difficulty only, which picks the board shape');
-        assert.deepEqual(fuse.actions, tango.actions, 'toolbar actions: new game and share');
-        assert.deepEqual(firstTwo(fuse.row), firstTwo(tango.row), 'action row: undo, reset, hint, reveal');
-        assert.equal(fuse.row[3], tango.row[3], 'reveal uses the shared solution-overlay wording');
-        assert.deepEqual(fuse.status, tango.status, 'status row: timer, warning, win');
-        assert.deepEqual(fuse.below, tango.below, 'below the board: hint banner, then how to play');
+        assert.deepEqual(page.toolbar, tango.toolbar.filter((g) => g !== 'boardSize'), 'toolbar: difficulty only, which picks the board shape');
+        assert.deepEqual(page.actions, tango.actions, 'toolbar actions: new game and share');
+        assert.deepEqual(firstTwo(page.row), firstTwo(tango.row), 'action row: undo, reset, hint, reveal');
+        assert.equal(page.row[3], tango.row[3], 'reveal uses the shared solution-overlay wording');
+        assert.deepEqual(page.status, tango.status, 'status row: timer, warning, win');
+        assert.deepEqual(page.below, tango.below, 'below the board: hint banner, then how to play');
         assert.equal(await evaluate(`!!document.getElementById('size-seg')`), false, 'no board size selector');
-        assert.equal(await evaluate(`!!document.querySelector('.game-footer [data-i18n="fuseHelpMul"]')`), true, 'how to play explains ×2 tiles');
+        assert.equal(await evaluate(`!!document.querySelector('.game-footer [data-i18n="sumbreakHelpMul"]')`), true, 'how to play explains ×2 tiles');
         assert.equal(await evaluate(`document.querySelector('#difficulty-seg .active').dataset.value`), p.difficulty);
         assert.equal(await urlParam('size'), null);
-        for (const gone of ['fuse-analysis', 'fuse-feedback', 'fuse-win', 'fuse-dead', 'fuse-next', 'fuse-level', 'fuse-code', 'fuse-tiles']) {
+        for (const gone of ['sumbreak-analysis', 'sumbreak-feedback', 'sumbreak-win', 'sumbreak-dead', 'sumbreak-next', 'sumbreak-level', 'sumbreak-code', 'sumbreak-tiles']) {
             assert.equal(await evaluate(`!!document.getElementById('${gone}')`), false, `#${gone} is gone`);
         }
         await expectBoard(start, 'browser and Node generate the same puzzle for a seed');
@@ -301,33 +301,33 @@ function connect(wsUrl) {
         assert.ok(Math.abs(await proportions() - (start.cols * 108 + 8) / (start.rows * 108 + 8)) < 0.02, 'a rectangular board keeps its proportions');
         assert.equal(await disabled('#undo-btn'), true);
         assert.equal(await pressed('#reveal-btn'), 'false');
-        assert.equal(await hidden('#fuse-dead-pill'), true);
+        assert.equal(await hidden('#sumbreak-dead-pill'), true);
         assert.ok(await evaluate('document.documentElement.scrollWidth <= innerWidth'), 'no horizontal overflow at 1100px');
         await shot('start');
 
         // ---------- desktop: mouse ----------
         await click(lonely);
         assert.match(await live(), /has no equal neighbour/);
-        assert.equal(await count('#board .fuse-tile.selected'), 0);
-        assert.equal(await count('#board .fuse-tile.nope'), 1, 'a tile with no partner shakes');
+        assert.equal(await count('#board .sumbreak-tile.selected'), 0);
+        assert.equal(await count('#board .sumbreak-tile.nope'), 1, 'a tile with no partner shakes');
 
         const m0 = solution[0];
         await click(m0.from);
-        assert.equal(await count('#board .fuse-tile.selected'), 1);
-        assert.equal(await count('#board .fuse-target'), R.legalMoves(start).filter((m) => m.from === m0.from).length, 'every valid destination is highlighted');
-        assert.ok((await count('#board .fuse-tile.dim')) > 0, 'other tiles are dimmed');
+        assert.equal(await count('#board .sumbreak-tile.selected'), 1);
+        assert.equal(await count('#board .sumbreak-target'), R.legalMoves(start).filter((m) => m.from === m0.from).length, 'every valid destination is highlighted');
+        assert.ok((await count('#board .sumbreak-tile.dim')) > 0, 'other tiles are dimmed');
         assert.match(await live(), /^Selected \d+\./);
         await shot('selected');
         await click(m0.from);
-        assert.equal(await count('#board .fuse-tile.selected'), 0);
+        assert.equal(await count('#board .sumbreak-tile.selected'), 0);
         assert.equal(await live(), 'Selection cleared.');
 
         await click(m0.from); await click(m0.to);
-        const ghost = await count('#board .fuse-ghost');
+        const ghost = await count('#board .sumbreak-ghost');
         const after0 = R.applyMerge(start, m0);
         await expectBoard(after0, 'tap-tap merge');
-        assert.equal(await count('#board .fuse-slot.empty'), 1);
-        assert.equal(await count('#board .fuse-hole'), 1);
+        assert.equal(await count('#board .sumbreak-slot.empty'), 1);
+        assert.equal(await count('#board .sumbreak-hole'), 1);
         assert.match(await live(), /^Merged into \d+\.$/);
         assert.equal(await disabled('#undo-btn'), false);
 
@@ -336,7 +336,7 @@ function connect(wsUrl) {
         assert.equal(await live(), 'Last merge undone.');
 
         let lifted = 0;
-        await drag(m0.from, m0.to, async () => { lifted = await count('#board .fuse-tile.lifted'); });
+        await drag(m0.from, m0.to, async () => { lifted = await count('#board .sumbreak-tile.lifted'); });
         assert.equal(lifted, 1, 'the dragged tile follows the pointer');
         await expectBoard(after0, 'drag merge');
         await key('z', 2);
@@ -344,29 +344,29 @@ function connect(wsUrl) {
 
         await drag(m0.from, far);
         await expectBoard(start, 'a drag onto a non-neighbour does nothing');
-        assert.equal(await count('#board .fuse-tile.selected'), 0, 'a failed drop restores the earlier selection');
+        assert.equal(await count('#board .sumbreak-tile.selected'), 0, 'a failed drop restores the earlier selection');
         assert.equal(await live(), 'Selection cleared.');
         {
             const a = await point(m0.from), b = await point(m0.to);
             await mouse('mouseMoved', a); await mouse('mousePressed', a, true);
             await mouse('mouseMoved', { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }, true);
             await mouse('mouseMoved', a, true); await mouse('mouseReleased', a);
-            assert.equal(await count('#board .fuse-tile.selected'), 1, 'a drag released on its own cell acts as a tap');
+            assert.equal(await count('#board .sumbreak-tile.selected'), 1, 'a drag released on its own cell acts as a tap');
             await click(m0.from);
-            assert.equal(await count('#board .fuse-tile.selected'), 0);
+            assert.equal(await count('#board .sumbreak-tile.selected'), 0);
         }
 
         // ---------- keyboard ----------
         await evaluate('document.getElementById("board").focus()');
         await key('ArrowUp');
-        assert.equal(await count('#board .fuse-cursor'), 1, 'keyboard cursor appears');
+        assert.equal(await count('#board .sumbreak-cursor'), 1, 'keyboard cursor appears');
         await cursorTo(m0.from); await key('Enter');
-        assert.equal(await count('#board .fuse-tile.selected'), 1);
-        assert.match(await text('#fuse-live'), /Row \d, column \d: \d+, selected/);
+        assert.equal(await count('#board .sumbreak-tile.selected'), 1);
+        assert.match(await text('#sumbreak-live'), /Row \d, column \d: \d+, selected/);
         await key('Escape');
-        assert.equal(await count('#board .fuse-tile.selected'), 0);
+        assert.equal(await count('#board .sumbreak-tile.selected'), 0);
         await cursorTo(m0.from); await key('Enter'); await cursorTo(m0.to);
-        assert.match(await text('#fuse-live'), /can merge here/);
+        assert.match(await text('#sumbreak-live'), /can merge here/);
         await key('Enter');
         await expectBoard(after0, 'keyboard merge');
 
@@ -389,15 +389,15 @@ function connect(wsUrl) {
         assert.equal(await hasClass('#hint-banner', 'error'), false);
         const hintSays = await text('#hint-banner');
         assert.ok(hintSays.length > 20, 'the hint explains itself');
-        assert.ok((await count('#board .fuse-hint-ring')) > 0, 'the hint highlights the pair');
+        assert.ok((await count('#board .sumbreak-hint-ring')) > 0, 'the hint highlights the pair');
         if (['lone', 'forced-pair'].includes(step.technique)) assert.match(hintSays, /\b(top|bottom|left|right) \d/, 'the two tiles of a pair are named by position');
         await refRingsMatch();
-        assert.ok((await count('#board line.fuse-arrow.move')) > 0, 'the hint shows the merge');
-        assert.equal(await count('#board line.fuse-arrow.refuted'), (step.eliminated || []).length ? 1 : 0, 'at most one failing merge is drawn');
+        assert.ok((await count('#board line.sumbreak-arrow.move')) > 0, 'the hint shows the merge');
+        assert.equal(await count('#board line.sumbreak-arrow.refuted'), (step.eliminated || []).length ? 1 : 0, 'at most one failing merge is drawn');
         await shot('hint');
         await clickEl('#hint-btn');
         assert.equal(await hidden('#hint-banner'), true, 'pressing Hint again hides it');
-        assert.equal(await count('#board .fuse-hint-ring'), 0);
+        assert.equal(await count('#board .sumbreak-hint-ring'), 0);
         await clickEl('#hint-btn');
         await click(step.move.from); await click(step.move.to);
         await expectBoard(R.applyMerge(start, step.move), 'following the hint');
@@ -407,7 +407,7 @@ function connect(wsUrl) {
         // A losing merge: nothing tells on it until the player asks; the hint explains why
         // and how far to go back.
         await click(losing.from); await click(losing.to);
-        assert.equal(await hidden('#fuse-dead-pill'), true, 'a lost position with moves left is not announced');
+        assert.equal(await hidden('#sumbreak-dead-pill'), true, 'a lost position with moves left is not announced');
         await clickEl('#hint-btn');
         assert.equal(await hasClass('#hint-banner', 'error'), true);
         assert.match(await text('#hint-banner'), /can no longer be solved/);
@@ -420,12 +420,12 @@ function connect(wsUrl) {
         // ---------- dead end ----------
         let b = await play(dead, start);
         await expectBoard(b, 'dead-end line');
-        assert.equal(await hidden('#fuse-dead-pill'), false);
-        assert.equal(await text('#fuse-dead-pill'), 'No merges left');
+        assert.equal(await hidden('#sumbreak-dead-pill'), false);
+        assert.equal(await text('#sumbreak-dead-pill'), 'No merges left');
         assert.match(await live(), /nothing can merge/);
         await shot('dead-end');
         await clickEl('#undo-btn');
-        assert.equal(await hidden('#fuse-dead-pill'), true);
+        assert.equal(await hidden('#sumbreak-dead-pill'), true);
         await clickEl('#reset-btn');
         await expectBoard(start, 'reset after a dead end');
 
@@ -439,13 +439,13 @@ function connect(wsUrl) {
         await clickEl('#undo-btn');
         await click(losing.from); await click(losing.to);
         assert.deepEqual(await revealNumbers(), [], 'nothing to draw once the position is lost');
-        assert.equal(await text('#fuse-dead-pill'), 'No solution from here');
+        assert.equal(await text('#sumbreak-dead-pill'), 'No solution from here');
         await clickEl('#hint-btn');
         await clickEl('#reveal-btn');
         assert.equal(await pressed('#reveal-btn'), 'false');
-        assert.equal(await hidden('#fuse-dead-pill'), true, 'the lost warning belongs to Reveal');
+        assert.equal(await hidden('#sumbreak-dead-pill'), true, 'the lost warning belongs to Reveal');
         assert.equal(await hidden('#hint-banner'), true, 'toggling Reveal hides the hint');
-        assert.equal(await count('#board .fuse-reveal-badge'), 0);
+        assert.equal(await count('#board .sumbreak-reveal-badge'), 0);
         await clickEl('#reset-btn');
 
         // ---------- win, undo out of the win, new game ----------
@@ -492,7 +492,7 @@ function connect(wsUrl) {
         // ---------- ×2 tiles: merge with any touching number, either way, and must be used ----------
         const { start: mulStart, into, onto } = mulPick, mulCell = into.to;
         let t0 = Date.now();
-        await open(fusePage('hard', mulPick.p.seed));
+        await open(sumbreakPage('hard', mulPick.p.seed));
         await ready();
         const loadMs = Date.now() - t0;
         await expectBoard(mulStart, 'a hard puzzle with a ×2 tile matches its seed');
@@ -502,7 +502,7 @@ function connect(wsUrl) {
         await key('ArrowUp'); await cursorTo(mulCell);
         assert.match(await live(), /: ×2$/, 'the keyboard cursor reads out a ×2 tile');
         await click(into.from);
-        assert.equal(await count('#board .fuse-target'), R.legalMoves(mulStart).filter((m) => m.from === into.from).length);
+        assert.equal(await count('#board .sumbreak-target'), R.legalMoves(mulStart).filter((m) => m.from === into.from).length);
         await click(into.to);
         const source = mulStart.cells[into.from].value, intoBoard = R.applyMerge(mulStart, into);
         await expectBoard(intoBoard, 'a number dragged onto a ×2');
@@ -513,7 +513,7 @@ function connect(wsUrl) {
         await click(onto.from);
         assert.equal(await live(), 'Selected ×2. Tap a highlighted neighbour to merge into it.');
         const numberNeighbours = R.neighbors(mulStart, onto.from).filter((j) => mulStart.cells[j].type === 'num');
-        assert.equal(await count('#board .fuse-target'), numberNeighbours.length, 'a ×2 can merge onto every touching number');
+        assert.equal(await count('#board .sumbreak-target'), numberNeighbours.length, 'a ×2 can merge onto every touching number');
         await shot('mul-selected');
         await click(onto.to);
         const dest = mulStart.cells[onto.to].value, ontoBoard = R.applyMerge(mulStart, onto);
@@ -538,24 +538,36 @@ function connect(wsUrl) {
         const mulWin = await play(mulPick.p.solution, mulStart);
         await expectBoard(mulWin, 'a solution using every ×2');
         assert.equal(await hidden('#win-message'), false, 'solved once the ×2 tiles are used up');
-        noErrors('fuse ×2 tiles');
+        noErrors('sumbreak ×2 tiles');
 
         // An old link with a board size opens the puzzle for its difficulty and seed, and the
         // size drops out of the address.
-        await open(`/games/fuse.html?size=4&diff=easy&seed=${(12345).toString(36)}`);
+        await open(`/games/sumbreak.html?size=4&diff=easy&seed=${(12345).toString(36)}`);
         await ready();
         await expectBoard(R.parse(Gen.generate({ difficulty: 'easy', seed: 12345 }).board), 'an old link ignores its size');
         assert.equal(await urlParam('size'), null, 'the stale size is dropped from the address');
         assert.equal(await urlParam('seed'), (12345).toString(36));
 
+        // The page was first games/fuse.html; that address forwards with its query and fragment.
+        await cdp.send('Page.navigate', { url: base + `/games/fuse.html?diff=easy&seed=${(4321).toString(36)}#again` });
+        const end = Date.now() + 15000;
+        for (let at = null; at !== '/games/sumbreak.html#again'; await pause(40)) {
+            if (Date.now() > end) throw new Error('Timed out waiting for the fuse.html redirect');
+            try { at = await evaluate('location.pathname + location.hash'); } catch (_) { /* mid-navigation */ }
+        }
+        await ready();
+        await expectBoard(R.parse(Gen.generate({ difficulty: 'easy', seed: 4321 }).board), 'the old address opens the same puzzle');
+        assert.equal(await urlParam('seed'), (4321).toString(36));
+        noErrors('the fuse.html redirect');
+
         // Without a worker (blocked here) puzzles are made on the main thread.
         blocked.add(WORKER);
-        await open(fusePage('easy', 777));
+        await open(sumbreakPage('easy', 777));
         await ready();
         await expectBoard(R.parse(Gen.generate({ difficulty: 'easy', seed: 777 }).board), 'a puzzle made without a worker');
         blocked.delete(WORKER);
-        noErrors('fuse without a worker');
-        await open(fusePage(p.difficulty, p.seed));
+        noErrors('sumbreak without a worker');
+        await open(sumbreakPage(p.difficulty, p.seed));
         await ready();
 
         // ---------- language ----------
@@ -571,35 +583,35 @@ function connect(wsUrl) {
         await clickEl('#lang-toggle [data-lang="en"]');
         assert.match(await text('#hint-banner'), /^[\x20-\x7e]+$/, 'the open hint follows the language');
         await clickEl('#lang-toggle [data-lang="zh"]');
-        await open(fusePage(p.difficulty, p.seed));
+        await open(sumbreakPage(p.difficulty, p.seed));
         await ready();
         await expectBoard(start, 'reload in Chinese');
         assert.equal(await text('#reset-btn'), '重設', 'game strings apply on a fresh load in Chinese');
         await play(dead, start);
-        assert.equal(await text('#fuse-dead-pill'), '無法再合併');
+        assert.equal(await text('#sumbreak-dead-pill'), '無法再合併');
         await clickEl('#lang-toggle [data-lang="en"]');
-        assert.equal(await text('#fuse-dead-pill'), 'No merges left', 'the warning follows the language');
-        noErrors('fuse desktop');
+        assert.equal(await text('#sumbreak-dead-pill'), 'No merges left', 'the warning follows the language');
+        noErrors('sumbreak desktop');
 
         // Reduced motion: merges apply without the sliding ghost, and nothing shakes.
         await cdp.send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] });
-        await open(fusePage(p.difficulty, p.seed));
+        await open(sumbreakPage(p.difficulty, p.seed));
         await ready();
         await expectBoard(start, 'reduced-motion start');
         await click(lonely);
-        assert.equal(await count('#board .fuse-tile.nope'), 0);
+        assert.equal(await count('#board .sumbreak-tile.nope'), 0);
         await click(m0.from); await click(m0.to);
-        assert.equal(await count('#board .fuse-ghost'), 0);
+        assert.equal(await count('#board .sumbreak-ghost'), 0);
         await expectBoard(after0, 'reduced-motion merge');
         await cdp.send('Emulation.setEmulatedMedia', { features: [] });
-        noErrors('fuse reduced motion');
+        noErrors('sumbreak reduced motion');
 
         // A plain visit starts at the shared default difficulty, medium.
-        await open('/games/fuse.html');
+        await open('/games/sumbreak.html');
         await ready();
         assert.equal(await urlParam('diff'), 'medium');
         assert.equal(await urlParam('size'), null);
-        noErrors('fuse defaults');
+        noErrors('sumbreak defaults');
 
         // ---------- mobile: touch, layout ----------
         for (const width of [375, 320]) {
@@ -618,16 +630,16 @@ function connect(wsUrl) {
                 assert.ok(layout.left >= 0 && layout.right <= width, `board fits at ${width}px, ${what}`);
                 assert.ok((layout.width / (board.cols * 108 + 8)) * 100 >= 44, `cells stay at least 44px wide at ${width}px, ${what}`);
             };
-            await open(fusePage('hard', mulPick.p.seed));
+            await open(sumbreakPage('hard', mulPick.p.seed));
             await ready();
             await fits(mulStart, '4×4');
             await shot('mobile-4x4-' + width);
-            await open(fusePage(p.difficulty, p.seed));
+            await open(sumbreakPage(p.difficulty, p.seed));
             await ready();
             await expectBoard(start, `mobile start at ${width}px`);
             await fits(start, `${start.rows}×${start.cols}`);
             await tapTouch(m0.from);
-            assert.equal(await count('#board .fuse-tile.selected'), 1, 'touch selects');
+            assert.equal(await count('#board .sumbreak-tile.selected'), 1, 'touch selects');
             await shot('mobile-' + width);
             await tapTouch(m0.to);
             await expectBoard(after0, `touch tap-tap merge at ${width}px`);
@@ -635,16 +647,16 @@ function connect(wsUrl) {
             await expectBoard(after1, `touch drag merge at ${width}px`);
             await clickEl('#undo-btn');
             await expectBoard(after0, 'undo on mobile');
-            noErrors('fuse mobile ' + width);
+            noErrors('sumbreak mobile ' + width);
         }
         await cdp.send('Emulation.setTouchEmulationEnabled', { enabled: false });
         await cdp.send('Emulation.clearDeviceMetricsOverride');
 
         // ---------- launcher card ----------
         await open('/index.html');
-        await waitFor(`document.querySelector('a.game-card[href="./games/fuse.html"]')`, 'Fuse launcher card');
+        await waitFor(`document.querySelector('a.game-card[href="./games/sumbreak.html"]')`, 'Sumbreak launcher card');
         const card = await evaluate(`(() => {
-            const a = document.querySelector('a.game-card[href="./games/fuse.html"]');
+            const a = document.querySelector('a.game-card[href="./games/sumbreak.html"]');
             return { name: a.querySelector('.game-name').textContent, tagline: a.querySelector('.game-tagline').textContent,
                 wip: !!a.querySelector('.badge-wip'), icon: !!a.querySelector('.game-icon svg') };
         })()`);
@@ -658,7 +670,7 @@ function connect(wsUrl) {
             await pause(800);
             noErrors(id);
         }
-        console.log(`fuse browser: ok (${p.difficulty} ${start.rows}×${start.cols} seed ${p.seed.toString(36)}, ${solution.length}-merge solution, ghost frames ${ghost}; ` +
+        console.log(`sumbreak browser: ok (${p.difficulty} ${start.rows}×${start.cols} seed ${p.seed.toString(36)}, ${solution.length}-merge solution, ghost frames ${ghost}; ` +
             `hard ×2 seed ${mulPick.p.seed} load ${loadMs} ms (Node ${mulPick.ms} ms), hint ${hintMs} ms, reveal ${revealMs} ms; smoke ${SMOKE.length} pages)`);
         if (shots) console.log(shots.join('\n'));
     } finally {

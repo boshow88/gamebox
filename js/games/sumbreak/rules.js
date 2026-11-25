@@ -1,9 +1,9 @@
-/* Fuse: tile types, board model, merge rules and solvability invariants shared by play,
+/* Sumbreak: tile types, board model, merge rules and solvability invariants shared by play,
  * the exact solver, hints and generation. No DOM. */
 (function (root, factory) {
     'use strict';
     if (typeof module === 'object' && module.exports) module.exports = factory();
-    else root.FuseRules = factory();
+    else root.SumbreakRules = factory();
 })(typeof window === 'object' ? window : globalThis, function () {
     'use strict';
 
