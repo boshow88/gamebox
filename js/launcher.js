@@ -278,7 +278,7 @@
             'unshackle_body': 'Untangle interlocking frames: pull them free, match colours in a five-slot tray, or partly pull them out to let others pass.',
             'fuse_name': 'Sumbreak',
             'fuse_tagline': 'Pair them up. End with one.',
-            'fuse_body': 'Merge touching equal numbers into doubles; a ×2 tile doubles any number it touches. Emptied cells stay empty, so plan the pairs until a single tile remains.',
+            'fuse_body': 'Merge touching equal numbers until one tile remains.',
         },
         zh: {
             subtitle: '一個小遊戲合輯。',
@@ -424,7 +424,7 @@
             'unshackle_body': '解開交錯的立體枷鎖：依序拆解、五格暫存湊三消，或半抽零件替彼此讓路。',
             'fuse_name': 'Sumbreak',
             'fuse_tagline': '兩兩相併，合而為一。',
-            'fuse_body': '把相鄰的相同數字合併成兩倍；×2 方塊能讓任何相鄰的數字變兩倍。清空的格子會一直空著，要規劃好配對，直到只剩一塊。',
+            'fuse_body': '合併相鄰的相同數字，直到只剩一塊。',
         },
     };
 
