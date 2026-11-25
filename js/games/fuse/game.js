@@ -40,18 +40,18 @@
         fuseHelp3Html: 'Tap a tile, then a highlighted neighbour, or drag one onto the other. Keyboard: arrows move, <strong>Enter</strong> selects and merges, <strong>Esc</strong> cancels, <strong>Ctrl+Z</strong> undoes.',
         fuseHelp4: 'Hint explains one merge you can work out. Reveal shows a full solution from the current position.',
         fuseWhyFinal: 'Two tiles left: merging them finishes the puzzle, in either direction.',
-        fuseWhyLone: (v) => `This ${v} touches only one tile, an equal ${v}, so that is its only partner.`,
+        fuseWhyLone: (v) => `This ${v} touches only another ${v}, so they must merge.`,
         fuseWhyOnlyPair: 'This is the only pair of tiles that can merge, so it has to merge now.',
-        fuseWhyForcedPair: (v) => `Its other neighbours are empty or larger, and tiles never shrink, so the ${v} beside it is its only possible partner. They must merge before either one changes.`,
+        fuseWhyForcedPair: (v) => `Its other neighbours are empty or larger numbers, so the ${v} beside it is its only partner, and they must merge before either one changes.`,
         fuseWhyEliminate: (n) => (n === 1 ? 'Only one merge works here: the other one fails.' : `Only one merge works here: the other ${n} all fail.`),
-        fuseWhyFree: (n) => (n ? `${n === 1 ? 'One merge here fails' : `${n} merges here fail`}; the rest all work (checked by search).` : 'Every merge here works (checked by search).'),
+        fuseWhyFree: (n) => (n ? `${n === 1 ? 'One merge here fails' : `${n} merges here fail`}; the rest all work.` : 'Every merge here works.'),
         fuseWhyTrial: (k) => (k === 1 ? 'Merging these two the right way leaves a final pair that finishes the puzzle.' : `Merging these two the right way makes each of the next ${k} merges forced, ending in a single tile.`),
-        fuseWhySearch: 'No step-by-step deduction covers this position.',
-        fuseWhySearchPair: 'The highlighted pair must merge, but choosing the direction needs search.',
-        fuseDirLone: 'Merge it into its neighbour: the other way, the new tile would touch nothing.',
+        fuseWhySearch: 'No simple deduction applies here.',
+        fuseWhySearchPair: 'The highlighted pair must merge.',
+        fuseDirLone: 'Not the other way: the new tile would touch nothing.',
         fuseDirOnly: 'Only one direction is possible.',
         fuseDirRefuted: (why) => `Not the other way: then ${why}.`,
-        fuseDirFree: 'Either direction works (checked by search).',
+        fuseDirFree: 'Either direction works.',
         fuseExample: (why) => `For example, the red merge fails: then ${why}.`,
         fuseWhyDead: 'nothing can merge any more',
         fuseWhyStuck: (v) => `the ${v} touches only empty cells or larger numbers`,
@@ -65,14 +65,12 @@
         fuseWhyAhead: (k, why) => `it forces ${k === 1 ? 'one more merge' : `${k} more merges`}, and then ${why}`,
         fuseWhyGeneric: 'a rule check shows it cannot finish',
         fuseDoOne: 'Merge along the arrow.', fuseDoAny: (n) => `Any of these ${n} merges works.`,
-        fuseDoAlso: 'Other merges work too.',
-        fuseDoSearch: 'Found by exact search, not by a deduction.',
         fuseDeadHint: 'No merge is possible.',
         fuseUnsolvable: (why) => `This position can no longer be solved: ${why}.`,
-        fuseUnsolvableSearch: 'This position can no longer be solved (found by exact search).',
+        fuseUnsolvableSearch: 'This position can no longer be solved.',
         fuseUndoBack: (n) => (n === 1 ? 'Undo the last merge to get back on track.' : `Undo ${n} merges to get back on track.`),
         fuseResetBack: 'Press Reset to get back on track.',
-        fuseUnknown: 'This position is too large to check within the search limit.',
+        fuseUnknown: 'This position is too complex to check.',
     });
     Object.assign(PC.i18n.STRINGS.zh, {
         fuseName: '融合',
@@ -98,18 +96,18 @@
         fuseHelp3Html: '點一個方塊，再點標示的鄰居；也可以直接拖過去。鍵盤：方向鍵移動，<strong>Enter</strong>選取並合併，<strong>Esc</strong>取消，<strong>Ctrl+Z</strong>復原。',
         fuseHelp4: '「提示」會說明一步推得出來的合併；「解答」會顯示從目前局面到完成的一組解法。',
         fuseWhyFinal: '只剩兩塊：把它們合併就完成了，方向不拘。',
-        fuseWhyLone: (v) => `這個${v}只碰到一個方塊，也就是相同的${v}，所以只能和它合併。`,
+        fuseWhyLone: (v) => `這個${v}只碰到另一個${v}，只能和它合併。`,
         fuseWhyOnlyPair: '這是盤面上唯一能合併的一組方塊，現在就得合併。',
-        fuseWhyForcedPair: (v) => `它的其他鄰居都是空格或更大的數字，而數字只會變大，所以旁邊的${v}是它唯一可能的夥伴。兩者必須在任一方改變前合併。`,
+        fuseWhyForcedPair: (v) => `它的其他鄰居都是空格或更大的數字，所以只能和旁邊的${v}合併，而且要趁兩者都還沒改變前合併。`,
         fuseWhyEliminate: (n) => (n === 1 ? '這裡只有一種合併可行，另一種會失敗。' : `這裡只有一種合併可行，其他${n}種都會失敗。`),
-        fuseWhyFree: (n) => (n ? `這裡有${n}種合併會失敗，其餘都可行（經搜尋確認）。` : '這裡每種合併都可行（經搜尋確認）。'),
+        fuseWhyFree: (n) => (n ? `這裡有${n}種合併會失敗，其餘都可行。` : '這裡每種合併都可行。'),
         fuseWhyTrial: (k) => (k === 1 ? '這兩塊朝對的方向合併後，剩下的一對就能完成。' : `這兩塊朝對的方向合併後，接下來${k}次合併都是被迫的，最後只剩一塊。`),
-        fuseWhySearch: '這個局面沒有能逐步推理的提示。',
-        fuseWhySearchPair: '標示的這組必須合併，但方向需要靠搜尋決定。',
-        fuseDirLone: '把它併進鄰居：反過來的話，新方塊將碰不到任何方塊。',
+        fuseWhySearch: '這一步沒有簡單的推理。',
+        fuseWhySearchPair: '標示的這組必須合併。',
+        fuseDirLone: '不能反過來：那樣新方塊會碰不到任何方塊。',
         fuseDirOnly: '只有一個方向可以合併。',
         fuseDirRefuted: (why) => `不能反過來：那樣${why}。`,
-        fuseDirFree: '兩個方向都可以（經搜尋確認）。',
+        fuseDirFree: '兩個方向都可以。',
         fuseExample: (why) => `例如紅色的合併會失敗：那樣${why}。`,
         fuseWhyDead: '再也沒有能合併的方塊',
         fuseWhyStuck: (v) => `${v}只碰到空格或更大的數字`,
@@ -123,14 +121,12 @@
         fuseWhyAhead: (k, why) => `會被迫再合併${k}次，接著${why}`,
         fuseWhyGeneric: '規則檢查顯示無法完成',
         fuseDoOne: '照箭頭合併。', fuseDoAny: (n) => `這${n}種合併任選一種都可以。`,
-        fuseDoAlso: '其他合併也可行。',
-        fuseDoSearch: '這是精確搜尋的結果，不是推理。',
         fuseDeadHint: '已無法合併。',
         fuseUnsolvable: (why) => `這個局面已經無解：${why}。`,
-        fuseUnsolvableSearch: '這個局面已經無解（經精確搜尋確認）。',
+        fuseUnsolvableSearch: '這個局面已經無解。',
         fuseUndoBack: (n) => `復原${n}次合併就能回到有解的局面。`,
         fuseResetBack: '按「重設」即可回到有解的局面。',
-        fuseUnknown: '這個局面超出搜尋上限，無法判斷。',
+        fuseUnknown: '這個局面太複雜，無法判斷。',
     });
 
     const $ = (id) => document.getElementById(id);
@@ -282,12 +278,7 @@
         if (state.hint) { state.hint = null; sync(); return; }
         const b = current();
         const step = Reasoning.nextStep(R, b, { solver: state.solver });
-        const exact = state.solver.analyze(b);
-        state.hint = {
-            key: R.key(b), step,
-            wins: exact.moves.filter((m) => m.outcome === 'win').length,
-            back: step.move ? null : recovery(),
-        };
+        state.hint = { key: R.key(b), step, back: step.move ? null : recovery() };
         sync();
     }
     // Merges to undo to reach the latest solvable position (null: reset instead).
@@ -365,15 +356,14 @@
             default: return s.pair ? t('fuseWhySearchPair') : t('fuseWhySearch');
         }
     }
-    function doText(s, h) {
-        const moves = shownMoves(s), search = s.technique === 'search';
+    function doText(s) {
         if (s.technique === 'final') return '';
-        const main = moves.length > 1 ? t('fuseDoAny', moves.length) : t('fuseDoOne');
-        return join([main, h.wins > moves.length && t('fuseDoAlso'), search && t('fuseDoSearch')]);
+        const moves = shownMoves(s);
+        return moves.length > 1 ? t('fuseDoAny', moves.length) : t('fuseDoOne');
     }
     function hintText(h, b) {
         const s = h.step;
-        if (s.move) return join([whyText(s, b), doText(s, h)]);
+        if (s.move) return join([whyText(s, b), doText(s)]);
         if (s.technique === 'unknown') return t('fuseUnknown');
         const lost = s.technique === 'dead-end' ? t('fuseDeadHint')
             : s.reason ? t('fuseUnsolvable', why(s.reason)) : t('fuseUnsolvableSearch');

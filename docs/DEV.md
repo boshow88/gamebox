@@ -1611,8 +1611,8 @@ Levels: 1 `final`, `lone`, `only-pair`; 2 `forced-pair` and the pairing contradi
 merges, hit a contradiction) and `trial` (a merge after which every merge is forced
 through to one tile); 6 exhaustive search. A step is a forced merge (pair plus
 direction argument), an elimination (all other merges refuted, so exactly one
-wins), a free choice (refuted merges are traps, the rest verified by search and
-labelled so) or a trial (one merge shown to work; others may too). `span` counts the
+wins), a free choice (refuted merges are traps, the rest verified by search) or a
+trial (one merge shown to work; others may too). `span` counts the
 merges a player must picture in one step. A ×2 is never a forced partner: in `8 x2 4`
 the 8's only partner is the ×2, yet the 4 must use it first and leave an 8 beside the
 8. Contradiction checks and forced follow-ups are cached per position in the reasoning
@@ -1628,9 +1628,11 @@ every reachable state) without proving each losing merge loses, which on 4×4 wa
 most of the cost. With no technique left it returns a `search` step listing every
 winning merge (unless `searchMoves` is false), and keeps any proved pair. Hint works like the other puzzles: one press
 shows the step (pair ring, merge arrow, at most one refuted merge in red, and the
-explanation in `#hint-banner`), the next press or any move hides it. Where other
-merges also work it says so. On a lost position the banner turns red, gives the
-contradiction and the number of merges to undo back to the latest solvable position.
+explanation in `#hint-banner`), the next press or any move hides it. The wording
+never mentions search: a `search` step says only that no simple deduction applies,
+and a free choice or free direction just says the merges work. On a lost position the
+banner turns red, gives the contradiction and the number of merges to undo back to
+the latest solvable position.
 
 ### Difficulty
 
@@ -1682,7 +1684,10 @@ range and the construction from running out of tiles to split) and a constructio
 style. `reverseBuild` then splits tiles backwards from one tile: `split-number` turns
 2v into v + v, and `split-mul` turns it into v and a ×2, either way round (undoing
 `num>mul` or `mul>num`). Each step adds a ×2 with probability (×2 tiles left) / (steps
-left), so the board gets exactly the count drawn. `judge` runs the capped
+left), so the board gets exactly the count drawn. `normalize` then divides every number
+by the smallest: merges only compare numbers with each other or double them, so this
+keeps every merge, contradiction, waste count and hint (`generator-check.js` compares
+scaled copies), and every board starts from 1. `judge` runs the capped
 `trialMerges` first and the human path only for boards in range, on a solver seeded
 with the construction's solution (`learn`) and limited to `SEARCH_BUDGET` (5000)
 states per call. A board that runs out is rejected: `calibrate.js --cost` showed

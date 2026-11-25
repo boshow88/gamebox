@@ -1463,7 +1463,8 @@ stay fixed; only the camera rotates. Clear every piece to finish a puzzle.
 
 - The difficulty picks the grid: **Easy** is 3×3, sometimes 3×4 or 4×3; **Medium**
   is 3×4, 4×3 or 4×4; **Hard** is 4×4. Every cell starts with a tile holding a power
-  of two (1, 2, 4, …) or a **×2 tile**.
+  of two (1, 2, 4, …) or a **×2 tile**. The smallest number is always 1: halving
+  every number would give the same puzzle, so boards never start higher.
 - About a third of Easy puzzles and half of Medium and Hard ones have ×2 tiles:
   violet tiles marked ×2, at most one on 3×3 and 4×4 boards and up to two on 3×4
   and 4×3.
@@ -1504,10 +1505,9 @@ so it always has a solution, and often several.
   returns to the opening position and can itself be undone.
 - **Hint (💡)**: highlights one merge you can work out, draws it as an arrow and
   explains why it is right, sometimes pointing at a failing merge in red. Press
-  again to hide it. When several merges work, the hint says so rather than
-  presenting one as the only move. When no deduction covers the position, the hint
-  says the merge was found by exact search. On a lost position the hint says so,
-  explains why, and tells you how many merges to undo.
+  again to hide it. When it draws several arrows, any of them works. When no simple
+  deduction covers the position, the hint just shows a winning merge. On a lost
+  position the hint says so, explains why, and tells you how many merges to undo.
 - **Reveal**: toggles a full solution from the current position, as numbered green
   arrows. If the position can no longer be solved, the status row says so instead.
 - **Share** copies a link with the puzzle's difficulty and seed.

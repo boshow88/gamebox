@@ -738,7 +738,9 @@ and list every winning merge. `nextStep` must pick exactly the easiest valid
 candidate, which checks the lazy validation against the definition. It also compares
 `trialMerges` with an independent reimplementation. The generator check covers
 reverse construction on every shape with zero to two ×2 tiles (exactly the count
-asked for, and only the ×2 op adds one), determinism, ids, solution replay, and the
+asked for, and only the ×2 op adds one), normalization (scaled copies of a board have
+the same merges, contradictions, solvability, waste and reasoning path, and every
+served board's smallest number is 1), determinism, ids, solution replay, and the
 shapes and ×2 counts each tier may use. It recomputes each generated and curated
 puzzle's waste and fairness without the generator's shortcuts and checks that the
 tiers' waste never overlaps, each tier mixes its shapes and each tier serves ×2

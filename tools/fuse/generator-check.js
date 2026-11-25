@@ -27,6 +27,7 @@ function checkBoard(text, tier, label) {
     const muls = mulCount(board);
     assert.ok(muls <= mostMuls(board.rows * board.cols), `${label}: ${muls} ×2 tiles on ${shapeOf(board)}`);
     assert.ok(board.cells.every((c) => c.type === 'num' || c === R.mul(2)), `${label}: only numbers and ×2 tiles`);
+    assert.equal(Math.min(...board.cells.filter((c) => c.type === 'num').map((c) => c.value)), 1, `${label}: the smallest number is 1`);
     const range = Gen.DIFFICULTY[tier], minimum = R.tileCount(board) - 1;
     const waste = Reasoning.trialMerges(R, board, minimum + (range.max === Infinity ? range.min : range.max + 1)) - minimum;
     assert.ok(waste >= range.min && waste <= range.max, `${label}: waste ${waste} within ${tier}`);
@@ -61,6 +62,35 @@ function checkBoard(text, tier, label) {
     assert.ok(checked > 100, `reverse builds checked (${checked})`);
     const both = Gen.REVERSE_OPS.find((op) => op.mul).options(R.parse('. 8'));
     assert.deepEqual(both.map((o) => R.serialize(o.prior)).sort(), ['4 x2', 'x2 4'], 'a ×2 merge is undone in both directions');
+}
+
+// Normalizing (dividing every number by the smallest) keeps the puzzle: the same merges,
+// contradictions, solvability, waste and reasoning path.
+{
+    const rng = Gen.makeRng(57), styles = Object.keys(Gen.STYLES);
+    const scale = (b, f) => R.withCells(b, b.cells.map((c) => (c && c.type === 'num' ? R.num(c.value * f) : c)));
+    const outline = (b) => {
+        const path = Reasoning.humanPath(R, b, { stopAtSearch: true });
+        return {
+            moves: R.legalMoves(b).map(Rules.moveKey), contradictions: R.contradictions(b).map((c) => c.id),
+            solvable: Solver.createSolver(R).isSolvable(b), waste: Reasoning.trialMerges(R, b, 400),
+            path: path.steps.map((s) => s.technique + ':' + Rules.moveKey(s.move)), complete: path.complete,
+        };
+    };
+    let checked = 0;
+    for (let n = 0; n < 40; n++) {
+        const [rows, cols] = [[3, 3], [3, 4], [4, 3]][n % 3], muls = n % 2;
+        const exps = Gen.EXPONENTS[rows * cols];
+        const built = Gen.reverseBuild(rng, rows, cols, exps[n % exps.length] + muls, styles[n % 3], muls);
+        if (!built) continue;
+        checked++;
+        const b = built.board, big = scale(b, 1 << (1 + (n % 3)));
+        assert.equal(Math.min(...b.cells.filter((c) => c.type === 'num').map((c) => c.value)), 1, 'builds are normalized');
+        assert.equal(R.key(Gen.normalize(big)), R.key(b), 'normalize undoes scaling');
+        assert.deepEqual(outline(big), outline(b), `scaling keeps the puzzle (${R.serialize(b)})`);
+    }
+    assert.ok(checked > 30, `normalized builds checked (${checked})`);
+    assert.equal(R.serialize(Gen.normalize(R.parse('8 x2/. 16'))), '1 x2/. 2');
 }
 
 // Generated puzzles: deterministic per seed, verified, and in the requested tier.

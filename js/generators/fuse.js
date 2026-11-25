@@ -5,7 +5,8 @@
  * may carry ×2 tiles), then:
  * 1. Reverse construction: start from one tile holding the target total and repeatedly undo
  *    a forward merge (REVERSE_OPS) until every cell is filled. Each step is checked to be the
- *    exact inverse of a legal forward merge, so the construction is a known solution.
+ *    exact inverse of a legal forward merge, so the construction is a known solution. The
+ *    numbers are then divided by the smallest, so every board starts from 1.
  * 2. Difficulty: Reasoning.trialMerges counts what trial and error costs a player who tries
  *    the smallest tiles first, skips visibly lost merges and undoes when stuck. The merges
  *    made and undone (`waste`) must fall in the tier's range (DIFFICULTY).
@@ -90,9 +91,17 @@
         deep: (o) => 1 / Math.sqrt(o.value),  // split small tiles: long doubling chains
     };
 
-    // A full board with exactly `muls` ×2 tiles and the solution that built it. Each step
-    // adds a ×2 tile with probability (×2 tiles left) / (steps left), so they spread evenly
-    // over the solution.
+    // Merges only compare numbers with each other or double them, so dividing every number by
+    // the smallest gives the same puzzle. Served boards always start from 1.
+    function normalize(board) {
+        const unit = Math.min(...R.tiles(board).map((i) => board.cells[i]).filter((c) => c.type === 'num').map((c) => c.value));
+        if (!(unit > 1) || !Number.isFinite(unit)) return board;
+        return R.withCells(board, board.cells.map((c) => (c && c.type === 'num' ? R.num(c.value / unit) : c)));
+    }
+
+    // A full board with exactly `muls` ×2 tiles and the solution that built it, normalized.
+    // Each step adds a ×2 tile with probability (×2 tiles left) / (steps left), so they
+    // spread evenly over the solution.
     function reverseBuild(rng, rows, cols, exponent, style, muls) {
         let board = R.createBoard(rows, cols, new Array(rows * cols).fill(R.EMPTY));
         board.cells[Math.floor(rng() * board.cells.length)] = R.num(Math.pow(2, exponent));
@@ -108,7 +117,7 @@
             solution.unshift(pick.move);
             if (mul) left--;
         }
-        return { board, solution };
+        return { board: normalize(board), solution };
     }
 
     const TIERS = ['easy', 'medium', 'hard'];
@@ -118,10 +127,11 @@
         medium: [[3, 4, 1], [4, 3, 1], [4, 4, 2]],
         hard: [[4, 4, 1]],
     };
-    // Final tile exponents (the last tile is 2^e) by cell count, and how many ×2 tiles a board
-    // of that size gets, by weight. Each ×2 tile adds one to the exponent, which keeps the
-    // other tiles in range and the construction from running out of tiles to split. Two ×2
-    // tiles on 4×4 almost never leave a board solvable by reasoning (tools/fuse/calibrate.js).
+    // Final tile exponents (the last tile is 2^e before normalizing) by cell count, and how
+    // many ×2 tiles a board of that size gets, by weight. Each ×2 tile adds one to the
+    // exponent, which keeps the other tiles in range and the construction from running out of
+    // tiles to split. Two ×2 tiles on 4×4 almost never leave a board solvable by reasoning
+    // (tools/fuse/calibrate.js).
     const EXPONENTS = { 9: [4, 5, 6, 7], 12: [6, 7, 8], 16: [7, 8, 9] };
     const MULS = { 9: [[0, 1], [1, 1]], 12: [[0, 2], [1, 1], [2, 1]], 16: [[0, 1], [1, 1]] };
     // Waste (merges made and undone by trial and error, see Reasoning.trialMerges) per tier.
@@ -187,16 +197,16 @@
     // lists candidates; tools/fuse/generator-check.js re-verifies them).
     const CURATED = {
         easy: [
-            '2 4 8/2 4 4/2 2 4', '1 1 2 2/2 16 8 4/4 8 16 64', '8 4 2/8 4 1/16 4 1/8 4 4',
-            '8 8 8/x2 16 8/128 64 8', '4 x2 16/4 8 16/16 16 32',
+            '1 2 4/1 2 2/1 1 2', '1 1 2 2/2 16 8 4/4 8 16 64', '8 4 2/8 4 1/16 4 1/8 4 4',
+            '1 1 1/x2 2 1/16 8 1', '1 x2 4/1 2 4/4 4 8',
         ],
         medium: [
-            '32 32 8/8 8 8/8 8 8/2 2 4', '32 16 8 8/16 16 8 4/8 4 4 4', '16 8 4 4/16 8 8 4/16 8 8 4/16 4 2 2',
-            '16 16 32 128/4 8 16 x2/4 16 8 8', '4 8 32 64/4 x2 64 32/4 2 8 8/1 1 4 4',
+            '16 16 4/4 4 4/4 4 4/1 1 2', '8 4 2 2/4 4 2 1/2 1 1 1', '8 4 2 2/8 4 4 2/8 4 4 2/8 2 1 1',
+            '4 4 8 32/1 2 4 x2/1 4 2 2', '4 8 32 64/4 x2 64 32/4 2 8 8/1 1 4 4',
         ],
         hard: [
-            '16 32 32 32/8 32 16 16/4 16 16 8/4 8 8 8', '64 64 32 32/64 64 32 16/64 16 16 16/16 8 4 4',
-            '16 16 16 32/16 64 64 x2/32 64 64 128/32 32 64 128', '1 1 1 2/2 2 1 2/8 16 8 4/16 64 128 x2',
+            '4 8 8 8/2 8 4 4/1 4 4 2/1 2 2 2', '16 16 8 8/16 16 8 4/16 4 4 4/4 2 1 1',
+            '1 1 1 2/1 4 4 x2/2 4 4 8/2 2 4 8', '1 1 1 2/2 2 1 2/8 16 8 4/16 64 128 x2',
         ],
     };
 
@@ -229,6 +239,6 @@
 
     return {
         TIERS, SHAPES, EXPONENTS, MULS, DIFFICULTY, ATTEMPTS, SEARCH_BUDGET, CURATED, REVERSE_OPS, STYLES,
-        makeRng, reverseBuild, judge, generate, generatePuzzle,
+        makeRng, normalize, reverseBuild, judge, generate, generatePuzzle,
     };
 });
