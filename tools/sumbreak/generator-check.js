@@ -14,10 +14,11 @@ function replay(board, moves) {
 }
 const shapeOf = (board) => `${board.rows}×${board.cols}`;
 const mulCount = (board) => board.cells.filter((c) => c && c.type === 'mul').length;
+const factorsOf = (board) => board.cells.filter((c) => c && c.type === 'mul').map((c) => c.factor).sort();
 const mostMuls = (tier, cells) => Math.max(0, ...(Gen.MULS[tier][cells] || []).filter((m) => m[1] > 0).map((m) => m[0]));
 
 // A puzzle text belongs to `tier`, recomputed without the generator's shortcuts: the board
-// starts full in one of the tier's shapes, with no more ×2 tiles than the tier allows there, the
+// starts full in one of the tier's shapes, with no more multipliers than the tier allows there, the
 // waste (merges a smallest-first player makes and undoes) and the first-try chance are in
 // range, and reasoning alone solves it.
 function checkBoard(text, tier, label) {
@@ -25,8 +26,8 @@ function checkBoard(text, tier, label) {
     assert.ok(Gen.SHAPES[tier].some(([rows, cols]) => rows === board.rows && cols === board.cols), `${label}: ${shapeOf(board)} is a ${tier} shape`);
     assert.equal(R.tileCount(board), board.rows * board.cols, `${label}: starts full`);
     const muls = mulCount(board);
-    assert.ok(muls <= mostMuls(tier, board.rows * board.cols), `${label}: ${muls} ×2 tiles on ${shapeOf(board)}`);
-    assert.ok(board.cells.every((c) => c.type === 'num' || c === R.mul(2)), `${label}: only numbers and ×2 tiles`);
+    assert.ok(muls <= mostMuls(tier, board.rows * board.cols), `${label}: ${muls} multipliers on ${shapeOf(board)}`);
+    assert.ok(board.cells.every((c) => c.type === 'num' || Gen.FACTORS.some(([f]) => c === R.mul(f))), `${label}: only numbers, ×2 and ×4 tiles`);
     assert.equal(Math.min(...board.cells.filter((c) => c.type === 'num').map((c) => c.value)), 1, `${label}: the smallest number is 1`);
     const range = Gen.DIFFICULTY[tier], minimum = R.tileCount(board) - 1;
     const waste = Reasoning.trialMerges(R, board, minimum + (range.max === Infinity ? range.min : range.max + 1)) - minimum;
@@ -43,30 +44,35 @@ function checkBoard(text, tier, label) {
 }
 
 // Reverse operations are exact inverses of legal forward merges, on every shape and with
-// ×2 tiles, and a build places exactly the ×2 tiles asked for.
+// ×2 and ×4 tiles, and a build places exactly the multipliers asked for.
 {
     const rng = Gen.makeRng(31), styles = Object.keys(Gen.STYLES);
+    const mixes = [[], [2], [4], [2, 2], [2, 4], [4, 4]];
     let checked = 0;
     for (let n = 0; n < 150; n++) {
-        const [rows, cols] = [[3, 3], [3, 4], [4, 3], [4, 4]][n % 4], muls = n % 3;
+        const [rows, cols] = [[3, 3], [3, 4], [4, 3], [4, 4]][n % 4], muls = mixes[n % mixes.length];
         const exps = Gen.EXPONENTS[rows * cols];
-        const built = Gen.reverseBuild(rng, rows, cols, exps[n % exps.length] + muls, styles[n % 3], muls);
+        const built = Gen.reverseBuild(rng, rows, cols, exps[n % exps.length] + Gen.lift(muls), styles[n % 3], muls);
         if (!built) continue;
         checked++;
         assert.equal(R.tileCount(built.board), rows * cols);
-        assert.equal(mulCount(built.board), muls);
+        assert.deepEqual(factorsOf(built.board), muls.slice().sort());
         assert.equal(R.status(replay(built.board, built.solution)), 'won');
         const next = R.applyMerge(built.board, built.solution[0]);
         for (const op of Gen.REVERSE_OPS) {
             for (const o of op.options(next)) {
                 assert.equal(R.key(R.applyMerge(o.prior, o.move)), R.key(next));
-                assert.equal(mulCount(o.prior) - mulCount(next), op.mul ? 1 : 0, `${op.id} adds a ×2 tile only when marked`);
+                const added = o.prior.cells.filter((c, i) => c !== next.cells[i] && c && c.type === 'mul');
+                assert.deepEqual(added, op.mul ? [R.mul(op.mul)] : [], `${op.id} adds a ×${op.mul} tile only when marked`);
             }
         }
     }
     assert.ok(checked > 100, `reverse builds checked (${checked})`);
-    const both = Gen.REVERSE_OPS.find((op) => op.mul).options(R.parse('. 8'));
-    assert.deepEqual(both.map((o) => R.serialize(o.prior)).sort(), ['4 x2', 'x2 4'], 'a ×2 merge is undone in both directions');
+    assert.deepEqual(Gen.reverseBuild(Gen.makeRng(5), 3, 3, 6, 'mixed', 2), Gen.reverseBuild(Gen.makeRng(5), 3, 3, 6, 'mixed', [2, 2]), 'a count means that many ×2 tiles');
+    const undo = (f, text) => Gen.REVERSE_OPS.find((op) => op.mul === f).options(R.parse(text)).map((o) => R.serialize(o.prior)).sort();
+    assert.deepEqual(undo(2, '. 8'), ['4 x2', 'x2 4'], 'a ×2 merge is undone in both directions');
+    assert.deepEqual(undo(4, '. 8'), ['2 x4', 'x4 2'], 'a ×4 merge is undone in both directions');
+    assert.deepEqual(undo(4, '. 2'), [], 'a ×4 needs a number of at least 4 to split');
 }
 
 // Normalizing (dividing every number by the smallest) keeps the puzzle: the same merges,
@@ -99,7 +105,7 @@ function checkBoard(text, tier, label) {
 }
 
 // Generated puzzles: deterministic per seed, verified, and in the requested tier.
-const timings = {}, wastes = {}, chances = {}, shapes = {}, mulCounts = {};
+const timings = {}, wastes = {}, chances = {}, shapes = {}, mulCounts = {}, factors = new Set();
 let generated = 0, total = 0;
 for (const tier of Gen.TIERS) {
     const boards = new Set();
@@ -129,8 +135,9 @@ for (const tier of Gen.TIERS) {
         if (p.source === 'generated') generated++;
         boards.add(p.board);
         wastes[tier].push(Reasoning.trialMerges(R, board, 5000) - (R.tileCount(board) - 1));
-        shapes[tier].add(shapeOf(board) + (mulCount(board) ? ' x2' : ''));
+        shapes[tier].add(shapeOf(board) + (mulCount(board) ? ' mul' : ''));
         mulCounts[tier].add(mulCount(board));
+        for (const f of factorsOf(board)) factors.add(f);
     }
     assert.equal(boards.size, 8, `${tier}: seeds give different puzzles`);
 }
@@ -144,9 +151,10 @@ assert.equal(big.seed, 4294967295);
 assert.ok(Math.max(...wastes.easy) < Math.min(...wastes.medium), `easy below medium (${wastes.easy} / ${wastes.medium})`);
 assert.ok(Math.min(...chances.medium) > Math.max(...chances.hard), `medium first-try above hard (${chances.medium.map(Math.round)} / ${chances.hard.map(Math.round)})`);
 assert.ok(shapes.easy.has('3×3') && [...shapes.easy].some((s) => s !== '3×3'), `easy shapes ${[...shapes.easy]}`);
-for (const tier of ['medium', 'hard']) assert.ok(shapes[tier].has('4×4') && shapes[tier].has('4×4 x2') && shapes[tier].size === 2, `${tier} shapes ${[...shapes[tier]]}`);
-for (const tier of Gen.TIERS) assert.ok([...shapes[tier]].some((s) => s.endsWith(' x2')), `${tier} serves ×2 tiles (${[...shapes[tier]]})`);
-assert.ok(mulCounts.hard.has(2), `hard serves boards with two ×2 tiles (${[...mulCounts.hard]})`);
+for (const tier of ['medium', 'hard']) assert.ok(shapes[tier].has('4×4') && shapes[tier].has('4×4 mul') && shapes[tier].size === 2, `${tier} shapes ${[...shapes[tier]]}`);
+for (const tier of Gen.TIERS) assert.ok([...shapes[tier]].some((s) => s.endsWith(' mul')), `${tier} serves multiplier tiles (${[...shapes[tier]]})`);
+assert.ok(mulCounts.hard.has(2), `hard serves boards with two multipliers (${[...mulCounts.hard]})`);
+assert.deepEqual([...factors].sort(), Gen.FACTORS.map(([f]) => f), 'both ×2 and ×4 tiles are served');
 
 // Curated fallbacks are valid members of their tier, and the fallback path is bounded.
 for (const tier of Gen.TIERS) {

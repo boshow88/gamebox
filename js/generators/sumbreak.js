@@ -2,7 +2,7 @@
  * Sumbreak — puzzle generator.
  *
  * Each difficulty draws a board shape from SHAPES (Easy 3×3 to 4×3, Medium and Hard 4×4; any
- * may carry ×2 tiles), then:
+ * may carry ×2 or ×4 tiles), then:
  * 1. Reverse construction: start from one tile holding the target total and repeatedly undo
  *    a forward merge (REVERSE_OPS) until every cell is filled. Each step is checked to be the
  *    exact inverse of a legal forward merge, so the construction is a known solution. The
@@ -57,16 +57,16 @@
         return items[items.length - 1];
     }
 
-    // Each way a number tile 2v at d could have been made from two tiles at d and an empty
-    // neighbour s by the merge s → d: { prior, move, value: 2v }.
-    function splits(board, make) {
+    // Each way a number tile f·v at d could have been made from two tiles at d and an empty
+    // neighbour s by the merge s → d: { prior, move, value: f·v }.
+    function splits(board, factor, make) {
         const out = [];
         for (const d of R.tiles(board)) {
             const t = board.cells[d];
-            if (t.type !== 'num' || t.value < 2) continue;
+            if (t.type !== 'num' || t.value < factor) continue;
             for (const s of R.neighbors(board, d)) {
                 if (board.cells[s] !== R.EMPTY) continue;
-                for (const [atD, atS] of make(t.value / 2)) {
+                for (const [atD, atS] of make(t.value / factor)) {
                     const cells = board.cells.slice();
                     cells[d] = atD;
                     cells[s] = atS;
@@ -76,14 +76,17 @@
         }
         return out;
     }
+    // Multiplier tiles as [factor, weight]: each one a board gets is ×2 twice as often as ×4.
+    const FACTORS = [[2, 2], [4, 1]];
+
     // Reverse operations. Each lists { prior, move } where applying the forward `move` to
     // `prior` yields `board`. New tile types extend generation by adding entries here; `mul`
-    // marks the ones that add a ×2 tile.
+    // is the factor of the multiplier tile an entry adds, or 0.
     const REVERSE_OPS = [
         // Undo number + number: v at s merged into v at d.
-        { id: 'split-number', mul: false, options: (board) => splits(board, (v) => [[R.num(v), R.num(v)]]) },
-        // Undo a ×2 merge, in either direction: v at s into ×2 at d, or ×2 at s into v at d.
-        { id: 'split-mul', mul: true, options: (board) => splits(board, (v) => [[R.mul(2), R.num(v)], [R.num(v), R.mul(2)]]) },
+        { id: 'split-number', mul: 0, options: (board) => splits(board, 2, (v) => [[R.num(v), R.num(v)]]) },
+        // Undo a ×f merge, in either direction: v at s into ×f at d, or ×f at s into v at d.
+        ...FACTORS.map(([f]) => ({ id: 'split-x' + f, mul: f, options: (board) => splits(board, f, (v) => [[R.mul(f), R.num(v)], [R.num(v), R.mul(f)]]) })),
     ];
 
     // Construction styles vary which tile is split next, giving different value profiles.
@@ -93,7 +96,7 @@
         deep: (o) => 1 / Math.sqrt(o.value),  // split small tiles: long doubling chains
     };
 
-    // Merges only compare numbers with each other or double them, so dividing every number by
+    // Merges only compare numbers with each other or multiply them, so dividing every number by
     // the smallest gives the same puzzle. Served boards always start from 1.
     function normalize(board) {
         const unit = Math.min(...R.tiles(board).map((i) => board.cells[i]).filter((c) => c.type === 'num').map((c) => c.value));
@@ -101,26 +104,27 @@
         return R.withCells(board, board.cells.map((c) => (c && c.type === 'num' ? R.num(c.value / unit) : c)));
     }
 
-    // A full board with exactly `muls` ×2 tiles and the solution that built it, normalized.
-    // Each step adds a ×2 tile with probability (×2 tiles left) / (steps left), so they
-    // spread evenly over the solution.
+    // A full board with exactly the multiplier tiles `muls` (factors such as [2, 4], or a count
+    // of ×2 tiles) and the solution that built it, normalized. Each step adds the next one with
+    // probability (multipliers left) / (steps left), so they spread evenly over the solution.
     function reverseBuild(rng, rows, cols, exponent, style, muls) {
         let board = R.createBoard(rows, cols, new Array(rows * cols).fill(R.EMPTY));
         board.cells[Math.floor(rng() * board.cells.length)] = R.num(Math.pow(2, exponent));
-        const solution = [];
-        let left = muls || 0;
+        const solution = [], left = Array.isArray(muls) ? muls.slice() : new Array(muls || 0).fill(2);
         while (board.cells.includes(R.EMPTY)) {
-            const steps = board.cells.filter((c) => c === R.EMPTY).length, mul = rng() * steps < left;
+            const steps = board.cells.filter((c) => c === R.EMPTY).length, mul = rng() * steps < left.length ? left[0] : 0;
             const options = [].concat(...REVERSE_OPS.filter((op) => op.mul === mul).map((op) => op.options(board)));
             if (!options.length) return null;
             const pick = pickWeighted(rng, options, STYLES[style]);
             if (R.key(R.applyMerge(pick.prior, pick.move)) !== R.key(board)) throw new Error('Reverse operation does not invert a legal merge');
             board = pick.prior;
             solution.unshift(pick.move);
-            if (mul) left--;
+            if (mul) left.shift();
         }
         return { board: normalize(board), solution };
     }
+    // How much multipliers raise the final tile's exponent: one per ×2, two per ×4.
+    const lift = (factors) => factors.reduce((s, f) => s + Math.log2(f), 0);
 
     const TIERS = ['easy', 'medium', 'hard'];
     // Board shapes per difficulty as [rows, cols, weight]. Only 4×4 boards reach the waste
@@ -131,11 +135,11 @@
         hard: [[4, 4, 1]],
     };
     // Final tile exponents (the last tile is 2^e before normalizing) by cell count, and how
-    // many ×2 tiles each tier's boards get, by cell count and weight. Each ×2 tile adds one
-    // to the exponent, which keeps the other tiles in range and the construction from running
-    // out of tiles to split. Two ×2 tiles on 4×4 qualify about half as often as one and cost
-    // more to judge, so they are weighted up on Hard to serve about half its puzzles; Medium
-    // would take several times longer with them (tools/sumbreak/calibrate.js).
+    // many multiplier tiles each tier's boards get, by cell count and weight. Each multiplier
+    // raises the exponent (`lift`), which keeps the other tiles in range and the construction
+    // from running out of tiles to split. Two multipliers on 4×4 qualify about half as often
+    // as one and cost more to judge, so they are weighted up on Hard to serve about half its
+    // puzzles; Medium would take several times longer with them (tools/sumbreak/calibrate.js).
     const EXPONENTS = { 9: [4, 5, 6, 7], 12: [6, 7, 8], 16: [7, 8, 9] };
     const MULS = {
         easy: { 9: [[0, 1], [1, 1]], 12: [[0, 2], [1, 1], [2, 1]] },
@@ -196,8 +200,9 @@
         for (let attempt = 1; attempt <= limit; attempt++) {
             const [rows, cols] = pickWeighted(rng, SHAPES[difficulty], (s) => s[2]);
             const cells = rows * cols, mulWeights = MULS[difficulty][cells];
-            const muls = mulWeights ? pickWeighted(rng, mulWeights, (b) => b[1])[0] : 0;
-            const exponent = EXPONENTS[cells][Math.floor(rng() * EXPONENTS[cells].length)] + muls;
+            const count = mulWeights ? pickWeighted(rng, mulWeights, (b) => b[1])[0] : 0;
+            const muls = Array.from({ length: count }, () => pickWeighted(rng, FACTORS, (f) => f[1])[0]);
+            const exponent = EXPONENTS[cells][Math.floor(rng() * EXPONENTS[cells].length)] + lift(muls);
             const style = styles[Math.floor(rng() * styles.length)];
             const built = reverseBuild(rng, rows, cols, exponent, style, muls);
             if (built && !seen.has(R.key(built.board))) {
@@ -259,7 +264,7 @@
     }
 
     return {
-        TIERS, SHAPES, EXPONENTS, MULS, DIFFICULTY, ATTEMPTS, SEARCH_BUDGET, CURATED, REVERSE_OPS, STYLES,
-        makeRng, normalize, reverseBuild, judge, generate, generatePuzzle,
+        TIERS, SHAPES, EXPONENTS, MULS, FACTORS, DIFFICULTY, ATTEMPTS, SEARCH_BUDGET, CURATED, REVERSE_OPS, STYLES,
+        makeRng, normalize, reverseBuild, lift, judge, generate, generatePuzzle,
     };
 });

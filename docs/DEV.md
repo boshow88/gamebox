@@ -1536,7 +1536,7 @@ solve logs still count and the launcher's `fuse_*` strings still apply) and puzz
 
 | File | Global | Role |
 | --- | --- | --- |
-| `js/games/sumbreak/rules.js` | `SumbreakRules` | Tile types (numbers, ×2), board model, the one merge definition, status, solvability conditions |
+| `js/games/sumbreak/rules.js` | `SumbreakRules` | Tile types (numbers, ×2 and ×4), board model, the one merge definition, status, solvability conditions |
 | `js/games/sumbreak/solver.js` | `SumbreakSolver` | Exact search: outcomes per merge, solutions, counts, state budget |
 | `js/games/sumbreak/reasoning.js` | `SumbreakReasoning` | Human techniques, hint steps, the trial-and-error difficulty measure |
 | `js/generators/sumbreak.js` | `PuzzleGenerators.sumbreak`, `sumbreakInternals` | Shapes per tier, reverse construction, tier and fairness checks, curated fallbacks |
@@ -1556,10 +1556,12 @@ pairs to the tile left at the destination, or `null`. `canMerge` / `applyMerge` 
 go through them. `createRules({ tileTypes, merges, adjacency, conditions })` builds a
 variant: `adjacency: 'king'` enables diagonal merges.
 
-Multiplier tiles (`mul(2)`, `{ type: 'mul', factor: 2 }`, text `x2` or `×2`) are a
-tile type like numbers: `num>mul` leaves the doubled number in the ×2's cell, `mul>num`
-doubles the number in place, and `mul>mul` is not a merge. A ×2 counts toward the tile
-count, so it must be used before the puzzle is won.
+Multiplier tiles (`mul(2)`, `{ type: 'mul', factor: 2 }`, text `x2` or `×2`; likewise
+`mul(4)`) are a tile type like numbers: `num>mul` leaves the multiplied number in the
+multiplier's cell, `mul>num` multiplies the number in place, and `mul>mul` is not a
+merge. A multiplier counts toward the tile count, so it must be used before the puzzle
+is won. The rules accept any power-of-two factor; puzzles use ×2 and ×4. Below, "×2"
+stands for any multiplier.
 
 Invariants that only hold for numbers and multipliers (numbers only grow, a number
 merges only with an equal number or a ×2) are marked `numeric` and switch off when
@@ -1570,13 +1572,15 @@ neighbours holding a number no larger, or a ×2. Only a ×2's cell can take a ne
 ×2 neighbours as partners. `odd-group` and `subtotal` skip groups a ×2 touches (it can
 double one of them), and `half` is off while any ×2 is on the board, since the total is
 no longer fixed. Connectivity (`split`) holds for every type. The rules check confirms
-every contradiction against brute force, thousands of claims on boards with ×2 tiles
-included. The solver never assumes a sum or power-of-two invariant: it only calls the
+every contradiction against brute force, thousands of claims on boards with ×2 and ×4
+tiles included. The solver never assumes a sum or power-of-two invariant: it only calls the
 rules. The generator's `REVERSE_OPS` list `{ prior, move }` pairs where
 `applyMerge(prior, move)` reproduces the board, and `reverseBuild` re-checks every
 step, so new tile types extend generation by adding an op. Blocked cells are supported
 by the model, renderer and checks but no puzzle uses them yet. LinkedIn's other
-wildcard, `+N` (+3 adds 3 to the number it touches), is not implemented yet.
+wildcard, `+N` (+3 adds 3 to the number it touches), is not implemented: it would
+break the power-of-two numbers the generator and `normalize` rely on. LinkedIn has not
+been seen to use ×4; it is this version's own addition.
 
 ×2 cells (a bonus under the tile, so 4 + 4 there made 16) were the first version of ×2
 and were replaced by ×2 tiles. Walls (blocked cells inside the board) were tried as a
@@ -1703,26 +1707,33 @@ Calibration (`tools/sumbreak/calibrate.js`, 40 random boards per kind) found:
   like a ×2. Selecting 4×4 boards at ≤ 20% keeps about 1.6% of attempts and costs
   about 2 s a puzzle, so Hard selects instead of growing the board. Allowing one
   step that needs search would keep about 9%, but its hint could not explain itself.
+- ×4 tiles add variety, not difficulty. With `FACTORS` at ×2 2 : ×4 1, the generator
+  matched the ×2-only one run under the same load: about the same time per puzzle and
+  the same first-try chances (Medium median 38% against 37% over 100 seeds, Hard 12%
+  against 13% over 30). A ×4 board qualifies for Medium a little less often, so
+  Medium serves multipliers in 42 of 100 puzzles instead of 54.
 
 With 30 seeds per tier, generated waste (p10–p90) runs 0 (Easy), 90–1459 (Medium) and
 126–1562 (Hard). The first-try chance
-(p10/p50/p90) is 43/71/100% on Easy, 25/38/52% on Medium and 5/13/20% on Hard. ×2
-tiles appear in 10, 18 and 24 of those 30 puzzles; two of them in 1 Easy and 16 Hard
-puzzles.
+(p10/p50/p90) is 43/71/100% on Easy, 25/38/52% on Medium and 5/13/20% on Hard, measured
+before ×4; with it, Medium is unchanged over 100 seeds and Hard is 6/12/17%.
+Multipliers appear in 48 of 100 Easy puzzles, 42 of 100 Medium and 23 of 30 Hard, two
+of them in 16 Hard puzzles; 37 of those 131 multiplier tiles are ×4.
 
 ### Generation
 
 Each attempt draws a shape from `SHAPES[tier]` (`[rows, cols, weight]`: Easy 3×3 ×2,
-3×4, 4×3; Medium and Hard 4×4), a number of ×2 tiles from `MULS[tier][cells]`
+3×4, 4×3; Medium and Hard 4×4), a number of multiplier tiles from `MULS[tier][cells]`
 (`[count, weight]`: Easy 3×3 none or one, 3×4 none ×2, one, two; Medium none or one;
-Hard none, one, two ×3), a final
-exponent from `EXPONENTS[cells]` (plus one per ×2 tile, which keeps the other values in
-range and the construction from running out of tiles to split) and a construction
-style. `reverseBuild` then splits tiles backwards from one tile: `split-number` turns
-2v into v + v, and `split-mul` turns it into v and a ×2, either way round (undoing
-`num>mul` or `mul>num`). Each step adds a ×2 with probability (×2 tiles left) / (steps
-left), so the board gets exactly the count drawn. `normalize` then divides every number
-by the smallest: merges only compare numbers with each other or double them, so this
+Hard none, one, two ×3), a factor for each from `FACTORS` (×2 at weight 2, ×4 at 1, in
+every tier), a final exponent from `EXPONENTS[cells]` (plus `lift`: one per ×2 and two
+per ×4, which keeps the other values in range and the construction from running out
+of tiles to split) and a construction style. `reverseBuild` then splits tiles
+backwards from one tile: `split-number` turns 2v into v + v, and `split-x2` /
+`split-x4` turn f·v into v and a ×f, either way round (undoing `num>mul` or
+`mul>num`). Each step adds the next multiplier with probability (multipliers left) /
+(steps left), so the board gets exactly the ones drawn. `normalize` then divides every number
+by the smallest: merges only compare numbers with each other or multiply them, so this
 keeps every merge, contradiction, waste count and hint (`generator-check.js` compares
 scaled copies), and every board starts from 1. `judge` runs the capped
 `trialMerges` first, then the human path for boards in range, then `firstTryWin` for
@@ -1742,8 +1753,9 @@ bar. When no attempt fits the tier, `CURATED[tier][seed % n]` is used;
 `generator-check.js` re-verifies every curated board; each tier's list includes boards
 with ×2 tiles, and Hard's includes one with two. About 3% of 4×4 attempts qualify for
 Medium and 1.5% for Hard. In Node a puzzle takes a median of 6 ms (Easy), 0.4 s (Medium)
-and 1.8 s (Hard); the p90 is 1.8 s and 4 s and the worst of 30 seeds 2.3 s and 11 s.
-A Hard attempt with a ×2 costs about twice one without. Puzzle ids are `fuse-<tier>-<seed base 36>`.
+and 1.8 s (Hard); the p90 is 1.8 s and 4 s and the worst of 30 seeds 2.3 s and 11 s,
+measured before ×4 (run side by side under the same load, ×4 did not slow it down).
+A Hard attempt with a multiplier costs about twice one without. Puzzle ids are `fuse-<tier>-<seed base 36>`.
 
 ### View
 
@@ -1765,10 +1777,11 @@ screen and taps landed on the wrong tile. `css/puzzle.css` therefore shrinks the
 and gaps below 400 px and again below 340 px, on every puzzle page.
 
 Rectangular boards set `--sumbreak-aspect` (viewBox width / height) on the SVG, which keeps
-their proportions inside the same 420 px square as a square board. A ×2 tile is drawn
-like any tile, violet with a white "×2" (text boards say `x2`), and the live region
-reads it as "×2". Selecting a ×2 highlights every touching number; one with no
-number beside it shakes and says so. Links
+their proportions inside the same 420 px square as a square board. A ×2 or ×4 tile is
+drawn like any tile, violet with a white "×2" or "×4" (text boards say `x2`, `x4`), and
+the live region reads it as "×2" or "×4". The help and hints draw them inline as small
+violet chips (`.sumbreak-chip`). Selecting a multiplier highlights every touching
+number; one with no number beside it shakes and says so. Links
 carry only difficulty and seed; an old link's `size` is ignored and removed from the
 address. The page's solver learns the puzzle's construction solution, so the first
 Reveal and hints start from a known line.

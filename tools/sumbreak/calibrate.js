@@ -10,7 +10,7 @@
  *   combos    `samples` 4×4 boards per exponent, style and ×2 count: how often each yields a
  *             hard puzzle and the generator time per hit
  *   generate  the real generator per tier: time per puzzle, attempts, curated fallbacks, the
- *             shapes served, waste and first-try win chance */
+ *             shapes and multipliers served, waste and first-try win chance */
 'use strict';
 const Rules = require('../../js/games/sumbreak/rules.js');
 const Solver = require('../../js/games/sumbreak/solver.js');
@@ -123,7 +123,8 @@ if (!process.argv.includes('--skip-generate')) {
             times.push(Date.now() - t);
             tries.push(p.attempts);
             if (p.source === 'curated') { curated++; continue; }
-            const board = R.parse(p.board), shape = `${p.rows}×${p.cols}${p.metrics.muls ? ' x2×' + p.metrics.muls : ''}`;
+            const board = R.parse(p.board), factors = board.cells.filter((c) => c.type === 'mul').map((c) => 'x' + c.factor).sort();
+            const shape = `${p.rows}×${p.cols}${factors.length ? ' ' + factors.join('+') : ''}`;
             shapes[shape] = (shapes[shape] || 0) + 1;
             wastes.push(Reasoning.trialMerges(R, board, 20000) - (R.tileCount(board) - 1));
             chances.push(firstTry(board));

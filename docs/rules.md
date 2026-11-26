@@ -1460,17 +1460,19 @@ stay fixed; only the camera rotates. Clear every piece to finish a puzzle.
 **Goal.** Merge touching tiles until a single tile remains.
 
 The name and rules follow LinkedIn's Sumbreak, in both languages. This version has
-×2 wildcards but not LinkedIn's +3, so every number is a power of two.
+LinkedIn's ×2 wildcards and adds ×4, but leaves out +3, so every number is a power of
+two.
 
 ### Board
 
 - The difficulty picks the grid: **Easy** is 3×3, sometimes 3×4 or 4×3; **Medium**
   and **Hard** are 4×4. Every cell starts with a tile holding a power
-  of two (1, 2, 4, …) or a **×2 tile**. The smallest number is always 1: halving
+  of two (1, 2, 4, …) or a **multiplier tile** (×2 or ×4). The smallest number is always 1: halving
   every number would give the same puzzle, so boards never start higher.
-- About a third of Easy puzzles, half of Medium ones and most Hard ones have ×2
-  tiles: violet tiles marked ×2. 3×3 and Medium boards have at most one; 3×4, 4×3
-  and Hard boards can have two, and about half of Hard puzzles do.
+- About half of Easy puzzles, two in five Medium ones and most Hard ones have
+  multiplier tiles: violet tiles marked ×2 or, about one time in four, ×4. 3×3 and
+  Medium boards have at most one; 3×4, 4×3 and Hard boards can have two, and about
+  half of Hard puzzles do.
 - Cells emptied by a merge stay empty for the rest of the puzzle. Nothing slides
   or falls into them.
 
@@ -1482,13 +1484,14 @@ The name and rules follow LinkedIn's Sumbreak, in both languages. This version h
    **doubles**. Direction matters: the doubled tile stays where the destination was.
 3. A **×2 tile** merges with any touching number, equal or not, and doubles it, in
    either direction: drag 8 onto ×2 and the 16 is left in the ×2's cell; drag ×2
-   onto 8 and that 8 becomes 16 where it is. Two ×2 tiles never merge with each
-   other.
-4. Every merge removes exactly one tile, and a ×2 counts as a tile: the puzzle is
-   only solved once every ×2 has been used. Merging two numbers never changes the
-   board total; a ×2 merge adds the number it doubles.
+   onto 8 and that 8 becomes 16 where it is. A **×4 tile** works the same way and
+   quadruples the number. Two multiplier tiles never merge with each other.
+4. Every merge removes exactly one tile, and a multiplier counts as a tile: the
+   puzzle is only solved once every multiplier has been used. Merging two numbers
+   never changes the board total; a ×2 merge adds the number it doubles, and a ×4
+   merge adds three times the number.
 5. If two or more tiles remain and nothing can merge (no equal numbers touch and no
-   ×2 touches a number), the puzzle is at a **dead end**. A position can also be
+   multiplier touches a number), the puzzle is at a **dead end**. A position can also be
    lost while merges are still possible; the hint says so and explains why when a
    rule shows it.
 
@@ -1524,8 +1527,8 @@ Difficulty is measured, not labelled, with two model players. Neither makes a me
 whose result is visibly lost (no merge left, or a tile that can no longer find a
 partner).
 
-- **Trial and error:** this player tries the smallest tiles first (a ×2 merge counts
-  as the number it doubles) and undoes when stuck. We count the merges made and then
+- **Trial and error:** this player tries the smallest tiles first (a multiplier merge
+  counts as the number it multiplies) and undoes when stuck. We count the merges made and then
   undone.
 - **First try:** this player makes the plainly forced merges (a tile with only one
   possible partner), guesses among the other merges and never undoes. We take the

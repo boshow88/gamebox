@@ -722,15 +722,16 @@ The rules check covers merges, direction, permanent empties, blocked versus empt
 cells, diagonal adjacency, status and a test-only tile type. It covers ×2 tiles too:
 text form (`x2` and `×2`), both merge directions with equal and unequal numbers, ×2
 onto ×2 refused, a leftover ×2 blocking the win, `partners`, which contradictions a
-touching ×2 switches off, random play (each merge doubles the number involved), and
+touching ×2 switches off, the same for ×4 (which quadruples), random play with ×2 and
+×4 tiles (each merge multiplies the number involved by 2 or the multiplier), and
 errors for bad multipliers. It also compares every contradiction claim with brute
-force on random small boards, including a few thousand with ×2 tiles. The solver check
+force on random small boards, including a few thousand with ×2 and ×4 tiles. The solver check
 compares solvability, per-merge outcomes, sequence and plan counts and random-play
-odds with an independent brute force on over a thousand boards, about 400 with ×2
-tiles, including two ×2 tiles doubling one number in either order (one plan). It also covers the
+odds with an independent brute force on over a thousand boards, about 400 with ×2 or ×4
+tiles, including two multipliers on one number in either order (one plan). It also covers the
 state budget and its exhausted count, memo reuse, `learn` (a learned line answers
 without search, a non-winning line is ignored) and unsolvable versus dead-end. The
-reasoning check walks every reachable state of generated boards (a third with ×2
+reasoning check walks every reachable state of generated boards (a third with ×2 or ×4
 tiles, one 3×4), after crafted cases such as a ×2 never being a forced partner. Each
 candidate step must win, each refuted merge must lose,
 `explainDead` must never fire on a solvable board, and search steps must be labelled
@@ -739,16 +740,18 @@ candidate, which checks the lazy validation against the definition. It also comp
 `trialMerges` and `firstTryWin` with independent reimplementations, `firstTryWin` on 40
 small boards and crafted cases, and checks that a 20-state solver gives the same
 first-try chance. The generator check covers
-reverse construction on every shape with zero to two ×2 tiles (exactly the count
-asked for, and only the ×2 op adds one), normalization (scaled copies of a board have
+reverse construction on every shape with zero to two ×2 and ×4 tiles (exactly the ones
+asked for, each multiplier op adds only its own tile, a ×4 needs a number of at least 4,
+and a count means that many ×2 tiles), normalization (scaled copies of a board have
 the same merges, contradictions, solvability, waste and reasoning path, and every
 served board's smallest number is 1), determinism, ids, solution replay, and the
-shapes and ×2 counts each tier may use (Medium and Hard: 4×4 with and without ×2
-tiles, at most one on Medium and two on Hard, and Hard must serve some with two).
+shapes and multipliers each tier may use (Medium and Hard: 4×4 with and without
+multipliers, at most one on Medium and two on Hard, Hard must serve some with two, and
+both ×2 and ×4 must be served).
 It recomputes each generated and curated puzzle's waste, first-try chance and
 fairness without the generator's shortcuts, and checks the recorded first-try value.
 Easy's waste range must stay below the others and Medium's first-try range above
-Hard's. Each tier must mix its shapes and serve ×2 tiles. The worst puzzle must
+Hard's. Each tier must mix its shapes and serve multiplier tiles. The worst puzzle must
 generate in under 1 s (Easy), 5 s (Medium) and 25 s (Hard). It also covers the
 one-attempt fallback, unknown options and the async wrapper.
 
@@ -760,10 +763,11 @@ tiles named by position, red rings exactly when the text mentions them), the
 lost-position hint, the dead-end warning, the solution overlay (including the "No
 solution from here" warning), win, undo out of a win, New Game, and Hard serving 4×4.
 The main flow uses a 3×4 or 4×3 board of numbers only and checks its proportions. On
-a Hard board with a ×2 tile it checks the violet ×2 tile, the keyboard read-out, a
-number dragged onto the ×2 (doubled in the ×2's cell), the ×2 selected (every touching
-number highlighted) and merged onto a number (doubled in place), load, hint and reveal
-timings, and that replaying the solution, which uses every ×2, wins. It counts
+a Hard board with a ×4 tile it checks the violet multiplier tiles, the keyboard read-out
+of the ×4, a number dragged onto the ×4 (quadrupled in the ×4's cell), a multiplier
+selected (every touching number highlighted) and merged onto a number (multiplied in
+place), load, hint and reveal timings, and that replaying the solution, which uses
+every multiplier, wins. It counts
 worker requests to check prefetching. Loading a puzzle starts one more worker for
 the next puzzle. New Game takes that puzzle and starts only the one after it.
 Picking Hard starts a Hard puzzle before New Game is pressed. With the worker script
@@ -771,7 +775,7 @@ blocked, the page falls back to the main thread and serves the same board as Nod
 It also checks that an old link's `size` is ignored and
 dropped, that the old address `games/fuse.html` forwards with its query and fragment
 to the same puzzle, both languages, reduced motion and the default medium start. Every ×2
-in the help and in a hint must be drawn as a small tile, and the Chinese help and hint
+and ×4 in the help and in a hint must be drawn as a small tile, and the Chinese help and hint
 must have no ASCII spaces next to Chinese text. Touch is
 tested at 375 and 320 px on a 4×4 and a rectangular board, with no horizontal
 overflow: the page must not widen past the screen and the top bar must fit inside it.

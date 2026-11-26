@@ -19,7 +19,7 @@
     // ×N in visible copy is drawn as a small tile, so Chinese text needs no spaces around it.
     const escapeHtml = (s) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
     const withChips = (text) => escapeHtml(text).replace(/×\d+/g, (m) => `<span class="sumbreak-chip">${m}</span>`);
-    const X2 = withChips('×2');
+    const X2 = withChips('×2'), X4 = withChips('×4');
 
     Object.assign(PC.i18n.STRINGS.en, {
         sumbreakName: 'Sumbreak',
@@ -30,18 +30,18 @@
         sumbreakReady: 'Merge equal neighbours until one tile remains.',
         sumbreakSelected: (v) => `Selected ${v}. Tap a highlighted neighbour to merge into it.`,
         sumbreakNoPartner: (v) => `This ${v} has no equal neighbour right now.`,
-        sumbreakNoPartnerMul: 'This ×2 touches no number right now.',
+        sumbreakNoPartnerMul: (v) => `This ${v} touches no number right now.`,
         sumbreakCancelled: 'Selection cleared.', sumbreakMerged: (v) => `Merged into ${v}.`,
         sumbreakUndone: 'Last merge undone.', sumbreakRestarted: 'Back to the start.',
         sumbreakDeadEnd: 'No two equal tiles touch, so nothing can merge.',
-        sumbreakDeadEndMul: 'Nothing can merge: no equal numbers touch, and no ×2 touches a number.',
+        sumbreakDeadEndMul: (muls) => `Nothing can merge: no equal numbers touch, and no ${muls.join(' or ')} touches a number.`,
         sumbreakWinSay: 'Solved! One tile left.',
         sumbreakGenerateFailed: 'Could not prepare a puzzle. Press New Game to try again.',
         sumbreakCell: (r, c, what) => `Row ${r}, column ${c}: ${what}`,
         sumbreakEmpty: 'empty', sumbreakBlocked: 'blocked', sumbreakIsSelected: 'selected', sumbreakIsTarget: 'can merge here',
         sumbreakHelp1: 'Merge two touching tiles with the same number: the tile you move disappears and the one it joins doubles.',
         sumbreakHelp2: 'Emptied cells stay empty and nothing slides, so plan which tiles meet. Reduce the board to a single tile to win.',
-        sumbreakHelpMulHtml: `A ${X2} tile merges with any touching number and doubles it, in either direction: drag 8 onto ${X2}, or ${X2} onto 8, to make 16. It counts as a tile, so every ${X2} must be used.`,
+        sumbreakHelpMulHtml: `${X2} and ${X4} tiles merge with any touching number, in either direction, and double or quadruple it: drag 8 onto ${X2}, or ${X2} onto 8, to make 16. They count as tiles, so each one must be used.`,
         sumbreakHelp3Html: 'Tap a tile, then a highlighted neighbour, or drag one onto the other. Keyboard: arrows move, <strong>Enter</strong> or <strong>Space</strong> selects and merges, <strong>Esc</strong> cancels, <strong>Ctrl+Z</strong> undoes.',
         sumbreakHelp4: 'Hint explains one merge you can work out; once the position can no longer be solved, it says how many merges to undo. Reveal shows a full solution from the current position, or warns that there is none.',
         sumbreakWhyFinal: 'Two tiles left: merging them finishes the puzzle, in either direction.',
@@ -89,18 +89,18 @@
         sumbreakReady: '合併相鄰的相同數字，直到只剩一塊。',
         sumbreakSelected: (v) => `已選取${v}。點一個標示的鄰居，把它併進去。`,
         sumbreakNoPartner: (v) => `這個${v}目前沒有相同的鄰居。`,
-        sumbreakNoPartnerMul: '這個×2目前沒有碰到任何數字。',
+        sumbreakNoPartnerMul: (v) => `這個${v}目前沒有碰到任何數字。`,
         sumbreakCancelled: '已取消選取。', sumbreakMerged: (v) => `合併成${v}。`,
         sumbreakUndone: '已復原上一次合併。', sumbreakRestarted: '回到起點。',
         sumbreakDeadEnd: '沒有相同的方塊相鄰，無法再合併。',
-        sumbreakDeadEndMul: '無法再合併：沒有相同的數字相鄰，也沒有×2碰到數字。',
+        sumbreakDeadEndMul: (muls) => `無法再合併：沒有相同的數字相鄰，也沒有${muls.join('或')}碰到數字。`,
         sumbreakWinSay: '完成！只剩一塊。',
         sumbreakGenerateFailed: '暫時無法產生題目，請按「新局」再試一次。',
         sumbreakCell: (r, c, what) => `第${r}列第${c}欄：${what}`,
         sumbreakEmpty: '空格', sumbreakBlocked: '障礙', sumbreakIsSelected: '已選取', sumbreakIsTarget: '可併入',
         sumbreakHelp1: '把兩個相鄰且數字相同的方塊合併：移動的那塊消失，被併入的那塊數字加倍。',
         sumbreakHelp2: '清空的格子會一直空著，方塊也不會滑動，要先想好哪些方塊該碰在一起。最後只剩一塊即過關。',
-        sumbreakHelpMulHtml: `${X2}方塊可以和任何相鄰的數字合併，讓那個數字變兩倍，方向不拘：把8拖到${X2}上，或把${X2}拖到8上，都會變成16。${X2}也算一塊，每個${X2}都要用掉才能過關。`,
+        sumbreakHelpMulHtml: `${X2}和${X4}方塊可以和任何相鄰的數字合併，讓它變成兩倍或四倍，方向不拘：把8拖到${X2}上，或把${X2}拖到8上，都會變成16。它們也各算一塊，每個都要用掉才能過關。`,
         sumbreakHelp3Html: '點一個方塊，再點標示的鄰居；也可以直接拖過去。鍵盤：方向鍵移動，<strong>Enter</strong>或<strong>空白鍵</strong>選取並合併，<strong>Esc</strong>取消，<strong>Ctrl+Z</strong>復原。',
         sumbreakHelp4: '「提示」會說明一步推得出來的合併；局面已經無解時，會告訴你要復原幾步。「解答」會顯示從目前局面到完成的一組解法，無解時則會提醒。',
         sumbreakWhyFinal: '只剩兩塊：把它們合併就完成了，方向不拘。',
@@ -172,7 +172,7 @@
 
     function say(key, ...args) { $('sumbreak-live').textContent = t(key, ...args); }
     function label(cell) { return cell.type === 'mul' ? '×' + cell.factor : R.token(cell); }
-    function hasMul(b) { return b.cells.some((c) => R.isTile(c) && c.type === 'mul'); }
+    function mulLabels(b) { return [...new Set(b.cells.filter((c) => R.isTile(c) && c.type === 'mul').sort((x, y) => x.factor - y.factor).map(label))]; }
     function targetsOf(b, i) { return R.neighbors(b, i).filter((j) => R.canMerge(b, i, j)); }
 
     // ---------- drawing ----------
@@ -445,7 +445,7 @@
             state.selected = null;
         } else if (!targetsOf(b, i).length) {
             state.selected = null; nudge(i);
-            if (b.cells[i].type === 'mul') say('sumbreakNoPartnerMul'); else say('sumbreakNoPartner', label(b.cells[i]));
+            say(b.cells[i].type === 'mul' ? 'sumbreakNoPartnerMul' : 'sumbreakNoPartner', label(b.cells[i]));
         } else {
             state.selected = i; state.cursor = i; say('sumbreakSelected', label(b.cells[i]));
         }
@@ -480,7 +480,7 @@
         const step = tile.type === 'num' ? Math.min(12, Math.log2(tile.value)) : 6;
         PC.audio.tone(262 * Math.pow(2, step / 6), 0.09, { volume: 0.05 });
         if (status === 'won') { state.won = true; recordWin(); say('sumbreakWinSay'); }
-        else if (status === 'dead-end') say(hasMul(next) ? 'sumbreakDeadEndMul' : 'sumbreakDeadEnd');
+        else if (status === 'dead-end') { const muls = mulLabels(next); say(muls.length ? 'sumbreakDeadEndMul' : 'sumbreakDeadEnd', muls); }
         else say('sumbreakMerged', label(tile));
         sync();
     }

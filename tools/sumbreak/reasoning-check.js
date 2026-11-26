@@ -70,13 +70,13 @@ assert.equal(Reasoning.mergeSize(R.parse('8 x2'), { from: 0, to: 1 }), 8);
 // Every reachable state of generated boards: every candidate step on a solvable board wins,
 // every refuted merge loses, explainDead never fires on a solvable board, and nextStep only
 // recommends winning merges with all equivalent alternatives listed.
-// A third of the 3×3 boards carry ×2 tiles; the last is a 3×4 board.
+// A third of the 3×3 boards carry ×2 or ×4 tiles; the last is a 3×4 board.
 const rng = Gen.makeRng(4242), styles = Object.keys(Gen.STYLES), exps = Gen.EXPONENTS[9];
-const techniques = {}, reasons = {};
+const techniques = {}, reasons = {}, mixes = [[2], [2, 2], [4], [2, 4], [2], [4, 2]];
 let states = 0, unsolvableStates = 0, unexplained = 0, mulStates = 0;
 for (let n = 0; n < 19; n++) {
-    const cols = n === 18 ? 4 : 3, muls = n % 3 === 2 ? 1 + (n % 2) : 0;
-    const built = Gen.reverseBuild(rng, 3, cols, (cols === 4 ? 6 : exps[n % exps.length]) + muls, styles[n % styles.length], muls);
+    const cols = n === 18 ? 4 : 3, muls = n % 3 === 2 ? mixes[(n - 2) / 3] : [];
+    const built = Gen.reverseBuild(rng, 3, cols, (cols === 4 ? 6 : exps[n % exps.length]) + Gen.lift(muls), styles[n % styles.length], muls);
     if (!built) continue;
     const solver = Solver.createSolver(R);
     const seen = new Set();
@@ -136,7 +136,7 @@ for (let n = 0; n < 19; n++) {
     }
 }
 assert.ok(states > 2000, `states checked (${states})`);
-assert.ok(mulStates > 300, `states with a ×2 tile checked (${mulStates})`);
+assert.ok(mulStates > 300, `states with a multiplier checked (${mulStates})`);
 for (const id of ['final', 'lone', 'only-pair', 'forced-pair', 'trial', 'search']) assert.ok(techniques[id] > 0, `technique ${id} exercised`);
 for (const id of ['dead-end', 'stuck']) assert.ok(reasons[id] > 0, `reason ${id} exercised`);
 
@@ -210,8 +210,8 @@ function firstTryReference(board) {
 // minimum on a solvable board, reproducible, capped, and finite on lost boards.
 let backtracked = 0, guessed = 0;
 for (let n = 0; n < 40; n++) {
-    const muls = n % 3 === 0 ? 1 : 0;
-    const built = Gen.reverseBuild(rng, 3, 3, exps[n % exps.length] + muls, styles[(n + 1) % styles.length], muls);
+    const muls = n % 3 === 0 ? [n % 2 ? 4 : 2] : [];
+    const built = Gen.reverseBuild(rng, 3, 3, exps[n % exps.length] + Gen.lift(muls), styles[(n + 1) % styles.length], muls);
     if (!built) continue;
     const path = Reasoning.humanPath(R, built.board);
     assert.equal(path.complete, true);
@@ -274,5 +274,5 @@ for (const text of ['2 * 2/4 4 8', '* 1 1/2 * 4', '4 4 */8 * 16', '1 1 */2 4 *',
 }
 assert.ok(starSteps > 5, `special-tile steps exercised (${starSteps})`);
 
-console.log(`sumbreak reasoning: ok (${states} states, ${mulStates} with a ×2 tile, ${unsolvableStates} lost, ${unexplained} lost without a deduction; ` +
+console.log(`sumbreak reasoning: ok (${states} states, ${mulStates} with a multiplier, ${unsolvableStates} lost, ${unexplained} lost without a deduction; ` +
     `next steps ${JSON.stringify(techniques)}; refutations ${JSON.stringify(reasons)}; first-try reference on 40 boards, ${guessed} losable)`);

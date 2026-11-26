@@ -1,7 +1,7 @@
 /** node tools/sumbreak/browser-check.js [chrome-path] [--shots] — Sumbreak in real headless Chrome
  * over CDP: the shared puzzle layout (compared with Tango), mouse, touch and keyboard merging,
  * undo / reset, hints, dead ends, the solution overlay, win and new game, rectangular boards,
- * ×2 tiles, difficulty-chosen shapes and old links, puzzles made ahead in a worker (and
+ * ×2 and ×4 tiles, difficulty-chosen shapes and old links, puzzles made ahead in a worker (and
  * without one), language, responsive layout, the launcher card, and smoke loads of other
  * puzzle pages.
  * Every UI move is mirrored by the Node engine and the rendered board compared.
@@ -56,16 +56,16 @@ function pickPuzzle() {
     }
     throw new Error('No suitable seed');
 }
-// A hard 4×4 with a ×2 tile, a number merging onto it and the ×2 merging onto a number.
+// A hard 4×4 with a ×4 tile, a number merging onto it and a multiplier merging onto a number.
 function pickMul() {
     for (let seed = 1; seed < 100; seed++) {
         const t0 = Date.now(), p = Gen.generate({ difficulty: 'hard', seed }), ms = Date.now() - t0;
         const start = R.parse(p.board), moves = R.legalMoves(start), isMul = (i) => start.cells[i].type === 'mul';
-        const into = moves.find((m) => isMul(m.to) && R.status(R.applyMerge(start, m)) === 'playing');
+        const into = moves.find((m) => start.cells[m.to] === R.mul(4) && R.status(R.applyMerge(start, m)) === 'playing');
         const onto = moves.find((m) => isMul(m.from) && R.status(R.applyMerge(start, m)) === 'playing');
         if (into && onto) return { p, start, into, onto, ms };
     }
-    throw new Error('No hard puzzle with a ×2 tile');
+    throw new Error('No hard puzzle with a ×4 tile');
 }
 
 // `hits` counts requests per path; paths in `blocked` answer 404 without counting as missing.
@@ -187,7 +187,7 @@ function connect(wsUrl) {
         const noErrors = (where) => { assert.deepEqual(errors, [], 'page errors on ' + where); assert.deepEqual(missing, [], 'missing files on ' + where); };
 
         // Board as rendered: each tile group sits at its cell centre (GAP + CELL/2 + k·(CELL+GAP));
-        // a ×2 tile reads "×2" and is filled violet.
+        // a multiplier tile reads "×2" or "×4" and is filled violet.
         let shape = { rows: 3, cols: 3 };
         const readBoard = () => evaluate(`(() => {
             const rows = ${shape.rows}, cols = ${shape.cols}, out = Array(rows * cols).fill('.'), violet = [];
@@ -205,7 +205,7 @@ function connect(wsUrl) {
             shape = board;
             const seen = await readBoard();
             assert.equal(seen.cells, R.serialize(board).replace(/x(\d+)/g, '×$1'), what);
-            assert.deepEqual(seen.violet, R.tiles(board).filter((i) => board.cells[i].type === 'mul'), what + ': ×2 tiles are violet');
+            assert.deepEqual(seen.violet, R.tiles(board).filter((i) => board.cells[i].type === 'mul'), what + ': multipliers are violet');
         };
         const point = (i) => evaluate(`(() => {
             const svg = document.getElementById('board');
@@ -222,13 +222,13 @@ function connect(wsUrl) {
         const hasClass = (sel, cls) => evaluate(`document.querySelector(${JSON.stringify(sel)}).classList.contains(${JSON.stringify(cls)})`);
         const urlParam = (name) => evaluate(`new URLSearchParams(location.search).get(${JSON.stringify(name)})`);
         const revealNumbers = () => evaluate(`[...document.querySelectorAll('#board .sumbreak-reveal-num')].map((t) => Number(t.textContent))`);
-        // A tile the open hint calls "ringed in red" has a red ring, and only then; every ×2 it
-        // names is drawn as a tile.
+        // A tile the open hint calls "ringed in red" has a red ring, and only then; every
+        // multiplier it names is drawn as a tile.
         const refRingsMatch = async () => {
             const says = await text('#hint-banner'), rings = await count('#board .sumbreak-ref-ring');
             assert.equal(rings > 0, /ringed in red/.test(says), `red rings ${rings} for: ${says}`);
             if (/the two \d+s ringed in red/.test(says)) assert.equal(rings, 2, 'two tiles ringed in red');
-            assert.equal(await count('#hint-banner .sumbreak-chip'), (says.match(/×\d+/g) || []).length, `×2 drawn as tiles in: ${says}`);
+            assert.equal(await count('#hint-banner .sumbreak-chip'), (says.match(/×\d+/g) || []).length, `multipliers drawn as tiles in: ${says}`);
         };
         // The page chrome a player sees, to compare with the other LinkedIn-style puzzles.
         const layoutOf = () => evaluate(`(() => {
@@ -292,7 +292,7 @@ function connect(wsUrl) {
         assert.deepEqual(page.status, tango.status, 'status row: timer, warning, win');
         assert.deepEqual(page.below, tango.below, 'below the board: hint banner, then how to play');
         assert.equal(await evaluate(`!!document.getElementById('size-seg')`), false, 'no board size selector');
-        assert.equal(await evaluate(`document.querySelectorAll('.game-footer [data-i18n="sumbreakHelpMulHtml"] .sumbreak-chip').length`), 4, 'how to play explains ×2 tiles, drawn as tiles');
+        assert.equal(await evaluate(`document.querySelectorAll('.game-footer [data-i18n="sumbreakHelpMulHtml"] .sumbreak-chip').length`), 4, 'how to play explains ×2 and ×4 tiles, drawn as tiles');
         assert.equal(await evaluate(`document.querySelector('#difficulty-seg .active').dataset.value`), p.difficulty);
         assert.equal(await urlParam('size'), null);
         for (const gone of ['sumbreak-analysis', 'sumbreak-feedback', 'sumbreak-win', 'sumbreak-dead', 'sumbreak-next', 'sumbreak-level', 'sumbreak-code', 'sumbreak-tiles']) {
@@ -491,38 +491,39 @@ function connect(wsUrl) {
         await pause(300);
         assert.equal(workers(), beforeHard + 2, 'New Game waits for the hard puzzle already being made');
 
-        // ---------- ×2 tiles: merge with any touching number, either way, and must be used ----------
+        // ---------- ×2 and ×4 tiles: merge with any touching number, either way, and must be used ----------
         const { start: mulStart, into, onto } = mulPick, mulCell = into.to;
+        const intoFactor = mulStart.cells[into.to].factor, ontoFactor = mulStart.cells[onto.from].factor;
         // The page also starts making the next hard puzzle, so allow for the two sharing the CPU.
         const loadBudget = 3 * mulPick.ms + 3000;
         let t0 = Date.now();
         await open(sumbreakPage('hard', mulPick.p.seed));
         await ready(loadBudget + 1000);
         const loadMs = Date.now() - t0;
-        await expectBoard(mulStart, 'a hard puzzle with a ×2 tile matches its seed');
+        await expectBoard(mulStart, 'a hard puzzle with a ×4 tile matches its seed');
         assert.ok(loadMs < loadBudget, `a hard puzzle loads in time (${loadMs} ms, Node ${mulPick.ms} ms)`);
         await shot('mul');
         await evaluate('document.getElementById("board").focus()');
         await key('ArrowUp'); await cursorTo(mulCell);
-        assert.match(await live(), /: ×2$/, 'the keyboard cursor reads out a ×2 tile');
+        assert.match(await live(), /: ×4$/, 'the keyboard cursor reads out a ×4 tile');
         await click(into.from);
         assert.equal(await count('#board .sumbreak-target'), R.legalMoves(mulStart).filter((m) => m.from === into.from).length);
         await click(into.to);
         const source = mulStart.cells[into.from].value, intoBoard = R.applyMerge(mulStart, into);
-        await expectBoard(intoBoard, 'a number dragged onto a ×2');
-        assert.equal(intoBoard.cells[into.to].value, 2 * source, `${source} onto ×2 makes ${2 * source} in the ×2 cell`);
-        assert.equal(await live(), `Merged into ${2 * source}.`);
+        await expectBoard(intoBoard, 'a number dragged onto a ×4');
+        assert.equal(intoBoard.cells[into.to].value, intoFactor * source, `${source} onto ×4 makes ${intoFactor * source} in the ×4 cell`);
+        assert.equal(await live(), `Merged into ${intoFactor * source}.`);
         await clickEl('#undo-btn');
-        await expectBoard(mulStart, 'undo a ×2 merge');
+        await expectBoard(mulStart, 'undo a ×4 merge');
         await click(onto.from);
-        assert.equal(await live(), 'Selected ×2. Tap a highlighted neighbour to merge into it.');
+        assert.equal(await live(), `Selected ×${ontoFactor}. Tap a highlighted neighbour to merge into it.`);
         const numberNeighbours = R.neighbors(mulStart, onto.from).filter((j) => mulStart.cells[j].type === 'num');
-        assert.equal(await count('#board .sumbreak-target'), numberNeighbours.length, 'a ×2 can merge onto every touching number');
+        assert.equal(await count('#board .sumbreak-target'), numberNeighbours.length, 'a multiplier can merge onto every touching number');
         await shot('mul-selected');
         await click(onto.to);
         const dest = mulStart.cells[onto.to].value, ontoBoard = R.applyMerge(mulStart, onto);
-        await expectBoard(ontoBoard, 'a ×2 merged onto a number');
-        assert.equal(ontoBoard.cells[onto.to].value, 2 * dest, `×2 onto ${dest} doubles it in place`);
+        await expectBoard(ontoBoard, `a ×${ontoFactor} merged onto a number`);
+        assert.equal(ontoBoard.cells[onto.to].value, ontoFactor * dest, `×${ontoFactor} onto ${dest} multiplies it in place`);
         await clickEl('#reset-btn');
         t0 = Date.now();
         await clickEl('#hint-btn');
@@ -535,14 +536,14 @@ function connect(wsUrl) {
         t0 = Date.now();
         await clickEl('#reveal-btn');
         const revealMs = Date.now() - t0;
-        assert.deepEqual(await revealNumbers(), Array.from({ length: 15 }, (_, k) => k + 1), 'a hard reveal numbers all 15 merges, ×2 tiles included');
+        assert.deepEqual(await revealNumbers(), Array.from({ length: 15 }, (_, k) => k + 1), 'a hard reveal numbers all 15 merges, multipliers included');
         assert.ok(revealMs < 3000, `a hard reveal answers quickly (${revealMs} ms)`);
         await shot('reveal-mul');
         await clickEl('#reveal-btn');
         const mulWin = await play(mulPick.p.solution, mulStart);
-        await expectBoard(mulWin, 'a solution using every ×2');
-        assert.equal(await hidden('#win-message'), false, 'solved once the ×2 tiles are used up');
-        noErrors('sumbreak ×2 tiles');
+        await expectBoard(mulWin, 'a solution using every multiplier');
+        assert.equal(await hidden('#win-message'), false, 'solved once the multipliers are used up');
+        noErrors('sumbreak multiplier tiles');
 
         // An old link with a board size opens the puzzle for its difficulty and seed, and the
         // size drops out of the address.
@@ -583,12 +584,12 @@ function connect(wsUrl) {
         assert.equal(await text('#reveal-btn'), '解答');
         await clickEl('#hint-btn');
         assert.match(await text('#hint-banner'), /[\u4e00-\u9fff]/);
-        // Chinese copy has no ASCII spaces next to Chinese text; ×2 is set apart as a tile instead.
+        // Chinese copy has no ASCII spaces next to Chinese text; ×2 and ×4 are set apart as tiles instead.
         const spaced = /[\u4e00-\u9fff，。：；] | [\u4e00-\u9fff，。：；]/;
         assert.doesNotMatch(await text('#hint-banner'), spaced, 'no spaces in the Chinese hint');
         const help = await evaluate(`[...document.querySelectorAll('.game-footer li')].map((li) => li.textContent)`);
         for (const line of help) assert.doesNotMatch(line, spaced, `no spaces in the Chinese help: ${line}`);
-        assert.equal(await count('.game-footer .sumbreak-chip'), 5, 'the Chinese help draws ×2 as tiles');
+        assert.equal(await count('.game-footer .sumbreak-chip'), 4, 'the Chinese help draws ×2 and ×4 as tiles');
         await shot('zh-hint');
         await clickEl('#lang-toggle [data-lang="en"]');
         assert.match(await text('#hint-banner'), /^[\x20-\x7e]+$/, 'the open hint follows the language');
@@ -690,7 +691,7 @@ function connect(wsUrl) {
             noErrors(id);
         }
         console.log(`sumbreak browser: ok (${p.difficulty} ${start.rows}×${start.cols} seed ${p.seed.toString(36)}, ${solution.length}-merge solution, ghost frames ${ghost}; ` +
-            `hard ×2 seed ${mulPick.p.seed} load ${loadMs} ms (Node ${mulPick.ms} ms), hint ${hintMs} ms, reveal ${revealMs} ms; smoke ${SMOKE.length} pages)`);
+            `hard ×4 seed ${mulPick.p.seed} load ${loadMs} ms (Node ${mulPick.ms} ms), hint ${hintMs} ms, reveal ${revealMs} ms; smoke ${SMOKE.length} pages)`);
         if (shots) console.log(shots.join('\n'));
     } finally {
         if (cdp) cdp.close();
