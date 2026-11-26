@@ -1555,6 +1555,9 @@
     .sumbreak-tile.pop, .sumbreak-tile.nope, .sumbreak-board.won .sumbreak-tile:not(.sumbreak-ghost), .sumbreak-target, .sumbreak-hint-ring { animation: none; }
 }
 .sumbreak-sr { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+/* ×2 in the help and hints, drawn like its tile. English already has spaces around it; Chinese has none. */
+.sumbreak-chip { display: inline-block; padding: 0 0.35em; border-radius: 4px; background: #7c3aed; color: #ffffff; font-size: 0.9em; font-weight: 700; line-height: 1.4; white-space: nowrap; }
+.sumbreak-chip:lang(zh) { margin-inline: 0.15em; }
 
 /* ----------------------------------------------------------------
    Help / footer hints

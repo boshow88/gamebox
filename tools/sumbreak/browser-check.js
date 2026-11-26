@@ -222,11 +222,13 @@ function connect(wsUrl) {
         const hasClass = (sel, cls) => evaluate(`document.querySelector(${JSON.stringify(sel)}).classList.contains(${JSON.stringify(cls)})`);
         const urlParam = (name) => evaluate(`new URLSearchParams(location.search).get(${JSON.stringify(name)})`);
         const revealNumbers = () => evaluate(`[...document.querySelectorAll('#board .sumbreak-reveal-num')].map((t) => Number(t.textContent))`);
-        // A tile the open hint calls "ringed in red" has a red ring, and only then.
+        // A tile the open hint calls "ringed in red" has a red ring, and only then; every ×2 it
+        // names is drawn as a tile.
         const refRingsMatch = async () => {
             const says = await text('#hint-banner'), rings = await count('#board .sumbreak-ref-ring');
             assert.equal(rings > 0, /ringed in red/.test(says), `red rings ${rings} for: ${says}`);
             if (/the two \d+s ringed in red/.test(says)) assert.equal(rings, 2, 'two tiles ringed in red');
+            assert.equal(await count('#hint-banner .sumbreak-chip'), (says.match(/×\d+/g) || []).length, `×2 drawn as tiles in: ${says}`);
         };
         // The page chrome a player sees, to compare with the other LinkedIn-style puzzles.
         const layoutOf = () => evaluate(`(() => {
@@ -270,7 +272,7 @@ function connect(wsUrl) {
             for (let c = 0; c < i % shape.cols; c++) await key('ArrowRight');
         };
         const sumbreakPage = (difficulty, seed) => `/games/sumbreak.html?diff=${difficulty}&seed=${seed.toString(36)}`;
-        const ready = () => waitFor(`document.querySelectorAll('#board .sumbreak-tile').length > 0 && !document.getElementById('new-game-btn').disabled && !document.getElementById('reset-btn').disabled`, 'puzzle ready');
+        const ready = (ms) => waitFor(`document.querySelectorAll('#board .sumbreak-tile').length > 0 && !document.getElementById('new-game-btn').disabled && !document.getElementById('reset-btn').disabled`, 'puzzle ready', ms);
         const play = async (moves, board) => { let b = board; for (const m of moves) { await click(m.from); await click(m.to); b = R.applyMerge(b, m); } return b; };
 
         // ---------- layout: the same page chrome as the other LinkedIn-style puzzles ----------
@@ -290,7 +292,7 @@ function connect(wsUrl) {
         assert.deepEqual(page.status, tango.status, 'status row: timer, warning, win');
         assert.deepEqual(page.below, tango.below, 'below the board: hint banner, then how to play');
         assert.equal(await evaluate(`!!document.getElementById('size-seg')`), false, 'no board size selector');
-        assert.equal(await evaluate(`!!document.querySelector('.game-footer [data-i18n="sumbreakHelpMul"]')`), true, 'how to play explains ×2 tiles');
+        assert.equal(await evaluate(`document.querySelectorAll('.game-footer [data-i18n="sumbreakHelpMulHtml"] .sumbreak-chip').length`), 4, 'how to play explains ×2 tiles, drawn as tiles');
         assert.equal(await evaluate(`document.querySelector('#difficulty-seg .active').dataset.value`), p.difficulty);
         assert.equal(await urlParam('size'), null);
         for (const gone of ['sumbreak-analysis', 'sumbreak-feedback', 'sumbreak-win', 'sumbreak-dead', 'sumbreak-next', 'sumbreak-level', 'sumbreak-code', 'sumbreak-tiles']) {
@@ -491,12 +493,14 @@ function connect(wsUrl) {
 
         // ---------- ×2 tiles: merge with any touching number, either way, and must be used ----------
         const { start: mulStart, into, onto } = mulPick, mulCell = into.to;
+        // The page also starts making the next hard puzzle, so allow for the two sharing the CPU.
+        const loadBudget = 3 * mulPick.ms + 3000;
         let t0 = Date.now();
         await open(sumbreakPage('hard', mulPick.p.seed));
-        await ready();
+        await ready(loadBudget + 1000);
         const loadMs = Date.now() - t0;
         await expectBoard(mulStart, 'a hard puzzle with a ×2 tile matches its seed');
-        assert.ok(loadMs < 3 * mulPick.ms + 3000, `a hard puzzle loads in time (${loadMs} ms, Node ${mulPick.ms} ms)`);
+        assert.ok(loadMs < loadBudget, `a hard puzzle loads in time (${loadMs} ms, Node ${mulPick.ms} ms)`);
         await shot('mul');
         await evaluate('document.getElementById("board").focus()');
         await key('ArrowUp'); await cursorTo(mulCell);
@@ -579,6 +583,12 @@ function connect(wsUrl) {
         assert.equal(await text('#reveal-btn'), '解答');
         await clickEl('#hint-btn');
         assert.match(await text('#hint-banner'), /[\u4e00-\u9fff]/);
+        // Chinese copy has no ASCII spaces next to Chinese text; ×2 is set apart as a tile instead.
+        const spaced = /[\u4e00-\u9fff，。：；] | [\u4e00-\u9fff，。：；]/;
+        assert.doesNotMatch(await text('#hint-banner'), spaced, 'no spaces in the Chinese hint');
+        const help = await evaluate(`[...document.querySelectorAll('.game-footer li')].map((li) => li.textContent)`);
+        for (const line of help) assert.doesNotMatch(line, spaced, `no spaces in the Chinese help: ${line}`);
+        assert.equal(await count('.game-footer .sumbreak-chip'), 5, 'the Chinese help draws ×2 as tiles');
         await shot('zh-hint');
         await clickEl('#lang-toggle [data-lang="en"]');
         assert.match(await text('#hint-banner'), /^[\x20-\x7e]+$/, 'the open hint follows the language');
@@ -631,7 +641,7 @@ function connect(wsUrl) {
                 assert.ok((layout.width / (board.cols * 108 + 8)) * 100 >= 44, `cells stay at least 44px wide at ${width}px, ${what}`);
             };
             await open(sumbreakPage('hard', mulPick.p.seed));
-            await ready();
+            await ready(loadBudget + 1000);
             await fits(mulStart, '4×4');
             await shot('mobile-4x4-' + width);
             await open(sumbreakPage(p.difficulty, p.seed));
