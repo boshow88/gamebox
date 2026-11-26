@@ -678,10 +678,16 @@ function connect(wsUrl) {
         const card = await evaluate(`(() => {
             const a = document.querySelector('a.game-card[href="./games/sumbreak.html"]');
             return { name: a.querySelector('.game-name').textContent, tagline: a.querySelector('.game-tagline').textContent,
-                wip: !!a.querySelector('.badge-wip'), icon: !!a.querySelector('.game-icon svg') };
+                playable: !!a.querySelector('.badge-playable'), icon: !!a.querySelector('.game-icon svg') };
         })()`);
-        assert.deepEqual(card, { name: 'Sumbreak', tagline: 'Pair them up. End with one.', wip: true, icon: true });
+        assert.deepEqual(card, { name: 'Sumbreak', tagline: 'Pair them up. End with one.', playable: true, icon: true });
         noErrors('launcher');
+        const opened = cdp.once('Page.loadEventFired');
+        await clickEl('a.game-card[href="./games/sumbreak.html"]');
+        await opened;
+        assert.equal(await evaluate('location.pathname'), '/games/sumbreak.html', 'the launcher card opens Sumbreak without a WIP gate');
+        await ready(30000);
+        noErrors('Sumbreak from the launcher');
 
         // ---------- other puzzle pages still load cleanly ----------
         for (const id of SMOKE) {

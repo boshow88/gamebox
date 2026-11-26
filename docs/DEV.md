@@ -1522,8 +1522,7 @@ policy live in [ROOMS.md](ROOMS.md#darts-room-and-match-protocol). Run the check
 ## Sumbreak implementation
 
 Single-player puzzle on the shared `PuzzleCommon` shell; no Firebase or network use
-(solves are logged locally like the other puzzles). Listed as `wip` in the launcher.
-Rules for players live in [rules.md](rules.md#sumbreak); checks in
+(solves are logged locally like the other puzzles). Rules for players live in [rules.md](rules.md#sumbreak); checks in
 [DEBUG.md](DEBUG.md#sumbreak-checks).
 
 The player-facing name is **Sumbreak** in both languages, after LinkedIn's puzzle with

@@ -780,7 +780,8 @@ must have no ASCII spaces next to Chinese text. Touch is
 tested at 375 and 320 px on a 4×4 and a rectangular board, with no horizontal
 overflow: the page must not widen past the screen and the top bar must fit inside it.
 The other puzzle pages share that top bar, so each is also loaded at 320 px and must fit.
-Finally it checks the launcher card and smoke-loads the other puzzle pages. Every UI merge is mirrored by the Node engine and the rendered board
+Finally it checks the launcher card (marked playable, and a click opens the game with
+no WIP gate) and smoke-loads the other puzzle pages. Every UI merge is mirrored by the Node engine and the rendered board
 compared, which also proves the browser and Node generate the same puzzle for a
 seed. `--shots` saves screenshots of key states to the temp folder.
 

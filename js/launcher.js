@@ -121,7 +121,7 @@
             tags: ['puzzle', 'casual', 'single'],
         },
         {
-            id: 'fuse', theme: 'puzzle', icon: 'combine', color: '#0d9488', wip: true,
+            id: 'fuse', theme: 'puzzle', icon: 'combine', color: '#0d9488',
             href: './games/sumbreak.html',
             tags: ['puzzle', 'single'],
         },
