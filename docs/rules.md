@@ -1515,8 +1515,9 @@ so it always has a solution, and often several.
   other tile it mentions. Press again to hide it. When it draws several arrows, any of them works. When no simple
   deduction covers the position, the hint just shows a winning merge. On a lost
   position the hint says so, explains why, and tells you how many merges to undo.
-- **Reveal**: toggles a full solution from the current position, as numbered green
-  arrows. If the position can no longer be solved, the status row says so instead.
+- **Reveal**: toggles a full solution from the current position. A bold green arrow
+  shows the merge to make now, and lighter markers numbered from 2 show the rest in
+  order. If the position can no longer be solved, the status row says so instead.
 - **Share** copies a link with the puzzle's difficulty and seed.
 - The status row shows the timer, a warning when no merge is left, and **You Win!**
   when solved.

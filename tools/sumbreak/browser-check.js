@@ -221,7 +221,17 @@ function connect(wsUrl) {
         const pressed = (sel) => evaluate(`document.querySelector(${JSON.stringify(sel)}).getAttribute('aria-pressed')`);
         const hasClass = (sel, cls) => evaluate(`document.querySelector(${JSON.stringify(sel)}).classList.contains(${JSON.stringify(cls)})`);
         const urlParam = (name) => evaluate(`new URLSearchParams(location.search).get(${JSON.stringify(name)})`);
-        const revealNumbers = () => evaluate(`[...document.querySelectorAll('#board .sumbreak-reveal-num')].map((t) => Number(t.textContent))`);
+        // Reveal as drawn: the next merge's arrow (read back as the cells under its two ends) and
+        // the numbers on the later steps' badges.
+        const revealDrawn = () => evaluate(`(() => {
+            const cell = (x, y) => Math.round((y - 58) / 108) * ${shape.cols} + Math.round((x - 58) / 108);
+            const next = [...document.querySelectorAll('#board line.sumbreak-arrow.reveal')].map((l) => {
+                const v = (name) => Number(l.getAttribute(name));
+                return { from: cell(v('x1'), v('y1')), to: cell(v('x2'), v('y2')) };
+            });
+            return { next, numbers: [...document.querySelectorAll('#board .sumbreak-reveal-num')].map((t) => Number(t.textContent)) };
+        })()`);
+        const laterSteps = (n) => Array.from({ length: Math.max(n - 1, 0) }, (_, k) => k + 2);
         // A tile the open hint calls "ringed in red" has a red ring, and only then; every
         // multiplier it names is drawn as a tile.
         const refRingsMatch = async () => {
@@ -431,23 +441,29 @@ function connect(wsUrl) {
         await clickEl('#reset-btn');
         await expectBoard(start, 'reset after a dead end');
 
-        // ---------- reveal: the remaining solution as numbered merges ----------
+        // ---------- reveal: the next merge as an arrow, the rest as numbered merges ----------
         await clickEl('#reveal-btn');
         assert.equal(await pressed('#reveal-btn'), 'true');
-        assert.deepEqual(await revealNumbers(), solution.map((_, k) => k + 1), 'every remaining merge is numbered');
+        const firstMove = (moves) => ({ from: moves[0].from, to: moves[0].to });
+        assert.deepEqual(await revealDrawn(), { next: [firstMove(p.solution)], numbers: laterSteps(solution.length) },
+            'the next merge of the learned line is the arrow, every later merge is numbered from 2');
         await shot('reveal');
         await click(m0.from); await click(m0.to);
-        assert.deepEqual(await revealNumbers(), solution.slice(1).map((_, k) => k + 1), 'the overlay follows the position');
+        const afterM0 = R.applyMerge(start, m0), followed = await revealDrawn();
+        assert.equal(followed.next.length, 1, 'one arrow after a merge');
+        assert.equal(solver.analyze(afterM0).moves.find((m) => m.from === followed.next[0].from && m.to === followed.next[0].to)?.outcome, 'win',
+            'the arrow follows the position to a winning merge');
+        assert.deepEqual(followed.numbers, laterSteps(solution.length - 1), 'the numbering follows the position');
         await clickEl('#undo-btn');
         await click(losing.from); await click(losing.to);
-        assert.deepEqual(await revealNumbers(), [], 'nothing to draw once the position is lost');
+        assert.deepEqual(await revealDrawn(), { next: [], numbers: [] }, 'nothing to draw once the position is lost');
         assert.equal(await text('#sumbreak-dead-pill'), 'No solution from here');
         await clickEl('#hint-btn');
         await clickEl('#reveal-btn');
         assert.equal(await pressed('#reveal-btn'), 'false');
         assert.equal(await hidden('#sumbreak-dead-pill'), true, 'the lost warning belongs to Reveal');
         assert.equal(await hidden('#hint-banner'), true, 'toggling Reveal hides the hint');
-        assert.equal(await count('#board .sumbreak-reveal-badge'), 0);
+        assert.equal(await count('#board .sumbreak-reveal-badge, #board .sumbreak-arrow.reveal'), 0);
         await clickEl('#reset-btn');
 
         // ---------- win, undo out of the win, new game ----------
@@ -463,6 +479,13 @@ function connect(wsUrl) {
         assert.equal(await hidden('#win-message'), true, 'undo leaves the win state');
         assert.equal(await disabled('#hint-btn'), false);
         const fin = solution[solution.length - 1];
+        await clickEl('#reveal-btn');
+        const last = await revealDrawn(), byCell = (x, y) => x - y;
+        assert.deepEqual(last.numbers, [], 'the last merge has no later steps');
+        assert.deepEqual(last.next.map((m) => [m.from, m.to].sort(byCell)), [[fin.from, fin.to].sort(byCell)], 'the arrow joins the last two tiles');
+        assert.equal(await count('#board polygon.sumbreak-arrow-head.reveal'), 2, 'the last merge points both ways');
+        await shot('reveal-last');
+        await clickEl('#reveal-btn');
         await click(fin.to); await click(fin.from);
         assert.equal(await hidden('#win-message'), false, 'the final merge works in either direction');
         const beforeNew = workers();
@@ -536,7 +559,8 @@ function connect(wsUrl) {
         t0 = Date.now();
         await clickEl('#reveal-btn');
         const revealMs = Date.now() - t0;
-        assert.deepEqual(await revealNumbers(), Array.from({ length: 15 }, (_, k) => k + 1), 'a hard reveal numbers all 15 merges, multipliers included');
+        assert.deepEqual(await revealDrawn(), { next: [firstMove(mulPick.p.solution)], numbers: laterSteps(15) },
+            'a hard reveal draws all 15 merges, multipliers included');
         assert.ok(revealMs < 3000, `a hard reveal answers quickly (${revealMs} ms)`);
         await shot('reveal-mul');
         await clickEl('#reveal-btn');

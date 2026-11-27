@@ -1532,10 +1532,13 @@
 .sumbreak-arrow.refuted { stroke: var(--accent-danger); stroke-dasharray: 9 7; stroke-linecap: butt; }
 .sumbreak-arrow-head.refuted { fill: var(--accent-danger); }
 
-/* Reveal: the remaining solution as numbered green markers (the shared reveal green). */
-.sumbreak-reveal-head { fill: #198754; stroke: #ffffff; stroke-width: 1.5; pointer-events: none; }
-.sumbreak-reveal-badge { fill: #ffffff; stroke: #198754; stroke-width: 2.5; pointer-events: none; }
-.sumbreak-reveal-num { fill: #198754; font-family: var(--font-body); font-size: 16px; font-weight: 700; text-anchor: middle; dominant-baseline: central; pointer-events: none; user-select: none; }
+/* Reveal: the next merge as an arrow in the shared reveal green, then the rest of the solution
+   as numbered markers in a lighter green. The badges stay opaque so dark tiles don't show through. */
+.sumbreak-arrow.reveal { stroke: #198754; }
+.sumbreak-arrow-head.reveal { fill: #198754; }
+.sumbreak-reveal-head { fill: #8cc3aa; stroke: #ffffff; stroke-width: 1.5; pointer-events: none; }
+.sumbreak-reveal-badge { fill: #ffffff; stroke: #8cc3aa; stroke-width: 2; pointer-events: none; }
+.sumbreak-reveal-num { fill: #4a9d76; font-family: var(--font-body); font-size: 16px; font-weight: 700; text-anchor: middle; dominant-baseline: central; pointer-events: none; user-select: none; }
 
 /* Merge: the source slides into the destination, which pops with its new value. The
    inner tile group is centred on 0,0, so scaling pivots on the tile centre. */
