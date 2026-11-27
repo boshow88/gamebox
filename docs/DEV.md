@@ -99,6 +99,12 @@ score reset — see below), `step`, `preventKeys`, `update`, `render`, `reset`,
 `{ badge, title, message, button, hint }`.
 Optional `canRecord()` returns false to finish a run without saving its score or
 triggering high-score cloud sync. Games that omit it retain normal score recording.
+Optional `confirmRestart(restart)` makes Restart (button or `R`) during a run ask
+first: the shell pauses and calls it instead of restarting, and the game shows its own
+question, calling `restart()` if the player confirms or `shell.resume()` to carry on.
+Prime Zuma uses it because a stray tap on Restart, which sits just above the board on
+phones, threw the run away; its question keeps the panel's Restart dimmed for a second,
+since the panel appears where the player was tapping. Games that omit it restart at once.
 
 **Resetting everyone's high scores once**: set `scoreEpoch` to an integer in
 `shell.create` (we just use the date, e.g. `20261009`). Each save is stamped

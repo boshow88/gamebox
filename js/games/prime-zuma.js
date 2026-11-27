@@ -19,6 +19,7 @@
             pzLevelMode: 'Levels', pzEndless: 'Endless', pzEasy: 'Easy', pzNormal: 'Normal', pzHard: 'Hard',
             pzBalanced: 'Balanced', pzGnarly: 'Heavy', pzBlitz: 'Blitz', pzHardPrimes: 'Tricky',
             pzPickLevel: 'Pick a level', pzClear: 'Cleared!', pzFailed: 'Failed', pzOk: 'OK', pzGameOver: 'Game Over', pzSpeed: 'Speed',
+            pzRestartAsk: 'Restart this run?', pzRestartLoses: 'Its progress and score will not be kept.', pzKeepPlaying: 'Keep playing',
             pzHelp1Html: 'A turret fires <strong>prime</strong> balls; the chain spirals inward and you lose if it reaches the <strong>core</strong>.',
             pzHelp2Html: 'Fire a prime into a run of <strong>three or more</strong> balls all divisible by it — each is divided once, and any that reach <strong>1</strong> pop.',
             pzHelp3Html: '<strong>Levels</strong>: clear the chain to win. <strong>Endless</strong>: last as long as you can as it speeds up. <kbd>P</kbd> pause · <kbd>R</kbd> restart.',
@@ -28,6 +29,7 @@
             pzLevelMode: '一般', pzEndless: '無盡', pzEasy: '簡單', pzNormal: '普通', pzHard: '困難',
             pzBalanced: '均衡', pzGnarly: '繁瑣', pzBlitz: '高速', pzHardPrimes: '刁鑽',
             pzPickLevel: '選擇關卡', pzClear: '過關！', pzFailed: '失敗', pzOk: '確定', pzGameOver: '遊戲結束', pzSpeed: '速度',
+            pzRestartAsk: '要重新開始嗎？', pzRestartLoses: '這一局的進度和分數都不會保留。', pzKeepPlaying: '繼續玩',
             pzHelp1Html: '砲台發射<strong>質數</strong>球；球鏈向內盤旋，一旦抵達<strong>核心</strong>就算輸。',
             pzHelp2Html: '朝一段<strong>三顆以上</strong>、且都能被你發射的質數整除的連續球鏈開火——每顆各除以該質數一次，被除到 <strong>1</strong> 的球就消失。',
             pzHelp3Html: '<strong>一般</strong>：清空球鏈即過關。<strong>無盡</strong>：隨節奏加快盡量撐久。<kbd>P</kbd> 暫停 · <kbd>R</kbd> 重來。',
@@ -310,6 +312,7 @@
     // lanes: [{ path:{pts,arc,len}, qs:[ {vals:[ball..], head, imp} ... ] }]  — each lane is an independent chain.
     var canvas, ctx, shell, lanes, shots, cannon, score, over, fx, frame, combo, lastElimFrame, R, CAN = { x: CX, y: CY };
     var mode = 'level', sel = { world: 1, fieldIdx: 0 }, endlessSel = { diff: 'balanced', fieldIdx: 0 }, pending = null, lastResult = null, paused = false, countdown = 0, resultView = false, gameOverAt = 0;
+    var pendingRestart = null, confirmAt = 0;   // while Restart waits for an answer: the shell's restart(), and when it was asked
     var speed = 1;   // fast-forward multiplier (1/2/3/4): how many physics ticks run per rendered frame — "time flows faster", stays stable via sub-stepping
     function makeBall(v, x, y) { return { v: v, rx: x, ry: y, pop: 0, mult: (R && R.mult != null) ? R.mult : 1 }; }   // bank the current score multiplier at spawn time (surviving deeper = higher mult)
 
@@ -659,6 +662,16 @@
     function renderPanel() {
         var card = $('pz-card'); if (!card) return;
         card.innerHTML = '';
+        if (paused && pendingRestart) {   // a stray tap on Restart only pauses; the panel lands where the player was tapping, so its Restart stays dimmed for 1s
+            var qh = document.createElement('div'); qh.className = 'pz-title'; qh.textContent = t('pzRestartAsk'); card.appendChild(qh);
+            var qm = document.createElement('div'); qm.className = 'overlay-message'; qm.textContent = t('pzRestartLoses'); card.appendChild(qm);
+            var keep = document.createElement('button'); keep.type = 'button'; keep.className = 'btn btn-primary'; keep.textContent = t('pzKeepPlaying'); keep.addEventListener('click', function () { shell.resume(); }); card.appendChild(keep);
+            var again = document.createElement('button'); again.type = 'button'; again.className = 'btn'; again.textContent = t('restart');
+            var wait = Math.max(0, 1000 - (Date.now() - confirmAt)); again.disabled = wait > 0; if (wait > 0) setTimeout(function () { again.disabled = false; }, wait);
+            again.addEventListener('click', function () { var go = pendingRestart; pendingRestart = null; paused = false; go(); showPanel(); syncFF(); });
+            card.appendChild(again);
+            return;
+        }
         if (paused) {
             var ph = document.createElement('div'); ph.className = 'pz-title'; ph.textContent = t('paused'); card.appendChild(ph);
             var rb = document.createElement('button'); rb.type = 'button'; rb.className = 'btn btn-primary'; rb.textContent = t('resume'); rb.addEventListener('click', function () { shell.resume(); }); card.appendChild(rb);
@@ -730,15 +743,15 @@
             reset: newGame,
             restartToReady: true,
             canRestart: function () { return (shell ? shell.isPlaying() : false) || paused; },   // Restart is only usable WHILE playing (or paused) — never on the level/field select or the result screen
+            confirmRestart: function (restart) { if (!pendingRestart) confirmAt = Date.now(); pendingRestart = restart; showPanel(); },   // Restart (button / R) during a run asks first instead of throwing the run away
             onPause: function () { paused = true; syncFF(); showPanel(); },
-            onResume: function () { paused = false; syncFF(); hidePanel(); },
+            onResume: function () { paused = false; pendingRestart = null; syncFF(); hidePanel(); },
             onGameOver: function (result) { paused = false; speed = 1; syncFF(); lastResult = { win: !!(result && result.win), score: result ? result.score : score }; resultView = true; gameOverAt = Date.now(); showPanel(); },
         });
 
         var seg = $('mode-seg');
         if (seg) seg.addEventListener('click', function (e) { var b = e.target.closest ? e.target.closest('button[data-mode]') : null; if (b) { AC.audio.unlock(); mode = b.getAttribute('data-mode'); persist(); syncModeSeg(); refreshBest(); syncModeHud(); if (!shell.isPlaying()) showPanel(); } });
         syncModeSeg();
-        var rb = $('restart-btn'); if (rb) rb.addEventListener('click', function () { paused = false; setTimeout(function () { if (!shell.isPlaying()) showPanel(); syncFF(); }, 0); });
         var ff = $('ff-btn'); if (ff) ff.addEventListener('click', function () { if (shell.isPlaying()) { AC.audio.unlock(); cycleSpeed(); } });
         syncFF();
 

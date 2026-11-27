@@ -779,6 +779,9 @@
     //   reset()      set up a fresh run (called right before playing)
     //   onStart()    fired after reset when a run begins
     //   onPause() / onResume()
+    //   confirmRestart(restart)  optional; Restart (button / R) during a run pauses
+    //                and calls this instead of restarting, so the game can ask first
+    //                and call restart() once the player confirms (or resume() to stay)
     //   canRecord()  optional; returning false skips score persistence for this run
     //   onGameOver(result)
     //   overlayContent(state, result) -> { badge, title, message, button, hint }
@@ -948,6 +951,17 @@
             else if (state === 'paused') resume();
         }
 
+        function restart() {
+            if (restartToReady) goIdle(); else start();
+        }
+
+        function requestRestart() {
+            if (opts.confirmRestart && (state === 'playing' || state === 'paused')) {
+                pause();
+                opts.confirmRestart(restart);
+            } else restart();
+        }
+
         function gameOver(result) {
             if (state !== 'playing' && state !== 'paused') return;
             state = 'over';
@@ -1014,7 +1028,7 @@
             dom.restartBtn.addEventListener('click', () => {
                 if (opts.canRestart && !opts.canRestart()) return;
                 audio.play('click');
-                restartToReady ? goIdle() : start();
+                requestRestart();
             });
         }
         if (dom.soundBtn) {
@@ -1039,7 +1053,7 @@
             }
             if (k === 'r' || k === 'R') {
                 if (opts.canRestart && !opts.canRestart()) return;
-                if (state !== 'idle') (restartToReady ? goIdle() : start());
+                if (state !== 'idle') requestRestart();
                 return;
             }
             if (k === 'm' || k === 'M') {
