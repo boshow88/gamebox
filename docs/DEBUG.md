@@ -761,10 +761,11 @@ the toolbar, action row, status row and the blocks under the board with Tango's.
 then covers mouse tap-tap and drag, keyboard, Ctrl+Z, reset, the toggling hint (pair
 tiles named by position, red rings exactly when the text mentions them), the
 lost-position hint, the dead-end warning, the solution overlay, win, undo out of a
-win, New Game, and Hard serving 4×4. For the overlay it checks that the next merge is
-ringed and drawn as one arrow matching the puzzle's solution, that after a merge the
-rings and arrow move to a winning merge, that the later merges are numbered from 2, that the last two tiles get
-a two-headed arrow, and the "No solution from here" warning.
+win, New Game, and Hard serving 4×4. For the overlay it checks that every merge is
+numbered from 1, that step 1 is ringed, drawn stronger and matches the puzzle's solution,
+that after a merge the rings move to a winning merge and the numbering restarts, that
+the last two tiles are ringed, that no arrow is drawn, and the "No solution from here"
+warning.
 The main flow uses a 3×4 or 4×3 board of numbers only and checks its proportions. On
 a Hard board with a ×4 tile it checks the violet multiplier tiles, the keyboard read-out
 of the ×4, a number dragged onto the ×4 (quadrupled in the ×4's cell), a multiplier

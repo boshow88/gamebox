@@ -221,21 +221,27 @@ function connect(wsUrl) {
         const pressed = (sel) => evaluate(`document.querySelector(${JSON.stringify(sel)}).getAttribute('aria-pressed')`);
         const hasClass = (sel, cls) => evaluate(`document.querySelector(${JSON.stringify(sel)}).classList.contains(${JSON.stringify(cls)})`);
         const urlParam = (name) => evaluate(`new URLSearchParams(location.search).get(${JSON.stringify(name)})`);
-        // Reveal as drawn: the next merge's arrow (read back as the cells under its two ends), the
-        // cells it rings, and the numbers on the later steps' badges.
+        // Reveal as drawn: the cells ringed as the next merge (source, then destination), the
+        // numbers on the badges, the numbers drawn as the next step, and any arrow.
         const revealDrawn = () => evaluate(`(() => {
             const cell = (x, y) => Math.round((y - 58) / 108) * ${shape.cols} + Math.round((x - 58) / 108);
             const v = (el, name) => Number(el.getAttribute(name));
-            const next = [...document.querySelectorAll('#board line.sumbreak-arrow.reveal')].map((l) => ({ from: cell(v(l, 'x1'), v(l, 'y1')), to: cell(v(l, 'x2'), v(l, 'y2')) }));
-            const rings = [...document.querySelectorAll('#board .sumbreak-reveal-ring')].map((r) => cell(v(r, 'x') + v(r, 'width') / 2, v(r, 'y') + v(r, 'height') / 2));
-            return { next, rings, numbers: [...document.querySelectorAll('#board .sumbreak-reveal-num')].map((t) => Number(t.textContent)) };
+            const nums = (sel) => [...document.querySelectorAll(sel)].map((t) => Number(t.textContent));
+            return {
+                rings: [...document.querySelectorAll('#board .sumbreak-reveal-ring')].map((r) => cell(v(r, 'x') + v(r, 'width') / 2, v(r, 'y') + v(r, 'height') / 2)),
+                numbers: nums('#board .sumbreak-reveal-num'),
+                next: nums('#board .sumbreak-reveal-num.next'),
+                arrows: document.querySelectorAll('#board .sumbreak-arrow').length,
+            };
         })()`);
         // What Reveal should draw when `move` is the next of `merges` remaining merges.
         const planned = (move, merges) => ({
-            next: move ? [{ from: move.from, to: move.to }] : [],
             rings: move ? [move.from, move.to] : [],
-            numbers: Array.from({ length: Math.max(merges - 1, 0) }, (_, k) => k + 2),
+            numbers: Array.from({ length: merges }, (_, k) => k + 1),
+            next: move ? [1] : [],
+            arrows: 0,
         });
+        const ringed = (drawn) => ({ from: drawn.rings[0], to: drawn.rings[1] });
         // A tile the open hint calls "ringed in red" has a red ring, and only then; every
         // multiplier it names is drawn as a tile.
         const refRingsMatch = async () => {
@@ -449,14 +455,13 @@ function connect(wsUrl) {
         await clickEl('#reveal-btn');
         assert.equal(await pressed('#reveal-btn'), 'true');
         assert.deepEqual(await revealDrawn(), planned(p.solution[0], solution.length),
-            'the next merge of the learned line is ringed with an arrow, every later merge is numbered from 2');
+            'every merge is numbered, and step 1 of the learned line is ringed and drawn stronger');
         await shot('reveal');
         await click(m0.from); await click(m0.to);
-        const afterM0 = R.applyMerge(start, m0), followed = await revealDrawn();
-        assert.equal(followed.next.length, 1, 'one arrow after a merge');
-        assert.equal(solver.analyze(afterM0).moves.find((m) => m.from === followed.next[0].from && m.to === followed.next[0].to)?.outcome, 'win',
-            'the arrow follows the position to a winning merge');
-        assert.deepEqual(followed, planned(followed.next[0], solution.length - 1), 'the rings and numbering follow the position');
+        const afterM0 = R.applyMerge(start, m0), followed = await revealDrawn(), followedNext = ringed(followed);
+        assert.equal(solver.analyze(afterM0).moves.find((m) => m.from === followedNext.from && m.to === followedNext.to)?.outcome, 'win',
+            'the rings follow the position to a winning merge');
+        assert.deepEqual(followed, planned(followedNext, solution.length - 1), 'the numbering restarts from the position');
         await clickEl('#undo-btn');
         await click(losing.from); await click(losing.to);
         assert.deepEqual(await revealDrawn(), planned(null, 0), 'nothing to draw once the position is lost');
@@ -466,7 +471,7 @@ function connect(wsUrl) {
         assert.equal(await pressed('#reveal-btn'), 'false');
         assert.equal(await hidden('#sumbreak-dead-pill'), true, 'the lost warning belongs to Reveal');
         assert.equal(await hidden('#hint-banner'), true, 'toggling Reveal hides the hint');
-        assert.equal(await count('#board .sumbreak-reveal-badge, #board .sumbreak-arrow.reveal, #board .sumbreak-reveal-ring'), 0);
+        assert.equal(await count('#board .sumbreak-reveal-badge, #board .sumbreak-reveal-ring'), 0);
         await clickEl('#reset-btn');
 
         // ---------- win, undo out of the win, new game ----------
@@ -484,10 +489,8 @@ function connect(wsUrl) {
         const fin = solution[solution.length - 1];
         await clickEl('#reveal-btn');
         const last = await revealDrawn(), byCell = (x, y) => x - y;
-        assert.deepEqual(last.next.map((m) => [m.from, m.to].sort(byCell)), [[fin.from, fin.to].sort(byCell)], 'the arrow joins the last two tiles');
-        assert.deepEqual(last, planned(last.next[0], 1), 'the last merge is ringed and has no later steps');
-        assert.equal(await count('#board polygon.sumbreak-arrow-head.reveal'), 2, 'the last merge points both ways');
-        await shot('reveal-last');
+        assert.deepEqual([...last.rings].sort(byCell), [fin.from, fin.to].sort(byCell), 'the rings are on the last two tiles');
+        assert.deepEqual(last, planned(ringed(last), 1), 'the last merge is step 1 of 1');
         await clickEl('#reveal-btn');
         await click(fin.to); await click(fin.from);
         assert.equal(await hidden('#win-message'), false, 'the final merge works in either direction');

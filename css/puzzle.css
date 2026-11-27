@@ -1532,15 +1532,16 @@
 .sumbreak-arrow.refuted { stroke: var(--accent-danger); stroke-dasharray: 9 7; stroke-linecap: butt; }
 .sumbreak-arrow-head.refuted { fill: var(--accent-danger); }
 
-/* Reveal: the next merge as pulsing rings and an arrow in the shared reveal green, then the rest
-   of the solution as numbered markers in a lighter green. The badges stay opaque so dark tiles
-   don't show through. */
+/* Reveal: the solution as numbered markers. The next merge has pulsing rings and a marker in
+   the shared reveal green; the later ones are a lighter green. The badges stay opaque so dark
+   tiles don't show through. */
 .sumbreak-reveal-ring { fill: none; stroke: #198754; stroke-width: 5; pointer-events: none; animation: zip-hint-pulse 1.15s ease-in-out infinite; }
-.sumbreak-arrow.reveal { stroke: #198754; }
-.sumbreak-arrow-head.reveal { fill: #198754; }
 .sumbreak-reveal-head { fill: #8cc3aa; stroke: #ffffff; stroke-width: 1.5; pointer-events: none; }
 .sumbreak-reveal-badge { fill: #ffffff; stroke: #8cc3aa; stroke-width: 2; pointer-events: none; }
 .sumbreak-reveal-num { fill: #4a9d76; font-family: var(--font-body); font-size: 16px; font-weight: 700; text-anchor: middle; dominant-baseline: central; pointer-events: none; user-select: none; }
+.sumbreak-reveal-head.next { fill: #198754; }
+.sumbreak-reveal-badge.next { stroke: #198754; stroke-width: 2.5; }
+.sumbreak-reveal-num.next { fill: #198754; }
 
 /* Merge: the source slides into the destination, which pops with its new value. The
    inner tile group is centred on 0,0, so scaling pivots on the tile centre. */

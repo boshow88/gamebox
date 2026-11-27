@@ -1764,11 +1764,11 @@ Reset, Hint and Reveal in the action row; the timer, a
 warning pill and **You Win!** in the status row; the hint banner and How to play
 below the board. There is no feedback line or win panel; selection and merge
 messages go to the screen-reader live region `#sumbreak-live`. Reveal draws the remaining
-solution from the current position (`solver.solve`, cached per position). The merge to
-make now is drawn like the hint's, in the reveal green: pulsing rings on its two tiles and a
-full arrow, with two heads when only two tiles are left. Each later merge is a smaller, lighter-green marker numbered from 2. The
-markers stay opaque so they read on dark tiles. Because the overlay follows the position,
-the rings are always on the next merge. When that position can no longer be solved, the warning pill reads "No
+solution from the current position (`solver.solve`, cached per position). Each merge is a
+numbered marker in the gap between its two tiles. The merge to make now, step 1, also gets
+pulsing rings on its two tiles, like the hint's, and its marker is in the reveal green. The
+later markers are a lighter green and stay opaque so they read on dark tiles. Because the
+overlay follows the position, the rings are always on the next merge. When that position can no longer be solved, the warning pill reads "No
 solution from here", only while Reveal is on, so a lost position is not given away
 unasked. The pill uses its own id (`sumbreak-dead-pill`), so the shell's conflict counter
 leaves it alone.
