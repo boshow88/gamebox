@@ -1532,8 +1532,10 @@
 .sumbreak-arrow.refuted { stroke: var(--accent-danger); stroke-dasharray: 9 7; stroke-linecap: butt; }
 .sumbreak-arrow-head.refuted { fill: var(--accent-danger); }
 
-/* Reveal: the next merge as an arrow in the shared reveal green, then the rest of the solution
-   as numbered markers in a lighter green. The badges stay opaque so dark tiles don't show through. */
+/* Reveal: the next merge as pulsing rings and an arrow in the shared reveal green, then the rest
+   of the solution as numbered markers in a lighter green. The badges stay opaque so dark tiles
+   don't show through. */
+.sumbreak-reveal-ring { fill: none; stroke: #198754; stroke-width: 5; pointer-events: none; animation: zip-hint-pulse 1.15s ease-in-out infinite; }
 .sumbreak-arrow.reveal { stroke: #198754; }
 .sumbreak-arrow-head.reveal { fill: #198754; }
 .sumbreak-reveal-head { fill: #8cc3aa; stroke: #ffffff; stroke-width: 1.5; pointer-events: none; }
@@ -1555,7 +1557,7 @@
 @keyframes sumbreak-nope { 20% { transform: translateX(-6px); } 40% { transform: translateX(6px); } 60% { transform: translateX(-4px); } 80% { transform: translateX(3px); } }
 @media (prefers-reduced-motion: reduce) {
     .sumbreak-tile.sumbreak-ghost { display: none; }
-    .sumbreak-tile.pop, .sumbreak-tile.nope, .sumbreak-board.won .sumbreak-tile:not(.sumbreak-ghost), .sumbreak-target, .sumbreak-hint-ring { animation: none; }
+    .sumbreak-tile.pop, .sumbreak-tile.nope, .sumbreak-board.won .sumbreak-tile:not(.sumbreak-ghost), .sumbreak-target, .sumbreak-hint-ring, .sumbreak-reveal-ring { animation: none; }
 }
 .sumbreak-sr { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 /* ×2 in the help and hints, drawn like its tile. English already has spaces around it; Chinese has none. */

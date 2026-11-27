@@ -218,12 +218,14 @@
         add(parent, 'polygon', { class: 'sumbreak-arrow-head ' + kind, points: triangle(c.x - ux * 34, c.y - uy * 34, ux, uy, 13) });
         if (both) add(parent, 'polygon', { class: 'sumbreak-arrow-head ' + kind, points: triangle(a.x + ux * 34, a.y + uy * 34, -ux, -uy, 13) });
     }
-    // Reveal: the next merge is a full arrow, like the hint's, so it stands out from the plan;
-    // every later step n is a muted numbered badge in the gap between the two tiles with a
-    // small head pointing at the destination. The overlay follows the position, so the arrow
-    // is always the merge to make now.
+    // Reveal: the next merge is drawn like the hint's, pulsing rings on its two tiles and a full
+    // arrow, so it stands out from the plan; every later step n is a muted numbered badge in the
+    // gap between the two tiles with a small head pointing at the destination. The overlay
+    // follows the position, so the rings are always on the merge to make now.
     function revealSteps(parent, b, moves) {
         if (!moves.length) return;
+        const next = moves[0];
+        for (const i of [next.from, next.to]) ring(parent, b, i, 'sumbreak-reveal-ring', -5);
         moves.slice(1).forEach((m, k) => {
             const { a, c, ux, uy } = unit(b, m.from, m.to), n = k + 2;
             const mx = (a.x + c.x) / 2 - ux * 4, my = (a.y + c.y) / 2 - uy * 4;
@@ -231,7 +233,6 @@
             add(parent, 'circle', { class: 'sumbreak-reveal-badge', cx: mx, cy: my, r: 14 });
             add(parent, 'text', { class: 'sumbreak-reveal-num', x: mx, y: my + 1 }).textContent = String(n);
         });
-        const next = moves[0];
         arrow(parent, b, next.from, next.to, 'reveal', R.tileCount(b) === 2);
     }
     function render() {

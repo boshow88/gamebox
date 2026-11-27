@@ -762,8 +762,8 @@ then covers mouse tap-tap and drag, keyboard, Ctrl+Z, reset, the toggling hint (
 tiles named by position, red rings exactly when the text mentions them), the
 lost-position hint, the dead-end warning, the solution overlay, win, undo out of a
 win, New Game, and Hard serving 4×4. For the overlay it checks that the next merge is
-one arrow matching the puzzle's solution, that after a merge the arrow moves to a
-winning merge, that the later merges are numbered from 2, that the last two tiles get
+ringed and drawn as one arrow matching the puzzle's solution, that after a merge the
+rings and arrow move to a winning merge, that the later merges are numbered from 2, that the last two tiles get
 a two-headed arrow, and the "No solution from here" warning.
 The main flow uses a 3×4 or 4×3 board of numbers only and checks its proportions. On
 a Hard board with a ×4 tile it checks the violet multiplier tiles, the keyboard read-out
